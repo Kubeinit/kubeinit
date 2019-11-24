@@ -1,0 +1,378 @@
+---
+# Copyright pystol.org
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+# "pystol" will search for and load any operating system variable file
+
+# found within the "vars/" path. If no OS files are found the task will skip.
+
+##
+## Hypervisor installing dependencies and rebooting.
+##
+
+- name: install requirements
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ pystol_provision_hypervisor_dependencies }}"
+  tags:
+    - provision_libvirt
+
+- name: upgrade all packages
+  yum:
+    name: '*'
+    state: latest
+  tags:
+    - provision_libvirt
+
+- name: check if base image exists
+  stat:
+    path: "{{ pystol_provision_hypervisor_tmp_dir }}/restarted"
+  register: provision_restared_hypervisor
+  tags:
+    - provision_libvirt
+
+- name: Reboot host and wait for it to restart
+  reboot:
+    msg: "Reboot initiated by Ansible"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: whoami
+  when: provision_restared_hypervisor.stat.exists == false
+  tags:
+    - provision_libvirt
+
+- name: ensure check file exists
+  copy:
+    content: ""
+    dest: "{{ pystol_provision_hypervisor_tmp_dir }}/restarted"
+    force: no
+    group: sys
+    owner: root
+    mode: 0555
+  tags:
+    - provision_libvirt
+
+##
+## Hypervisor installing users and permissions and other bits that do not require reboot.
+##
+
+- name: check if base image exists
+  stat:
+    path: "{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}"
+  register: vm_image
+  tags:
+    - provision_libvirt
+
+- name: push base vm image to hypervisor
+  get_url:
+    url: "{{ pystol_provision_source_image_dir }}/{{ pystol_provision_source_image_file }}"
+    dest: "{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}"
+  when: vm_image.stat.exists == false
+  tags:
+    - provision_libvirt
+
+- name: Change image permissions
+  file:
+    path: "{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}"
+    owner: qemu
+    group: qemu
+    mode: u=rw,g=r,o=r
+  tags:
+    - provision_libvirt
+
+- name: "Make sure we have a '{{ pystol_provision_cloud_user }}' group"
+  group:
+    name: "{{ pystol_provision_cloud_user }}"
+    state: present
+  tags:
+    - provision_libvirt
+
+- name: "Allow '{{ pystol_provision_cloud_user }}' group to have passwordless sudo"
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: "^%{{ pystol_provision_cloud_user }}"
+    line: "%{{ pystol_provision_cloud_user }} ALL=(ALL) NOPASSWD: ALL"
+    validate: 'visudo -cf %s'
+  tags:
+    - provision_libvirt
+
+- name: "Add sudoers users to {{ pystol_provision_cloud_user }} group"
+  user: "name={{ pystol_provision_cloud_user }} groups={{ pystol_provision_cloud_user }} append=yes state=present createhome=yes"
+  tags:
+    - provision_libvirt
+
+- name: Add Users to libvirt
+  action: user name="{{ item }}" groups="kvm,libvirt" append=yes
+  with_items:
+    - "{{ pystol_provision_cloud_user }}"
+    - root
+  tags:
+    - provision_libvirt
+
+- name: check if /usr/bin/qemu-kvm exists
+  stat:
+    path: /usr/bin/qemu-kvm
+  register: qemu_kvm
+  tags:
+    - provision_libvirt
+
+- name: Create symbolic link for qemu
+  file:
+    src: /usr/libexec/qemu-kvm
+    dest: /usr/bin/qemu-kvm
+    state: link
+  when: qemu_kvm.stat.exists == false
+  tags:
+    - provision_libvirt
+
+- name: Create ssh folder
+  file:
+    path: "/home/{{ pystol_provision_cloud_user }}/.ssh/"
+    state: directory
+  tags:
+    - provision_libvirt
+
+- name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
+  openssh_keypair:
+    path: "/home/{{ pystol_provision_cloud_user }}/.ssh/id_rsa"
+    owner: "{{ pystol_provision_cloud_user }}"
+    group: "{{ pystol_provision_cloud_user }}"
+  tags:
+    - provision_libvirt
+
+- name: Fix owner of the generated pub key
+  file:
+    path: "/home/{{ pystol_provision_cloud_user }}/.ssh/id_rsa.pub"
+    owner: "{{ pystol_provision_cloud_user }}"
+    group: "{{ pystol_provision_cloud_user }}"
+  tags:
+    - provision_libvirt
+
+- name: Insert the default libvirt uri in user's home
+  lineinfile:
+    path: "/home/{{ pystol_provision_cloud_user }}/.bashrc"
+    line: export LIBVIRT_DEFAULT_URI=qemu:///system
+  tags:
+    - provision_libvirt
+
+##
+## Destroy all VMs and networks
+##
+
+- name: Destroy vms
+  virt:
+      name: "{{ item.name }}"
+      command: destroy
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  ignore_errors: true
+  tags:
+    - provision_libvirt
+
+- name: Undefine vms
+  virt:
+      name: "{{ item.name }}"
+      command: undefine
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  ignore_errors: true
+  tags:
+    - provision_libvirt
+
+- name: Destroy pystol networks
+  virt_net:
+    command: destroy
+    name: "{{ item.name }}"
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  ignore_errors: true
+  tags:
+    - provision_libvirt
+
+##
+## VMs definition, creation and configuration.
+##
+
+- name: Create vm backing store from base vm image
+  copy: remote_src=True
+    src="{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}"
+    dest="{{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
+    force=yes  # Do not recopy if it has been modified
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: Ensure the backing store is large enough
+  command: "qemu-img resize {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2  +{{ item.disk }}"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: Grow the partition
+  command: "virt-resize  --expand /dev/sda1 {{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }} {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+##
+## VM and networks definition, creation and configuration.
+##
+
+- name: Create directories for networking interfaces per node
+  file:
+    path: "{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}"
+    state: directory
+    mode: 0775
+    recurse: yes
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: Create the network interface templates for eth0
+  template:
+    src: "ifcfg-eth0.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+# We can render any cloudinit parameter we want/need here
+- name: Create the network cloudinit templates for eth0
+  template:
+    src: "50-eth0-cloudinit.yaml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/50-eth0-cloudinit.cfg'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: "Add {{ pystol_provision_cloud_user }}, networking templates and keys"
+  shell: |
+    virt-customize -a {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 \
+      --run-command  'id -u {{ pystol_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ pystol_provision_cloud_user }}' \
+      --ssh-inject {{ pystol_provision_cloud_user }}:file:{{ pystol_provision_source_keystore_dir }}/{{ pystol_provision_source_pubkey_file }} \
+      --hostname {{ item.name }}.{{ pystol_provision_cluster_domain }} \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/50-eth0-cloudinit.cfg:/etc/cloud/cloud.cfg.d \
+      --selinux-relabel --root-password password:{{ pystol_provision_vms_default_password }}
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: define vm
+  virt:
+      name: "{{ item.name }}"
+      command: define
+      xml: "{{ lookup('template', 'vm.xml.j2') }}"
+      uri:  qemu:///session
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: define pystol networks
+  virt_net:
+    command: define
+    name: "{{ item.name }}"
+    xml: '{{ lookup("template", "pystol-nets.xml.j2") }}'
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  tags:
+    - provision_libvirt
+
+- name: Activate pystol networks
+  virt_net:
+    state: active
+    autostart: yes
+    name: "{{ item.name }}"
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  tags:
+    - provision_libvirt
+
+- name: Autostart pystol networks
+  virt_net:
+    autostart: yes
+    name: "{{ item.name }}"
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  tags:
+    - provision_libvirt
+
+##
+## Run all created resources.
+##
+
+- name: run vm
+  virt:
+      name: "{{ item.name }}"
+      uri:  qemu:///session
+      state: running
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name:  connect the network interfaces
+  shell: |
+    virsh --connect  qemu:///session  attach-interface \
+      --domain {{ item.cluster_host }} \
+      --type network \
+      --source {{ item.net }} \
+      --model virtio \
+      --config \
+      --live
+  with_items: "{{ pystol_provision_cluster_attach_networks }}"
+  tags:
+    - provision_libvirt
+##
+## Cleanup.
+##
+
+- name: check if /root/.ssh/known_hosts exists
+  stat:
+    path: /root/.ssh/known_hosts
+  register: known_hosts_file
+  tags:
+    - provision_libvirt
+
+- name:  Reset ssh keys in hypervisor
+  shell: |
+    ssh-keygen -R  {{ item.name }}
+    ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}
+    ssh-keygen -R  {{ item.eth0.ip }}
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: known_hosts_file.stat.exists == true
+  tags:
+    - provision_libvirt
+
+- name: reset ssh keys for hostname
+  become: no
+  local_action:
+    module: command ssh-keygen -R  {{ item.name }}
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: reset ssh keys for FQDN
+  become: no
+  local_action:
+    module: command ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: reset ssh keys for ip address
+  become: no
+  local_action:
+    module: command ssh-keygen -R  {{ item.eth0.ip }}
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt

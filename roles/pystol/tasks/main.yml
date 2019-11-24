@@ -1,0 +1,75 @@
+---
+# Copyright 2019 Pystol (pystol.org).
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+# "pystol" will search for and load any operating system variable file
+
+# found within the "vars/" path. If no OS files are found the task will skip.
+- name: Gather variables for each operating system
+  include_vars: "{{ item }}"
+  with_first_found:
+    - skip: true
+      files:
+        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
+        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
+        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
+        - "{{ ansible_distribution | lower }}.yml"
+        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_version.split('.')[0] }}.yml"
+        - "{{ ansible_os_family | lower }}.yml"
+  tags:
+    - always
+
+
+- include_vars: "vars/{{ ansible_os_family }}.yml"
+
+- fail:
+    msg: "Please specify an app name and all relevant info in kube-vars.yml to use this"
+  when: "app.name == '<app_name>'"
+  tags:
+    - pystol_install
+- name: ensure manifest dir exists
+  file:
+    path: "{{manifest_app_dir}}"
+    state: directory
+  tags:
+    - pystol_install
+- name: kubectl get secrets
+  shell: kubectl get secrets
+  register: kube_secrets
+  tags:
+    - pystol_install
+- name: create manifest template for kube deploy
+  template:
+    src: "{{deployment_file}}"
+    dest: "{{manifest_app_dir}}/{{deployment_file}}"
+  register: deploy_template
+  tags:
+    - pystol_install
+# Applys
+- block:
+    - name: apply kubernetes deployment
+      shell: "kubectl apply -f {{manifest_app_dir}}/{{deployment_file}}"
+  when: "deployment_enabled"
+  tags:
+    - pystol_install
+# Removals
+- block:
+    - name: remove kubernetes deployment
+      shell: "kubectl delete -f {{manifest_app_dir}}/{{deployment_file}}"
+      register: remove_kube_deployment
+  when: not deployment_enabled
+  tags:
+    - pystol_install

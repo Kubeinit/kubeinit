@@ -1,0 +1,83 @@
+---
+# Copyright 2019 Pystol (pystol.org).
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+# All variables intended for modification should be placed in this file.
+
+# All variables within this role should have a prefix of "pystol_provision_"
+
+pystol_provision_debug: false
+pystol_provision_source_image_file: CentOS-7-x86_64-GenericCloud.qcow2
+pystol_provision_source_image_dir: https://cloud.centos.org/centos/7/images
+pystol_provision_target_image_dir: /var/lib/libvirt/images
+pystol_provision_cloud_user: toor
+
+pystol_provision_source_keystore_dir: "/home/{{ pystol_provision_cloud_user }}/.ssh"
+pystol_provision_source_pubkey_file: id_rsa.pub
+
+pystol_provision_vms_default_password: asdfasdf
+
+pystol_provision_hypervisor_dependencies:
+  - libguestfs-tools-c
+  - libselinux-python
+  - libvirt
+  - libvirt-daemon
+  - libvirt-daemon-kvm
+  - qemu-kvm
+  - qemu-kvm-common
+  - qemu-kvm-tools
+  - virt-install
+  - virt-top
+  - libguestfs-tools
+  - bridge-utils
+  - lvm2
+  - lvm2-devel
+  - libvirt-python
+  - python-lxml
+  - curl
+  - binutils
+  - qt
+  - gcc
+  - make
+  - patch
+  - libgomp
+  - glibc-headers
+  - glibc-devel
+  - kernel-headers
+  - kernel-devel
+  - bash-completion
+  - nano
+  - wget
+  - python3-pip
+
+pystol_provision_hypervisor_tmp_dir: /tmp
+
+pystol_provision_cluster_hosts:
+  - {name: kubernetes-master-01, eth0: {ip: 10.0.0.1, prefix: 24, gateway: 10.0.0.254}, disk: 20G, ram: 9586980}
+  - {name: kubernetes-worker-01, eth0: {ip: 10.0.0.4, prefix: 24, gateway: 10.0.0.254}, disk: 20G, ram: 9586980}
+  - {name: kubernetes-worker-02, eth0: {ip: 10.0.0.5, prefix: 24, gateway: 10.0.0.254}, disk: 20G, ram: 9586980}
+  - {name: kubernetes-worker-03, eth0: {ip: 10.0.0.6, prefix: 24, gateway: 10.0.0.254}, disk: 20G, ram: 9586980}
+
+pystol_provision_cluster_domain: dev.pystol.org
+
+pystol_provision_cluster_nets:
+  - {name: pystol-net-01, ip: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.10, end: 10.0.0.100}
+
+pystol_provision_cluster_attach_networks:
+  - {cluster_host: kubernetes-master-01, net: pystol-net-01, device: eth0 }
+  - {cluster_host: kubernetes-worker-01, net: pystol-net-01, device: eth0 }
+  - {cluster_host: kubernetes-worker-02, net: pystol-net-01, device: eth0 }
+  - {cluster_host: kubernetes-worker-03, net: pystol-net-01, device: eth0 }

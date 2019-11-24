@@ -1,0 +1,47 @@
+---
+# Copyright 2019 Pystol (pystol.org).
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+# While options found within the vars/ path can be overridden using extra
+# vars, items within this path are considered part of the role and not
+# intended to be modified.
+
+# All variables within this role should have a prefix of "pystol_"
+
+# If we should deploy this kubernetes or not.
+# Setting this to false and re-running our deploy playbook will remove the kubernetes deployment
+# example to remove: ansible-playbook kubernetes/kube.deployment.playbook.yml --extra-vars '{deployment_enabled: false}'
+deployment_enabled: true
+
+# Docker registry where this image will come from
+docker_registry: kiab.local:5000
+
+# Variabled specific to our app or service
+app:
+  # Name our app or service
+  name: <app_name>
+  # Name of our container image within our registry
+  container_name: <container_name>
+  # Tag of our image within our registry
+  container_tag: <container_tag>
+  # Port exposed on kubernetes worker
+  nodePort: 30180
+  # Port exposed to the pod - note that nodePort is typically forwarded to this port
+  port: 5000
+
+# A compiled variable of our image we will run in the pod
+# Note: this needs to be built outside of our our app: context due to a recursion bug in jinja2
+container_image: "{{docker_registry}}/{{app.container_name}}:{{app.container_tag}}"
