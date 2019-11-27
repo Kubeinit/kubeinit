@@ -1,0 +1,132 @@
+users:
+ - default
+
+disable_root: 1
+ssh_pwauth:   0
+
+mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service', '0', '2']
+resize_rootfs_tmp: /dev
+ssh_deletekeys:   0
+ssh_genkeytypes:  ~
+syslog_fix_perms: ~
+
+cloud_init_modules:
+ - disk_setup
+ - migrator
+ - bootcmd
+ - write-files
+ - growpart
+ - resizefs
+ - set_hostname
+ - update_hostname
+ - update_etc_hosts
+ - rsyslog
+ - users-groups
+ - ssh
+
+cloud_config_modules:
+ - mounts
+ - locale
+ - set-passwords
+ - rh_subscription
+ - yum-add-repo
+ - package-update-upgrade-install
+ - timezone
+ - puppet
+ - chef
+ - salt-minion
+ - mcollective
+ - disable-ec2-metadata
+ - runcmd
+
+cloud_final_modules:
+ - rightscale_userdata
+ - scripts-per-once
+ - scripts-per-boot
+ - scripts-per-instance
+ - scripts-user
+ - ssh-authkey-fingerprints
+ - keys-to-console
+ - phone-home
+ - final-message
+ - power-state-change
+
+system_info:
+  default_user:
+    name: centos
+    lock_passwd: true
+    gecos: Cloud User
+    groups: [wheel, adm, systemd-journal]
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    shell: /bin/bash
+  distro: rhel
+  paths:
+    cloud_dir: /var/lib/cloud
+    templates_dir: /etc/cloud/templates
+  ssh_svcname: sshd
+
+hostname: {{ item.name }}
+fqdn: {{ item.name }}.{{ pystol_provision_cluster_domain }}
+manage_etc_hosts: true
+
+# run commands
+# default: none
+# runcmd contains a list of either lists or a string
+# each item will be executed in order at rc.local like level with
+# output to the console
+# - runcmd only runs during the first boot
+# - if the item is a list, the items will be properly executed as if
+#   passed to execve(3) (with the first arg as the command).
+# - if the item is a string, it will be simply written to the file and
+#   will be interpreted by 'sh'
+#
+# Note, that the list has to be proper yaml, so you have to quote
+# any characters yaml would eat (':' can be problematic)
+runcmd:
+ - [ ls, -l, / ]
+ - [ sh, -xc, "echo $(date) ': hello world!'" ]
+ - [ sh, -c, echo "=========hello world'=========" ]
+ - ls -l /root
+
+# boot commands
+# default: none
+# this is very similar to runcmd, but commands run very early
+# in the boot process, only slightly after a 'boothook' would run.
+# bootcmd should really only be used for things that could not be
+# done later in the boot process.  bootcmd is very much like
+# boothook, but possibly with more friendly.
+# - bootcmd will run on every boot
+# - the INSTANCE_ID variable will be set to the current instance id.
+# - you can use 'cloud-init-per' command to help only run once
+# bootcmd:
+#  - echo 192.168.1.130 us.archive.ubuntu.com >> /etc/hosts
+#  - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
+
+power_state:
+  delay: "+1"
+  mode: reboot
+  message: Bye Bye
+  timeout: 30
+  condition: True
+
+datasource_list: [ ConfigDrive, None ]
+
+#datasource_list: [ NoCloud ]
+## Documentation on data sources configuration options
+#datasource:
+#  NoCloud:
+#    # default seedfrom is None
+#    # if found, then it should contain a url with:
+#    #    <url>/user-data and <url>/meta-data
+#    # seedfrom: http://my.example.com/i-abcde
+#    seedfrom: None
+#    # fs_label: the label on filesystems to be searched for NoCloud source
+#    fs_label: cidata
+#    # these are optional, but allow you to basically provide a datasource
+#    # right here
+#    user-data: |
+#       # This is the user-data verbatim
+#    meta-data:
+#       local-hostname: {{ item.name }}
+
+# vim:syntax=yaml

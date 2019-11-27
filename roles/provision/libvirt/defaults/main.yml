@@ -66,15 +66,15 @@ pystol_provision_hypervisor_dependencies:
 pystol_provision_hypervisor_tmp_dir: /tmp
 
 pystol_provision_cluster_hosts:
-  - {name: kubernetes-master-01, eth0: {ip: 10.0.0.1, prefix: 24, gateway: 10.0.0.254}, disk: 20G, ram: 9586980}
-  - {name: kubernetes-worker-01, eth0: {ip: 10.0.0.4, prefix: 24, gateway: 10.0.0.254}, disk: 20G, ram: 9586980}
-  - {name: kubernetes-worker-02, eth0: {ip: 10.0.0.5, prefix: 24, gateway: 10.0.0.254}, disk: 20G, ram: 9586980}
-  - {name: kubernetes-worker-03, eth0: {ip: 10.0.0.6, prefix: 24, gateway: 10.0.0.254}, disk: 20G, ram: 9586980}
+  - {name: kubernetes-master-01, eth0: {ip: "{{ hostvars[groups['kubernetes-master-nodes'][0]].ansible_host }}", prefix: 24, gateway: 10.0.0.254}, disk: 10G, ram: 2097152}
+  - {name: kubernetes-worker-01, eth0: {ip: "{{ hostvars[groups['kubernetes-worker-nodes'][0]].ansible_host }}", prefix: 24, gateway: 10.0.0.254}, disk: 10G, ram: 2097152}
+  - {name: kubernetes-worker-02, eth0: {ip: "{{ hostvars[groups['kubernetes-worker-nodes'][1]].ansible_host }}", prefix: 24, gateway: 10.0.0.254}, disk: 10G, ram: 2097152}
+  - {name: kubernetes-worker-03, eth0: {ip: "{{ hostvars[groups['kubernetes-worker-nodes'][2]].ansible_host }}", prefix: 24, gateway: 10.0.0.254}, disk: 10G, ram: 2097152}
 
 pystol_provision_cluster_domain: dev.pystol.org
 
 pystol_provision_cluster_nets:
-  - {name: pystol-net-01, ip: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.10, end: 10.0.0.100}
+  - {name: pystol-net-01, ip: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.50, end: 10.0.0.100}
 
 pystol_provision_cluster_attach_networks:
   - {cluster_host: kubernetes-master-01, net: pystol-net-01, device: eth0 }

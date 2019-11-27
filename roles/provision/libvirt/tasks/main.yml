@@ -68,6 +68,12 @@
   tags:
     - provision_libvirt
 
+- name: enable firewalld
+  systemd:
+    name: firewalld
+    state: started
+    enabled: yes
+
 ##
 ## Hypervisor installing users and permissions and other bits that do not require reboot.
 ##
@@ -217,7 +223,7 @@
     - provision_libvirt
 
 - name: Ensure the backing store is large enough
-  command: "qemu-img resize {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2  +{{ item.disk }}"
+  command: "qemu-img resize {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 +{{ item.disk }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
@@ -242,19 +248,27 @@
   tags:
     - provision_libvirt
 
-- name: Create the network interface templates for eth0
+# We can render any cloudinit parameter we want/need here
+- name: Create the network cloudinit templates for networking details
   template:
-    src: "ifcfg-eth0.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
+    src: "100-cloudinit-pystol-netconfig.cfg.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/100-cloudinit-pystol-netconfig.cfg'
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
-# We can render any cloudinit parameter we want/need here
-- name: Create the network cloudinit templates for eth0
+- name: Create the hosts template
   template:
-    src: "50-eth0-cloudinit.yaml.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/50-eth0-cloudinit.cfg'
+    src: "101-cloudinit-hosts.tmpl.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: Create the network cloudinit templates for networking details
+  template:
+    src: "102-cloudinit-cloud.cfg.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg'
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
@@ -265,7 +279,9 @@
       --run-command  'id -u {{ pystol_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ pystol_provision_cloud_user }}' \
       --ssh-inject {{ pystol_provision_cloud_user }}:file:{{ pystol_provision_source_keystore_dir }}/{{ pystol_provision_source_pubkey_file }} \
       --hostname {{ item.name }}.{{ pystol_provision_cluster_domain }} \
-      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/50-eth0-cloudinit.cfg:/etc/cloud/cloud.cfg.d \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/100-cloudinit-pystol-netconfig.cfg:/etc/cloud/cloud.cfg.d \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
       --selinux-relabel --root-password password:{{ pystol_provision_vms_default_password }}
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
@@ -332,6 +348,7 @@
   with_items: "{{ pystol_provision_cluster_attach_networks }}"
   tags:
     - provision_libvirt
+
 ##
 ## Cleanup.
 ##
