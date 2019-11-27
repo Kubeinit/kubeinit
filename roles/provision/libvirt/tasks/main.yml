@@ -38,7 +38,7 @@
   tags:
     - provision_libvirt
 
-- name: check if base image exists
+- name: check if check restarted file exists
   stat:
     path: "{{ pystol_provision_hypervisor_tmp_dir }}/restarted"
   register: provision_restared_hypervisor
@@ -152,6 +152,14 @@
   file:
     path: "/home/{{ pystol_provision_cloud_user }}/.ssh/"
     state: directory
+  tags:
+    - provision_libvirt
+
+- name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
+  openssh_keypair:
+    path: "/root/.ssh/id_rsa"
+    owner: root
+    group: root
   tags:
     - provision_libvirt
 
@@ -278,6 +286,8 @@
     virt-customize -a {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 \
       --run-command  'id -u {{ pystol_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ pystol_provision_cloud_user }}' \
       --ssh-inject {{ pystol_provision_cloud_user }}:file:{{ pystol_provision_source_keystore_dir }}/{{ pystol_provision_source_pubkey_file }} \
+      --ssh-inject root:file:/root/.ssh/id_rsa.pub \
+      --ssh-inject root:file:/root/.ssh/authorized_keys \
       --hostname {{ item.name }}.{{ pystol_provision_cluster_domain }} \
       --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/100-cloudinit-pystol-netconfig.cfg:/etc/cloud/cloud.cfg.d \
       --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
@@ -327,18 +337,27 @@
 ## Run all created resources.
 ##
 
-- name: run vm
+- name: Start the VMs
   virt:
-      name: "{{ item.name }}"
-      uri:  qemu:///session
-      state: running
+    name: "{{ item.name }}"
+    uri:  qemu:///session
+    state: running
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: set autostart for a VM
+  virt:
+    name: "{{ item.name }}"
+    uri:  qemu:///session
+    autostart: yes
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
 - name:  connect the network interfaces
   shell: |
-    virsh --connect  qemu:///session  attach-interface \
+    virsh attach-interface \
       --domain {{ item.cluster_host }} \
       --type network \
       --source {{ item.net }} \
@@ -346,6 +365,24 @@
       --config \
       --live
   with_items: "{{ pystol_provision_cluster_attach_networks }}"
+  tags:
+    - provision_libvirt
+
+- pause:
+    minutes: 5
+  tags:
+    - provision_libvirt
+
+- name: "Make sure there are no zombie guests"
+  shell: |
+    #!/bin/bash
+    host={{ item.eth0.ip }}
+    ping -c 1 $host
+    if [ ! $? -eq 0 ]; then
+      echo "Cant reach the host, need to restart to refresh the network"
+      virsh reboot {{ item.name }}
+    fi
+  with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 

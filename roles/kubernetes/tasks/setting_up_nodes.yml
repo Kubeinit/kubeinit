@@ -1,62 +1,113 @@
 - name: Creating a repository file for Kubernetes
   file:
-   path: /etc/yum.repos.d/kubernetes.repo
-   state: touch
+    path: /etc/yum.repos.d/kubernetes.repo
+    state: touch
   tags:
-    - common
+    - kubernetes_common
+
+- name: Disable SELinux
+  selinux:
+    state: disabled
+  tags:
+    - kubernetes_common
 
 - name: Adding repository details in Kubernetes repo file.
   blockinfile:
-   path: /etc/yum.repos.d/kubernetes.repo
-   block: |
-    [kubernetes]
-    name=Kubernetes
-    baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
-    enabled=1
-    gpgcheck=1
-    repo_gpgcheck=1
-    gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
-      https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+    path: /etc/yum.repos.d/kubernetes.repo
+    block: |
+     [kubernetes]
+     name=Kubernetes
+     baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+     enabled=1
+     gpgcheck=1
+     repo_gpgcheck=1
+     gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+            https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
   tags:
-    - common
+    - kubernetes_common
 
-- name: Installing Docker and firewalld
+- name: Installing Dockerce repo
   shell: |
-   yum install firewalld -y
-   yum install -y yum-utils device-mapper-persistent-data lvm2
-   yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-   yum install docker-ce -y
+    yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
   tags:
-    - common
+    - kubernetes_common
 
-- name: Installing required packages
-  yum:
-   name: "{{ item }}"
-   state: present
-  with_items: "{{ packages }}"
+- name: install requirements
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - yum-utils
+    - device-mapper-persistent-data
+    - lvm2
+    - docker-ce
+    - kubelet
+    - kubeadm
+    - kubectl
   tags:
-    - common
+    - kubernetes_common
 
-- name: Starting and Enabling the required services
-  service:
-   name: "{{ item }}"
-   state: started
-   enabled: yes
-  with_items: "{{ services }}"
+- name: check if check restarted file exists
+  stat:
+    path: "/tmp/restarted"
+  register: kubernetes_node_restarted
   tags:
-    - common
+    - kubernetes_common
 
-- name: Allow Network Ports in Firewalld
-  firewalld:
-   port: "{{ item }}"
-   state: enabled
-   permanent: yes
-   immediate: yes
-  with_items: "{{ ports }}"
+- name: Reboot host and wait for it to restart
+  reboot:
+    msg: "Reboot initiated by Ansible"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: whoami
+  when: kubernetes_node_restarted.stat.exists == false
   tags:
-    - common
+    - kubernetes_common
 
-- name: Enabling Bridge Firewall Rule
-  shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+- name: ensure check file exists
+  copy:
+    content: ""
+    dest: "/tmp/restarted"
+    force: no
+    group: sys
+    owner: root
+    mode: 0555
   tags:
-    - common
+    - kubernetes_common
+
+- name: enable services docker
+  systemd:
+    state: started
+    name: docker
+    enabled: yes
+  tags:
+    - kubernetes_common
+
+- name: enable services kubelet
+  systemd:
+    state: started
+    name: kubelet
+    enabled: yes
+  tags:
+    - kubernetes_common
+
+# - name: change to cgroup
+#   command: sed -i 's/cgroup-driver=systemd/cgroup-driver=cgroupfs/g' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+#   tags:
+#     - kubernetes_common
+#
+# - name: Restart services
+#   shell: |
+#     systemctl daemon-reload
+#     systemctl restart kubelet
+#   tags:
+#     - kubernetes_common
+
+#- name: Enabling Bridge Firewall Rule
+#  shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+#  delegate_to: "{{ item.eth0.ip }}"
+#  with_items: "{{ pystol_provision_cluster_hosts }}"
+#  tags:
+#    - kubernetes_common
