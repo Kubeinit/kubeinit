@@ -35,41 +35,53 @@
 
 - include_vars: "vars/{{ ansible_os_family }}.yml"
 
-- fail:
-    msg: "Please specify an app name and all relevant info in kube-vars.yml to use this"
-  when: "app.name == '<app_name>'"
+- name: install requirements
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - git
   tags:
     - pystol_install
-- name: ensure manifest dir exists
-  file:
-    path: "{{manifest_app_dir}}"
-    state: directory
+
+- name: install helm
+  shell: |
+    curl -L https://git.io/get_helm.sh | bash
+    helm init --client-only
   tags:
     - pystol_install
-- name: kubectl get secrets
-  shell: kubectl get secrets
-  register: kube_secrets
+
+- git:
+    repo: 'https://github.com/pystol/pystol.git'
+    dest: /root/pystol
+    version: master
   tags:
     - pystol_install
-- name: create manifest template for kube deploy
-  template:
-    src: "{{deployment_file}}"
-    dest: "{{manifest_app_dir}}/{{deployment_file}}"
-  register: deploy_template
-  tags:
-    - pystol_install
-# Applys
-- block:
-    - name: apply kubernetes deployment
-      shell: "kubectl apply -f {{manifest_app_dir}}/{{deployment_file}}"
-  when: "deployment_enabled"
-  tags:
-    - pystol_install
-# Removals
-- block:
-    - name: remove kubernetes deployment
-      shell: "kubectl delete -f {{manifest_app_dir}}/{{deployment_file}}"
-      register: remove_kube_deployment
-  when: not deployment_enabled
+
+- name: deploy pystol
+  shell: |
+    # We apply the RBAC rules
+    kubectl apply -f helm/templates/rbac.yaml
+    echo
+    # We deploy the operator using the image we created in the previous steps.
+    # helm template is used to render the template with the needed parameters
+    # ./helm/: Is the folder in which the Charts.yaml is defined
+    # -f: Is the values.yaml with the default values deploying from stable:master
+    # -x: Is the particular file we want to render
+    helm template \
+      --set appSettings.pystol.ui.image=quay.io/pystol/pystol-operator-stable:latest \
+      --set appSettings.pystol.controller.image=quay.io/pystol/pystol-operator-stable:latest \
+      --set appSettings.pystol.ui.api_host='10.0.0.1' \
+      --set appSettings.pystol.ui.api_port=3000 \
+      ./helm/ \
+      -f helm/templates/values.yaml \
+      -x templates/operator.yaml \
+      | kubectl apply -f -
+    echo
+    # We add the CRD
+    kubectl apply -f helm/templates/crd.yaml
+    echo
+  args:
+    chdir: /root/pystol
   tags:
     - pystol_install

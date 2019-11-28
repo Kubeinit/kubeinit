@@ -1,33 +1,47 @@
-- name: Pulling images required for setting up a Kubernetes cluster
-  shell: kubeadm config images pull
+- name: enable docker
+  systemd:
+    state: restarted
+    name: docker
+    enabled: yes
+  tags:
+    - kubernetes_master
+    
+- name: Clean kubeadm and initializing Kubernetes cluster
+  shell: |
+    kubeadm reset -f || true
+    kubeadm init --apiserver-advertise-address {{ hostvars[groups['kubernetes-master-nodes'][0]].ansible_host }} --pod-network-cidr={{ pystol_kubernetes_pod_network_cidr }}
   tags:
     - kubernetes_master
 
-- name: Resetting kubeadm
-  shell: kubeadm reset -f
+- name: enable kubelet
+  systemd:
+    state: restarted
+    name: kubelet
+    enabled: yes
   tags:
     - kubernetes_master
 
-- name: Initializing Kubernetes cluster
-  shell: kubeadm init --apiserver-advertise-address {{ad_addr}} --pod-network-cidr={{cidr_v}}
-  register: output
+- name: Get the join command
+  shell: |
+    kubeadm token create --print-join-command
+  register: kubernetes_master_kubeadm_init_output
   tags:
-    - master
+    - kubernetes_master
 
 - name: Storing Logs and Generated token for future purpose.
-  local_action: copy content={{ output.stdout }} dest=/home/centos/{{ token_file }}
+  copy: content={{ kubernetes_master_kubeadm_init_output.stdout }} dest=~/k8s_token
   tags:
-    - master
+    - kubernetes_master
 
 - name: Copying required files
   shell: |
-   mkdir -p $HOME/.kube
-   sudo cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
-   sudo chown $(id -u):$(id -g) $HOME/.kube/config
+   mkdir -p ~/.kube
+   sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
+   sudo chown $(id -u):$(id -g) ~/.kube/config
   tags:
-    - master
+    - kubernetes_master
 
 - name: Install Network Add-on
   command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
   tags:
-    - master
+    - kubernetes_master

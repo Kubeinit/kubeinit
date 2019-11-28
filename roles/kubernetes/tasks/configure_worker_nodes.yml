@@ -1,12 +1,39 @@
-- name: Copying token to worker nodes
-  copy: src=/home/centos/{{ token_file }} dest=/home/centos/join_token
+- name: enable docker
+  systemd:
+    state: restarted
+    name: docker
+    enabled: yes
   tags:
-    - worker
+    - kubernetes_worker
+
+- name: Copying token to a variables
+  slurp:
+    src: ~/k8s_token
+  register: kubernetes_master_kubeadm_init_output
+  delegate_to: kubernetes-master-01 #"{{ hostvars[groups['kubernetes-master-nodes'][0]].ansible_host }}"
+  tags:
+    - kubernetes_worker
+
+- debug:
+    msg: "{{ kubernetes_master_kubeadm_init_output['content'] | b64decode }}"
+
+- name: Storing the master Generated token for future purpose.
+  copy: content={{ kubernetes_master_kubeadm_init_output['content'] | b64decode }} dest=~/k8s_token
+  tags:
+    - kubernetes_worker
 
 - name: Joining worker nodes with kubernetes master
   shell: |
-   kubeadm reset -f
-   cat /home/centos/join_token | tail -2 > out.sh
+   kubeadm reset -f || true
+   cat ~/k8s_token > out.sh
    sh out.sh
   tags:
-    - worker
+    - kubernetes_worker
+
+- name: enable kubelet
+  systemd:
+    state: restarted
+    name: kubelet
+    enabled: yes
+  tags:
+    - kubernetes_worker

@@ -377,7 +377,7 @@
   shell: |
     #!/bin/bash
     host={{ item.eth0.ip }}
-    ping -c 1 $host
+    ping -c 2 -w 5 $host
     if [ ! $? -eq 0 ]; then
       echo "Cant reach the host, need to restart to refresh the network"
       virsh reboot {{ item.name }}
@@ -385,6 +385,7 @@
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
+    - provision_libvirt_restart_zombies
 
 ##
 ## Cleanup.
@@ -430,3 +431,7 @@
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
+
+- ping:
+  tags:
+    - provision_libvirt    

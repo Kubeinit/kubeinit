@@ -32,6 +32,13 @@
   tags:
     - kubernetes_common
 
+- name: upgrade all packages
+  yum:
+    name: '*'
+    state: latest
+  tags:
+    - kubernetes_common
+
 - name: install requirements
   package:
     name: "{{ item }}"
@@ -44,6 +51,19 @@
     - kubelet
     - kubeadm
     - kubectl
+  tags:
+    - kubernetes_common
+
+- name: change to cgroup
+  command: sed -i 's#Environment="KUBELET_KUBECONFIG_ARGS=-.*#Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --cgroup-driver=systemd"#g' /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+  tags:
+    - kubernetes_common
+
+- name: Modprobe and other tweaks
+  shell: |
+    modprobe br_netfilter
+    echo '1' > /proc/sys/net/ipv4/ip_forward
+    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
   tags:
     - kubernetes_common
 
@@ -76,38 +96,3 @@
     mode: 0555
   tags:
     - kubernetes_common
-
-- name: enable services docker
-  systemd:
-    state: started
-    name: docker
-    enabled: yes
-  tags:
-    - kubernetes_common
-
-- name: enable services kubelet
-  systemd:
-    state: started
-    name: kubelet
-    enabled: yes
-  tags:
-    - kubernetes_common
-
-# - name: change to cgroup
-#   command: sed -i 's/cgroup-driver=systemd/cgroup-driver=cgroupfs/g' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-#   tags:
-#     - kubernetes_common
-#
-# - name: Restart services
-#   shell: |
-#     systemctl daemon-reload
-#     systemctl restart kubelet
-#   tags:
-#     - kubernetes_common
-
-#- name: Enabling Bridge Firewall Rule
-#  shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
-#  delegate_to: "{{ item.eth0.ip }}"
-#  with_items: "{{ pystol_provision_cluster_hosts }}"
-#  tags:
-#    - kubernetes_common
