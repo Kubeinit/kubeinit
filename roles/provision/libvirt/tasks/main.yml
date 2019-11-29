@@ -68,12 +68,6 @@
   tags:
     - provision_libvirt
 
-- name: enable firewalld
-  systemd:
-    name: firewalld
-    state: started
-    enabled: yes
-
 ##
 ## Hypervisor installing users and permissions and other bits that do not require reboot.
 ##
@@ -285,6 +279,8 @@
   shell: |
     virt-customize -a {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 \
       --run-command  'id -u {{ pystol_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ pystol_provision_cloud_user }}' \
+      --run-command  'echo "1" > /proc/sys/net/ipv4/ip_forward' \
+      --run-command  'echo "1" > /proc/sys/net/bridge/bridge-nf-call-iptables' \
       --ssh-inject {{ pystol_provision_cloud_user }}:file:{{ pystol_provision_source_keystore_dir }}/{{ pystol_provision_source_pubkey_file }} \
       --ssh-inject root:file:/root/.ssh/id_rsa.pub \
       --ssh-inject root:file:/root/.ssh/authorized_keys \
@@ -387,6 +383,24 @@
     - provision_libvirt
     - provision_libvirt_restart_zombies
 
+# These rules are not needed....
+# - name: "Allow guests to have Internet access"
+#   shell: |
+#     iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+#     iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+#     iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+#     iptables -A FORWARD -s 10.0.0.0/24 -i virbr1 -j ACCEPT
+#     iptables -A INPUT -s 10.0.0.0/24 -i virbr1 -j ACCEPT
+#     iptables -A OUTPUT -s 10.0.0.0/24 -j ACCEPT
+#     iptables -A FORWARD -s 10.0.0.0/24 -i virbr1 -j ACCEPT
+#     iptables -A INPUT -s 10.0.0.0/24 -i virbr1 -j ACCEPT
+#     iptables -A OUTPUT -s 10.0.0.0/24 -j ACCEPT
+#     watch -n0.1 iptables -L -n -v
+#     service iptables save
+#   with_items: "{{ pystol_provision_cluster_nets }}"
+#   tags:
+#     - provision_libvirt
+
 ##
 ## Cleanup.
 ##
@@ -431,7 +445,36 @@
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
-
 - ping:
   tags:
-    - provision_libvirt    
+    - provision_libvirt
+
+- name: check if check restarte2d file exists
+  stat:
+    path: "{{ pystol_provision_hypervisor_tmp_dir }}/restarted2"
+  register: provision_restared2_hypervisor
+  tags:
+    - provision_libvirt
+
+- name: Reboot host and wait for it to restart
+  reboot:
+    msg: "Reboot initiated by Ansible"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: whoami
+  when: provision_restared2_hypervisor.stat.exists == false
+  tags:
+    - provision_libvirt
+
+- name: ensure check file exists
+  copy:
+    content: ""
+    dest: "{{ pystol_provision_hypervisor_tmp_dir }}/restarted2"
+    force: no
+    group: sys
+    owner: root
+    mode: 0555
+  tags:
+    - provision_libvirt
