@@ -364,7 +364,8 @@
   tags:
     - provision_libvirt
 
-- pause:
+- name: Pause execution for 5 minutes
+  pause:
     minutes: 5
   tags:
     - provision_libvirt
@@ -424,7 +425,7 @@
 
 - name: reset ssh keys for hostname
   become: no
-  local_action:
+  delegate_to: localhost
     module: command ssh-keygen -R  {{ item.name }}
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
@@ -432,7 +433,7 @@
 
 - name: reset ssh keys for FQDN
   become: no
-  local_action:
+  delegate_to: localhost
     module: command ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
@@ -440,7 +441,7 @@
 
 - name: reset ssh keys for ip address
   become: no
-  local_action:
+  delegate_to: localhost
     module: command ssh-keygen -R  {{ item.eth0.ip }}
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
