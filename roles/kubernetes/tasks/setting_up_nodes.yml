@@ -1,3 +1,13 @@
+- name: Modprobe ip forward
+  shell: |
+    modprobe br_netfilter
+    echo '1' > /proc/sys/net/ipv4/ip_forward
+    mkdir -p /proc/sys/net/bridge/
+    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+    sysctl -p
+  tags:
+    - kubernetes_common
+
 - name: Creating a repository file for Kubernetes
   file:
     path: /etc/yum.repos.d/kubernetes.repo
@@ -56,15 +66,6 @@
 
 - name: change to cgroup
   command: sed -i 's#Environment="KUBELET_KUBECONFIG_ARGS=-.*#Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --cgroup-driver=systemd"#g' /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
-  tags:
-    - kubernetes_common
-
-- name: Modprobe and other tweaks
-  shell: |
-    modprobe br_netfilter
-    echo '1' > /proc/sys/net/ipv4/ip_forward
-    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
-    sysctl -p
   tags:
     - kubernetes_common
 

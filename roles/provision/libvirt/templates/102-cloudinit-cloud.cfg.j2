@@ -69,6 +69,8 @@ hostname: {{ item.name }}
 fqdn: {{ item.name }}.{{ pystol_provision_cluster_domain }}
 manage_etc_hosts: true
 
+network: {config: disabled}
+
 # run commands
 # default: none
 # runcmd contains a list of either lists or a string
@@ -83,7 +85,6 @@ manage_etc_hosts: true
 # Note, that the list has to be proper yaml, so you have to quote
 # any characters yaml would eat (':' can be problematic)
 runcmd:
-  - [ sudo, systemctl, restart, network]
   - [ sh, -xc, "echo $(date) ': hello world!'" ]
   - [ sh, -c, echo "=========hello world'=========" ]
   - echo "restarted" >> /tmp/runcmd_temp
@@ -103,12 +104,12 @@ runcmd:
 #  - echo 192.168.1.130 us.archive.ubuntu.com >> /etc/hosts
 #  - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
 
-power_state:
-  delay: "+2"
-  mode: reboot
-  message: Bye Bye
-  timeout: 10
-  condition: True
+#power_state:
+#  delay: "+2"
+#  mode: reboot
+#  message: Bye Bye
+#  timeout: 10
+#  condition: True
 
 datasource_list: [ ConfigDrive, None ]
 
@@ -128,5 +129,17 @@ datasource_list: [ ConfigDrive, None ]
 #       # This is the user-data verbatim
 #    meta-data:
 #       local-hostname: {{ item.name }}
+
+# set the locale
+locale: en_US.UTF-8
+
+# timezone: set the timezone for this instance
+timezone: UTC
+
+# Log all cloud-init process output (info & errors) to a logfile
+output: {all: ">> /var/log/cloud-init-output.log"}
+
+# final_message written to log when cloud-init processes are finished
+final_message: "System boot (via cloud-init) is COMPLETE, after $UPTIME seconds. Finished at $TIMESTAMP"
 
 # vim:syntax=yaml

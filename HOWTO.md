@@ -25,6 +25,7 @@ and all the nodes to be configured in this guide.
 **They all need to SUCCESS before continue**
 
 ```bash
+sleep 60
 ansible --user root -i ./hosts/demo-noha/inventory -m ping all
 ```
 
@@ -63,6 +64,21 @@ ansible-playbook \
 ```bash
 ansible --user root -i ./hosts/demo-noha/inventory -m ping all
 ```
+
+In this point you should be able to connect to the master node and execute:
+
+```bash
+kubectl get nodes
+```
+
+Then get the output as:
+
+```
+NAME                                  STATUS   ROLES    AGE    VERSION
+kubernetes-master-01.dev.pystol.org   Ready    master   2m7s   v1.16.3
+```
+
+Now, we proceed to install the worker nodes.
 
 * Install the kubernetes cluster (worker nodes):
 

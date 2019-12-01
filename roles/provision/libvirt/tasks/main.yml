@@ -251,10 +251,10 @@
     - provision_libvirt
 
 # We can render any cloudinit parameter we want/need here
-- name: Create the network cloudinit templates for networking details
+- name: Create the network interface template for networking details
   template:
-    src: "100-cloudinit-pystol-netconfig.cfg.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/100-cloudinit-pystol-netconfig.cfg'
+    src: "pystol-ifcfg-eth0.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
@@ -275,17 +275,15 @@
   tags:
     - provision_libvirt
 
-- name: "Add {{ pystol_provision_cloud_user }}, networking templates and keys"
+- name: "Inject {{ pystol_provision_cloud_user }} virt-customize assets"
   shell: |
     virt-customize -a {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 \
       --run-command  'id -u {{ pystol_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ pystol_provision_cloud_user }}' \
-      --run-command  'echo "1" > /proc/sys/net/ipv4/ip_forward' \
-      --run-command  'echo "1" > /proc/sys/net/bridge/bridge-nf-call-iptables' \
       --ssh-inject {{ pystol_provision_cloud_user }}:file:{{ pystol_provision_source_keystore_dir }}/{{ pystol_provision_source_pubkey_file }} \
       --ssh-inject root:file:/root/.ssh/id_rsa.pub \
       --ssh-inject root:file:/root/.ssh/authorized_keys \
       --hostname {{ item.name }}.{{ pystol_provision_cluster_domain }} \
-      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/100-cloudinit-pystol-netconfig.cfg:/etc/cloud/cloud.cfg.d \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
       --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
       --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
       --selinux-relabel --root-password password:{{ pystol_provision_vms_default_password }}
@@ -315,7 +313,6 @@
 - name: Activate pystol networks
   virt_net:
     state: active
-    autostart: yes
     name: "{{ item.name }}"
   with_items: "{{ pystol_provision_cluster_nets }}"
   tags:
@@ -364,39 +361,30 @@
   tags:
     - provision_libvirt
 
-- name: Pause execution for 5 minutes
-  pause:
-    minutes: 5
-  tags:
-    - provision_libvirt
+# - name: Pause execution for 5 minutes
+#   pause:
+#     minutes: 5
+#   tags:
+#     - provision_libvirt
 
-- name: "Make sure there are no zombie guests"
-  shell: |
-    #!/bin/bash
-    host={{ item.eth0.ip }}
-    ping -c 2 -w 5 $host
-    if [ ! $? -eq 0 ]; then
-      echo "Cant reach the host, need to restart to refresh the network"
-      virsh reboot {{ item.name }}
-    fi
-  with_items: "{{ pystol_provision_cluster_hosts }}"
-  tags:
-    - provision_libvirt
-    - provision_libvirt_restart_zombies
-
-# These rules are not needed....
+# # These rules are not needed....
 # - name: "Allow guests to have Internet access"
 #   shell: |
-#     iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-#     iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-#     iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-#     iptables -A FORWARD -s 10.0.0.0/24 -i virbr1 -j ACCEPT
-#     iptables -A INPUT -s 10.0.0.0/24 -i virbr1 -j ACCEPT
-#     iptables -A OUTPUT -s 10.0.0.0/24 -j ACCEPT
-#     iptables -A FORWARD -s 10.0.0.0/24 -i virbr1 -j ACCEPT
-#     iptables -A INPUT -s 10.0.0.0/24 -i virbr1 -j ACCEPT
-#     iptables -A OUTPUT -s 10.0.0.0/24 -j ACCEPT
-#     watch -n0.1 iptables -L -n -v
+#     iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+#     iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+#     iptables -I INPUT 1 -s 0.0.0.0/0 -d 0.0.0.0/0 -j ACCEPT
+#     iptables -I OUTPUT 1 -s 0.0.0.0/0 -d 0.0.0.0/0 -j ACCEPT
+#
+#     # default_iface is the network interface having access to the internet
+#     default_iface=$(awk '$2 == 00000000 { print $1 }' /proc/net/route)
+#     iptables -t nat -A POSTROUTING -o envmw -j MASQUERADE
+#     iptables -I FORWARD 1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+#     iptables -I FORWARD 1 -i virbr1 -o $default_iface -j ACCEPT
+#
+#     # watch -n0.1 iptables -L -n -v --line-numbers
+#     # iptables -D INPUT 11
+#     # iptables-save > iptables_dump
+#     # iptables-restore < iptables_dump
 #     service iptables save
 #   with_items: "{{ pystol_provision_cluster_nets }}"
 #   tags:
@@ -426,7 +414,7 @@
 - name: reset ssh keys for hostname
   become: no
   delegate_to: localhost
-    module: command ssh-keygen -R  {{ item.name }}
+  command: "ssh-keygen -R  {{ item.name }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
@@ -434,7 +422,7 @@
 - name: reset ssh keys for FQDN
   become: no
   delegate_to: localhost
-    module: command ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}
+  command: "ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
@@ -442,13 +430,27 @@
 - name: reset ssh keys for ip address
   become: no
   delegate_to: localhost
-    module: command ssh-keygen -R  {{ item.eth0.ip }}
+  command: "ssh-keygen -R  {{ item.eth0.ip }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
+
 - ping:
   tags:
     - provision_libvirt
+
+- name: "Make sure there are no zombie guests"
+  shell: |
+    #!/bin/bash
+    host={{ item.eth0.ip }}
+    ping -c 5 -w 5 $host
+    if [ ! $? -eq 0 ]; then
+      echo "Cant reach the host, need to restart to refresh the network"
+      virsh reboot {{ item.name }}
+    fi
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt_restart_zombies
 
 # - name: check if check restarte2d file exists
 #   stat:
