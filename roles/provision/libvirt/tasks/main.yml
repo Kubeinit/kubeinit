@@ -326,6 +326,30 @@
   tags:
     - provision_libvirt
 
+- name: Create the interface template
+  template:
+    src: "pystol-interface.xml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.cluster_host }}/pystol-interface.xml'
+  with_items: "{{ pystol_provision_cluster_attach_networks }}"
+  tags:
+    - provision_libvirt
+
+- name:  connect the network interfaces
+  shell: |
+    virsh attach-device \
+      {{ item.cluster_host }} \
+      {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.cluster_host }}/pystol-interface.xml \
+      --config
+  with_items: "{{ pystol_provision_cluster_attach_networks }}"
+  tags:
+    - provision_libvirt
+
+- name: Pause execution for 1 minute
+  pause:
+    minutes: 1
+  tags:
+    - provision_libvirt
+
 ##
 ## Run all created resources.
 ##
@@ -336,6 +360,8 @@
     uri:  qemu:///session
     state: running
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  loop_control:
+    pause: 30
   tags:
     - provision_libvirt
 
@@ -343,23 +369,23 @@
   virt:
     name: "{{ item.name }}"
     uri:  qemu:///session
-    autostart: yes
+    autostart: no
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
-- name:  connect the network interfaces
-  shell: |
-    virsh attach-interface \
-      --domain {{ item.cluster_host }} \
-      --type network \
-      --source {{ item.net }} \
-      --model virtio \
-      --config \
-      --live
-  with_items: "{{ pystol_provision_cluster_attach_networks }}"
-  tags:
-    - provision_libvirt
+# - name:  connect the network interfaces
+#   shell: |
+#     virsh attach-interface \
+#       --domain {{ item.cluster_host }} \
+#       --type network \
+#       --source {{ item.net }} \
+#       --model virtio \
+#       --config \
+#       --live
+#   with_items: "{{ pystol_provision_cluster_attach_networks }}"
+#   tags:
+#     - provision_libvirt
 
 # - name: Pause execution for 5 minutes
 #   pause:
@@ -439,6 +465,12 @@
   tags:
     - provision_libvirt
 
+- name: Pause execution for 3 minutes
+  pause:
+    minutes: 2
+  tags:
+    - provision_libvirt
+
 - name: "Make sure there are no zombie guests"
   shell: |
     #!/bin/bash
@@ -450,7 +482,10 @@
     fi
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
+    - provision_libvirt
     - provision_libvirt_restart_zombies
+
+
 
 # - name: check if check restarte2d file exists
 #   stat:

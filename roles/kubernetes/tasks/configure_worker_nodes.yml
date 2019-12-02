@@ -22,6 +22,16 @@
   tags:
     - kubernetes_worker
 
+- name: Modprobe ip forward
+  shell: |
+    modprobe br_netfilter
+    echo '1' > /proc/sys/net/ipv4/ip_forward
+    mkdir -p /proc/sys/net/bridge/
+    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+    sysctl -p
+  tags:
+    - kubernetes_worker
+
 - name: Joining worker nodes with kubernetes master
   shell: |
    kubeadm reset -f || true
