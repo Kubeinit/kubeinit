@@ -3,7 +3,20 @@
   <name>{{ item.name }}</name>
   <memory unit='KiB'>{{ item.ram }}</memory>
   <currentMemory unit='KiB'>{{ item.ram }}</currentMemory>
-  <vcpu placement='static'>2</vcpu>
+  <vcpu placement='static'>8</vcpu>
+  <iothreads>1</iothreads>
+  <cputune>
+    <vcpupin vcpu='0' cpuset='2'/>
+    <vcpupin vcpu='1' cpuset='3'/>
+    <vcpupin vcpu='2' cpuset='4'/>
+    <vcpupin vcpu='3' cpuset='5'/>
+    <vcpupin vcpu='4' cpuset='8'/>
+    <vcpupin vcpu='5' cpuset='9'/>
+    <vcpupin vcpu='6' cpuset='10'/>
+    <vcpupin vcpu='7' cpuset='11'/>
+    <emulatorpin cpuset='0-1,6-7'/>
+    <iothreadpin iothread='1' cpuset='0-1,6-7'/>
+  </cputune>
   <os>
     <type arch='x86_64' >hvm</type>
     <boot dev='hd'/>
@@ -12,11 +25,8 @@
     <acpi/>
     <apic/>
   </features>
-  <cpu mode='custom' match='exact' check='full'>
-    <model fallback='forbid'>Nehalem-IBRS</model>
-    <feature policy='require' name='vme'/>
-    <feature policy='require' name='x2apic'/>
-    <feature policy='require' name='hypervisor'/>
+  <cpu mode='host-passthrough' check='none'>
+    <topology sockets='1' cores='4' threads='2'/>
   </cpu>
   <clock offset='utc'>
     <timer name='rtc' tickpolicy='catchup'/>
