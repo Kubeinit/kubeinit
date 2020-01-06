@@ -375,52 +375,10 @@
   virt:
     name: "{{ item.name }}"
     uri:  qemu:///session
-    autostart: no
+    autostart: yes
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
-
-# - name:  connect the network interfaces
-#   shell: |
-#     virsh attach-interface \
-#       --domain {{ item.cluster_host }} \
-#       --type network \
-#       --source {{ item.net }} \
-#       --model virtio \
-#       --config \
-#       --live
-#   with_items: "{{ pystol_provision_cluster_attach_networks }}"
-#   tags:
-#     - provision_libvirt
-
-# - name: Pause execution for 5 minutes
-#   pause:
-#     minutes: 5
-#   tags:
-#     - provision_libvirt
-
-# # These rules are not needed....
-# - name: "Allow guests to have Internet access"
-#   shell: |
-#     iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-#     iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-#     iptables -I INPUT 1 -s 0.0.0.0/0 -d 0.0.0.0/0 -j ACCEPT
-#     iptables -I OUTPUT 1 -s 0.0.0.0/0 -d 0.0.0.0/0 -j ACCEPT
-#
-#     # default_iface is the network interface having access to the internet
-#     default_iface=$(awk '$2 == 00000000 { print $1 }' /proc/net/route)
-#     iptables -t nat -A POSTROUTING -o envmw -j MASQUERADE
-#     iptables -I FORWARD 1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-#     iptables -I FORWARD 1 -i virbr1 -o $default_iface -j ACCEPT
-#
-#     # watch -n0.1 iptables -L -n -v --line-numbers
-#     # iptables -D INPUT 11
-#     # iptables-save > iptables_dump
-#     # iptables-restore < iptables_dump
-#     service iptables save
-#   with_items: "{{ pystol_provision_cluster_nets }}"
-#   tags:
-#     - provision_libvirt
 
 ##
 ## Cleanup.
@@ -490,36 +448,3 @@
   tags:
     - provision_libvirt
     - provision_libvirt_restart_zombies
-
-
-
-# - name: check if check restarte2d file exists
-#   stat:
-#     path: "{{ pystol_provision_hypervisor_tmp_dir }}/restarted2"
-#   register: provision_restared2_hypervisor
-#   tags:
-#     - provision_libvirt
-#
-# - name: Reboot host and wait for it to restart
-#   reboot:
-#     msg: "Reboot initiated by Ansible"
-#     connect_timeout: 5
-#     reboot_timeout: 600
-#     pre_reboot_delay: 0
-#     post_reboot_delay: 30
-#     test_command: whoami
-#   when: provision_restared2_hypervisor.stat.exists == false
-#   tags:
-#     - provision_libvirt
-#
-# - name: ensure check file exists
-#   copy:
-#     content: ""
-#     dest: "{{ pystol_provision_hypervisor_tmp_dir }}/restarted2"
-#     force: no
-#     group: sys
-#     owner: root
-#     mode: 0555
-#   tags:
-#     - provision_libvirt
-#
