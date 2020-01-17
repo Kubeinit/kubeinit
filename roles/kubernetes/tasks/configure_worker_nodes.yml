@@ -1,11 +1,4 @@
-- name: enable docker
-  systemd:
-    state: restarted
-    name: docker
-    enabled: yes
-  tags:
-    - kubernetes_worker
-
+---
 - name: Copying token to a variables
   slurp:
     src: ~/k8s_token
@@ -37,13 +30,5 @@
    kubeadm reset -f || true
    cat ~/k8s_token > out.sh
    sh out.sh
-  tags:
-    - kubernetes_worker
-
-- name: enable kubelet
-  systemd:
-    state: restarted
-    name: kubelet
-    enabled: yes
   tags:
     - kubernetes_worker

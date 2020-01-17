@@ -1,25 +1,10 @@
-- name: enable docker
-  systemd:
-    state: restarted
-    name: docker
-    enabled: yes
-  tags:
-    - kubernetes_master
-
+---
 - name: Clean kubeadm and initializing Kubernetes cluster
   shell: |
     kubeadm reset -f || true
     kubeadm init \
         --apiserver-advertise-address {{ hostvars[groups['kubernetes-master-nodes'][0]].ansible_host }} \
         --pod-network-cidr={{ pystol_kubernetes_pod_network_cidr }}
-  tags:
-    - kubernetes_master
-
-- name: enable kubelet
-  systemd:
-    state: restarted
-    name: kubelet
-    enabled: yes
   tags:
     - kubernetes_master
 

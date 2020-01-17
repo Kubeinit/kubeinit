@@ -24,8 +24,20 @@
 ##
 
 - fail:
-    msg: The hypervisor machine needs to be CentOS 8.x
-  when: not (ansible_distribution == 'CentOS' and ansible_distribution_version|int == 8)
+    msg: The hypervisor machine needs to be CentOS/RHEL
+  when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
+  tags:
+    - provision_libvirt
+
+- fail:
+    msg: CentOS/RHEL version in the hypervisor machine must be 8.x or Fedora 30
+  when: not (ansible_distribution_version|int == 8 or ansible_distribution_version|int == 30)
+  tags:
+    - provision_libvirt
+
+- name: Disable SELinux
+  selinux:
+    state: disabled
   tags:
     - provision_libvirt
 
@@ -41,36 +53,6 @@
   yum:
     name: '*'
     state: latest
-  tags:
-    - provision_libvirt
-
-- name: check if check restarted file exists
-  stat:
-    path: "{{ pystol_provision_hypervisor_tmp_dir }}/restarted"
-  register: provision_restared_hypervisor
-  tags:
-    - provision_libvirt
-
-- name: Reboot host and wait for it to restart
-  reboot:
-    msg: "Reboot initiated by Ansible"
-    connect_timeout: 5
-    reboot_timeout: 600
-    pre_reboot_delay: 0
-    post_reboot_delay: 30
-    test_command: whoami
-  when: provision_restared_hypervisor.stat.exists == false
-  tags:
-    - provision_libvirt
-
-- name: ensure check file exists
-  copy:
-    content: ""
-    dest: "{{ pystol_provision_hypervisor_tmp_dir }}/restarted"
-    force: no
-    group: sys
-    owner: root
-    mode: 0555
   tags:
     - provision_libvirt
 

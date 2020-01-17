@@ -2,7 +2,7 @@
 
 To deploy the demo server:
 
-Install Centos 7 and then login the first time,
+Install Centos 8 and then login the first time,
 for example:
 
 **We assume the hypervisor has the IP 192.168.1.20**
@@ -51,7 +51,7 @@ We will run the wake up routine in both groups (masters and workers).
 ansible-playbook \
     --user root \
     -vv -i ./hosts/demo-noha/inventory \
-    -l kubernetes-master-nodes:kubernetes-worker-nodes  \
+    -l hypervisor-nodes \
     --become \
     --become-user root \
     --tags provision_libvirt_restart_zombies \
@@ -182,8 +182,12 @@ kubectl patch svc kubernetes-dashboard -n kubernetes-dashboard --type='json' -p 
 The port that we will use to forward the traffic will be
 
 ```bash
-kubectl get service -n kubernetes-dashboard kubernetes-dashboard -o json | grep nodePort | sed 's/[^0-9]*//g'
+# kubectl get service -n kubernetes-dashboard kubernetes-dashboard -o json | grep nodePort | sed 's/[^0-9]*//g'
+dash_port=$(kubectl get service -n kubernetes-dashboard kubernetes-dashboard -o json | grep nodePort | sed 's/[^0-9]*//g')
+echo $dash_port
 ```
+
+Write the port to use it in the Hypervisor.
 
 **These changes are NOT permanent** On each hypervisor reboot
 you need to re-execute them. If you want to make them permanent
@@ -192,14 +196,14 @@ uncomment the --permanent parameter.
 Execute in the hypervisor (vega):
 
 ```bash
-dash_port=$(kubectl get service -n kubernetes-dashboard kubernetes-dashboard -o json | grep nodePort | sed 's/[^0-9]*//g')
+dash_port=1234
 #Forward vega incoming traffic to the k8s master node
 firewall-cmd --zone=public --add-masquerade #--permanent
 firewall-cmd --zone=public --direct --add-rule ipv4 filter FORWARD 0 -d 0.0.0.0/0 -j ACCEPT #--permanent
 
 # The dashboard port forwarding
-firewall-cmd --zone=public --add-port=<dash_port_value>/tcp #--permanent
-firewall-cmd --zone=public --add-forward-port=port=8001:proto=tcp:toport=<dash_port_value>:toaddr=10.0.0.1 #--permanent
+firewall-cmd --zone=public --add-port=$dash_port/tcp #--permanent
+firewall-cmd --zone=public --add-forward-port=port=8001:proto=tcp:toport=$dash_port:toaddr=10.0.0.1 #--permanent
 
 # The Pystol UI port forwarding
 firewall-cmd --zone=public --add-port=3000/tcp #--permanent
@@ -216,7 +220,7 @@ curl http://vega:8001/api/v1/namespaces/kubernetes-dashboard/services/
 Now open from any host that can reach the hypervisor:
 
 ```bash
-https://vega:<dash_port_value>/
+https://vega:8001/
 ```
 
 Use the token from the master node to login in the dashboard:

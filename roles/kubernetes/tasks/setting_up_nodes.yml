@@ -1,6 +1,13 @@
-- name: Modprobe ip forward
+---
+#
+# Initial config
+#
+- name: Enable kernel modules and IP forward
   shell: |
     modprobe br_netfilter
+    echo br_netfilter > /etc/modules-load.d/br_netfilter.conf
+    modprobe overlay
+    echo overlay > /etc/modules-load.d/overlay.conf
     echo '1' > /proc/sys/net/ipv4/ip_forward
     mkdir -p /proc/sys/net/bridge/
     echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
@@ -8,16 +15,170 @@
   tags:
     - kubernetes_common
 
-- name: Creating a repository file for Kubernetes
+- name: Disable SELinux
+  selinux:
+    state: disabled
+  tags:
+    - kubernetes_common
+
+#
+# cri-o config
+#
+
+- name: Creating a repository file for cri-o
   file:
-    path: /etc/yum.repos.d/kubernetes.repo
+    path: /etc/yum.repos.d/crio.repo
     state: touch
   tags:
     - kubernetes_common
 
-- name: Disable SELinux
-  selinux:
-    state: disabled
+- name: Adding repository details in the cri-o repo file.
+  blockinfile:
+    path: /etc/yum.repos.d/crio.repo
+    block: |
+     # The official repo for Centos 8 should be available... soon...
+     #[cri-o]
+     #name=CRI-O Packages for EL 7 — $basearch
+     #baseurl=https://cbs.centos.org/repos/paas7-crio-311-candidate/x86_64/os
+     #enabled=1
+     #gpgcheck=0
+     # Until then we use a CBS build
+     [paas7-crio-115-candidate]
+     name=paas7-crio-115-candidate
+     baseurl=https://cbs.centos.org/repos/paas7-crio-115-candidate/x86_64/os/
+     enabled=1
+     gpgcheck=0
+  tags:
+    - kubernetes_common
+
+- name: Install cri-o
+  command: yum install cri-o -y
+  tags:
+    - kubernetes_common
+
+- name: Creating cri-o sysctl file
+  file:
+    path: /etc/sysctl.d/99-kubernetes-cri.conf
+    state: touch
+  tags:
+    - kubernetes_common
+
+- name: Configure cri-o ipv4_forward
+  blockinfile:
+    path: /etc/sysctl.d/99-kubernetes-cri.conf
+    block: |
+     net.bridge.bridge-nf-call-iptables  = 1
+     net.ipv4.ip_forward                 = 1
+     net.bridge.bridge-nf-call-ip6tables = 1
+  tags:
+    - kubernetes_common
+
+- name: Load system new sysctl parameters
+  command: sysctl -p/etc/sysctl.d/99-kubernetes-cri.conf
+  tags:
+    - kubernetes_common
+
+- name: Update cri-o config systemd to cgroupfs
+  command: sed -i 's#group_manager = "systemd"#group_manager = "cgroupfs"#g' /etc/crio/crio.conf
+  tags:
+    - kubernetes_common
+
+- name: Update cri-o config overlay to overlay2
+  command: sed -i 's/[#|^]storage_driver = .*/storage_driver = "overlay2"/g' /etc/crio/crio.conf
+  tags:
+    - kubernetes_common
+
+- name: Update cri-o config storage option to overlay2
+  command: sed -i 's/[#|^]storage_option = .*/storage_option = [ "overlay2.override_kernel_check=1" ]/g' /etc/crio/crio.conf
+  tags:
+    - kubernetes_common
+
+- name: Create new net.d folder
+  command: mkdir -p /etc/crio/net.d
+  tags:
+    - kubernetes_common
+
+- name: Update cri-o config network dir to crio folder
+  command: sed -i 's?[#|^]network_dir = .*?network_dir = "/etc/crio/net.d/"?g' /etc/crio/crio.conf
+  tags:
+    - kubernetes_common
+
+- name: Creating kubelet default file
+  file:
+    path: /etc/default/kubelet
+    state: touch
+  tags:
+    - kubernetes_common
+
+- name: Configure kubelet defaults
+  blockinfile:
+    path: /etc/default/kubelet
+    block: |
+     KUBELET_EXTRA_ARGS=--runtime-cgroups=/systemd/system.slice --kubelet-cgroups=/systemd/system.slice --feature-gates="AllAlpha=false,RunAsGroup=true" --container-runtime=remote --cgroup-driver=cgroupfs --container-runtime-endpoint='unix:///var/run/crio/crio.sock' --runtime-request-timeout=5m
+  tags:
+    - kubernetes_common
+
+- name: Systemd reload
+  command: systemctl daemon-reload
+  tags:
+    - kubernetes_common
+
+- name: Creating cri-o bridge
+  # From: https://github.com/cri-o/cri-o/blob/master/contrib/cni/10-crio-bridge.conf
+  file:
+    path: /etc/crio/net.d/10-crio-bridge.conf
+    state: touch
+  tags:
+    - kubernetes_common
+
+- name: Configure cri-o bridge
+  blockinfile:
+    path: /etc/crio/net.d/10-crio-bridge.conf
+    block: |
+     {
+         "cniVersion": "0.3.1",
+         "name": "crio-bridge",
+         "type": "bridge",
+         "bridge": "cni0",
+         "isGateway": true,
+         "ipMasq": true,
+         "hairpinMode": true,
+         "ipam": {
+             "type": "host-local",
+             "routes": [
+                 { "dst": "0.0.0.0/0" },
+                 { "dst": "1100:200::1/24" }
+             ],
+             "ranges": [
+                 [{ "subnet": "10.244.0.0/16" }],
+                 [{ "subnet": "1100:200::/24" }]
+             ]
+         }
+     }
+  tags:
+    - kubernetes_common
+
+- name: Create hooks folder
+  command: mkdir -p /usr/share/containers/oci/hooks.d
+  tags:
+    - kubernetes_common
+
+- name: Enable/start/status cri-o
+  shell: |
+    systemctl enable crio
+    systemctl start crio
+    systemctl status crio
+  tags:
+    - kubernetes_common
+
+#
+# Kubernetes config
+#
+
+- name: Creating a repository file for Kubernetes
+  file:
+    path: /etc/yum.repos.d/kubernetes.repo
+    state: touch
   tags:
     - kubernetes_common
 
@@ -36,13 +197,7 @@
   tags:
     - kubernetes_common
 
-- name: Installing Dockerce repo
-  shell: |
-    yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-  tags:
-    - kubernetes_common
-
-- name: upgrade all packages
+- name: Upgrade all packages
   yum:
     name: '*'
     state: latest
@@ -57,44 +212,50 @@
     - yum-utils
     - device-mapper-persistent-data
     - lvm2
-    - docker-ce
     - kubelet
     - kubeadm
     - kubectl
   tags:
     - kubernetes_common
 
-- name: change to cgroup
-  command: sed -i 's#Environment="KUBELET_KUBECONFIG_ARGS=-.*#Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --cgroup-driver=systemd"#g' /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+- name: enable kubelet
+  systemd:
+    state: restarted
+    name: kubelet
+    enabled: yes
   tags:
-    - kubernetes_common
+    - kubernetes_master
 
-- name: check if check restarted file exists
-  stat:
-    path: "/tmp/restarted"
-  register: kubernetes_node_restarted
-  tags:
-    - kubernetes_common
+#
+# We do not restart guests anymore on install
+#
 
-- name: Reboot host and wait for it to restart
-  reboot:
-    msg: "Reboot initiated by Ansible"
-    connect_timeout: 5
-    reboot_timeout: 600
-    pre_reboot_delay: 0
-    post_reboot_delay: 30
-    test_command: whoami
-  when: kubernetes_node_restarted.stat.exists == false
-  tags:
-    - kubernetes_common
+#- name: check if check restarted file exists
+#  stat:
+#    path: "/tmp/restarted"
+#  register: kubernetes_node_restarted
+#  tags:
+#    - kubernetes_common
 
-- name: ensure check file exists
-  copy:
-    content: ""
-    dest: "/tmp/restarted"
-    force: no
-    group: sys
-    owner: root
-    mode: 0555
-  tags:
-    - kubernetes_common
+#- name: Reboot host and wait for it to restart
+#  reboot:
+#    msg: "Reboot initiated by Ansible"
+#    connect_timeout: 5
+#    reboot_timeout: 600
+#    pre_reboot_delay: 0
+#    post_reboot_delay: 30
+#    test_command: whoami
+#  when: kubernetes_node_restarted.stat.exists == false
+#  tags:
+#    - kubernetes_common
+
+#- name: ensure check file exists
+#  copy:
+#    content: ""
+#    dest: "/tmp/restarted"
+#    force: no
+#    group: sys
+#    owner: root
+#    mode: 0555
+#  tags:
+#    - kubernetes_common
