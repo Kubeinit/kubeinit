@@ -284,7 +284,7 @@
       name: "{{ item.name }}"
       command: define
       xml: "{{ lookup('template', 'vm.xml.j2') }}"
-      uri:  qemu:///session
+      uri: qemu:///session
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
@@ -322,7 +322,7 @@
   tags:
     - provision_libvirt
 
-- name:  connect the network interfaces
+- name: Connect the network interfaces
   shell: |
     virsh attach-device \
       {{ item.cluster_host }} \
@@ -345,7 +345,7 @@
 - name: Start the VMs
   virt:
     name: "{{ item.name }}"
-    uri:  qemu:///session
+    uri: qemu:///session
     state: running
   with_items: "{{ pystol_provision_cluster_hosts }}"
   loop_control:
@@ -356,7 +356,7 @@
 - name: set autostart for a VM
   virt:
     name: "{{ item.name }}"
-    uri:  qemu:///session
+    uri: qemu:///session
     autostart: yes
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
@@ -373,7 +373,7 @@
   tags:
     - provision_libvirt
 
-- name:  Reset ssh keys in hypervisor
+- name: Reset ssh keys in hypervisor
   shell: |
     ssh-keygen -R  {{ item.name }}
     ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}
