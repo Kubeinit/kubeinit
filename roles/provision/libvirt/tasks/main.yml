@@ -22,14 +22,15 @@
 ##
 ## Hypervisor installing dependencies and rebooting.
 ##
-
-- fail:
+- name: Fails if not Centos
+  fail:
     msg: The hypervisor machine needs to be CentOS/RHEL
   when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
   tags:
     - provision_libvirt
 
-- fail:
+- name: Fails if not 8 or 30
+  fail:
     msg: CentOS/RHEL version in the hypervisor machine must be 8.x or Fedora 30
   when: not (ansible_distribution_version|int == 8 or ansible_distribution_version|int == 30)
   tags:
@@ -71,7 +72,7 @@
   get_url:
     url: "{{ pystol_provision_source_image_dir }}/{{ pystol_provision_source_image_file }}"
     dest: "{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}"
-  when: vm_image.stat.exists == false
+  when: not vm_image.stat.exists | bool
   tags:
     - provision_libvirt
 
@@ -126,7 +127,7 @@
     src: /usr/libexec/qemu-kvm
     dest: /usr/bin/qemu-kvm
     state: link
-  when: qemu_kvm.stat.exists == false
+  when: not qemu_kvm.stat.exists | bool
   tags:
     - provision_libvirt
 
@@ -215,12 +216,14 @@
 - name: Ensure the backing store is large enough
   command: "qemu-img resize {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 +{{ item.disk }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
   tags:
     - provision_libvirt
 
 - name: Grow the partition
   command: "virt-resize  --expand /dev/sda1 {{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }} {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
   tags:
     - provision_libvirt
 
@@ -276,6 +279,7 @@
       --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
       --selinux-relabel --root-password password:{{ pystol_provision_vms_default_password }}
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
   tags:
     - provision_libvirt
 
@@ -329,6 +333,7 @@
       {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.cluster_host }}/pystol-interface.xml \
       --config
   with_items: "{{ pystol_provision_cluster_attach_networks }}"
+  changed_when: false
   tags:
     - provision_libvirt
 
@@ -379,7 +384,8 @@
     ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}
     ssh-keygen -R  {{ item.eth0.ip }}
   with_items: "{{ pystol_provision_cluster_hosts }}"
-  when: known_hosts_file.stat.exists == true
+  when: known_hosts_file.stat.exists | bool
+  changed_when: false
   tags:
     - provision_libvirt
 
@@ -388,6 +394,7 @@
   delegate_to: localhost
   command: "ssh-keygen -R  {{ item.name }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
   tags:
     - provision_libvirt
 
@@ -396,6 +403,7 @@
   delegate_to: localhost
   command: "ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
   tags:
     - provision_libvirt
 
@@ -404,10 +412,12 @@
   delegate_to: localhost
   command: "ssh-keygen -R  {{ item.eth0.ip }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
   tags:
     - provision_libvirt
 
-- ping:
+- name: make a ping
+  ping:
   tags:
     - provision_libvirt
 
@@ -427,6 +437,7 @@
       virsh reboot {{ item.name }}
     fi
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
   tags:
     - provision_libvirt
     - provision_libvirt_restart_zombies

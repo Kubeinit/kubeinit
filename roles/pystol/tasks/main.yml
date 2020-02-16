@@ -32,8 +32,8 @@
   tags:
     - always
 
-
-- include_vars: "vars/{{ ansible_os_family }}.yml"
+- name: Include os family vars
+  include_vars: "vars/{{ ansible_os_family }}.yml"
 
 - name: install requirements
   package:
@@ -41,13 +41,6 @@
     state: present
   with_items:
     - git
-  tags:
-    - pystol_install
-
-- name: install helm
-  shell: |
-    curl -L https://git.io/get_helm.sh | bash
-    helm init --client-only
   tags:
     - pystol_install
 
@@ -61,6 +54,7 @@
 
 - name: deploy pystol
   shell: |
+    set -o pipefail
     # We apply the RBAC rules
     kubectl apply -f helm/templates/rbac.yaml
     echo
@@ -84,5 +78,6 @@
     echo
   args:
     chdir: /root/pystol
+  changed_when: false
   tags:
     - pystol_install

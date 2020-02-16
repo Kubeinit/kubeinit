@@ -12,6 +12,7 @@
     mkdir -p /proc/sys/net/bridge/
     echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
     sysctl -p
+  changed_when: false
   tags:
     - kubernetes_common
 
@@ -51,8 +52,10 @@
   tags:
     - kubernetes_common
 
-- name: Install cri-o
-  command: yum install cri-o -y
+- name: install the latest version of cri-o
+  yum:
+    name: cri-o
+    state: present
   tags:
     - kubernetes_common
 
@@ -75,31 +78,38 @@
 
 - name: Load system new sysctl parameters
   command: sysctl -p/etc/sysctl.d/99-kubernetes-cri.conf
+  changed_when: false
   tags:
     - kubernetes_common
 
 - name: Update cri-o config systemd to cgroupfs
   command: sed -i 's#group_manager = "systemd"#group_manager = "cgroupfs"#g' /etc/crio/crio.conf
+  changed_when: false
   tags:
     - kubernetes_common
 
 - name: Update cri-o config overlay to overlay2
   command: sed -i 's/[#|^]storage_driver = .*/storage_driver = "overlay2"/g' /etc/crio/crio.conf
+  changed_when: false
   tags:
     - kubernetes_common
 
 - name: Update cri-o config storage option to overlay2
   command: sed -i 's/[#|^]storage_option = .*/storage_option = [ "overlay2.override_kernel_check=1" ]/g' /etc/crio/crio.conf
+  changed_when: false
   tags:
     - kubernetes_common
 
 - name: Create new net.d folder
-  command: mkdir -p /etc/crio/net.d
+  file:
+    path: /etc/crio/net.d
+    state: directory
   tags:
     - kubernetes_common
 
 - name: Update cri-o config network dir to crio folder
   command: sed -i 's?[#|^]network_dir = .*?network_dir = "/etc/crio/net.d/"?g' /etc/crio/crio.conf
+  changed_when: false
   tags:
     - kubernetes_common
 
@@ -120,6 +130,7 @@
 
 - name: Systemd reload
   command: systemctl daemon-reload
+  changed_when: false
   tags:
     - kubernetes_common
 
@@ -159,7 +170,9 @@
     - kubernetes_common
 
 - name: Create hooks folder
-  command: mkdir -p /usr/share/containers/oci/hooks.d
+  file:
+    path: /usr/share/containers/oci/hooks.d
+    state: directory
   tags:
     - kubernetes_common
 
@@ -168,6 +181,7 @@
     systemctl enable crio
     systemctl start crio
     systemctl status crio
+  changed_when: false
   tags:
     - kubernetes_common
 

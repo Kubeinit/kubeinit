@@ -5,12 +5,14 @@
     kubeadm init \
         --apiserver-advertise-address {{ hostvars[groups['kubernetes-master-nodes'][0]].ansible_host }} \
         --pod-network-cidr={{ pystol_kubernetes_pod_network_cidr }}
+  changed_when: false
   tags:
     - kubernetes_master
 
 - name: Get the join command
   shell: |
     kubeadm token create --print-join-command
+  changed_when: false
   register: kubernetes_master_kubeadm_init_output
   tags:
     - kubernetes_master
@@ -20,15 +22,23 @@
   tags:
     - kubernetes_master
 
+- name: Create kube directory
+  file:
+    path: ~/.kube
+    state: directory
+  tags:
+    - kubernetes_master
+
 - name: Copying required files
   shell: |
-   mkdir -p ~/.kube
    sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
    sudo chown $(id -u):$(id -g) ~/.kube/config
+  changed_when: false
   tags:
     - kubernetes_master
 
 - name: Install Network Add-on
   command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+  changed_when: false
   tags:
     - kubernetes_master
