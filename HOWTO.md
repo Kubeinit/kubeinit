@@ -87,7 +87,7 @@ directly with SSH, based on the
 Another way to connect is using virsh connect from the Hypervisor
 
 ```bash
-[root@vega ~]# virsh list --all
+[root@nyctea ~]# virsh list --all
  Id    Name                           State
 ----------------------------------------------------
  13    kubernetes-master-01           running
@@ -95,7 +95,7 @@ Another way to connect is using virsh connect from the Hypervisor
  15    kubernetes-worker-02           running
  16    kubernetes-worker-03           running
 
-[root@vega ~]# virsh console kubernetes-master-01
+[root@nyctea ~]# virsh console kubernetes-master-01
 Connected to domain kubernetes-master-01
 kubernetes-master-01 login:
 ```
@@ -193,11 +193,11 @@ Write the port to use it in the Hypervisor.
 you need to re-execute them. If you want to make them permanent
 uncomment the --permanent parameter.
 
-Execute in the hypervisor (vega):
+Execute in the hypervisor (nyctea):
 
 ```bash
 dash_port=1234
-#Forward vega incoming traffic to the k8s master node
+#Forward nyctea incoming traffic to the k8s master node
 firewall-cmd --zone=public --add-masquerade #--permanent
 firewall-cmd --zone=public --direct --add-rule ipv4 filter FORWARD 0 -d 0.0.0.0/0 -j ACCEPT #--permanent
 
@@ -213,14 +213,14 @@ firewall-cmd --zone=public --add-forward-port=port=3000:proto=tcp:toport=3000:to
 Test the endpoints:
 
 ```bash
-curl http://vega:8001/api/v1/namespaces/kubernetes-dashboard/services/kubernetes-dashboard/
-curl http://vega:8001/api/v1/namespaces/kubernetes-dashboard/services/
+curl http://nyctea:8001/api/v1/namespaces/kubernetes-dashboard/services/kubernetes-dashboard/
+curl http://nyctea:8001/api/v1/namespaces/kubernetes-dashboard/services/
 ```
 
 Now open from any host that can reach the hypervisor:
 
 ```bash
-https://vega:8001/
+https://nyctea:8001/
 ```
 
 Use the token from the master node to login in the dashboard:

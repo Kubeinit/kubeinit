@@ -25,36 +25,50 @@
 #
 # cri-o config
 #
+# There is something broken here
+# - name: Remove repo before adding it
+#   file:
+#     path: /etc/yum.repos.d/crio.repo
+#     state: absent
+#   tags:
+#     - kubernetes_common
 
-- name: Creating a repository file for cri-o
-  file:
-    path: /etc/yum.repos.d/crio.repo
-    state: touch
-  tags:
-    - kubernetes_common
+# - name: Creating a repository file for cri-o
+#   file:
+#     path: /etc/yum.repos.d/crio.repo
+#     state: touch
+#   tags:
+#     - kubernetes_common
 
-- name: Adding repository details in the cri-o repo file.
-  blockinfile:
-    path: /etc/yum.repos.d/crio.repo
-    block: |
-     # The official repo for Centos 8 should be available... soon...
-     #[cri-o]
-     #name=CRI-O Packages for EL 7 — $basearch
-     #baseurl=https://cbs.centos.org/repos/paas7-crio-311-candidate/x86_64/os
-     #enabled=1
-     #gpgcheck=0
-     # Until then we use a CBS build
-     [paas7-crio-115-candidate]
-     name=paas7-crio-115-candidate
-     baseurl=https://cbs.centos.org/repos/paas7-crio-115-candidate/x86_64/os/
-     enabled=1
-     gpgcheck=0
-  tags:
-    - kubernetes_common
+# - name: Adding repository details in the cri-o repo file.
+#   blockinfile:
+#     path: /etc/yum.repos.d/crio.repo
+#     block: |
+##     # The official repo for Centos 8 should be available... soon...
+##     #[cri-o]
+##     #name=CRI-O Packages for EL 7 — $basearch
+##     #baseurl=https://cbs.centos.org/repos/paas7-crio-311-candidate/x86_64/os
+##     #enabled=1
+##     #gpgcheck=0
+##     # Until then we use a CBS build
+##      [paas7-crio-115-candidate]
+##      name=paas7-crio-115-candidate
+##      baseurl=https://cbs.centos.org/repos/paas7-crio-115-candidate/x86_64/os/
+##      enabled=1
+##      gpgcheck=0
+#      [cri-o]
+#      name=CRI-O Packages
+#      baseurl=https://buildlogs.centos.org/centos/7/virt/x86_64/container/
+#      enabled=1
+#      gpgcheck=0
+#   tags:
+#     - kubernetes_common
 
+# The three steps beforeshould provide the correct repo to install cri-o
 - name: install the latest version of cri-o
   yum:
-    name: cri-o
+    # name: cri-o
+    name: https://cbs.centos.org/kojifiles/packages/cri-o/1.15.3/1.el7/x86_64/cri-o-debuginfo-1.15.3-1.el7.x86_64.rpm
     state: present
   tags:
     - kubernetes_common

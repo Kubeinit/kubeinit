@@ -55,27 +55,27 @@
 - name: deploy pystol
   shell: |
     set -o pipefail
-    # We apply the RBAC rules
-    kubectl apply -f helm/templates/rbac.yaml
+    kubectl apply -f ./pystol-operator/pystol/templates/namespace.yaml
     echo
-    # We deploy the operator using the image we created in the previous steps.
-    # helm template is used to render the template with the needed parameters
-    # ./helm/: Is the folder in which the Charts.yaml is defined
-    # -f: Is the values.yaml with the default values deploying from stable:master
-    # -x: Is the particular file we want to render
-    helm template \
-      --set appSettings.pystol.ui.image=quay.io/pystol/pystol-operator-stable:latest \
-      --set appSettings.pystol.controller.image=quay.io/pystol/pystol-operator-stable:latest \
-      --set appSettings.pystol.ui.api_host='10.0.0.1' \
-      --set appSettings.pystol.ui.api_port=3000 \
-      ./helm/ \
-      -f helm/templates/values.yaml \
-      -x templates/operator.yaml \
-      | kubectl apply -f -
+    j2 ./pystol-operator/pystol/templates/config_map.yaml.j2 \
+       ./pystol-operator/pystol/templates/upstream_values.yaml \
+       | kubectl apply -f -
     echo
-    # We add the CRD
-    kubectl apply -f helm/templates/crd.yaml
+    kubectl apply -f ./pystol-operator/pystol/templates/crd.yaml
+    kubectl apply -f ./pystol-operator/pystol/templates/service_account.yaml
+    kubectl apply -f ./pystol-operator/pystol/templates/cluster_role.yaml
+    kubectl apply -f ./pystol-operator/pystol/templates/cluster_role_binding.yaml
     echo
+    # Now we need to deploy the operator using the image we created in the previous steps
+    # If you run operator.yaml without updating the image location, you will deploy
+    # whatever is in latest and you will not be able to see your changes.
+    j2 ./pystol-operator/pystol/templates/controller.yaml.j2 \
+       ./pystol-operator/pystol/templates/upstream_values.yaml \
+       | kubectl apply -f -
+    echo
+    j2 ./pystol-operator/pystol/templates/ui.yaml.j2 \
+       ./pystol-operator/pystol/templates/upstream_values.yaml \
+       | kubectl apply -f -
   args:
     chdir: /root/pystol
   changed_when: false
