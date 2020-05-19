@@ -23,52 +23,96 @@
     - kubernetes_common
 
 #
+# Configuring repositories
+#
+
+#
+# cri-o repos
+#
+
+- name: Remove repo before adding it
+  file:
+    path: /etc/yum.repos.d/crio.repo
+    state: absent
+  tags:
+    - kubernetes_common
+
+- name: Creating a repository file for cri-o
+  file:
+    path: /etc/yum.repos.d/crio.repo
+    state: touch
+  tags:
+    - kubernetes_common
+
+- name: Adding repository details in the cri-o repo file.
+  blockinfile:
+    path: /etc/yum.repos.d/crio.repo
+    block: |
+      [devel_kubic_libcontainers_stable]
+      name=Stable Releases of Upstream github.com/containers packages (CentOS_8)
+      type=rpm-md
+      baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/
+      gpgcheck=1
+      gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/repodata/repomd.xml.key
+      enabled=1
+      [devel_kubic_libcontainers_stable_cri-o_1.18]
+      name=Last release available in 1.18 branch (CentOS_8)
+      type=rpm-md
+      baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.18/CentOS_8/
+      gpgcheck=1
+      gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.18/CentOS_8/repodata/repomd.xml.key
+      enabled=1
+  tags:
+    - kubernetes_common
+
+#
+# k8s repos
+#
+
+- name: Remove repo before adding it
+  file:
+    path: /etc/yum.repos.d/kubernetes.repo
+    state: absent
+  tags:
+    - kubernetes_common
+
+- name: Creating a repository file for Kubernetes
+  file:
+    path: /etc/yum.repos.d/kubernetes.repo
+    state: touch
+  tags:
+    - kubernetes_common
+
+- name: Adding repository details in Kubernetes repo file.
+  blockinfile:
+    path: /etc/yum.repos.d/kubernetes.repo
+    block: |
+     [kubernetes]
+     name=Kubernetes
+     baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+     enabled=1
+     gpgcheck=1
+     repo_gpgcheck=1
+     gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+            https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+  tags:
+    - kubernetes_common
+
+- name: Upgrade all packages
+  yum:
+    name: '*'
+    state: latest
+  tags:
+    - kubernetes_common
+
+#
 # cri-o config
 #
-# There is something broken here
-# - name: Remove repo before adding it
-#   file:
-#     path: /etc/yum.repos.d/crio.repo
-#     state: absent
-#   tags:
-#     - kubernetes_common
-
-# - name: Creating a repository file for cri-o
-#   file:
-#     path: /etc/yum.repos.d/crio.repo
-#     state: touch
-#   tags:
-#     - kubernetes_common
-
-# - name: Adding repository details in the cri-o repo file.
-#   blockinfile:
-#     path: /etc/yum.repos.d/crio.repo
-#     block: |
-##     # The official repo for Centos 8 should be available... soon...
-##     #[cri-o]
-##     #name=CRI-O Packages for EL 7 — $basearch
-##     #baseurl=https://cbs.centos.org/repos/paas7-crio-311-candidate/x86_64/os
-##     #enabled=1
-##     #gpgcheck=0
-##     # Until then we use a CBS build
-##      [paas7-crio-115-candidate]
-##      name=paas7-crio-115-candidate
-##      baseurl=https://cbs.centos.org/repos/paas7-crio-115-candidate/x86_64/os/
-##      enabled=1
-##      gpgcheck=0
-#      [cri-o]
-#      name=CRI-O Packages
-#      baseurl=https://buildlogs.centos.org/centos/7/virt/x86_64/container/
-#      enabled=1
-#      gpgcheck=0
-#   tags:
-#     - kubernetes_common
 
 # The three steps beforeshould provide the correct repo to install cri-o
 - name: install the latest version of cri-o
   yum:
-    # name: cri-o
-    name: https://cbs.centos.org/kojifiles/packages/cri-o/1.15.3/1.el7/x86_64/cri-o-debuginfo-1.15.3-1.el7.x86_64.rpm
+    name: cri-o
     state: present
   tags:
     - kubernetes_common
@@ -123,6 +167,12 @@
 
 - name: Update cri-o config network dir to crio folder
   command: sed -i 's?[#|^]network_dir = .*?network_dir = "/etc/crio/net.d/"?g' /etc/crio/crio.conf
+  changed_when: false
+  tags:
+    - kubernetes_common
+
+- name: Update cri-o config conmon to the correct path
+  command: sed 's|/usr/libexec/crio/conmon|/usr/bin/conmon|' -i /etc/crio/crio.conf
   changed_when: false
   tags:
     - kubernetes_common
@@ -202,35 +252,6 @@
 #
 # Kubernetes config
 #
-
-- name: Creating a repository file for Kubernetes
-  file:
-    path: /etc/yum.repos.d/kubernetes.repo
-    state: touch
-  tags:
-    - kubernetes_common
-
-- name: Adding repository details in Kubernetes repo file.
-  blockinfile:
-    path: /etc/yum.repos.d/kubernetes.repo
-    block: |
-     [kubernetes]
-     name=Kubernetes
-     baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
-     enabled=1
-     gpgcheck=1
-     repo_gpgcheck=1
-     gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
-            https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-  tags:
-    - kubernetes_common
-
-- name: Upgrade all packages
-  yum:
-    name: '*'
-    state: latest
-  tags:
-    - kubernetes_common
 
 - name: install requirements
   package:
