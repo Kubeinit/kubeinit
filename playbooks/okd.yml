@@ -1,0 +1,55 @@
+---
+# Copyright 2019 Pystol (pystol.org).
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Main deployment playbook for OKD
+  hosts: hypervisor-nodes
+  # pre_tasks:
+  #  - include: ./tasks/load-vars.yml
+  tasks:
+    - include_role:
+        name: "../roles/provision/libvirt"
+        tasks_from: main.yml
+      vars:
+        pystol_provision_source_image_file: fedora-coreos-32.20200629.3.0-qemu.x86_64.qcow2.xz
+        pystol_provision_source_image_dir: https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200629.3.0/x86_64
+        pystol_provision_cluster_hosts:
+          - {name: okd-master-01, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['okd-master-nodes'][0]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 50G, ram: 33554432}
+        #  - {name: okd-master-02, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['okd-master-nodes'][1]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 50G, ram: 33554432}
+        #  - {name: okd-master-03, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['okd-master-nodes'][2]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 50G, ram: 33554432}
+        #  - {name: okd-worker-01, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['okd-worker-nodes'][0]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 50G, ram: 16777216}
+        #  - {name: okd-worker-02, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['okd-worker-nodes'][1]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 50G, ram: 16777216}
+        #  - {name: okd-worker-03, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['okd-worker-nodes'][2]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 50G, ram: 16777216}
+        #  - {name: okd-worker-04, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['okd-worker-nodes'][3]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 50G, ram: 16777216}
+        #  - {name: okd-bootstrap-01, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['okd-bootstrap-nodes'][0]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 50G, ram: 16777216}
+        #  - {name: okd-service-01, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 50G, ram: 8388608}
+        pystol_provision_cluster_nets:
+          - {name: pystol-net-01, ip: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.50, end: 10.0.0.100}
+      tags: provision_libvirt
+
+#    - include_role:
+#        name: "okd"
+#        tasks_from: main.yml
+#      vars:
+#        os_migrate_conversion_auth: "{{ os_migrate_src_auth }}"
+#        os_migrate_conversion_auth_type: "{{ os_migrate_src_auth_type|default(omit) }}"
+#        os_migrate_conversion_region_name: "{{ os_migrate_src_region_name|default(omit) }}"
+#    - include_role:
+#        name: "pystol"
+#        tasks_from: main.yml
+#      vars:
+#        os_migrate_conversion_auth: "{{ os_migrate_src_auth }}"
+#        os_migrate_conversion_auth_type: "{{ os_migrate_src_auth_type|default(omit) }}"
+#        os_migrate_conversion_region_name: "{{ os_migrate_src_region_name|default(omit) }}"

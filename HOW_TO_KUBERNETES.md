@@ -5,14 +5,16 @@ To deploy the demo server:
 Install Centos 8 and then login the first time,
 for example:
 
-**We assume the hypervisor has the IP 192.168.1.20**
+**We assume the hypervisor is called nyctea as it is defined in the inventory**
 
 ```bash
-ssh root@192.168.1.20
+ssh root@nyctea
 ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -P ""
 curl -sS https://github.com/ccamacho.keys >> ~/.ssh/authorized_keys
 exit
 ```
+
+**Make sure you have enough space in the disk and RAM**
 
 ## Platform deployment
 

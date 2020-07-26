@@ -61,9 +61,20 @@
 ## Hypervisor installing users and permissions and other bits that do not require reboot.
 ##
 
+- name: We replace the value of the image name if it has xz
+  shell: echo "{{ pystol_provision_source_image_file }}" | sed 's/\.xz$//g'
+  register: image_final_name
+  tags:
+    - provision_libvirt
+
+- set_fact:
+    pystol_provision_source_image_file_final={{ image_final_name.stdout }}
+  tags:
+    - provision_libvirt
+
 - name: check if base image exists
   stat:
-    path: "{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}"
+    path: "{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file_final }}"
   register: vm_image
   tags:
     - provision_libvirt
@@ -78,9 +89,21 @@
   tags:
     - provision_libvirt
 
+- name: Extract qcow from compressed file
+  shell: |
+    STR='{{ pystol_provision_source_image_file }}'
+    SUB='.qcow2.xz'
+    if [[ "$STR" == *"$SUB" ]]; then
+      xz --decompress --force {{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}
+      mv {{ pystol_provision_source_image_file_final }} {{ pystol_provision_target_image_dir }}/
+    fi
+  when: not vm_image.stat.exists | bool
+  tags:
+    - provision_libvirt
+
 - name: Change image permissions
   file:
-    path: "{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}"
+    path: "{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file_final }}"
     owner: qemu
     group: qemu
     mode: u=rw,g=r,o=r
@@ -193,11 +216,36 @@
   tags:
     - provision_libvirt
 
-- name: Destroy pystol networks
+- name: Destroy deployment networks
   virt_net:
     command: destroy
     name: "{{ item.name }}"
   with_items: "{{ pystol_provision_cluster_nets }}"
+  ignore_errors: true
+  tags:
+    - provision_libvirt
+
+- name: Undefine deployment networks
+  virt_net:
+    command: undefine
+    name: "{{ item.name }}"
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  ignore_errors: true
+  tags:
+    - provision_libvirt
+
+- name: Destroy default network
+  virt_net:
+    command: destroy
+    name: "default"
+  ignore_errors: true
+  tags:
+    - provision_libvirt
+
+- name: Undefine default network
+  virt_net:
+    command: undefine
+    name: "default"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -208,10 +256,11 @@
 
 - name: Create vm backing store from base vm image
   copy: remote_src=True
-    src="{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}"
+    src="{{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file_final }}"
     dest="{{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
     force=yes  # Do not recopy if it has been modified
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
@@ -219,21 +268,31 @@
   command: "qemu-img resize {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 +{{ item.disk }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
   changed_when: false
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
 - name: Grow the partition
-  command: "virt-resize  --expand /dev/sda1 {{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }} {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
+  command: "virt-resize  --expand /dev/sda1 {{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file_final }} {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
   with_items: "{{ pystol_provision_cluster_hosts }}"
   changed_when: false
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
 ##
-## VM and networks definition, creation and configuration.
+## Config folders for guests details
 ##
 
-- name: Create directories for networking interfaces per node
+- name: Clean directories for config files per node
+  file:
+    state: absent
+    path: "{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: Create directories for config files per node
   file:
     path: "{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}"
     state: directory
@@ -243,12 +302,101 @@
   tags:
     - provision_libvirt
 
-# We can render any cloudinit parameter we want/need here
+
+##
+## Fedora CoreOS configuration.
+##
+
+# We can render any parameter we want/need here Fedora CoreOS specific
+- name: create the hash password for CoreOS cloud user
+  shell: echo "{{ pystol_provision_vms_default_password }}" | openssl passwd -1 -stdin
+  register: password_hash
+  tags:
+    - provision_libvirt
+
+- set_fact:
+    pystol_provision_vms_default_password_hash={{ password_hash.stdout }}
+  tags:
+    - provision_libvirt
+
+- name: get root public key
+  shell: cat /root/.ssh/id_rsa.pub
+  register: publick_key_content
+  tags:
+    - provision_libvirt
+
+- set_fact:
+    pystol_provision_vms_public_key={{ publick_key_content.stdout }}
+  tags:
+    - provision_libvirt
+
+- name: Create the Fedora CoreOS config file
+  template:
+    src: "fcos-config.yaml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.yaml.fcc'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+- name: check if fcct exists
+  stat:
+    path: "/usr/local/bin/fcct"
+  register: fcct_bin
+  tags:
+    - provision_libvirt
+
+- name: install fcct
+  shell: |
+    wget -O /usr/local/bin/fcct https://github.com/coreos/fcct/releases/download/v0.4.0/fcct-x86_64-unknown-linux-gnu
+    chmod +x /usr/local/bin/fcct
+  when: not fcct_bin.stat.exists | bool
+  tags:
+    - provision_libvirt
+
+- name: create the Fedora CoreOS ignition file
+  shell: fcct -o {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.yaml.fcc
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: change context
+  shell: chcon --verbose unconfined_u:object_r:svirt_home_t:s0 {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: Create VM definition
+  shell: |
+    virt-install \
+        --connect qemu:///session \
+        --name={{ item.name }} \
+        --ram={{ item.ram // 1024 }} \
+        --cpuset=0 \
+        --vcpus=8 \
+        --os-type=linux \
+        --os-variant=fedora31 \
+        --graphics=none \
+        --import \
+        --disk path={{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2,format=qcow2,bus=virtio,size={{ item.disk | replace('G','') }},backing_store={{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file_final }},backing_format=qcow2,serial=WD-WMAP9A{{ 1000000 | random(start=900000) }},readonly=false \
+        --qemu-commandline="-fw_cfg name=opt/com.coreos/config,file={{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign" \
+        --print-xml > {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos_vm.xml
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+##
+## CentOS configuration.
+##
+
+# We can render any cloudinit parameter we want/need here CentOS specific
 - name: Create the network interface template for networking details
   template:
-    src: "pystol-ifcfg-eth0.j2"
+    src: "ifcfg-eth0.j2"
     dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
@@ -257,6 +405,7 @@
     src: "101-cloudinit-hosts.tmpl.j2"
     dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl'
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
@@ -265,9 +414,11 @@
     src: "102-cloudinit-cloud.cfg.j2"
     dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg'
   with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
+# This will inject the VM configuration in the case of a CentOS machine
 - name: "Inject {{ pystol_provision_cloud_user }} virt-customize assets"
   shell: |
     virt-customize -a {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 \
@@ -282,24 +433,50 @@
       --selinux-relabel --root-password password:{{ pystol_provision_vms_default_password }}
   with_items: "{{ pystol_provision_cluster_hosts }}"
   changed_when: false
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
-- name: define vm
-  virt:
-      name: "{{ item.name }}"
-      command: define
-      xml: "{{ lookup('template', 'vm.xml.j2') }}"
-      uri: qemu:///session
+- name: render the vm configuration
+  template:
+    src: "vm.xml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml'
   with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
-- name: define pystol networks
+#
+# Define the VMs depending on the OS
+#
+
+- name: define CentOS vms
+  virt:
+    name: "{{ item.name }}"
+    command: define
+    xml: "{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml"
+    uri: qemu:///session
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+- name: define Fedora CoreOS vms
+  shell: |
+    virsh define {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos_vm.xml
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+#
+# Define pending resources
+#
+
+- name: define pystol networks with DHCP enabled
   virt_net:
     command: define
     name: "{{ item.name }}"
-    xml: '{{ lookup("template", "pystol-nets.xml.j2") }}'
+    xml: '{{ lookup("template", "nets.xml.j2") }}'
   with_items: "{{ pystol_provision_cluster_nets }}"
   tags:
     - provision_libvirt
@@ -322,19 +499,19 @@
 
 - name: Create the interface template
   template:
-    src: "pystol-interface.xml.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.cluster_host }}/pystol-interface.xml'
-  with_items: "{{ pystol_provision_cluster_attach_networks }}"
+    src: "interface.xml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
 - name: Connect the network interfaces
   shell: |
     virsh attach-device \
-      {{ item.cluster_host }} \
-      {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.cluster_host }}/pystol-interface.xml \
+      {{ item.name }} \
+      {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml \
       --config
-  with_items: "{{ pystol_provision_cluster_attach_networks }}"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -423,9 +600,9 @@
   tags:
     - provision_libvirt
 
-- name: Pause execution for 3 minutes
+- name: Pause execution for 10 minutes
   pause:
-    minutes: 2
+    minutes: 10
   tags:
     - provision_libvirt
 

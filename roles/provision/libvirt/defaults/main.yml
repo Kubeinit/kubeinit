@@ -61,14 +61,15 @@ pystol_provision_hypervisor_dependencies:
   - python3-pip
   - iptables-services
   - net-tools
+  - xz
 
 pystol_provision_hypervisor_tmp_dir: /tmp
 
 pystol_provision_cluster_hosts:
-  - {name: kubernetes-master-01, eth0: {ip: "{{ hostvars[groups['kubernetes-master-nodes'][0]].ansible_host }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 15728640}
-  - {name: kubernetes-worker-01, eth0: {ip: "{{ hostvars[groups['kubernetes-worker-nodes'][0]].ansible_host }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
-  - {name: kubernetes-worker-02, eth0: {ip: "{{ hostvars[groups['kubernetes-worker-nodes'][1]].ansible_host }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
-  - {name: kubernetes-worker-03, eth0: {ip: "{{ hostvars[groups['kubernetes-worker-nodes'][2]].ansible_host }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
+  - {name: kubernetes-master-01, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['kubernetes-master-nodes'][0]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 15728640}
+  - {name: kubernetes-worker-01, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['kubernetes-worker-nodes'][0]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
+  - {name: kubernetes-worker-02, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['kubernetes-worker-nodes'][1]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
+  - {name: kubernetes-worker-03, eth0: {devicename:enp7s0, net: pystol-net-01, ip: "{{ hostvars[groups['kubernetes-worker-nodes'][2]].ansible_host }}", mac: "{{ '52:54:00' | random_mac }}", prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
 
 pystol_provision_cluster_domain: dev.pystol.org
 
@@ -76,9 +77,3 @@ pystol_provision_virtual_bridge_name: virbr1
 
 pystol_provision_cluster_nets:
   - {name: pystol-net-01, ip: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.50, end: 10.0.0.100}
-
-pystol_provision_cluster_attach_networks:
-  - {cluster_host: kubernetes-master-01, net: pystol-net-01, device: eth0}
-  - {cluster_host: kubernetes-worker-01, net: pystol-net-01, device: eth0}
-  - {cluster_host: kubernetes-worker-02, net: pystol-net-01, device: eth0}
-  - {cluster_host: kubernetes-worker-03, net: pystol-net-01, device: eth0}
