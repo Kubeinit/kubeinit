@@ -472,6 +472,14 @@
 # Define pending resources
 #
 
+- name: render the net configuration
+  template:
+    src: "nets.xml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/nets.xml'
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  tags:
+    - provision_libvirt
+
 - name: define pystol networks with DHCP enabled
   virt_net:
     command: define
