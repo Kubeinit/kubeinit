@@ -95,7 +95,6 @@
     SUB='.qcow2.xz'
     if [[ "$STR" == *"$SUB" ]]; then
       xz --decompress --force {{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file }}
-      mv {{ pystol_provision_source_image_file_final }} {{ pystol_provision_target_image_dir }}/
     fi
   when: not vm_image.stat.exists | bool
   tags:
@@ -216,6 +215,14 @@
   tags:
     - provision_libvirt
 
+- name: Remove VMs storage
+  file:
+    state: absent
+    path: "{{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
 - name: Destroy deployment networks
   virt_net:
     command: destroy
@@ -260,7 +267,7 @@
     dest="{{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
     force=yes  # Do not recopy if it has been modified
   with_items: "{{ pystol_provision_cluster_hosts }}"
-  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
@@ -268,7 +275,7 @@
   command: "qemu-img resize {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 +{{ item.disk }}"
   with_items: "{{ pystol_provision_cluster_hosts }}"
   changed_when: false
-  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
@@ -276,7 +283,7 @@
   command: "virt-resize  --expand /dev/sda1 {{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file_final }} {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
   with_items: "{{ pystol_provision_cluster_hosts }}"
   changed_when: false
-  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
@@ -378,6 +385,7 @@
         --os-variant=fedora31 \
         --graphics=none \
         --import \
+        --nonetworks \
         --disk path={{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2,format=qcow2,bus=virtio,size={{ item.disk | replace('G','') }},backing_store={{ pystol_provision_target_image_dir }}/{{ pystol_provision_source_image_file_final }},backing_format=qcow2,serial=WD-WMAP9A{{ 1000000 | random(start=900000) }},readonly=false \
         --qemu-commandline="-fw_cfg name=opt/com.coreos/config,file={{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign" \
         --print-xml > {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos_vm.xml

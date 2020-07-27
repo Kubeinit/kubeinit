@@ -9,8 +9,37 @@ passwd:
     - name: {{ pystol_provision_cloud_user }}
       ssh_authorized_keys:
         - {{ pystol_provision_vms_public_key }}
+systemd:
+  units:
+    - name: run-interface-removal.service
+      enabled: true
+      contents: |
+        [Unit]
+        After=network-online.target
+        Wants=network-online.target
+        Before=systemd-user-sessions.service
+        ConditionPathExists=!/var/lib/restarted-ipv4-conf
+
+        [Service]
+        RemainAfterExit=true
+        Type=oneshot
+        ExecStart=/usr/local/bin/run-interface-removal
+        ExecStartPost=/usr/bin/touch /var/lib/restarted-ipv4-conf; /usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
 storage:
   files:
+    - path: /usr/local/bin/run-interface-removal
+      mode: 0755
+      contents:
+        inline: |
+          #!/usr/bin/bash
+          set -x
+          main() {
+          sudo nmcli connection delete 'Wired connection 1'
+          }
+          main
     - path: /etc/hostname
       overwrite: true
       contents:
