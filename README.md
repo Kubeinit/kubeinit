@@ -11,13 +11,13 @@
     <a href="https://www.kubeinit.com"><img height="30px" src="https://raw.githubusercontent.com/pystol/pystol-docs/master/assets/badges/cloud-native.svg?sanitize=true"/> </a>
 </p>
 
-## Abstract
+# Abstract
 
 KubeInit provides Ansible playbooks and roles for the deployment and configuration of multiple Kubernetes distributions.
 
-## How to run KubeInit
+# How to run KubeInit
 
-### Requirements
+## Requirements
 
 * A server with enough RAM and disk space (120GB in RAM and 300GB in disk).
 * A hypervisor with Centos 8.
@@ -31,9 +31,16 @@ curl -sS https://github.com/<your_github_username>.keys >> ~/.ssh/authorized_key
 exit
 ```
 
-### Escenarios
+# Escenarios
 
-#### Deploy an OKD 4.5 with 3 master nodes and 4 worker nodes.
+## Deploy an OKD 4.5 with 3 master nodes and [1-10] worker nodes.
+
+### Requirements
+
+* Adjust the inventory file and comment/uncomment [the worker nodes](https://github.com/ccamacho/kubeinit/blob/master/hosts/okd/inventory#L66)
+ you will need in your cluster.
+
+*  Run the playbook and enjoy
 
 ```bash
 git clone https://github.com/ccamacho/kubeinit.git

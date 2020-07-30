@@ -49,6 +49,15 @@
   tags:
     - provision_libvirt
 
+- name: Create vm backing store from base vm image
+  copy: remote_src=True
+    src="{{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }}"
+    dest="{{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
+    force=yes  # Do not recopy if it has been modified
+  with_items: "{{ groups['okd-service-nodes'] }}"
+  tags:
+    - provision_libvirt
+
 - name: Grow the partition
   command: "virt-resize  --expand {{ hostvars[item].root_device }}=+{{ hostvars[item].disk }} {{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }} {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
   with_items: "{{ groups['okd-service-nodes'] }}"
