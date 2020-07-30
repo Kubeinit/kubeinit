@@ -293,8 +293,8 @@
 - name: "Render the bootstrap details"
   shell: |
     cd
-    wget {{ kubeinit_okd_installers.client }}
-    wget {{ kubeinit_okd_installers.installer }}
+    wget {{ kubeinit_okd_dependencies.client }}
+    wget {{ kubeinit_okd_dependencies.installer }}
     tar -zxvf {{ kubeinit_okd_dependencies.client }}
     tar -zxvf {{ kubeinit_okd_dependencies.installer }}
     mv kubectl oc openshift-install /usr/local/bin/
@@ -337,6 +337,8 @@
     cd /var/www/html/okd4/
     sudo wget {{ kubeinit_provision_source_images.coreos.uri }}{{ kubeinit_provision_source_images.coreos.raw }}
     sudo wget {{ kubeinit_provision_source_images.coreos.uri }}{{ kubeinit_provision_source_images.coreos.sig }}
+    sudo mv {{ kubeinit_provision_source_images.coreos.raw }} fcos.raw.xz
+    sudo mv {{ kubeinit_provision_source_images.coreos.sig }} fcos.raw.xz.sig
     sudo chown -R apache: /var/www/html/
     sudo chmod -R 755 /var/www/html/
   delegate_to: "{{ item }}"
