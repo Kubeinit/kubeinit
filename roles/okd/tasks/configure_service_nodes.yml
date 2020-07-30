@@ -58,8 +58,15 @@
   tags:
     - provision_libvirt
 
+- name: Ensure the backing store is large enough
+  command: "qemu-img resize {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2 +{{ hostvars[item].disk }}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
+  changed_when: false
+  tags:
+    - provision_libvirt
+
 - name: Grow the partition
-  command: "virt-resize  --expand {{ hostvars[item].root_device }}=+{{ hostvars[item].disk }} {{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }} {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
+  command: "virt-resize  --expand {{ hostvars[item].root_device }} {{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }} {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
   with_items: "{{ groups['okd-service-nodes'] }}"
   changed_when: false
   tags:
