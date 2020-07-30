@@ -7,6 +7,10 @@ for example:
 
 **We assume the hypervisor is called nyctea as it is defined in the inventory**
 
+If you will connect to the hypervisor using a different name, update:
+
+* The inventory file
+
 ```bash
 ssh root@nyctea
 ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -P ""
@@ -16,9 +20,7 @@ exit
 
 **Make sure you have enough space in the disk and RAM**
 
-## OK deployment
-
-* Provision the environment packages using libvirt:
+* Provision the environment using libvirt:
 
 ```bash
 ansible-playbook \

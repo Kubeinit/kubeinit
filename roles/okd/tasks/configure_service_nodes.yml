@@ -1,5 +1,5 @@
 ---
-# Copyright pystol.org
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -21,15 +21,15 @@
     - provision_libvirt
 
 - set_fact:
-    pystol_provision_vms_public_key={{ publick_key_content.stdout }}
+    kubeinit_provision_vms_public_key={{ publick_key_content.stdout }}
   tags:
     - provision_libvirt
 
 - name: Create the network interface template for networking details
   template:
     src: "../../roles/provision/libvirt/templates/ifcfg-eth0.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
@@ -37,8 +37,8 @@
 - name: Create the hosts template
   template:
     src: "../../roles/provision/libvirt/templates/101-cloudinit-hosts.tmpl.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
@@ -46,52 +46,52 @@
 - name: Create the network cloudinit templates for networking details
   template:
     src: "../../roles/provision/libvirt/templates/102-cloudinit-cloud.cfg.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
 
 - name: Create vm backing store from base vm image
   copy: remote_src=True
-    src="{{ pystol_provision_target_image_dir }}/{{ item.image }}"
-    dest="{{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
+    src="{{ kubeinit_provision_target_image_dir }}/{{ item.image }}"
+    dest="{{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2"
     force=yes  # Do not recopy if it has been modified
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
 
 - name: Ensure the backing store is large enough
-  command: "qemu-img resize {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 +{{ item.disk }}"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  command: "qemu-img resize {{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2 +{{ item.disk }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   when: "'service' in item.name"
   tags:
     - provision_libvirt
 
 - name: Grow the partition
-  command: "virt-resize  --expand {{ item.root_device }} {{ pystol_provision_target_image_dir }}/{{ item.image }} {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  command: "virt-resize  --expand {{ item.root_device }} {{ kubeinit_provision_target_image_dir }}/{{ item.image }} {{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   when: "'service' in item.name"
   tags:
     - provision_libvirt
 
 # This will inject the VM configuration in the case of a CentOS machine
-- name: "Inject {{ pystol_provision_cloud_user }} virt-customize assets"
+- name: "Inject {{ kubeinit_provision_cloud_user }} virt-customize assets"
   shell: |
-    virt-customize -a {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 \
-      --run-command  'id -u {{ pystol_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ pystol_provision_cloud_user }}' \
-      --ssh-inject {{ pystol_provision_cloud_user }}:file:{{ pystol_provision_source_keystore_dir }}/{{ pystol_provision_source_pubkey_file }} \
+    virt-customize -a {{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2 \
+      --run-command  'id -u {{ kubeinit_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_provision_cloud_user }}' \
+      --ssh-inject {{ kubeinit_provision_cloud_user }}:file:{{ kubeinit_provision_source_keystore_dir }}/{{ kubeinit_provision_source_pubkey_file }} \
       --ssh-inject root:file:/root/.ssh/id_rsa.pub \
       --ssh-inject root:file:/root/.ssh/authorized_keys \
-      --hostname {{ item.name }}.{{ pystol_provision_cluster_domain }} \
-      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
-      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
-      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
-      --selinux-relabel --root-password password:{{ pystol_provision_vms_default_password }}
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+      --hostname {{ item.name }}.{{ kubeinit_provision_cluster_domain }} \
+      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
+      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
+      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
+      --selinux-relabel --root-password password:{{ kubeinit_provision_vms_default_password }}
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   when: "'service' in item.name"
   tags:
@@ -100,16 +100,16 @@
 - name: render the vm configuration
   template:
     src: "../../roles/provision/libvirt/templates/vm.xml.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
 
 - name: define vm
   shell: |
-    virsh define {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    virsh define {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
@@ -121,8 +121,8 @@
 - name: Create the interface template
   template:
     src: "../../roles/provision/libvirt/templates/interface.xml.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
@@ -131,9 +131,9 @@
   shell: |
     virsh attach-device \
       {{ item.name }} \
-      {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml \
+      {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml \
       --config
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   changed_when: false
   tags:
@@ -148,7 +148,7 @@
     name: "{{ item.name }}"
     uri: qemu:///session
     state: running
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
@@ -158,7 +158,7 @@
     name: "{{ item.name }}"
     uri: qemu:///session
     autostart: yes
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
@@ -170,7 +170,7 @@
     search_regex: OpenSSH
     delay: 10
     timeout: 600
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: "'service' in item.name"
   tags:
     - provision_libvirt
@@ -184,7 +184,7 @@
 
 - name: install services requirements
   package:
-    name: "{{ pystol_provision_service_dependencies }}"
+    name: "{{ kubeinit_provision_service_dependencies }}"
     state: present
   delegate_to: "{{ item }}"
   with_items: "{{groups['okd-service-nodes']}}"
@@ -234,7 +234,7 @@
 - name: Create BIND db zone
   template:
     src: "db.local.j2"
-    dest: "/etc/named/zones/db.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}"
+    dest: "/etc/named/zones/db.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}"
   delegate_to: "{{ item }}"
   with_items: "{{groups['okd-service-nodes']}}"
   tags:
@@ -321,7 +321,7 @@
     cat << EOF > ./install_dir/install-config.yaml
     ---
     apiVersion: v1
-    baseDomain: {{ pystol_provision_cluster_domain }}
+    baseDomain: {{ kubeinit_provision_cluster_domain }}
     compute:
     - hyperthreading: Enabled
       name: worker
@@ -331,7 +331,7 @@
       name: master
       replicas: {{ groups['okd-master-nodes'] | count }}
     metadata:
-      name: {{ pystol_provision_cluster_name }}
+      name: {{ kubeinit_provision_cluster_name }}
     networking:
       clusterNetwork:
       - cidr: 10.100.0.0/14
@@ -343,7 +343,7 @@
       none: {}
     fips: false
     pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
-    sshKey: {{ pystol_provision_vms_public_key }}
+    sshKey: {{ kubeinit_provision_vms_public_key }}
     EOF
     openshift-install create manifests --dir=install_dir/
     sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml

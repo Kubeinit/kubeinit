@@ -82,9 +82,9 @@ ansible --user root -i ./hosts/demo-noha/inventory -m ping all
 In this point you should be able to connect to the cluster nodes.
 
 To connect to the cluster nodes you can use the injected root password from the
-[guests definition](https://github.com/pystol/pystol-ansible/blob/master/roles/provision/libvirt/defaults/main.yml#L31)
+[guests definition](https://github.com/ccamacho/kubeinit/blob/master/roles/provision/libvirt/defaults/main.yml#L31)
 directly with SSH, based on the
-[nodes IPs](https://github.com/pystol/pystol-ansible/blob/master/hosts/demo-noha/inventory).
+[nodes IPs](https://github.com/ccamacho/kubeinit/blob/master/hosts/demo-noha/inventory).
 
 Another way to connect is using virsh connect from the Hypervisor
 
@@ -102,7 +102,7 @@ Connected to domain kubernetes-master-01
 kubernetes-master-01 login:
 ```
 
-Execute (from the master node, kubernetes-master-01.dev.pystol.org):
+Execute (from the master node, kubernetes-master-01.dev.kubeinit.com):
 
 ```bash
 kubectl get nodes
@@ -111,7 +111,7 @@ Then get the output as:
 
 ```
 NAME                                  STATUS   ROLES    AGE    VERSION
-kubernetes-master-01.dev.pystol.org   Ready    master   2m7s   v1.16.3
+kubernetes-master-01.dev.kubeinit.com   Ready    master   2m7s   v1.16.3
 ```
 
 Now, we proceed to install the worker nodes.
@@ -242,6 +242,6 @@ ansible-playbook \
     -l kubernetes-master-nodes \
     --become \
     --become-user root \
-    --tags pystol_install \
+    --tags kubeinit_install \
     ./playbook.yml
 ```

@@ -1,6 +1,6 @@
 $TTL    604800
 {% for host in groups['okd-service-nodes'] %}
-@       IN      SOA     {{ host }}.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}. admin.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.(
+@       IN      SOA     {{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}. admin.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.(
 {% endfor %}
                   1     ; Serial
              604800     ; Refresh
@@ -11,41 +11,41 @@ $TTL    604800
 
 ; name servers - NS records
 {% for host in groups['okd-service-nodes'] %}
-    IN      NS      {{ host }}.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.
+    IN      NS      {{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.
 {% endfor %}
 
 ; name servers - A records
 {% for host in groups['okd-service-nodes'] %}
-{{ host }}.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.          IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
+{{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.          IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 ; OpenShift Container Platform Cluster - A records
 {% for host in groups['okd-master-nodes'] %}
-{{ host }}.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.          IN      A       {{ hostvars[groups['okd-master-nodes'][loop.index - 1]].ansible_host }}
+{{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.          IN      A       {{ hostvars[groups['okd-master-nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 {% for host in groups['okd-worker-nodes'] %}
-{{ host }}.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.          IN      A       {{ hostvars[groups['okd-worker-nodes'][loop.index - 1]].ansible_host }}
+{{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.          IN      A       {{ hostvars[groups['okd-worker-nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 {% for host in groups['okd-bootstrap-nodes'] %}
-{{ host }}.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.          IN      A       {{ hostvars[groups['okd-bootstrap-nodes'][loop.index - 1]].ansible_host }}
+{{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.          IN      A       {{ hostvars[groups['okd-bootstrap-nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - A records
 {% for host in groups['okd-service-nodes'] %}
-api.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.                              IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
-api-int.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.                          IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
-*.apps.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.                           IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
-console-openshift-console.apps.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.   IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
-oauth-openshift.apps.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.             IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
+api.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.                              IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
+api-int.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.                          IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
+*.apps.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.                           IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
+console-openshift-console.apps.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.   IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
+oauth-openshift.apps.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.             IN      A       {{ hostvars[groups['okd-service-nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 {% for host in groups['okd-master-nodes'] %}
-etcd-{{ loop.index - 1 }}.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.        IN      A       {{ hostvars[groups['okd-master-nodes'][loop.index - 1]].ansible_host }}
+etcd-{{ loop.index - 1 }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.        IN      A       {{ hostvars[groups['okd-master-nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - SRV records
 {% for host in groups['okd-master-nodes'] %}
-_etcd-server-ssl._tcp.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}.    86400   IN    SRV     0    10    2380    etcd-{{ loop.index - 1 }}
+_etcd-server-ssl._tcp.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.    86400   IN    SRV     0    10    2380    etcd-{{ loop.index - 1 }}
 {% endfor %}

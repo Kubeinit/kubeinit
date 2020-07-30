@@ -1,5 +1,5 @@
 # Molecule managed
-# Copyright 2019 Pystol (pystol.org).
+# Copyright 2019 KubeInit (kubeinit.com).
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may

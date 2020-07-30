@@ -1,5 +1,5 @@
 ---
-# Copyright pystol.org
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -21,13 +21,13 @@
 
 # We can render any parameter we want/need here Fedora CoreOS specific
 - name: create the hash password for CoreOS cloud user
-  shell: echo "{{ pystol_provision_vms_default_password }}" | openssl passwd -1 -stdin
+  shell: echo "{{ kubeinit_provision_vms_default_password }}" | openssl passwd -1 -stdin
   register: password_hash
   tags:
     - provision_libvirt
 
 - set_fact:
-    pystol_provision_vms_default_password_hash={{ password_hash.stdout }}
+    kubeinit_provision_vms_default_password_hash={{ password_hash.stdout }}
   tags:
     - provision_libvirt
 
@@ -38,7 +38,7 @@
     - provision_libvirt
 
 - set_fact:
-    pystol_provision_vms_public_key={{ publick_key_content.stdout }}
+    kubeinit_provision_vms_public_key={{ publick_key_content.stdout }}
   tags:
     - provision_libvirt
 
@@ -58,7 +58,7 @@
     cat << EOF > ./install_dir/install-config.yaml
     ---
     apiVersion: v1
-    baseDomain: {{ pystol_provision_cluster_domain }}
+    baseDomain: {{ kubeinit_provision_cluster_domain }}
     compute:
     - hyperthreading: Enabled
       name: worker
@@ -68,7 +68,7 @@
       name: master
       replicas: 3
     metadata:
-      name: {{ pystol_provision_cluster_name }}
+      name: {{ kubeinit_provision_cluster_name }}
     networking:
       clusterNetwork:
       - cidr: 10.100.0.0/14
@@ -80,7 +80,7 @@
       none: {}
     fips: false
     pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
-    sshKey: {{ pystol_provision_vms_public_key }}
+    sshKey: {{ kubeinit_provision_vms_public_key }}
     EOF
 
     openshift-install create manifests --dir=install_dir/
@@ -97,9 +97,9 @@
 - name: Create the Fedora CoreOS config file
   template:
     src: "fcos-config.yaml.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.yaml.fcc'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
-  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.yaml.fcc'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  when: "{{ 'coreos' in kubeinit_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
@@ -119,14 +119,14 @@
     - provision_libvirt
 
 - name: create the Fedora CoreOS ignition file
-  shell: fcct -o {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.yaml.fcc
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  shell: fcct -o {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.yaml.fcc
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
 - name: change context
-  shell: chcon --verbose unconfined_u:object_r:svirt_home_t:s0 {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  shell: chcon --verbose unconfined_u:object_r:svirt_home_t:s0 {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
@@ -143,11 +143,11 @@
         --graphics=none \
         --import \
         --nonetworks \
-        --disk path={{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2,format=qcow2,bus=virtio,size={{ item.disk | replace('G','') }},backing_store={{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2,backing_format=qcow2,serial=WD-WMAP9A{{ 1000000 | random(start=900000) }},readonly=false \
-        --qemu-commandline="-fw_cfg name=opt/com.coreos/config,file={{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign" \
-        --print-xml > {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos_vm.xml
-  with_items: "{{ pystol_provision_cluster_hosts }}"
-  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
+        --disk path={{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2,format=qcow2,bus=virtio,size={{ item.disk | replace('G','') }},backing_store={{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2,backing_format=qcow2,serial=WD-WMAP9A{{ 1000000 | random(start=900000) }},readonly=false \
+        --qemu-commandline="-fw_cfg name=opt/com.coreos/config,file={{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign" \
+        --print-xml > {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos_vm.xml
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  when: "{{ 'coreos' in kubeinit_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
@@ -159,54 +159,54 @@
 - name: Create the network interface template for networking details
   template:
     src: "ifcfg-eth0.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
-  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in kubeinit_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
 - name: Create the hosts template
   template:
     src: "101-cloudinit-hosts.tmpl.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
-  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in kubeinit_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
 - name: Create the network cloudinit templates for networking details
   template:
     src: "102-cloudinit-cloud.cfg.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
-  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in kubeinit_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
 # This will inject the VM configuration in the case of a CentOS machine
-- name: "Inject {{ pystol_provision_cloud_user }} virt-customize assets"
+- name: "Inject {{ kubeinit_provision_cloud_user }} virt-customize assets"
   shell: |
-    virt-customize -a {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 \
-      --run-command  'id -u {{ pystol_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ pystol_provision_cloud_user }}' \
-      --ssh-inject {{ pystol_provision_cloud_user }}:file:{{ pystol_provision_source_keystore_dir }}/{{ pystol_provision_source_pubkey_file }} \
+    virt-customize -a {{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2 \
+      --run-command  'id -u {{ kubeinit_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_provision_cloud_user }}' \
+      --ssh-inject {{ kubeinit_provision_cloud_user }}:file:{{ kubeinit_provision_source_keystore_dir }}/{{ kubeinit_provision_source_pubkey_file }} \
       --ssh-inject root:file:/root/.ssh/id_rsa.pub \
       --ssh-inject root:file:/root/.ssh/authorized_keys \
-      --hostname {{ item.name }}.{{ pystol_provision_cluster_domain }} \
-      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
-      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
-      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
-      --selinux-relabel --root-password password:{{ pystol_provision_vms_default_password }}
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+      --hostname {{ item.name }}.{{ kubeinit_provision_cluster_domain }} \
+      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
+      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
+      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
+      --selinux-relabel --root-password password:{{ kubeinit_provision_vms_default_password }}
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
-  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  when: "{{ 'CentOS' in kubeinit_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
 - name: render the vm configuration
   template:
     src: "vm.xml.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
@@ -218,18 +218,18 @@
   virt:
     name: "{{ item.name }}"
     command: define
-    xml: "{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml"
+    xml: "{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml"
     uri: qemu:///session
-  with_items: "{{ pystol_provision_cluster_hosts }}"
-  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in kubeinit_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
 - name: define Fedora CoreOS vms
   shell: |
-    virsh define {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos_vm.xml
-  with_items: "{{ pystol_provision_cluster_hosts }}"
-  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
+    virsh define {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos_vm.xml
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  when: "{{ 'coreos' in kubeinit_provision_source_image_file_final }}"
   tags:
     - provision_libvirt
 
@@ -240,8 +240,8 @@
 - name: render the net configuration
   template:
     src: "nets.xml.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/nets.xml'
-  with_items: "{{ pystol_provision_cluster_nets }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/nets.xml'
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   tags:
     - provision_libvirt
 
@@ -250,7 +250,7 @@
     command: define
     name: "{{ item.name }}"
     xml: '{{ lookup("template", "nets.xml.j2") }}'
-  with_items: "{{ pystol_provision_cluster_nets }}"
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   tags:
     - provision_libvirt
 
@@ -258,7 +258,7 @@
   virt_net:
     state: active
     name: "{{ item.name }}"
-  with_items: "{{ pystol_provision_cluster_nets }}"
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   tags:
     - provision_libvirt
 
@@ -266,15 +266,15 @@
   virt_net:
     autostart: yes
     name: "{{ item.name }}"
-  with_items: "{{ pystol_provision_cluster_nets }}"
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   tags:
     - provision_libvirt
 
 - name: Create the interface template
   template:
     src: "interface.xml.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml'
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml'
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
@@ -282,9 +282,9 @@
   shell: |
     virsh attach-device \
       {{ item.name }} \
-      {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml \
+      {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml \
       --config
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -304,7 +304,7 @@
     name: "{{ item.name }}"
     uri: qemu:///session
     state: running
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   loop_control:
     pause: 30
   tags:
@@ -315,7 +315,7 @@
     name: "{{ item.name }}"
     uri: qemu:///session
     autostart: yes
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
@@ -333,9 +333,9 @@
 - name: Reset ssh keys in hypervisor
   shell: |
     ssh-keygen -R  {{ item.name }}
-    ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}
+    ssh-keygen -R  {{ item.name }}.{{ kubeinit_provision_cluster_domain }}
     ssh-keygen -R  {{ item.eth0.ip }}
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: known_hosts_file.stat.exists | bool
   changed_when: false
   tags:
@@ -345,7 +345,7 @@
   become: no
   delegate_to: localhost
   command: "ssh-keygen -R  {{ item.name }}"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -353,8 +353,8 @@
 - name: reset ssh keys for FQDN
   become: no
   delegate_to: localhost
-  command: "ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  command: "ssh-keygen -R  {{ item.name }}.{{ kubeinit_provision_cluster_domain }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -363,7 +363,7 @@
   become: no
   delegate_to: localhost
   command: "ssh-keygen -R  {{ item.eth0.ip }}"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -388,7 +388,7 @@
       echo "Cant reach the host, need to restart to refresh the network"
       virsh reboot {{ item.name }}
     fi
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -418,9 +418,9 @@
 #   package:
 #     name: "{{ item }}"
 #     state: present
-#   with_items: "{{ pystol_provision_hypervisor_dependencies }}"
+#   with_items: "{{ kubeinit_provision_hypervisor_dependencies }}"
 #   when:
-#     - "{{ 'okd' in pystol_provision_cluster_distro }}"
+#     - "{{ 'okd' in kubeinit_provision_cluster_distro }}"
 #     - solo en el nodo de los servicios...
 #   tags:
 #     - provision_libvirt

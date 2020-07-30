@@ -1,5 +1,5 @@
 ---
-# Copyright pystol.org
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -28,8 +28,8 @@
 
 - name: "Create VM definition for the {{ kubeinit_deployment_role }} nodes"
   shell: |
-    kernel={{ pystol_provision_target_image_dir }}/fedora-coreos-32.20200715.3.0-live-kernel-x86_64
-    initrd={{ pystol_provision_target_image_dir }}/fedora-coreos-32.20200715.3.0-live-initramfs.x86_64.img
+    kernel={{ kubeinit_provision_target_image_dir }}/fedora-coreos-32.20200715.3.0-live-kernel-x86_64
+    initrd={{ kubeinit_provision_target_image_dir }}/fedora-coreos-32.20200715.3.0-live-initramfs.x86_64.img
     kernel_args='ip=dhcp rd.neednet=1 console=tty0 console=ttyS0 coreos.inst.stream=stable coreos.inst.install_dev={{ item.root_device }} coreos.inst.image_url=http://{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}:8080/okd4/fcos.raw.xz coreos.inst.ignition_url=http://{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_deployment_role }}.ign'
     # If you use the kernel args to deploy the machine
     # Is not possible to render the template as --print-xml > vm.xml
@@ -46,7 +46,7 @@
         --network network=net-01,mac={{ item.eth0.mac }},model=virtio \
         --disk size={{ item.disk | replace('G','') }},readonly=false \
         --install kernel=${kernel},initrd=${initrd},kernel_args_overwrite=yes,kernel_args="${kernel_args}"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   when: kubeinit_deployment_role in item.name
   tags:
@@ -59,7 +59,7 @@
     search_regex: OpenSSH
     delay: 10
     timeout: 7200
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: kubeinit_deployment_role in item.name
   tags:
     - provision_libvirt

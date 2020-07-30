@@ -5,16 +5,16 @@
     <port start='1024' end='65535'/>
   </nat>
   </forward>
-  <bridge name='{{ pystol_provision_virtual_bridge_name }}' stp='on' delay='0'/>
+  <bridge name='{{ kubeinit_provision_virtual_bridge_name }}' stp='on' delay='0'/>
   <ip address='{{ item.ip }}' netmask='{{ item.netmask }}'>
       <dhcp>
           <range start='{{ item.start }}' end='{{ item.end }}'/>
-          {% for host in pystol_provision_cluster_hosts %}
-            <host mac="{{ host.eth0.mac }}" name="{{ host.name }}.{{ pystol_provision_cluster_domain }}" ip="{{ host.eth0.ip }}"/>
+          {% for host in kubeinit_provision_cluster_hosts %}
+            <host mac="{{ host.eth0.mac }}" name="{{ host.name }}.{{ kubeinit_provision_cluster_domain }}" ip="{{ host.eth0.ip }}"/>
           {% endfor %}
       </dhcp>
   </ip>
   <dns>
-    <forwarder domain='{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}' addr="{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}"/>
+    <forwarder domain='{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}' addr="{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}"/>
   </dns>
 </network>

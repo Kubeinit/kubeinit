@@ -1,5 +1,5 @@
 ---
-# Copyright pystol.org
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -14,14 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-# "pystol" will search for and load any operating system variable file
-
-# found within the "vars/" path. If no OS files are found the task will skip.
-
 ##
 ## Hypervisor installing dependencies and rebooting.
 ##
+
 - name: Fails if not Centos
   fail:
     msg: The hypervisor machine needs to be CentOS/RHEL
@@ -46,9 +42,9 @@
 - name: Reset ssh keys in hypervisor
   shell: |
     ssh-keygen -R  {{ item.name }}
-    ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}
+    ssh-keygen -R  {{ item.name }}.{{ kubeinit_provision_cluster_domain }}
     ssh-keygen -R  {{ item.eth0.ip }}
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   when: known_hosts_file.stat.exists | bool
   changed_when: false
   tags:
@@ -58,7 +54,7 @@
   become: no
   delegate_to: localhost
   command: "ssh-keygen -R  {{ item.name }}"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -66,8 +62,8 @@
 - name: reset ssh keys for FQDN
   become: no
   delegate_to: localhost
-  command: "ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  command: "ssh-keygen -R  {{ item.name }}.{{ kubeinit_provision_cluster_domain }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -76,7 +72,7 @@
   become: no
   delegate_to: localhost
   command: "ssh-keygen -R  {{ item.eth0.ip }}"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -89,7 +85,7 @@
 
 - name: install requirements
   package:
-    name: "{{ pystol_provision_hypervisor_dependencies }}"
+    name: "{{ kubeinit_provision_hypervisor_dependencies }}"
     state: present
   tags:
     - provision_libvirt
@@ -119,11 +115,11 @@
     validate_certs: False
     use_proxy: True
     url: "{{ item.uri }}{{ item.name }}"
-    dest: "{{ pystol_provision_target_image_dir }}/"
+    dest: "{{ kubeinit_provision_target_image_dir }}/"
     force: no
     mode: '0644'
     owner: qemu
-  with_items: "{{ pystol_provision_source_images }}"
+  with_items: "{{ kubeinit_provision_source_images }}"
   tags:
     - provision_libvirt
 
@@ -132,40 +128,40 @@
     STR='{{ item.name }}'
     SUB='.qcow2.xz'
     if [[ "$STR" == *"$SUB" ]]; then
-      xz --decompress --force {{ pystol_provision_target_image_dir }}/{{ item.name }}
+      xz --decompress --force {{ kubeinit_provision_target_image_dir }}/{{ item.name }}
     fi
-    chown qemu. {{ pystol_provision_target_image_dir }}/{{ item.name | replace('.qcow2.xz','.qcow2') }}
-    chmod 644 {{ pystol_provision_target_image_dir }}/{{ item.name | replace('.qcow2.xz','.qcow2') }}
-  with_items: "{{ pystol_provision_source_images }}"
+    chown qemu. {{ kubeinit_provision_target_image_dir }}/{{ item.name | replace('.qcow2.xz','.qcow2') }}
+    chmod 644 {{ kubeinit_provision_target_image_dir }}/{{ item.name | replace('.qcow2.xz','.qcow2') }}
+  with_items: "{{ kubeinit_provision_source_images }}"
   tags:
     - provision_libvirt
 
-- name: "Make sure we have a '{{ pystol_provision_cloud_user }}' group"
+- name: "Make sure we have a '{{ kubeinit_provision_cloud_user }}' group"
   group:
-    name: "{{ pystol_provision_cloud_user }}"
+    name: "{{ kubeinit_provision_cloud_user }}"
     state: present
   tags:
     - provision_libvirt
 
-- name: "Allow '{{ pystol_provision_cloud_user }}' group to have passwordless sudo"
+- name: "Allow '{{ kubeinit_provision_cloud_user }}' group to have passwordless sudo"
   lineinfile:
     dest: /etc/sudoers
     state: present
-    regexp: "^%{{ pystol_provision_cloud_user }}"
-    line: "%{{ pystol_provision_cloud_user }} ALL=(ALL) NOPASSWD: ALL"
+    regexp: "^%{{ kubeinit_provision_cloud_user }}"
+    line: "%{{ kubeinit_provision_cloud_user }} ALL=(ALL) NOPASSWD: ALL"
     validate: 'visudo -cf %s'
   tags:
     - provision_libvirt
 
-- name: "Add sudoers users to {{ pystol_provision_cloud_user }} group"
-  user: "name={{ pystol_provision_cloud_user }} groups={{ pystol_provision_cloud_user }} append=yes state=present createhome=yes"
+- name: "Add sudoers users to {{ kubeinit_provision_cloud_user }} group"
+  user: "name={{ kubeinit_provision_cloud_user }} groups={{ kubeinit_provision_cloud_user }} append=yes state=present createhome=yes"
   tags:
     - provision_libvirt
 
 - name: Add Users to libvirt
   action: user name="{{ item }}" groups="kvm,libvirt" append=yes
   with_items:
-    - "{{ pystol_provision_cloud_user }}"
+    - "{{ kubeinit_provision_cloud_user }}"
     - root
   tags:
     - provision_libvirt
@@ -188,7 +184,7 @@
 
 - name: Create ssh folder
   file:
-    path: "/home/{{ pystol_provision_cloud_user }}/.ssh/"
+    path: "/home/{{ kubeinit_provision_cloud_user }}/.ssh/"
     state: directory
   tags:
     - provision_libvirt
@@ -203,23 +199,23 @@
 
 - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
   openssh_keypair:
-    path: "/home/{{ pystol_provision_cloud_user }}/.ssh/id_rsa"
-    owner: "{{ pystol_provision_cloud_user }}"
-    group: "{{ pystol_provision_cloud_user }}"
+    path: "/home/{{ kubeinit_provision_cloud_user }}/.ssh/id_rsa"
+    owner: "{{ kubeinit_provision_cloud_user }}"
+    group: "{{ kubeinit_provision_cloud_user }}"
   tags:
     - provision_libvirt
 
 - name: Fix owner of the generated pub key
   file:
-    path: "/home/{{ pystol_provision_cloud_user }}/.ssh/id_rsa.pub"
-    owner: "{{ pystol_provision_cloud_user }}"
-    group: "{{ pystol_provision_cloud_user }}"
+    path: "/home/{{ kubeinit_provision_cloud_user }}/.ssh/id_rsa.pub"
+    owner: "{{ kubeinit_provision_cloud_user }}"
+    group: "{{ kubeinit_provision_cloud_user }}"
   tags:
     - provision_libvirt
 
 - name: Insert the default libvirt uri in user's home
   lineinfile:
-    path: "/home/{{ pystol_provision_cloud_user }}/.bashrc"
+    path: "/home/{{ kubeinit_provision_cloud_user }}/.bashrc"
     line: export LIBVIRT_DEFAULT_URI=qemu:///system
   tags:
     - provision_libvirt
@@ -232,7 +228,7 @@
   virt:
       name: "{{ item.name }}"
       command: destroy
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -241,7 +237,7 @@
   virt:
       name: "{{ item.name }}"
       command: undefine
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -249,8 +245,8 @@
 - name: Remove VMs storage
   file:
     state: absent
-    path: "{{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    path: "{{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
@@ -258,7 +254,7 @@
   virt_net:
     command: destroy
     name: "{{ item.name }}"
-  with_items: "{{ pystol_provision_cluster_nets }}"
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -267,7 +263,7 @@
   virt_net:
     command: undefine
     name: "{{ item.name }}"
-  with_items: "{{ pystol_provision_cluster_nets }}"
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -295,18 +291,18 @@
 - name: Clean directories for config files per node
   file:
     state: absent
-    path: "{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/"
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+    path: "{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
 - name: Create directories for config files per node
   file:
-    path: "{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}"
+    path: "{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}"
     state: directory
     mode: 0775
     recurse: yes
-  with_items: "{{ pystol_provision_cluster_hosts }}"
+  with_items: "{{ kubeinit_provision_cluster_hosts }}"
   tags:
     - provision_libvirt
 
@@ -317,32 +313,32 @@
 - name: render the net configuration
   template:
     src: "nets.xml.j2"
-    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/nets.xml'
-  with_items: "{{ pystol_provision_cluster_nets }}"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/nets.xml'
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   tags:
     - provision_libvirt
 
-- name: define pystol networks with DHCP enabled
+- name: define KubeInit networks with DHCP enabled
   virt_net:
     command: define
     name: "{{ item.name }}"
     xml: '{{ lookup("template", "nets.xml.j2") }}'
-  with_items: "{{ pystol_provision_cluster_nets }}"
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   tags:
     - provision_libvirt
 
-- name: Activate pystol networks
+- name: Activate KubeInit networks
   virt_net:
     state: active
     name: "{{ item.name }}"
-  with_items: "{{ pystol_provision_cluster_nets }}"
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   tags:
     - provision_libvirt
 
-- name: Autostart pystol networks
+- name: Autostart KubeInit networks
   virt_net:
     autostart: yes
     name: "{{ item.name }}"
-  with_items: "{{ pystol_provision_cluster_nets }}"
+  with_items: "{{ kubeinit_provision_cluster_nets }}"
   tags:
     - provision_libvirt

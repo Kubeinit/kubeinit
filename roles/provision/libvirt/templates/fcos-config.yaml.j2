@@ -3,12 +3,12 @@ version: 1.0.0
 passwd:
   users:
     - name: core
-      password_hash: "{{ pystol_provision_vms_default_password_hash }}"
+      password_hash: "{{ kubeinit_provision_vms_default_password_hash }}"
       ssh_authorized_keys:
-        - {{ pystol_provision_vms_public_key }}
-    - name: {{ pystol_provision_cloud_user }}
+        - {{ kubeinit_provision_vms_public_key }}
+    - name: {{ kubeinit_provision_cloud_user }}
       ssh_authorized_keys:
-        - {{ pystol_provision_vms_public_key }}
+        - {{ kubeinit_provision_vms_public_key }}
 # systemd:
 #   units:
 #     - name: run-interface-removal.service
@@ -45,7 +45,7 @@ storage:
     - path: /etc/hostname
       overwrite: true
       contents:
-        inline: {{ item.name }}.{{ pystol_provision_cluster_domain }}
+        inline: {{ item.name }}.{{ kubeinit_provision_cluster_domain }}
     - path: /etc/hosts
       overwrite: true
       contents:
@@ -59,8 +59,8 @@ storage:
           ::1 localhost.localdomain localhost
           ::1 localhost6.localdomain6 localhost6
 
-{% for host in pystol_provision_cluster_hosts %}
-          {{ host.eth0.ip }} {{ host.name }}.{{ pystol_provision_cluster_domain }} {{ host.name }}
+{% for host in kubeinit_provision_cluster_hosts %}
+          {{ host.eth0.ip }} {{ host.name }}.{{ kubeinit_provision_cluster_domain }} {{ host.name }}
 {% endfor %}
     - path: /etc/ssh/sshd_config.d/20-enable-passwords.conf
       mode: 0644
@@ -85,4 +85,4 @@ storage:
     #       addresses={{ item.eth0.ip }}/{{ item.eth0.prefix }}
     #       gateway={{ item.eth0.gateway }}
     #       dns={{ item.eth0.gateway }},{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}
-    #       dns-search={{ pystol_provision_cluster_domain }}
+    #       dns-search={{ kubeinit_provision_cluster_domain }}
