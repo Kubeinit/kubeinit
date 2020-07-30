@@ -1,0 +1,479 @@
+---
+# Copyright pystol.org
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+##
+## Fedora CoreOS configuration.
+##
+
+# We can render any parameter we want/need here Fedora CoreOS specific
+- name: create the hash password for CoreOS cloud user
+  shell: echo "{{ pystol_provision_vms_default_password }}" | openssl passwd -1 -stdin
+  register: password_hash
+  tags:
+    - provision_libvirt
+
+- set_fact:
+    pystol_provision_vms_default_password_hash={{ password_hash.stdout }}
+  tags:
+    - provision_libvirt
+
+- name: get root public key
+  shell: cat /root/.ssh/id_rsa.pub
+  register: publick_key_content
+  tags:
+    - provision_libvirt
+
+- set_fact:
+    pystol_provision_vms_public_key={{ publick_key_content.stdout }}
+  tags:
+    - provision_libvirt
+
+# This will inject the VM configuration in the case of a CentOS machine
+- name: "Render the bootstrap details"
+  shell: |
+    wget https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-14-153706-ga/openshift-client-linux-4.5.0-0.okd-2020-07-14-153706-ga.tar.gz
+    wget https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-14-153706-ga/openshift-install-linux-4.5.0-0.okd-2020-07-14-153706-ga.tar.gz
+    tar -zxvf openshift-client-linux-4.5.0-0.okd-2020-07-14-153706-ga.tar.gz
+    tar -zxvf openshift-install-linux-4.5.0-0.okd-2020-07-14-153706-ga.tar.gz
+    sudo mv kubectl oc openshift-install /usr/local/bin/
+    oc version
+    openshift-install version
+    cd
+    mkdir install_dir
+
+    cat << EOF > ./install_dir/install-config.yaml
+    ---
+    apiVersion: v1
+    baseDomain: {{ pystol_provision_cluster_domain }}
+    compute:
+    - hyperthreading: Enabled
+      name: worker
+      replicas: 0
+    controlPlane:
+      hyperthreading: Enabled
+      name: master
+      replicas: 3
+    metadata:
+      name: {{ pystol_provision_cluster_name }}
+    networking:
+      clusterNetwork:
+      - cidr: 10.100.0.0/14
+        hostPrefix: 23
+      networkType: OpenShiftSDN
+      serviceNetwork:
+      - 172.30.0.0/16
+    platform:
+      none: {}
+    fips: false
+    pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
+    sshKey: {{ pystol_provision_vms_public_key }}
+    EOF
+
+    openshift-install create manifests --dir=install_dir/
+    sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
+    openshift-install create ignition-configs --dir=install_dir/
+  changed_when: false
+  tags:
+    - provision_libvirt
+
+
+
+
+
+- name: Create the Fedora CoreOS config file
+  template:
+    src: "fcos-config.yaml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.yaml.fcc'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+- name: check if fcct exists
+  stat:
+    path: "/usr/local/bin/fcct"
+  register: fcct_bin
+  tags:
+    - provision_libvirt
+
+- name: install fcct
+  shell: |
+    wget -O /usr/local/bin/fcct https://github.com/coreos/fcct/releases/download/v0.4.0/fcct-x86_64-unknown-linux-gnu
+    chmod +x /usr/local/bin/fcct
+  when: not fcct_bin.stat.exists | bool
+  tags:
+    - provision_libvirt
+
+- name: create the Fedora CoreOS ignition file
+  shell: fcct -o {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.yaml.fcc
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: change context
+  shell: chcon --verbose unconfined_u:object_r:svirt_home_t:s0 {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: Create VM definition
+  shell: |
+    virt-install \
+        --connect qemu:///session \
+        --name={{ item.name }} \
+        --ram={{ item.ram // 1024 }} \
+        --cpuset=0 \
+        --vcpus=8 \
+        --os-type=linux \
+        --os-variant=fedora31 \
+        --graphics=none \
+        --import \
+        --nonetworks \
+        --disk path={{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2,format=qcow2,bus=virtio,size={{ item.disk | replace('G','') }},backing_store={{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2,backing_format=qcow2,serial=WD-WMAP9A{{ 1000000 | random(start=900000) }},readonly=false \
+        --qemu-commandline="-fw_cfg name=opt/com.coreos/config,file={{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign" \
+        --print-xml > {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos_vm.xml
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+##
+## CentOS configuration.
+##
+
+# We can render any cloudinit parameter we want/need here CentOS specific
+- name: Create the network interface template for networking details
+  template:
+    src: "ifcfg-eth0.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+- name: Create the hosts template
+  template:
+    src: "101-cloudinit-hosts.tmpl.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+- name: Create the network cloudinit templates for networking details
+  template:
+    src: "102-cloudinit-cloud.cfg.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+# This will inject the VM configuration in the case of a CentOS machine
+- name: "Inject {{ pystol_provision_cloud_user }} virt-customize assets"
+  shell: |
+    virt-customize -a {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 \
+      --run-command  'id -u {{ pystol_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ pystol_provision_cloud_user }}' \
+      --ssh-inject {{ pystol_provision_cloud_user }}:file:{{ pystol_provision_source_keystore_dir }}/{{ pystol_provision_source_pubkey_file }} \
+      --ssh-inject root:file:/root/.ssh/id_rsa.pub \
+      --ssh-inject root:file:/root/.ssh/authorized_keys \
+      --hostname {{ item.name }}.{{ pystol_provision_cluster_domain }} \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
+      --selinux-relabel --root-password password:{{ pystol_provision_vms_default_password }}
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+- name: render the vm configuration
+  template:
+    src: "vm.xml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+#
+# Define the VMs depending on the OS
+#
+
+- name: define CentOS vms
+  virt:
+    name: "{{ item.name }}"
+    command: define
+    xml: "{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml"
+    uri: qemu:///session
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'CentOS' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+- name: define Fedora CoreOS vms
+  shell: |
+    virsh define {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos_vm.xml
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "{{ 'coreos' in pystol_provision_source_image_file_final }}"
+  tags:
+    - provision_libvirt
+
+#
+# Define pending resources
+#
+
+- name: render the net configuration
+  template:
+    src: "nets.xml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/nets.xml'
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  tags:
+    - provision_libvirt
+
+- name: define pystol networks with DHCP enabled
+  virt_net:
+    command: define
+    name: "{{ item.name }}"
+    xml: '{{ lookup("template", "nets.xml.j2") }}'
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  tags:
+    - provision_libvirt
+
+- name: Activate pystol networks
+  virt_net:
+    state: active
+    name: "{{ item.name }}"
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  tags:
+    - provision_libvirt
+
+- name: Autostart pystol networks
+  virt_net:
+    autostart: yes
+    name: "{{ item.name }}"
+  with_items: "{{ pystol_provision_cluster_nets }}"
+  tags:
+    - provision_libvirt
+
+- name: Create the interface template
+  template:
+    src: "interface.xml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+- name: Connect the network interfaces
+  shell: |
+    virsh attach-device \
+      {{ item.name }} \
+      {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml \
+      --config
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
+  tags:
+    - provision_libvirt
+
+- name: Pause execution for 1 minute
+  pause:
+    minutes: 1
+  tags:
+    - provision_libvirt
+
+##
+## Run all created resources.
+##
+
+- name: Start the VMs
+  virt:
+    name: "{{ item.name }}"
+    uri: qemu:///session
+    state: running
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  loop_control:
+    pause: 30
+  tags:
+    - provision_libvirt
+
+- name: set autostart for a VM
+  virt:
+    name: "{{ item.name }}"
+    uri: qemu:///session
+    autostart: yes
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  tags:
+    - provision_libvirt
+
+##
+## Cleanup.
+##
+
+- name: check if /root/.ssh/known_hosts exists
+  stat:
+    path: /root/.ssh/known_hosts
+  register: known_hosts_file
+  tags:
+    - provision_libvirt
+
+- name: Reset ssh keys in hypervisor
+  shell: |
+    ssh-keygen -R  {{ item.name }}
+    ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}
+    ssh-keygen -R  {{ item.eth0.ip }}
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: known_hosts_file.stat.exists | bool
+  changed_when: false
+  tags:
+    - provision_libvirt
+
+- name: reset ssh keys for hostname
+  become: no
+  delegate_to: localhost
+  command: "ssh-keygen -R  {{ item.name }}"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
+  tags:
+    - provision_libvirt
+
+- name: reset ssh keys for FQDN
+  become: no
+  delegate_to: localhost
+  command: "ssh-keygen -R  {{ item.name }}.{{ pystol_provision_cluster_domain }}"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
+  tags:
+    - provision_libvirt
+
+- name: reset ssh keys for ip address
+  become: no
+  delegate_to: localhost
+  command: "ssh-keygen -R  {{ item.eth0.ip }}"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
+  tags:
+    - provision_libvirt
+
+- name: make a ping
+  ping:
+  tags:
+    - provision_libvirt
+
+- name: Pause execution for 5 minutes
+  pause:
+    minutes: 5
+  tags:
+    - provision_libvirt
+
+- name: "Make sure there are no zombie guests"
+  shell: |
+    #!/bin/bash
+    host={{ item.eth0.ip }}
+    ping -c 5 -w 5 $host
+    if [ ! $? -eq 0 ]; then
+      echo "Cant reach the host, need to restart to refresh the network"
+      virsh reboot {{ item.name }}
+    fi
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
+  tags:
+    - provision_libvirt
+    - provision_libvirt_restart_zombies
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# - name: install requirements for OKD
+#   package:
+#     name: "{{ item }}"
+#     state: present
+#   with_items: "{{ pystol_provision_hypervisor_dependencies }}"
+#   when:
+#     - "{{ 'okd' in pystol_provision_cluster_distro }}"
+#     - solo en el nodo de los servicios...
+#   tags:
+#     - provision_libvirt
+
+# # en el lb sudo rpm-ostree install haproxy
+#
+# wget https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-14-153706-ga/openshift-client-linux-4.5.0-0.okd-2020-07-14-153706-ga.tar.gz
+# wget https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-14-153706-ga/openshift-install-linux-4.5.0-0.okd-2020-07-14-153706-ga.tar.gz
+# tar -zxvf openshift-client-linux-4.5.0-0.okd-2020-07-14-153706-ga.tar.gz
+# tar -zxvf openshift-install-linux-4.5.0-0.okd-2020-07-14-153706-ga.tar.gz
+# sudo mv kubectl oc openshift-install /usr/local/bin/
+# oc version
+# openshift-install version
+#
+#
+# cd
+# mkdir install_dir
+#
+# cat << EOF > ./install_dir/install-config.yaml
+# ---
+# apiVersion: v1
+# baseDomain: asdf.com
+# compute:
+# - hyperthreading: Enabled
+#   name: worker
+#   replicas: 0
+# controlPlane:
+#   hyperthreading: Enabled
+#   name: master
+#   replicas: 3
+# metadata:
+#   name: cluster
+# networking:
+#   clusterNetwork:
+#   - cidr: 10.100.0.0/14
+#     hostPrefix: 23
+#   networkType: OpenShiftSDN
+#   serviceNetwork:
+#   - 172.30.0.0/16
+# platform:
+#   none: {}
+# fips: false
+# pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
+# sshKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDEs7VxKR/Aw9jjRMSsw7+afq3hinzbqXDftgbjXH1+ULAq1No1Lfdv/0Nopoz/vlRU5vFqnikTi1wFFYyd9OYSjn2YkUvoJl5iiPThxpNgtvFsEk2CQzmK923awnCVwlVqXlJk8aHLhFrOdLDSIwDin4uxJ0zKmVVs/IDlXDYAX8c2iHHUkNxNcuO8k6E4YqwzolO9J080vhJ5XTIFxxbBPbAra6zuDZluKvThN4QmnMm8AOnzCp6siGkLwURQBE01CHunY8YWnvtU52jLMu91njceiScGmab2OQey4GIfQkBL2VAfkRtXjYE1EtXQMmAqjiujWhlmP84nenCjUzMpP4PhZuLaWcd1/t6NxX+4NP2JpNFcMLvWmlP6H2xqmrJAsb64EAqFNsdVyotzHb/Fw8Y0uO359NzsvRZMI+WisNYc1WD0/OJQozgDwSfPcW5iV1pw3U115l9WqHnvc1uCBjnk/5FDRqp60h1r66EgkDDt0Q7zraeuuHhODaqcmA2qXXxgc9KOY7XW6MU0J6vqPjsk6O+YF5pupddyZA6fbtiuvBWXh/3Iij9qDD+mFQEwkY9X3TieOJIEzQNaXsECGj0FNeFsXNgEMzwvY4hDio43Rk/mz2pjHtO6zSB7ZMAtY/2QA0llVPE6HkJFyEInKbacsnGVx0QBnrw8cQX2vQ==
+# EOF
+#
+#
+# openshift-install create manifests --dir=install_dir/
+#
+# sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
+#
+# openshift-install create ignition-configs --dir=install_dir/
+#
+#
+# coreos.inst.ignition_url=http://192.168.1.210:8080/okd4/master.ign
+# coreos.inst.ignition_url=http://192.168.1.210:8080/okd4/worker.ign

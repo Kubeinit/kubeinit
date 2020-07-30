@@ -19,61 +19,64 @@
 
 # All variables within this role should have a prefix of "pystol_provision_"
 
-pystol_provision_debug: false
-pystol_provision_source_image_file: CentOS-8-GenericCloud-8.1.1911-20200113.3.x86_64.qcow2
-pystol_provision_source_image_dir: https://cloud.centos.org/centos/8/x86_64/images
-pystol_provision_target_image_dir: /var/lib/libvirt/images
-pystol_provision_cloud_user: toor
-
-pystol_provision_source_keystore_dir: "/home/{{ pystol_provision_cloud_user }}/.ssh"
-pystol_provision_source_pubkey_file: id_rsa.pub
-
-pystol_provision_vms_default_password: asdfasdf
-
-pystol_provision_hypervisor_dependencies:
-  - libguestfs-tools-c
-  - python3-libselinux
-  - libvirt
-  - libvirt-daemon
-  - libvirt-daemon-kvm
-  - libvirt-client
-  - qemu-kvm
-  - virt-install
-  - virt-top
-  - libguestfs-tools
-  - lvm2
-  - python3-libvirt
-  - python3-lxml
-  - curl
-  - binutils
-  - qt5-qtbase
-  - gcc
-  - make
-  - patch
-  - libgomp
-  - glibc-headers
-  - glibc-devel
-  - kernel-headers
-  - kernel-devel
-  - bash-completion
-  - nano
-  - wget
-  - python3-pip
-  - iptables-services
-  - net-tools
-  - xz
-
-pystol_provision_hypervisor_tmp_dir: /tmp
-
-pystol_provision_cluster_hosts:
-  - {name: kubernetes-master-01, eth0: {devicename: eth0, net: net-01, ip: "{{ hostvars[groups['kubernetes-master-nodes'][0]].ansible_host }}", mac: '52:54:00:61:22:5a', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 15728640}
-  - {name: kubernetes-worker-01, eth0: {devicename: eth0, net: net-01, ip: "{{ hostvars[groups['kubernetes-worker-nodes'][0]].ansible_host }}", mac: '52:54:00:65:b1:e5', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
-  - {name: kubernetes-worker-02, eth0: {devicename: eth0, net: net-01, ip: "{{ hostvars[groups['kubernetes-worker-nodes'][1]].ansible_host }}", mac: '52:54:00:21:3b:5b', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
-  - {name: kubernetes-worker-03, eth0: {devicename: eth0, net: net-01, ip: "{{ hostvars[groups['kubernetes-worker-nodes'][2]].ansible_host }}", mac: '52:54:00:99:e4:c9', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
-
-pystol_provision_cluster_domain: dev.pystol.org
-
-pystol_provision_virtual_bridge_name: virbr1
-
-pystol_provision_cluster_nets:
-  - {name: net-01, ip: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.1, end: 10.0.0.253}
+# pystol_provision_debug: false
+# pystol_provision_cluster_distro: k8s
+# pystol_provision_source_image_file: CentOS-8-GenericCloud-8.1.1911-20200113.3.x86_64.qcow2
+# pystol_provision_source_image_dir: https://cloud.centos.org/centos/8/x86_64/images
+# pystol_provision_source_image_root_device: /dev/sda1
+# pystol_provision_target_image_dir: /var/lib/libvirt/images
+# pystol_provision_cloud_user: toor
+#
+# pystol_provision_source_keystore_dir: "/home/{{ pystol_provision_cloud_user }}/.ssh"
+# pystol_provision_source_pubkey_file: id_rsa.pub
+#
+# pystol_provision_vms_default_password: asdfasdf
+#
+# pystol_provision_hypervisor_dependencies:
+#   - libguestfs-tools-c
+#   - python3-libselinux
+#   - libvirt
+#   - libvirt-daemon
+#   - libvirt-daemon-kvm
+#   - libvirt-client
+#   - qemu-kvm
+#   - virt-install
+#   - virt-top
+#   - libguestfs-tools
+#   - lvm2
+#   - python3-libvirt
+#   - python3-lxml
+#   - curl
+#   - binutils
+#   - qt5-qtbase
+#   - gcc
+#   - make
+#   - patch
+#   - libgomp
+#   - glibc-headers
+#   - glibc-devel
+#   - kernel-headers
+#   - kernel-devel
+#   - bash-completion
+#   - nano
+#   - wget
+#   - python3-pip
+#   - iptables-services
+#   - net-tools
+#   - xz
+#
+# pystol_provision_hypervisor_tmp_dir: /tmp
+#
+# pystol_provision_cluster_hosts:
+#   - {name: kubernetes-master-01, eth0: {devicename: eth0, net: net-01, ip: "{{ hostvars[groups['kubernetes-master-nodes'][0]].ansible_host }}", mac: '52:54:00:61:22:5a', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 15728640}
+#   - {name: kubernetes-worker-01, eth0: {devicename: eth0, net: net-01, ip: "{{ hostvars[groups['kubernetes-worker-nodes'][0]].ansible_host }}", mac: '52:54:00:99:e4:c9', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
+#   - {name: kubernetes-worker-02, eth0: {devicename: eth0, net: net-01, ip: "{{ hostvars[groups['kubernetes-worker-nodes'][1]].ansible_host }}", mac: '52:54:00:aa:67:2b', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
+#   - {name: kubernetes-worker-03, eth0: {devicename: eth0, net: net-01, ip: "{{ hostvars[groups['kubernetes-worker-nodes'][2]].ansible_host }}", mac: '52:54:00:20:b8:97', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 4194304}
+#
+# pystol_provision_cluster_name: watata
+# pystol_provision_cluster_domain: dev.pystol.org
+#
+# pystol_provision_virtual_bridge_name: virbr1
+#
+# pystol_provision_cluster_nets:
+#   - {name: net-01, ip: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.1, end: 10.0.0.253}

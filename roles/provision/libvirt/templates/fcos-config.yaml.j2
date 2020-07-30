@@ -9,37 +9,39 @@ passwd:
     - name: {{ pystol_provision_cloud_user }}
       ssh_authorized_keys:
         - {{ pystol_provision_vms_public_key }}
-systemd:
-  units:
-    - name: run-interface-removal.service
-      enabled: true
-      contents: |
-        [Unit]
-        After=network-online.target
-        Wants=network-online.target
-        Before=systemd-user-sessions.service
-        ConditionPathExists=!/var/lib/restarted-ipv4-conf
-
-        [Service]
-        RemainAfterExit=true
-        Type=oneshot
-        ExecStart=/usr/local/bin/run-interface-removal
-        ExecStartPost=/usr/bin/touch /var/lib/restarted-ipv4-conf; /usr/bin/systemctl --no-block reboot
-
-        [Install]
-        WantedBy=multi-user.target
+# systemd:
+#   units:
+#     - name: run-interface-removal.service
+#       enabled: true
+#       contents: |
+#         [Unit]
+#         After=network-online.target
+#         Wants=network-online.target
+#         Before=systemd-user-sessions.service
+#         ConditionPathExists=!/var/lib/restarted-ipv4-conf
+#         [Service]
+#         RemainAfterExit=true
+#         Type=oneshot
+#         ExecStart=/usr/local/bin/run-interface-removal
+#         ExecStartPost=/usr/bin/touch /var/lib/restarted-ipv4-conf; /usr/bin/systemctl --no-block reboot
+#         [Install]
+#         WantedBy=multi-user.target
 storage:
   files:
-    - path: /usr/local/bin/run-interface-removal
-      mode: 0755
+    - path: /etc/sysctl.d/20-silence-audit.conf
       contents:
         inline: |
-          #!/usr/bin/bash
-          set -x
-          main() {
-          sudo nmcli connection delete 'Wired connection 1'
-          }
-          main
+          kernel.printk=4
+    # - path: /usr/local/bin/run-interface-removal
+    #   mode: 0755
+    #   contents:
+    #     inline: |
+    #       #!/usr/bin/bash
+    #       set -x
+    #       main() {
+    #       sudo nmcli connection delete 'Wired connection 1'
+    #       }
+    #       main
     - path: /etc/hostname
       overwrite: true
       contents:
@@ -68,21 +70,19 @@ storage:
           # Enable it.
           # This file must sort before 40-disable-passwords.conf.
           PasswordAuthentication yes
-    - path: /etc/NetworkManager/system-connections/{{ item.eth0.devicename }}.nmconnection
-      mode: 0600
-      overwrite: true
-      contents:
-        inline: |
-          [connection]
-          type=ethernet
-          interface-name={{ item.eth0.devicename }}
-
-          [ethernet]
-          mac-address={{ item.eth0.mac }}
-
-          [ipv4]
-          method=manual
-          addresses={{ item.eth0.ip }}/{{ item.eth0.prefix }}
-          gateway={{ item.eth0.gateway }}
-          dns={{ item.eth0.gateway }}
-          dns-search={{ pystol_provision_cluster_domain }}
+    # - path: /etc/NetworkManager/system-connections/{{ item.eth0.devicename }}.nmconnection
+    #   mode: 0600
+    #   overwrite: true
+    #   contents:
+    #     inline: |
+    #       [connection]
+    #       type=ethernet
+    #       interface-name={{ item.eth0.devicename }}
+    #       [ethernet]
+    #       mac-address={{ item.eth0.mac }}
+    #       [ipv4]
+    #       method=manual
+    #       addresses={{ item.eth0.ip }}/{{ item.eth0.prefix }}
+    #       gateway={{ item.eth0.gateway }}
+    #       dns={{ item.eth0.gateway }},{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}
+    #       dns-search={{ pystol_provision_cluster_domain }}

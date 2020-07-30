@@ -1,0 +1,384 @@
+---
+# Copyright pystol.org
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: get root public key
+  shell: cat /root/.ssh/id_rsa.pub
+  register: publick_key_content
+  tags:
+    - provision_libvirt
+
+- set_fact:
+    pystol_provision_vms_public_key={{ publick_key_content.stdout }}
+  tags:
+    - provision_libvirt
+
+- name: Create the network interface template for networking details
+  template:
+    src: "../../roles/provision/libvirt/templates/ifcfg-eth0.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: Create the hosts template
+  template:
+    src: "../../roles/provision/libvirt/templates/101-cloudinit-hosts.tmpl.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: Create the network cloudinit templates for networking details
+  template:
+    src: "../../roles/provision/libvirt/templates/102-cloudinit-cloud.cfg.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: Create vm backing store from base vm image
+  copy: remote_src=True
+    src="{{ pystol_provision_target_image_dir }}/{{ item.image }}"
+    dest="{{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
+    force=yes  # Do not recopy if it has been modified
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: Ensure the backing store is large enough
+  command: "qemu-img resize {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 +{{ item.disk }}"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: Grow the partition
+  command: "virt-resize  --expand {{ item.root_device }} {{ pystol_provision_target_image_dir }}/{{ item.image }} {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2"
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+# This will inject the VM configuration in the case of a CentOS machine
+- name: "Inject {{ pystol_provision_cloud_user }} virt-customize assets"
+  shell: |
+    virt-customize -a {{ pystol_provision_target_image_dir }}/{{ item.name }}.qcow2 \
+      --run-command  'id -u {{ pystol_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ pystol_provision_cloud_user }}' \
+      --ssh-inject {{ pystol_provision_cloud_user }}:file:{{ pystol_provision_source_keystore_dir }}/{{ pystol_provision_source_pubkey_file }} \
+      --ssh-inject root:file:/root/.ssh/id_rsa.pub \
+      --ssh-inject root:file:/root/.ssh/authorized_keys \
+      --hostname {{ item.name }}.{{ pystol_provision_cluster_domain }} \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
+      --copy-in {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
+      --selinux-relabel --root-password password:{{ pystol_provision_vms_default_password }}
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  changed_when: false
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: render the vm configuration
+  template:
+    src: "../../roles/provision/libvirt/templates/vm.xml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: define vm
+  shell: |
+    virsh define {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+#
+# Define pending resources
+#
+
+- name: Create the interface template
+  template:
+    src: "../../roles/provision/libvirt/templates/interface.xml.j2"
+    dest: '{{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml'
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: Connect the network interfaces
+  shell: |
+    virsh attach-device \
+      {{ item.name }} \
+      {{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml \
+      --config
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  changed_when: false
+  tags:
+    - provision_libvirt
+
+##
+## Run all created resources.
+##
+
+- name: Start the VMs
+  virt:
+    name: "{{ item.name }}"
+    uri: qemu:///session
+    state: running
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: set autostart for a VM
+  virt:
+    name: "{{ item.name }}"
+    uri: qemu:///session
+    autostart: yes
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: wait for the host to boot
+  wait_for:
+    port: 22
+    host: "{{ item.eth0.ip }}"
+    search_regex: OpenSSH
+    delay: 10
+    timeout: 600
+  with_items: "{{ pystol_provision_cluster_hosts }}"
+  when: "'service' in item.name"
+  tags:
+    - provision_libvirt
+
+- name: Disable SELinux
+  selinux: state=disabled
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: install services requirements
+  package:
+    name: "{{ pystol_provision_service_dependencies }}"
+    state: present
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+#
+# Configure bind
+#
+
+- name: Create named.conf
+  template:
+    src: "named.conf.j2"
+    dest: "/etc/named.conf"
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: Create named.conf.local
+  template:
+    src: "named.conf.local.j2"
+    dest: "/etc/named/named.conf.local"
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: Create BIND zones directoy
+  file:
+    path: /etc/named/zones
+    state: directory
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: Create BIND db subnet
+  template:
+    src: "db.j2"
+    dest: "/etc/named/zones/db.{{ hostvars[groups['okd-service-nodes'][0]].ansible_host | ipsubnet(24) | ipaddr('network') }}"
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: Create BIND db zone
+  template:
+    src: "db.local.j2"
+    dest: "/etc/named/zones/db.{{pystol_provision_cluster_name}}.{{ pystol_provision_cluster_domain }}"
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: Disable IPv6 support
+  lineinfile: dest=/etc/sysconfig/named line='OPTIONS="-4"' regexp="^OPTIONS"
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: Start and enable bind service
+  service: name=named state=started enabled=yes
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+#
+# Configure HAproxy
+#
+
+- name: Create config file
+  template:
+    src: "haproxy.cfg.j2"
+    dest: "/etc/haproxy/haproxy.cfg"
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: "allow access to the cluster"
+  shell: |
+    setsebool -P haproxy_connect_any 1
+    setsebool -P httpd_read_user_content 1
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: Start and enable haproxy service
+  service: name=haproxy state=started enabled=yes
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+#
+# Configure httpd
+#
+
+- name: Use 8080
+  shell: sudo sed -i 's/Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+- name: Start and enable httpd service
+  service: name=httpd state=started enabled=yes
+  delegate_to: "{{ item }}"
+  with_items: "{{groups['okd-service-nodes']}}"
+  tags:
+    - provision_libvirt
+
+ #
+ # Include bootstrap details in the node
+ #
+
+# This will inject the VM configuration in the case of a CentOS machine
+- name: "Render the bootstrap details"
+  shell: |
+    cd
+    wget https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-29-070316/openshift-client-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
+    wget https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-29-070316/openshift-install-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
+    tar -zxvf openshift-client-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
+    tar -zxvf openshift-install-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
+    mv kubectl oc openshift-install /usr/local/bin/
+    oc version
+    openshift-install version
+    rm -rf install_dir
+    mkdir install_dir
+    cat << EOF > ./install_dir/install-config.yaml
+    ---
+    apiVersion: v1
+    baseDomain: {{ pystol_provision_cluster_domain }}
+    compute:
+    - hyperthreading: Enabled
+      name: worker
+      replicas: 0
+    controlPlane:
+      hyperthreading: Enabled
+      name: master
+      replicas: {{ groups['okd-master-nodes'] | count }}
+    metadata:
+      name: {{ pystol_provision_cluster_name }}
+    networking:
+      clusterNetwork:
+      - cidr: 10.100.0.0/14
+        hostPrefix: 23
+      networkType: OpenShiftSDN
+      serviceNetwork:
+      - 172.30.0.0/16
+    platform:
+      none: {}
+    fips: false
+    pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
+    sshKey: {{ pystol_provision_vms_public_key }}
+    EOF
+    openshift-install create manifests --dir=install_dir/
+    sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
+    openshift-install create ignition-configs --dir=install_dir/
+    mkdir /var/www/html/okd4
+
+    cp -R install_dir/* /var/www/html/okd4/
+
+    cd /var/www/html/okd4/
+    sudo wget https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz
+    sudo wget https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz.sig
+    sudo mv fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz fcos.raw.xz
+    sudo mv fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz.sig fcos.raw.xz.sig
+    sudo chown -R apache: /var/www/html/
+    sudo chmod -R 755 /var/www/html/
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
+  tags:
+    - provision_libvirt
+
+#
+# Configure NFS
+#
+
+- name: "configure NFS shares"
+  shell: |
+    systemctl enable nfs-server rpcbind
+    systemctl start nfs-server rpcbind
+    mkdir -p /var/nfsshare/registry
+    chmod -R 777 /var/nfsshare
+    chown -R nobody:nobody /var/nfsshare
+    echo '/var/nfsshare {{ hostvars[groups['okd-service-nodes'][0]].ansible_host | ipsubnet(24) }}(rw,sync,no_root_squash,no_all_squash,no_wdelay)' | tee /etc/exports
+    setsebool -P nfs_export_all_rw 1
+    systemctl restart nfs-server
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
+  tags:
+    - provision_libvirt

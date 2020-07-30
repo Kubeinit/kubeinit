@@ -1,22 +1,13 @@
-
 <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
   <name>{{ item.name }}</name>
   <memory unit='KiB'>{{ item.ram }}</memory>
   <currentMemory unit='KiB'>{{ item.ram }}</currentMemory>
-  <vcpu placement='static'>8</vcpu>
-  <iothreads>1</iothreads>
-  <cputune>
-    <vcpupin vcpu='0' cpuset='2'/>
-    <vcpupin vcpu='1' cpuset='3'/>
-    <vcpupin vcpu='2' cpuset='4'/>
-    <vcpupin vcpu='3' cpuset='5'/>
-    <vcpupin vcpu='4' cpuset='8'/>
-    <vcpupin vcpu='5' cpuset='9'/>
-    <vcpupin vcpu='6' cpuset='10'/>
-    <vcpupin vcpu='7' cpuset='11'/>
-    <emulatorpin cpuset='0-1,6-7'/>
-    <iothreadpin iothread='1' cpuset='0-1,6-7'/>
-  </cputune>
+  <vcpu placement='auto' current='4'>8</vcpu>
+  <cpu mode='host-passthrough' check='none'>
+    <topology sockets='1' cores='4' threads='2'/>
+    <cache mode='passthrough'/>
+    <feature policy='require' name='topoext'/>
+  </cpu>
   <os>
     <type arch='x86_64' >hvm</type>
     <boot dev='hd'/>
@@ -25,9 +16,6 @@
     <acpi/>
     <apic/>
   </features>
-  <cpu mode='host-passthrough' check='none'>
-    <topology sockets='1' cores='4' threads='2'/>
-  </cpu>
   <clock offset='utc'>
     <timer name='rtc' tickpolicy='catchup'/>
     <timer name='pit' tickpolicy='delay'/>
@@ -47,9 +35,7 @@
       <target dev='hda' bus='ide'/>
       <address type='drive' controller='0' bus='0' target='0' unit='0'/>
     </disk>
-
     <emulator>/usr/bin/qemu-kvm</emulator>
-
     <controller type='usb' index='0' model='ich9-ehci1'>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x7'/>
     </controller>
@@ -72,11 +58,6 @@
     <controller type='virtio-serial' index='0'>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
     </controller>
-
-    <interface type='network'>
-      <source network='default'/>
-    </interface>
-
     <serial type='pty'>
       <target type='isa-serial' port='0'>
         <model name='isa-serial'/>
@@ -111,12 +92,5 @@
     <memballoon model='virtio'>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x07' function='0x0'/>
     </memballoon>
-</devices>
-
-{% if 'coreos' in pystol_provision_source_image_file_final %}
-<qemu:commandline>
-  <qemu:arg value="-fw_cfg name=opt/com.coreos/config,file={{ pystol_provision_hypervisor_tmp_dir }}/{{ item.name }}/fcos.ign"/>
-</qemu:commandline>
-{% endif %}
-
+  </devices>
 </domain>
