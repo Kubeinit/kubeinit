@@ -1,7 +1,7 @@
 <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
-  <name>{{ item.name }}</name>
-  <memory unit='KiB'>{{ item.ram }}</memory>
-  <currentMemory unit='KiB'>{{ item.ram }}</currentMemory>
+  <name>{{ item }}</name>
+  <memory unit='KiB'>{{ hostvars[item].ram }}</memory>
+  <currentMemory unit='KiB'>{{ hostvars[item].ram }}</currentMemory>
   <vcpu placement='auto' current='4'>8</vcpu>
   <cpu mode='host-passthrough' check='none'>
     <topology sockets='1' cores='4' threads='2'/>
@@ -31,7 +31,7 @@
   <devices>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2'/>
-      <source file='{{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2'/>
+      <source file='{{ kubeinit_provision_target_image_dir }}/{{ hostvars[item].name }}.qcow2'/>
       <target dev='hda' bus='ide'/>
       <address type='drive' controller='0' bus='0' target='0' unit='0'/>
     </disk>

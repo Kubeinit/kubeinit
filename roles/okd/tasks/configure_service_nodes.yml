@@ -28,89 +28,64 @@
 - name: Create the network interface template for networking details
   template:
     src: "../../roles/provision/libvirt/templates/ifcfg-eth0.j2"
-    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0'
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth0'
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Create the hosts template
   template:
     src: "../../roles/provision/libvirt/templates/101-cloudinit-hosts.tmpl.j2"
-    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl'
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/hosts.redhat.tmpl'
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Create the network cloudinit templates for networking details
   template:
     src: "../../roles/provision/libvirt/templates/102-cloudinit-cloud.cfg.j2"
-    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg'
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
-  tags:
-    - provision_libvirt
-
-- name: Create vm backing store from base vm image
-  copy: remote_src=True
-    src="{{ kubeinit_provision_target_image_dir }}/{{ item.image }}"
-    dest="{{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2"
-    force=yes  # Do not recopy if it has been modified
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
-  tags:
-    - provision_libvirt
-
-- name: Ensure the backing store is large enough
-  command: "qemu-img resize {{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2 +{{ item.disk }}"
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  changed_when: false
-  when: "'service' in item.name"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg'
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Grow the partition
-  command: "virt-resize  --expand {{ item.root_device }} {{ kubeinit_provision_target_image_dir }}/{{ item.image }} {{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2"
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  command: "virt-resize  --expand {{ hostvars[item].root_device }}=+{{ hostvars[item].disk }} {{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }} {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   changed_when: false
-  when: "'service' in item.name"
   tags:
     - provision_libvirt
 
 # This will inject the VM configuration in the case of a CentOS machine
 - name: "Inject {{ kubeinit_provision_cloud_user }} virt-customize assets"
   shell: |
-    virt-customize -a {{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2 \
+    virt-customize -a {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2 \
       --run-command  'id -u {{ kubeinit_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_provision_cloud_user }}' \
       --ssh-inject {{ kubeinit_provision_cloud_user }}:file:{{ kubeinit_provision_source_keystore_dir }}/{{ kubeinit_provision_source_pubkey_file }} \
       --ssh-inject root:file:/root/.ssh/id_rsa.pub \
       --ssh-inject root:file:/root/.ssh/authorized_keys \
-      --hostname {{ item.name }}.{{ kubeinit_provision_cluster_domain }} \
-      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
-      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/hosts.redhat.tmpl:/etc/cloud/templates \
-      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/cloud.cfg:/etc/cloud \
+      --hostname {{ item }}.{{ kubeinit_provision_cluster_domain }} \
+      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
+      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/hosts.redhat.tmpl:/etc/cloud/templates \
+      --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg:/etc/cloud \
       --selinux-relabel --root-password password:{{ kubeinit_provision_vms_default_password }}
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   changed_when: false
-  when: "'service' in item.name"
   tags:
     - provision_libvirt
 
 - name: render the vm configuration
   template:
     src: "../../roles/provision/libvirt/templates/vm.xml.j2"
-    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml'
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/vm.xml'
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: define vm
   shell: |
-    virsh define {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/vm.xml
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
+    virsh define {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/vm.xml
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -121,9 +96,8 @@
 - name: Create the interface template
   template:
     src: "../../roles/provision/libvirt/templates/interface.xml.j2"
-    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml'
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
+    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/interface.xml'
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -131,10 +105,9 @@
   shell: |
     virsh attach-device \
       {{ item.name }} \
-      {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/interface.xml \
+      {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/interface.xml \
       --config
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -145,40 +118,37 @@
 
 - name: Start the VMs
   virt:
-    name: "{{ item.name }}"
+    name: "{{ item }}"
     uri: qemu:///session
     state: running
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: set autostart for a VM
   virt:
-    name: "{{ item.name }}"
+    name: "{{ item }}"
     uri: qemu:///session
     autostart: yes
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: wait for the host to boot
   wait_for:
     port: 22
-    host: "{{ item.eth0.ip }}"
+    host: "{{ hostvars[item].ansible_host }}"
     search_regex: OpenSSH
     delay: 10
     timeout: 600
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  when: "'service' in item.name"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Disable SELinux
   selinux: state=disabled
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -187,7 +157,7 @@
     name: "{{ kubeinit_provision_service_dependencies }}"
     state: present
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -200,7 +170,7 @@
     src: "named.conf.j2"
     dest: "/etc/named.conf"
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -209,7 +179,7 @@
     src: "named.conf.local.j2"
     dest: "/etc/named/named.conf.local"
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -218,39 +188,39 @@
     path: /etc/named/zones
     state: directory
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Create BIND db subnet
   template:
     src: "db.j2"
-    dest: "/etc/named/zones/db.{{ hostvars[groups['okd-service-nodes'][0]].ansible_host | ipsubnet(24) | ipaddr('network') }}"
+    dest: "/etc/named/zones/db.{{ hostvars[item].ansible_host | ipsubnet(24) | ipaddr('network') }}"
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Create BIND db zone
   template:
     src: "db.local.j2"
-    dest: "/etc/named/zones/db.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}"
+    dest: "/etc/named/zones/db.{{ kubeinit_provision_cluster_name }}.{{ kubeinit_provision_cluster_domain }}"
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Disable IPv6 support
   lineinfile: dest=/etc/sysconfig/named line='OPTIONS="-4"' regexp="^OPTIONS"
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Start and enable bind service
   service: name=named state=started enabled=yes
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -263,7 +233,7 @@
     src: "haproxy.cfg.j2"
     dest: "/etc/haproxy/haproxy.cfg"
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -272,14 +242,14 @@
     setsebool -P haproxy_connect_any 1
     setsebool -P httpd_read_user_content 1
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Start and enable haproxy service
   service: name=haproxy state=started enabled=yes
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -290,29 +260,27 @@
 - name: Use 8080
   shell: sudo sed -i 's/Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Start and enable httpd service
   service: name=httpd state=started enabled=yes
   delegate_to: "{{ item }}"
-  with_items: "{{groups['okd-service-nodes']}}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
 
- #
- # Include bootstrap details in the node
- #
-
-# This will inject the VM configuration in the case of a CentOS machine
+#
+# Include the install configuration
+#
 - name: "Render the bootstrap details"
   shell: |
     cd
-    wget https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-29-070316/openshift-client-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
-    wget https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-29-070316/openshift-install-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
-    tar -zxvf openshift-client-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
-    tar -zxvf openshift-install-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
+    wget {{ kubeinit_okd_installers.client }}
+    wget {{ kubeinit_okd_installers.installer }}
+    tar -zxvf {{ kubeinit_okd_dependencies.client }}
+    tar -zxvf {{ kubeinit_okd_dependencies.installer }}
     mv kubectl oc openshift-install /usr/local/bin/
     oc version
     openshift-install version
@@ -349,14 +317,10 @@
     sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
     openshift-install create ignition-configs --dir=install_dir/
     mkdir /var/www/html/okd4
-
     cp -R install_dir/* /var/www/html/okd4/
-
     cd /var/www/html/okd4/
-    sudo wget https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz
-    sudo wget https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz.sig
-    sudo mv fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz fcos.raw.xz
-    sudo mv fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz.sig fcos.raw.xz.sig
+    sudo wget {{ kubeinit_provision_source_images.coreos.uri }}{{ kubeinit_provision_source_images.coreos.raw }}
+    sudo wget {{ kubeinit_provision_source_images.coreos.uri }}{{ kubeinit_provision_source_images.coreos.sig }}
     sudo chown -R apache: /var/www/html/
     sudo chmod -R 755 /var/www/html/
   delegate_to: "{{ item }}"
@@ -375,7 +339,7 @@
     mkdir -p /var/nfsshare/registry
     chmod -R 777 /var/nfsshare
     chown -R nobody:nobody /var/nfsshare
-    echo '/var/nfsshare {{ hostvars[groups['okd-service-nodes'][0]].ansible_host | ipsubnet(24) }}(rw,sync,no_root_squash,no_all_squash,no_wdelay)' | tee /etc/exports
+    echo '/var/nfsshare {{ hostvars[item].ansible_host | ipsubnet(24) }}(rw,sync,no_root_squash,no_all_squash,no_wdelay)' | tee /etc/exports
     setsebool -P nfs_export_all_rw 1
     systemctl restart nfs-server
   delegate_to: "{{ item }}"

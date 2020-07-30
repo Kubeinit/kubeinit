@@ -41,38 +41,23 @@
 
 - name: Reset ssh keys in hypervisor
   shell: |
-    ssh-keygen -R  {{ item.name }}
-    ssh-keygen -R  {{ item.name }}.{{ kubeinit_provision_cluster_domain }}
-    ssh-keygen -R  {{ item.eth0.ip }}
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+    ssh-keygen -R  {{ item }}
+    ssh-keygen -R  {{ item }}.{{ kubeinit_provision_cluster_domain }}
+    ssh-keygen -R  {{ hostvars[item].ansible_host }}
+  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
   when: known_hosts_file.stat.exists | bool
   changed_when: false
   tags:
     - provision_libvirt
 
-- name: reset ssh keys for hostname
+- name: reset local ssh keys
   become: no
   delegate_to: localhost
-  command: "ssh-keygen -R  {{ item.name }}"
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  changed_when: false
-  tags:
-    - provision_libvirt
-
-- name: reset ssh keys for FQDN
-  become: no
-  delegate_to: localhost
-  command: "ssh-keygen -R  {{ item.name }}.{{ kubeinit_provision_cluster_domain }}"
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
-  changed_when: false
-  tags:
-    - provision_libvirt
-
-- name: reset ssh keys for ip address
-  become: no
-  delegate_to: localhost
-  command: "ssh-keygen -R  {{ item.eth0.ip }}"
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  shell: |
+    ssh-keygen -R  {{ item }}
+    ssh-keygen -R  {{ item }}.{{ kubeinit_provision_cluster_domain }}
+    ssh-keygen -R  {{ hostvars[item].ansible_host }}
+  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -110,29 +95,73 @@
   tags:
     - provision_libvirt
 
-- name: download all images to hypervisor
+- name: download qcow2 images
   get_url:
     validate_certs: False
     use_proxy: True
-    url: "{{ item.uri }}{{ item.name }}"
+    url: "{{ item.value.uri }}{{ item.value.image }}"
     dest: "{{ kubeinit_provision_target_image_dir }}/"
     force: no
     mode: '0644'
     owner: qemu
-  with_items: "{{ kubeinit_provision_source_images }}"
+  with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
+  when: "not item.value.image == ''"
   tags:
     - provision_libvirt
 
-- name: Extract qcow from compressed file and change permissions
-  shell: |
-    STR='{{ item.name }}'
-    SUB='.qcow2.xz'
-    if [[ "$STR" == *"$SUB" ]]; then
-      xz --decompress --force {{ kubeinit_provision_target_image_dir }}/{{ item.name }}
-    fi
-    chown qemu. {{ kubeinit_provision_target_image_dir }}/{{ item.name | replace('.qcow2.xz','.qcow2') }}
-    chmod 644 {{ kubeinit_provision_target_image_dir }}/{{ item.name | replace('.qcow2.xz','.qcow2') }}
-  with_items: "{{ kubeinit_provision_source_images }}"
+- name: download kernel images
+  get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ item.value.uri }}{{ item.value.kernel }}"
+    dest: "{{ kubeinit_provision_target_image_dir }}/"
+    force: no
+    mode: '0644'
+    owner: qemu
+  with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
+  when: "not item.value.kernel == ''"
+  tags:
+    - provision_libvirt
+
+- name: download initrd images
+  get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ item.value.uri }}{{ item.value.initrd }}"
+    dest: "{{ kubeinit_provision_target_image_dir }}/"
+    force: no
+    mode: '0644'
+    owner: qemu
+  with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
+  when: "not item.value.initrd == ''"
+  tags:
+    - provision_libvirt
+
+- name: download raw images
+  get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ item.value.uri }}{{ item.value.raw }}"
+    dest: "{{ kubeinit_provision_target_image_dir }}/"
+    force: no
+    mode: '0644'
+    owner: qemu
+  with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
+  when: "not item.value.raw == ''"
+  tags:
+    - provision_libvirt
+
+- name: download sig images
+  get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ item.value.uri }}{{ item.value.sig }}"
+    dest: "{{ kubeinit_provision_target_image_dir }}/"
+    force: no
+    mode: '0644'
+    owner: qemu
+  with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
+  when: "not item.value.sig == ''"
   tags:
     - provision_libvirt
 
@@ -226,18 +255,18 @@
 
 - name: Destroy vms
   virt:
-      name: "{{ item.name }}"
+      name: "{{ item }}"
       command: destroy
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
   ignore_errors: true
   tags:
     - provision_libvirt
 
 - name: Undefine vms
   virt:
-      name: "{{ item.name }}"
+      name: "{{ item }}"
       command: undefine
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -245,8 +274,8 @@
 - name: Remove VMs storage
   file:
     state: absent
-    path: "{{ kubeinit_provision_target_image_dir }}/{{ item.name }}.qcow2"
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+    path: "{{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
+  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -291,18 +320,18 @@
 - name: Clean directories for config files per node
   file:
     state: absent
-    path: "{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}/"
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+    path: "{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/"
+  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Create directories for config files per node
   file:
-    path: "{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.name }}"
+    path: "{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}"
     state: directory
     mode: 0775
     recurse: yes
-  with_items: "{{ kubeinit_provision_cluster_hosts }}"
+  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
   tags:
     - provision_libvirt
 

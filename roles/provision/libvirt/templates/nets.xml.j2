@@ -9,8 +9,8 @@
   <ip address='{{ item.ip }}' netmask='{{ item.netmask }}'>
       <dhcp>
           <range start='{{ item.start }}' end='{{ item.end }}'/>
-          {% for host in kubeinit_provision_cluster_hosts %}
-            <host mac="{{ host.eth0.mac }}" name="{{ host.name }}.{{ kubeinit_provision_cluster_domain }}" ip="{{ host.eth0.ip }}"/>
+          {% for host in groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] %}
+          <host mac="{{ hostvars[host].mac }}" name="{{ host }}.{{ kubeinit_provision_cluster_domain }}" ip="{{ hostvars[host].ansible_host }}"/>
           {% endfor %}
       </dhcp>
   </ip>

@@ -16,21 +16,29 @@
 
 - name: Main deployment playbook for OKD
   hosts: hypervisor-nodes
-  # pre_tasks:
-  #   - include: ../roles/provision/libvirt/defaults/main.yml
   vars:
     kubeinit_provision_cluster_distro: okd
     kubeinit_provision_cluster_name: watata
     kubeinit_provision_cluster_domain: kubeinit.local
     kubeinit_provision_source_images:
-      - {os: centos, type: image,  uri: https://cloud.centos.org/centos/8/x86_64/images/, name: CentOS-8-GenericCloud-8.1.1911-20200113.3.x86_64.qcow2}
-      # - {os: coreos, type: image,  uri: https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/, name: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2.xz}
-      - {os: coreos, type: kernel, uri: https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/, name: fedora-coreos-32.20200715.3.0-live-kernel-x86_64}
-      - {os: coreos, type: initrd, uri: https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/, name: fedora-coreos-32.20200715.3.0-live-initramfs.x86_64.img}
-      - {os: coreos, type: raw, uri: https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/, name: fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz}
-      - {os: coreos, type: sig, uri: https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/, name: fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz.sig}
+      centos:
+        uri: https://cloud.centos.org/centos/8/x86_64/images/
+        image: CentOS-8-GenericCloud-8.1.1911-20200113.3.x86_64.qcow2
+        kernel: ""
+        initrd: ""
+        raw: ""
+        sig: ""
+      coreos:
+        uri: https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/
+        image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2.xz
+        kernel: fedora-coreos-32.20200715.3.0-live-kernel-x86_64
+        initrd: fedora-coreos-32.20200715.3.0-live-initramfs.x86_64.img
+        raw: fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz
+        sig: fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz.sig
+    kubeinit_okd_dependencies:
+      installer: https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-29-070316/openshift-client-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
+      client: https://github.com/openshift/okd/releases/download/4.5.0-0.okd-2020-07-29-070316/openshift-install-linux-4.5.0-0.okd-2020-07-29-070316.tar.gz
     kubeinit_provision_service_dependencies:
-      # DO NOT INSTALL FIREWALLD
       - haproxy
       - httpd
       - bind
@@ -39,17 +47,6 @@
       - wget
       - jq
       - socat
-    kubeinit_provision_cluster_hosts:
-      # THE NUMBER OF HOST IN THIS LIST ****MUST**** MATCH THOSE DEFINED IN THE INVENTORY
-      - {name: okd-master-01, os: CoreOS, root_device: /dev/vda, image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2, eth0: {devicename: enp6s0, net: net-01, ip: "{{ hostvars[groups['okd-master-nodes'][0]].ansible_host }}", mac: '52:54:00:61:22:5a', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 33554432}
-      - {name: okd-master-02, os: CoreOS, root_device: /dev/vda, image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2, eth0: {devicename: enp6s0, net: net-01, ip: "{{ hostvars[groups['okd-master-nodes'][1]].ansible_host }}", mac: '52:54:00:65:b1:e5', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 33554432}
-      - {name: okd-master-03, os: CoreOS, root_device: /dev/vda, image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2, eth0: {devicename: enp6s0, net: net-01, ip: "{{ hostvars[groups['okd-master-nodes'][2]].ansible_host }}", mac: '52:54:00:21:3b:5b', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 33554432}
-      - {name: okd-worker-01, os: CoreOS, root_device: /dev/vda, image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2, eth0: {devicename: enp6s0, net: net-01, ip: "{{ hostvars[groups['okd-worker-nodes'][0]].ansible_host }}", mac: '52:54:00:99:e4:c9', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 8388608}
-      - {name: okd-worker-02, os: CoreOS, root_device: /dev/vda, image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2, eth0: {devicename: enp6s0, net: net-01, ip: "{{ hostvars[groups['okd-worker-nodes'][1]].ansible_host }}", mac: '52:54:00:aa:67:2b', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 8388608}
-      - {name: okd-worker-03, os: CoreOS, root_device: /dev/vda, image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2, eth0: {devicename: enp6s0, net: net-01, ip: "{{ hostvars[groups['okd-worker-nodes'][2]].ansible_host }}", mac: '52:54:00:20:b8:97', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 8388608}
-      - {name: okd-worker-04, os: CoreOS, root_device: /dev/vda, image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2, eth0: {devicename: enp6s0, net: net-01, ip: "{{ hostvars[groups['okd-worker-nodes'][3]].ansible_host }}", mac: '52:54:00:d7:86:8d', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 8388608}
-      - {name: okd-service-01, os: CentOS, root_device: /dev/sda1, image: CentOS-8-GenericCloud-8.1.1911-20200113.3.x86_64.qcow2, eth0: {devicename: eth0, net: net-01, ip: "{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}", mac: '52:54:00:3d:1a:d3', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 200G, ram: 33554432}
-      - {name: okd-bootstrap-01, os: CoreOS, root_device: /dev/vda, image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2, eth0: {devicename: enp6s0, net: net-01, ip: "{{ hostvars[groups['okd-bootstrap-nodes'][0]].ansible_host }}", mac: '52:54:00:36:a3:53', prefix: 24, netmask: 255.255.255.0, gateway: 10.0.0.254}, disk: 20G, ram: 16777216}
     kubeinit_provision_target_image_dir: /var/lib/libvirt/images
     kubeinit_provision_cloud_user: toor
     kubeinit_provision_source_keystore_dir: "/home/{{ kubeinit_provision_cloud_user }}/.ssh"

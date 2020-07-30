@@ -45,7 +45,7 @@ storage:
     - path: /etc/hostname
       overwrite: true
       contents:
-        inline: {{ item.name }}.{{ kubeinit_provision_cluster_domain }}
+        inline: {{ item }}.{{ kubeinit_provision_cluster_domain }}
     - path: /etc/hosts
       overwrite: true
       contents:
@@ -59,9 +59,10 @@ storage:
           ::1 localhost.localdomain localhost
           ::1 localhost6.localdomain6 localhost6
 
-{% for host in kubeinit_provision_cluster_hosts %}
-          {{ host.eth0.ip }} {{ host.name }}.{{ kubeinit_provision_cluster_domain }} {{ host.name }}
+{% for host in groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] %}
+          {{ hostvars[host].ansible_host }} {{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }} {{ host }}
 {% endfor %}
+
     - path: /etc/ssh/sshd_config.d/20-enable-passwords.conf
       mode: 0644
       contents:
@@ -70,19 +71,19 @@ storage:
           # Enable it.
           # This file must sort before 40-disable-passwords.conf.
           PasswordAuthentication yes
-    # - path: /etc/NetworkManager/system-connections/{{ item.eth0.devicename }}.nmconnection
+    # - path: /etc/NetworkManager/system-connections/{{ hostvars[item].devicename }}.nmconnection
     #   mode: 0600
     #   overwrite: true
     #   contents:
     #     inline: |
     #       [connection]
     #       type=ethernet
-    #       interface-name={{ item.eth0.devicename }}
+    #       interface-name={{ hostvars[item].devicename }}
     #       [ethernet]
-    #       mac-address={{ item.eth0.mac }}
+    #       mac-address={{ hostvars[item].mac }}
     #       [ipv4]
     #       method=manual
-    #       addresses={{ item.eth0.ip }}/{{ item.eth0.prefix }}
-    #       gateway={{ item.eth0.gateway }}
-    #       dns={{ item.eth0.gateway }},{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}
+    #       addresses={{ hostvars[item].ansible_host }}/{{ hostvars[item].prefix }}
+    #       gateway={{ hostvars[item].gateway }}
+    #       dns={{ hostvars[item].gateway }}
     #       dns-search={{ kubeinit_provision_cluster_domain }}

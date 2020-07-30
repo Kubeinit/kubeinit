@@ -36,6 +36,8 @@ exit
 #### Deploy an OKD 4.5 with 3 master nodes and 4 worker nodes.
 
 ```bash
+git clone https://github.com/ccamacho/kubeinit.git
+cd kubeinit
 ansible-playbook \
     --user root \
     -v -i ./hosts/okd/inventory \
