@@ -14,9 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "verify that all the csr are loaded"
+- name: "verify that all the csr are loaded and aproved for the deployed nodes"
   shell: |
     export KUBECONFIG=~/install_dir/auth/kubeconfig; \
+    oc get csr -ojson | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve >/dev/null 2>&1; \
     oc get csr | grep bootstrapper
   register: cmd_res
   retries: 60
@@ -30,20 +31,6 @@
     loop_var: cluster_node
   tags:
     - provision_libvirt
-
-
-- name: "aprove CSR’s"
-  shell: |
-    export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-    oc get csr -ojson | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  ignore_errors: yes
-  tags:
-    - provision_libvirt
-
 
 - name: "wait until all nodes are ready"
   shell: |
@@ -125,6 +112,7 @@
 
 - name: get some final cluster information
   shell: |
+    echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
     export KUBECONFIG=~/install_dir/auth/kubeconfig
     oc get pvc -n openshift-image-registry
     oc get pv
@@ -135,9 +123,12 @@
   loop_control:
     loop_var: cluster_node
   ignore_errors: yes
+  register: final_output_info
   tags:
     - provision_libvirt
-# echo "show info" | socat unix-connect:/var/lib/haproxy/stats stdio
-# echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
-# echo "show errors" | socat unix-connect:/var/lib/haproxy/stats stdio
-# echo "show sess" | socat unix-connect:/var/lib/haproxy/stats stdio
+
+- name: Display final debug info
+  debug:
+    var: final_output_info
+  tags:
+    - provision_libvirt
