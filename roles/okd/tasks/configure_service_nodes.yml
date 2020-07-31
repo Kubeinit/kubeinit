@@ -293,15 +293,19 @@
 - name: "Render the bootstrap details"
   shell: |
     cd
+
+    rm -rf install_dir
+    mkdir install_dir
+
     wget {{ kubeinit_okd_dependencies.client }}
     wget {{ kubeinit_okd_dependencies.installer }}
-    tar -zxvf {{ kubeinit_okd_dependencies.client }}
-    tar -zxvf {{ kubeinit_okd_dependencies.installer }}
+
+    for f in *.tar.gz; do tar -xvf "$f"; done
+
     mv kubectl oc openshift-install /usr/local/bin/
     oc version
     openshift-install version
-    rm -rf install_dir
-    mkdir install_dir
+
     cat << EOF > ./install_dir/install-config.yaml
     ---
     apiVersion: v1
@@ -329,16 +333,19 @@
     pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
     sshKey: {{ kubeinit_provision_vms_public_key }}
     EOF
+
     openshift-install create manifests --dir=install_dir/
     sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
+
     openshift-install create ignition-configs --dir=install_dir/
     mkdir /var/www/html/okd4
+
     cp -R install_dir/* /var/www/html/okd4/
     cd /var/www/html/okd4/
+
     sudo wget {{ kubeinit_provision_source_images.coreos.uri }}{{ kubeinit_provision_source_images.coreos.raw }}
     sudo wget {{ kubeinit_provision_source_images.coreos.uri }}{{ kubeinit_provision_source_images.coreos.sig }}
-    sudo mv {{ kubeinit_provision_source_images.coreos.raw }} fcos.raw.xz
-    sudo mv {{ kubeinit_provision_source_images.coreos.sig }} fcos.raw.xz.sig
+
     sudo chown -R apache: /var/www/html/
     sudo chmod -R 755 /var/www/html/
   delegate_to: "{{ item }}"
