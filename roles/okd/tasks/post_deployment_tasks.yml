@@ -113,11 +113,8 @@
     export KUBECONFIG=~/install_dir/auth/kubeconfig
     oc create -f ~/registry_pv.yaml
     oc create -f ~/registry_pvc.yaml
-    oc get pvc -n openshift-image-registry
-    oc get pv
     oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"managementState":"Managed"}}'
     oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"pvc":{"claim":"image-registry-pvc"}}}}'
-    oc get clusteroperator image-registry
   delegate_to: "{{ cluster_node }}"
   with_items: "{{ groups['okd-service-nodes'] }}"
   loop_control:
@@ -126,6 +123,20 @@
   tags:
     - provision_libvirt
 
+- name: get some final cluster information
+  shell: |
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    oc get pvc -n openshift-image-registry
+    oc get pv
+    oc get clusteroperator image-registry
+    oc get nodes
+  delegate_to: "{{ cluster_node }}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  ignore_errors: yes
+  tags:
+    - provision_libvirt
 # echo "show info" | socat unix-connect:/var/lib/haproxy/stats stdio
 # echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
 # echo "show errors" | socat unix-connect:/var/lib/haproxy/stats stdio
