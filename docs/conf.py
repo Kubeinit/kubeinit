@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -9,17 +11,22 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
 
+import os
+import sys
+
+from ansible.plugins import loader
+
+# Add the project
+sys.path.insert(0, os.path.abspath('../..'))
+# Add the extensions
+sys.path.insert(0, os.path.join(os.path.abspath('.'), '_exts'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'No Errors Test Project'
-copyright = '2019, sphinx-action Test Suite'
-author = 'sphinx-action Test Suite'
+project = 'KubeInit'
+copyright = '2020, KubeInit'
+author = 'Carlos Camacho'
 
 
 # -- General configuration ---------------------------------------------------
@@ -28,6 +35,8 @@ author = 'sphinx-action Test Suite'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.autodoc',
+    'ansible-autodoc'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -44,7 +53,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'classic'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
