@@ -129,7 +129,6 @@ class AnsibleAutoPluginDirective(Directive):
                         dump_data=False
                     )
                 )
-
         return section
 
     @staticmethod
@@ -225,7 +224,6 @@ class AnsibleAutoPluginDirective(Directive):
                     )
                 )
             )
-
         vars_path = os.path.join(role, 'vars')
         if os.path.exists(vars_path):
             for v_file in os.listdir(vars_path):
@@ -365,11 +363,13 @@ class AnsibleAutoPluginDirective(Directive):
         self.run_returns = list()
 
         if self.options.get('module'):
-            module = self.load_module(filename=self.options['module'])
+            module_path = os.path.join(os.environ["PROJECT_ROOT"], self.options['module'])
+            module = self.load_module(filename=module_path)
             self._run_module(module=module)
 
         if self.options.get('role'):
-            self._run_role(role=self.options['role'])
+            role = os.path.join(os.environ["PROJECT_ROOT"], self.options['role'])
+            self._run_role(role=role)
 
         return self.run_returns
 

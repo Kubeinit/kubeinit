@@ -14,11 +14,16 @@
 
 import os
 import sys
+import sphinx_rtd_theme
 
 from ansible.plugins import loader
 
+
+os.environ["PROJECT_ROOT"] = os.path.abspath('../..')
+
 # Add the project
 sys.path.insert(0, os.path.abspath('../..'))
+
 # Add the extensions
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '_exts'))
 
@@ -35,8 +40,9 @@ author = 'Carlos Camacho'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'ansible-autodoc'
+  "sphinx_rtd_theme",
+  'sphinx.ext.autodoc',
+  'ansible-autodoc'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -50,14 +56,47 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # -- Options for HTML output -------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
-html_theme = 'classic'
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
-
 master_doc = 'index'
+
+# The suffix of source filenames.
+source_suffix = '.rst'
+
+# If true, '()' will be appended to :func: etc. cross-reference text.
+add_function_parentheses = True
+
+# If true, the current module name will be prepended to all description
+# unit titles (such as .. function::).
+add_module_names = True
+
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = 'native'
+
+# -- Options for HTML output --------------------------------------------------
+
+# The theme to use for HTML and HTML Help pages.  Major themes that come with
+# Sphinx are currently 'default' and 'sphinxdoc'.
+# html_theme_path = ["."]
+# html_theme = '_theme'
+# html_static_path = ['static']
+
+html_logo = "white_text_logo.png"
+html_theme_options = {
+    'logo_only': True,
+    'display_version': False,
+}
+
+# Output file base name for HTML help builder.
+htmlhelp_basename = '%sdocs' % project
+html_theme = 'sphinx_rtd_theme'
+
+needed_module_utils = [
+    'module_1',
+    'module_2'
+]
+# load our custom module_utils so that modules can be imported for
+# generating docs
+for m in needed_module_utils:
+    try:
+        loader.module_utils_loader.get(m)
+    except AttributeError:
+        pass

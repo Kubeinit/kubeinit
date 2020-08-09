@@ -16,10 +16,10 @@ Contents:
    contributing_roles
    usage
    roles
+   modules
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`

@@ -1,21 +1,18 @@
 name: Pull Request Docs Check
-
 on: [pull_request]
-
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v1
     # Standard drop-in approach that should work for most people.
-    - uses: ammaraskar/sphinx-action@master
+    - uses: kubeinit/sphinx-action@master
       with:
-        docs-folder: "docs/"
+        pre-build-command: "touch /tmp/sphinx-log && pip3 install --upgrade pip && pip3 install --upgrade virtualenv && pip3 install --upgrade setuptools && pip3 install --upgrade ansible && pip3 install --upgrade ruamel.yaml && pip3 install --upgrade sphinx-rtd-theme"
+        docs-folder: "docs/src/"
     # Great extra actions to compose with:
     # Create an artifact of the html output.
     - uses: actions/upload-artifact@v1
       with:
         name: DocumentationHTML
-        path: docs/_build/html/
+        path: docs/src/_build/html/
