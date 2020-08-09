@@ -57,7 +57,27 @@ After provisioning any of the scenarios, you should have your environment ready 
 
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.
 
-## License
+# License
 
-KubeInit is open source software
-licensed under the [Apache license](LICENSE).
+KubeInit is open source software licensed under the [Apache license](LICENSE).
+
+# Creating new roles
+
+We will use the same role generation script from [tripleo-ansible](https://github.com/openstack/tripleo-ansible)
+to automatically create new roles based in a pre-defined skeleton.
+
+From the root directory execute:
+
+```
+ansible-playbook \
+    -i 'localhost,' \
+    role-addition.yml \
+    -e ansible_connection=local \
+    -e role_name=kubeinit-example
+```
+
+This command will generate the role, initial molecule default tests, and the documentation stub.
+
+# References
+
+KubeInit mimics the Ansible good practices from [tripleo-ansible](https://github.com/openstack/tripleo-ansible).
