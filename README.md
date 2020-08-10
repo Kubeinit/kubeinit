@@ -11,8 +11,11 @@
     <a href="https://www.kubeinit.com"><img height="30px" src="https://raw.githubusercontent.com/pystol/pystol-docs/master/assets/badges/cloud-native.svg?sanitize=true"/> </a>
 </p>
 
-[![Linters](https://github.com/ccamacho/kubeinit/workflows/linters/badge.svg?event=push)](https://github.com/ccamacho/kubeinit/actions?workflow=linters)
-[![Documentation build](https://github.com/ccamacho/kubeinit/workflows/docs_build/badge.svg?event=push)](https://github.com/ccamacho/kubeinit/actions?workflow=docs_build)
+<p style="text-align: center" align="center">
+    <a href="https://github.com/ccamacho/kubeinit/actions?workflow=linters"><img height="20px" src="https://github.com/ccamacho/kubeinit/workflows/linters/badge.svg?event=push"/> </a>
+    <a href="https://github.com/ccamacho/kubeinit/actions?workflow=docs_build"><img height="20px" src="https://github.com/ccamacho/kubeinit/workflows/docs_build/badge.svg?event=push"/> </a>
+    <a href="https://opensource.org/licenses/Apache-2.0"><img height="20px" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/> </a>
+</p>
 
 # Abstract
 
