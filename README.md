@@ -21,9 +21,12 @@
 
 KubeInit provides Ansible playbooks and roles for the deployment and configuration of multiple Kubernetes distributions.
 
-# How to run KubeInit
+# Documentation
 
-## Requirements
+KubeInit's documentation is hosted in [this same repository](https://ccamacho.github.io/kubeinit/).
+The documentation is rendered using Sphinx and uploaded to GitHub pages using a GitHub action.
+
+# Main requirements
 
 * A server with enough RAM and disk space (120GB in RAM and 300GB in disk).
 * A hypervisor with Centos 8.
@@ -39,14 +42,14 @@ exit
 
 # Escenarios
 
-## Deploy an OKD 4.5 with 3 master nodes and [1-10] worker nodes.
+## OKD 4.5 cluster with 3 master nodes and [1-10] worker nodes.
 
 ### Requirements
 
 * Adjust the inventory file and comment/uncomment [the worker nodes](https://github.com/ccamacho/kubeinit/blob/master/hosts/okd/inventory#L66)
  you will need in your cluster.
 
-*  Run the playbook and enjoy
+### Deployment command
 
 ```bash
 git clone https://github.com/ccamacho/kubeinit.git
@@ -66,23 +69,6 @@ To connect to the nodes from the hypervisor use the IP addresses from the invent
 # License
 
 KubeInit is open source software licensed under the [Apache license](LICENSE).
-
-# Creating new roles
-
-We will use the same role generation script from [tripleo-ansible](https://github.com/openstack/tripleo-ansible)
-to automatically create new roles based in a pre-defined skeleton.
-
-From the root directory execute:
-
-```
-ansible-playbook \
-    -i 'localhost,' \
-    role-addition.yml \
-    -e ansible_connection=local \
-    -e role_name=kubeinit-example
-```
-
-This command will generate the role, initial molecule default tests, and the documentation stub.
 
 # References
 

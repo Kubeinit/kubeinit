@@ -5,11 +5,20 @@ Contributing
 Adding roles into this project is easy and starts with a compatible skeleton.
 
 
-Create a new role manually
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Creating new roles automatically
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-From with the project root, creating a skeleton for the new role.
+We will use the same role generation script from tripleo-ansible
+to automatically create new roles based in a pre-defined skeleton.
+
+From the repository root directory execute:
 
 .. code-block:: console
 
-    $ ansible-galaxy init --role-skeleton=_skeleton_role_ --init-path=kubeinit/roles ${NEWROLENAME}
+    ansible-playbook \
+        -i 'localhost,' \
+        role-addition.yml \
+        -e ansible_connection=local \
+        -e role_name=kubeinit-example
+
+This command will generate the role, initial molecule default tests, and the documentation stub.
