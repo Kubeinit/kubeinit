@@ -1,26 +1,23 @@
-name: Sphinx docs build
+name: docs_build
 on:
   push:
     branches:    
       - master
+    paths:
+      - 'docs/**'
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    # Standard drop-in approach that should work for most people.
     - uses: kubeinit/sphinx-action@master
       with:
         pre-build-command: "touch /tmp/sphinx-log && pip3 install --upgrade pip && pip3 install --upgrade virtualenv && pip3 install --upgrade setuptools && pip3 install --upgrade ansible && pip3 install --upgrade ruamel.yaml && pip3 install --upgrade sphinx-rtd-theme"
         docs-folder: "docs/src/"
-    # Great extra actions to compose with:
-    # Create an artifact of the html output.
     - uses: actions/upload-artifact@v1
       with:
         name: DocumentationHTML
         path: docs/src/_build/html/
-    # Publish built docs to gh-pages branch.
-    # ===============================
     - name: Commit documentation changes
       run: |
         git clone https://github.com/ccamacho/kubeinit.git --branch gh-pages --single-branch gh-pages
@@ -30,8 +27,6 @@ jobs:
         git config --local user.name "KubeInit's bot"
         git add .
         git commit -m "Update documentation" -a || true
-        # The above command will fail if no changes were present, so we ignore
-        # that.
     - name: Push changes
       uses: ad-m/github-push-action@master
       with:
@@ -39,4 +34,3 @@ jobs:
         branch: gh-pages
         directory: gh-pages
         github_token: ${{ secrets.GITHUB_TOKEN }}
-    # ===============================

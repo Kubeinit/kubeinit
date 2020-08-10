@@ -11,6 +11,9 @@
     <a href="https://www.kubeinit.com"><img height="30px" src="https://raw.githubusercontent.com/pystol/pystol-docs/master/assets/badges/cloud-native.svg?sanitize=true"/> </a>
 </p>
 
+[![Linters](https://github.com/ccamacho/kubeinit/workflows/linters/badge.svg?event=push)](https://github.com/ccamacho/kubeinit/actions?workflow=linters)
+[![Documentation build](https://github.com/ccamacho/kubeinit/workflows/docs_build/badge.svg?event=push)](https://github.com/ccamacho/kubeinit/actions?workflow=docs_build)
+
 # Abstract
 
 KubeInit provides Ansible playbooks and roles for the deployment and configuration of multiple Kubernetes distributions.
