@@ -66,8 +66,11 @@
 
 - name: "verify that {{ kubeinit_deployment_role }} nodes are ok"
   shell: |
+    set -o pipefail
     export KUBECONFIG=~/install_dir/auth/kubeconfig; \
     oc get nodes | grep {{ kubeinit_deployment_role }} | grep " Ready"
+  args:
+    executable: /bin/bash
   register: cmd_res
   retries: 60
   delay: 60

@@ -1,20 +1,16 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# -*- coding: UTF-8 -*-
 
-# Configuration file for the Sphinx documentation builder.
-#
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+"""
+Configuration file for the Sphinx documentation builder.
 
-# -- Path setup --------------------------------------------------------------
-
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
+This file only contains a selection of the most common options. For a full
+list see the documentation:
+https://www.sphinx-doc.org/en/master/usage/configuration.html
+"""
 
 import os
 import sys
-import sphinx_rtd_theme
 
 from ansible.plugins import loader
 
@@ -40,9 +36,9 @@ author = 'Carlos Camacho'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-  "sphinx_rtd_theme",
-  'sphinx.ext.autodoc',
-  'ansible-autodoc'
+    'sphinx_rtd_theme',
+    'sphinx.ext.autodoc',
+    'ansible-autodoc'
 ]
 
 # Add any paths that contain templates here, relative to this directory.

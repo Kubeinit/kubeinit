@@ -1,5 +1,11 @@
 #!/usr/bin/python
 
+"""
+Plugin example to be removed.
+
+This is a plugin example to be removed
+"""
+
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
@@ -56,14 +62,16 @@ resources:
             returned: success
             type: complex
         info:
-            description: Additional resource information, not needed for import.
+            description: Additional resource, not needed for import.
             returned: success
             type: complex
 '''
 
 from ansible.module_utils.basic import AnsibleModule
 
+
 def run_module():
+    """Execute the module."""
     module_args = dict(
         path=dict(type='str', required=True),
     )
@@ -75,18 +83,16 @@ def run_module():
 
     module = AnsibleModule(
         argument_spec=module_args,
-        # Module doesn't change anything, we can let it run as-is in
-        # check mode.
         supports_check_mode=True,
     )
 
-    struct = filesystem.load_resources_file(module.params['path'])
-    result['resources'] = struct['resources']
+    result['resources'] = "test"
 
     module.exit_json(**result)
 
 
 def main():
+    """Run the main method."""
     run_module()
 
 

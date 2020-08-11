@@ -1,31 +1,31 @@
-# Copyright 2019 Red Hat, Inc.
-# All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
+#!/usr/bin/env python3
+# -*- coding: UTF-8 -*-
 
+"""
+Copyright 2019 Red Hat, Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+"""
 
 import imp
 import os
 
 from docutils import core
 from docutils import nodes
-from docutils.parsers.rst import Directive
 from docutils.parsers import rst
+from docutils.parsers.rst import Directive
 from docutils.writers.html4css1 import Writer
 
-from sphinx import addnodes
-
-import yaml
 from ruamel.yaml import YAML as RYAML
 
 try:
@@ -36,8 +36,10 @@ except ImportError:
 
 
 class DocYaml(RYAML):
+    """Main class for YAML processing."""
+
     def _license_filter(self, data):
-        """This will filter out our boilerplate license heading in return data.
+        """Filter out our boilerplate license heading in return data.
 
         The filter is used to allow documentation we're creating in variable
         files to be rendered more beautifully.
@@ -54,6 +56,7 @@ class DocYaml(RYAML):
         return '\n'.join(lines)
 
     def dump(self, data, stream=None, **kw):
+        """Dump stream data."""
         if not stream:
             stream = StringIO()
         try:
@@ -68,6 +71,8 @@ DOCYAML.default_flow_style = False
 
 
 class AnsibleAutoPluginDirective(Directive):
+    """Main class for the plugin directive."""
+
     directive_name = "ansibleautoplugin"
     has_content = True
     option_spec = {
@@ -87,6 +92,7 @@ class AnsibleAutoPluginDirective(Directive):
         )
 
     def make_node(self, title, contents, content_type=None):
+        """Make a documentation node."""
         section = self._section_block(title=title)
         if not content_type:
             # Doc section
@@ -133,10 +139,12 @@ class AnsibleAutoPluginDirective(Directive):
 
     @staticmethod
     def load_module(filename):
+        """Load the module."""
         return imp.load_source('__ansible_module__', filename)
 
     @staticmethod
     def build_documentation(module):
+        """Build the documentation."""
         docs = DOCYAML.load(module.DOCUMENTATION)
         doc_data = dict()
         doc_data['docs'] = docs['description']
@@ -146,6 +154,7 @@ class AnsibleAutoPluginDirective(Directive):
 
     @staticmethod
     def build_examples(module):
+        """Build the examples."""
         examples = DOCYAML.load(module.EXAMPLES)
         return_examples = list()
         for example in examples:
@@ -219,9 +228,7 @@ class AnsibleAutoPluginDirective(Directive):
                     section_title='Role Defaults',
                     section_text='This section highlights all of the defaults'
                                  ' and variables set within the "{}"'
-                                 ' role.'.format(
-                                     os.path.basename(role)
-                    )
+                                 ' role.'.format(os.path.basename(role))
                 )
             )
         vars_path = os.path.join(role, 'vars')
@@ -243,9 +250,7 @@ class AnsibleAutoPluginDirective(Directive):
             text='Molecule is being used to test the "{}" role. The'
                  ' following section highlights the drivers in service'
                  ' and provides an example playbook showing how the role'
-                 ' is leveraged.'.format(
-                     os.path.basename(role)
-            )
+                 ' is leveraged.'.format(os.path.basename(role))
         )
         molecule_path = os.path.join(role, 'molecule')
         if os.path.exists(molecule_path):
@@ -360,21 +365,25 @@ class AnsibleAutoPluginDirective(Directive):
             )
 
     def run(self):
+        """Run the plugin."""
         self.run_returns = list()
 
         if self.options.get('module'):
-            module_path = os.path.join(os.environ["PROJECT_ROOT"], self.options['module'])
+            module_path = os.path.join(os.environ["PROJECT_ROOT"],
+                                       self.options['module'])
             module = self.load_module(filename=module_path)
             self._run_module(module=module)
 
         if self.options.get('role'):
-            role = os.path.join(os.environ["PROJECT_ROOT"], self.options['role'])
+            role = os.path.join(os.environ["PROJECT_ROOT"],
+                                self.options['role'])
             self._run_role(role=role)
 
         return self.run_returns
 
 
 def setup(app):
+    """Configure the plugin."""
     classes = [
         AnsibleAutoPluginDirective,
     ]

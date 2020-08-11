@@ -14,14 +14,20 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: get root public key
-  shell: cat /root/.ssh/id_rsa.pub
-  register: publick_key_content
-  tags:
-    - provision_libvirt
+# - name: get root public key
+#   shell: cat /root/.ssh/id_rsa.pub
+#   register: publick_key_content
+#   tags:
+#     - provision_libvirt
+#
+# - set_fact:
+#     kubeinit_provision_vms_public_key={{ publick_key_content.stdout }}
+#   tags:
+#     - provision_libvirt
 
-- set_fact:
-    kubeinit_provision_vms_public_key={{ publick_key_content.stdout }}
+- name: Sve root public key for cluster access
+  set_fact:
+    kubeinit_provision_vms_public_key={{ lookup('file', '/root/.ssh/id_rsa.pub') }}
   tags:
     - provision_libvirt
 
@@ -101,6 +107,8 @@
 - name: define vm
   shell: |
     virsh define {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/vm.xml
+  register: libvirt_define_vm
+  changed_when: "libvirt_define_vm.rc == 0"
   with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
@@ -257,6 +265,8 @@
   shell: |
     setsebool -P haproxy_connect_any 1
     setsebool -P httpd_read_user_content 1
+  register: allow_haproxy_connect
+  changed_when: "allow_haproxy_connect.rc == 0"
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
@@ -273,8 +283,11 @@
 # Configure httpd
 #
 
-- name: Use 8080
-  shell: sudo sed -i 's/Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf
+- name: Use 8080 port in service node
+  replace:
+    path: /etc/httpd/conf/httpd.conf
+    regexp: 'Listen 80'
+    replace: 'Listen 8080'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
@@ -338,6 +351,8 @@
     sudo wget {{ kubeinit_provision_source_images.coreos.uri }}{{ kubeinit_provision_source_images.coreos.sig }}
     sudo chown -R apache: /var/www/html/
     sudo chmod -R 755 /var/www/html/
+  register: render_bootstrap_details
+  changed_when: "render_bootstrap_details.rc == 0"
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
@@ -349,6 +364,7 @@
 
 - name: "configure NFS shares"
   shell: |
+    set -o pipefail
     systemctl enable nfs-server rpcbind
     systemctl start nfs-server rpcbind
     mkdir -p /var/nfsshare/registry
@@ -357,6 +373,10 @@
     echo '/var/nfsshare {{ hostvars[item].ansible_host | ipsubnet(24) }}(rw,sync,no_root_squash,no_all_squash,no_wdelay)' | tee /etc/exports
     setsebool -P nfs_export_all_rw 1
     systemctl restart nfs-server
+  register: nfs_share_config
+  changed_when: "nfs_share_config.rc == 0"
+  args:
+    executable: /bin/bash
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
