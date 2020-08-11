@@ -21,18 +21,22 @@
 # Abstract
 
 KubeInit provides Ansible playbooks and roles for the deployment and configuration of multiple Kubernetes distributions.
+The main goal of KubeInit is to have a fully automated way to deploy in a single command a curated list of
+prescribed architectures.
 
 # Documentation
 
 KubeInit's documentation is hosted in [this same repository](https://ccamacho.github.io/kubeinit/).
 The documentation is rendered using Sphinx and uploaded to GitHub pages using a GitHub action.
 
-# Main requirements
+# Requirements
 
 * A server with enough RAM and disk space (120GB in RAM and 300GB in disk).
 * A hypervisor with Centos 8.
 * We assume that the hypervisor node is called nyctea (defined in the inventory).
 * Have root access with certificates.
+* Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/ccamacho/kubeinit/blob/master/hosts/okd/inventory#L66)
+ you will need in your cluster.
 
 ```bash
 ssh root@nyctea
@@ -41,16 +45,10 @@ curl -sS https://github.com/<your_github_username>.keys >> ~/.ssh/authorized_key
 exit
 ```
 
-# Escenarios
+# How to run
 
-## OKD 4.5 cluster with 3 master nodes and [1-10] worker nodes.
-
-### Requirements
-
-* Adjust the inventory file and comment/uncomment [the worker nodes](https://github.com/ccamacho/kubeinit/blob/master/hosts/okd/inventory#L66)
- you will need in your cluster.
-
-### Deployment command
+The following example command will deploy a multi-master OKD 4.5 cluster with 1 worker node
+in a single command and in approximately 30 minutes.
 
 ```bash
 git clone https://github.com/ccamacho/kubeinit.git
@@ -66,11 +64,3 @@ ansible-playbook \
 After provisioning any of the scenarios, you should have your environment ready to go.
 
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.
-
-# License
-
-KubeInit is open source software licensed under the [Apache license](LICENSE).
-
-# References
-
-KubeInit mimics the Ansible good practices from [tripleo-ansible](https://github.com/openstack/tripleo-ansible).

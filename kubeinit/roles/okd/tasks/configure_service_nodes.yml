@@ -14,20 +14,16 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-# - name: get root public key
-#   shell: cat /root/.ssh/id_rsa.pub
-#   register: publick_key_content
-#   tags:
-#     - provision_libvirt
-#
-# - set_fact:
-#     kubeinit_provision_vms_public_key={{ publick_key_content.stdout }}
-#   tags:
-#     - provision_libvirt
+- name: get root public key
+  command: cat /root/.ssh/id_rsa.pub
+  register: public_key_content
+  changed_when: "public_key_content.rc == 0"
+  tags:
+    - provision_libvirt
 
-- name: Sve root public key for cluster access
+- name: register the public key of the root user
   set_fact:
-    kubeinit_provision_vms_public_key={{ lookup('file', '/root/.ssh/id_rsa.pub') }}
+    kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
   tags:
     - provision_libvirt
 
