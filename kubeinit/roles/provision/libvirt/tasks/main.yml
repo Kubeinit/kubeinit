@@ -32,6 +32,85 @@
   tags:
     - provision_libvirt
 
+- name: Check if Intel virtualization is supported
+  shell: |
+    set -e
+    grep vmx /proc/cpuinfo
+  ignore_errors: yes
+  register: intel_proccesor
+  changed_when: "intel_proccesor.rc == 0"
+  tags:
+    - provision_libvirt
+
+- name: Check if AMD virtualization is supported
+  shell: |
+    set -e
+    grep svm /proc/cpuinfo
+  ignore_errors: yes
+  register: amd_proccesor
+  changed_when: "amd_proccesor.rc == 0"
+  tags:
+    - provision_libvirt
+
+- name: Fail in case no Intel or AMD virtualization support is not detected.
+  fail:
+    msg: "The system doesn't seem to have Intel nor AMD virtualization support."
+  when: intel_proccesor.rc != 0 and amd_proccesor.rc != 0
+  tags:
+    - provision_libvirt
+
+- name: Set fact for Intel virtualization
+  set_fact:
+    nested_virtualization_module_name: "kvm_intel"
+  when: intel_proccesor.rc == 0
+  tags:
+    - provision_libvirt
+
+- name: Set fact for AMD virtualization
+  set_fact:
+    nested_virtualization_module_name: "kvm_amd"
+  when: amd_proccesor.rc == 0
+  tags:
+    - provision_libvirt
+
+- name: Set fact for nested virtualization test path
+  set_fact:
+    nested_virtualization_test_path: "/sys/module/{{ nested_virtualization_module_name }}/parameters/nested"
+  tags:
+    - provision_libvirt
+
+- name: "Ensure {{ nested_virtualization_module_name }} module is available and loaded"
+  modprobe:
+    name: "{{ nested_virtualization_module_name }}"
+    state: present
+  tags:
+    - provision_libvirt
+
+- name: Test status of nested virtualization
+  shell: |
+    set -e
+    cat {{ nested_virtualization_test_path }}
+  register: actual_status
+  changed_when: "actual_status.rc == 0"
+  tags:
+    - provision_libvirt
+
+- name: "Persist configuration in /etc/modprobe.d/kvm.conf"
+  lineinfile:
+    path: "/etc/modprobe.d/kvm.conf"
+    regexp: "^options {{ nested_virtualization_module_name }}.*$"
+    line: "options {{ nested_virtualization_module_name }} nested=1"
+    create: yes
+  tags:
+    - provision_libvirt
+
+- name: "Load {{ nested_virtualization_module_name }} module"
+  modprobe:
+    name: "{{ nested_virtualization_module_name }}"
+    state: present
+  tags:
+    - provision_libvirt
+
 - name: check if /root/.ssh/known_hosts exists
   stat:
     path: /root/.ssh/known_hosts

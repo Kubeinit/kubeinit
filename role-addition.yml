@@ -27,6 +27,12 @@
       when:
         - role_name is undefined
 
+    - name: Check for role name syntax
+      fail:
+        msg: >-
+          The role_name must be ^kubeinit-[a-z]+$
+      when: not role_name|regex_search('^kubeinit-[a-z]+$')
+
     - name: Normalize the role name
       set_fact:
         _role_name: "{{ role_name | replace('-', '_' ) }}"

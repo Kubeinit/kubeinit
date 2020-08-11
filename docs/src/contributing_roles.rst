@@ -21,4 +21,6 @@ From the repository root directory execute:
         -e ansible_connection=local \
         -e role_name=kubeinit-example
 
+.. note::  Please use only *kubeinit-rolename* words for defining the role name, for example, replace **kubeinit-example** with **kubeinit-bind**, **kubeinit-kubevirt**, or whatever the service name will be.
+
 This command will generate the role, initial molecule default tests, and the documentation stub.
