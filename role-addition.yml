@@ -39,65 +39,6 @@
       args:
         creates: "kubeinit/roles/{{ _role_name }}"
 
-    # - name: Read zuul molecule file
-    #   slurp:
-    #     src: zuul.d/molecule.yaml
-    #   register: molecule_yaml
-    #
-    # - name: Create molecule entry
-    #   copy:
-    #     content: |-
-    #       # Managed via ./role-addition.yml, do not edit manually without testing that
-    #       # new role addition does not reformat it.
-    #       ---
-    #       {% set items = molecule_yaml['content'] | b64decode | from_yaml %}
-    #       {% set job_index = [] %}
-    #       {% set new_job_name = "kubeinit-centos-8-molecule-" ~ _role_name %}
-    #       {% for item in items %}
-    #       {%   if 'project-template' in item %}
-    #       {%     if item['project-template']['name'] == "kubeinit-molecule-jobs" %}
-    #       {%       if not (new_job_name in item['project-template']['check']['jobs']) %}
-    #       {%         set _ = item['project-template']['check']['jobs'].append(new_job_name) %}
-    #       {%         set check_jobs = (item['project-template']['check']['jobs'] | sort) %}
-    #       {%         set _ = item['project-template']['check'].update({'jobs': check_jobs}) %}
-    #       {%       endif %}
-    #       {%       if not (new_job_name in item['project-template']['gate']['jobs']) %}
-    #       {%         set _ = item['project-template']['gate']['jobs'].append(new_job_name) %}
-    #       {%         set gate_jobs = (item['project-template']['gate']['jobs'] | sort) %}
-    #       {%         set _ = item['project-template']['gate'].update({'jobs': gate_jobs}) %}
-    #       {%       endif %}
-    #       {%       if not (new_job_name in item['project-template']['periodic-weekly']['jobs']) %}
-    #       {%         set _ = item['project-template']['periodic-weekly']['jobs'].append(new_job_name) %}
-    #       {%         set periodic_jobs = (item['project-template']['periodic-weekly']['jobs'] | sort) %}
-    #       {%         set _ = item['project-template']['periodic-weekly'].update({'jobs': periodic_jobs}) %}
-    #       {%       endif %}
-    #       {%     endif %}
-    #       {%   else %}
-    #       {%     if item['job']['name'] == new_job_name %}
-    #       {%       set _ = job_index.append(new_job_name) %}
-    #       {%     endif %}
-    #       {%   endif %}
-    #       {% endfor %}
-    #       {% if (job_index | length) < 1 %}
-    #       {%   set new_job = {
-    #               "name": new_job_name,
-    #               "parent": "kubeinit-centos-8-base",
-    #               "files": [
-    #                 "^kubeinit/roles/" ~ _role_name ~ "/.*"
-    #               ],
-    #               "vars": {
-    #                 "kubeinit_role_name": _role_name
-    #               }
-    #            }
-    #       %}
-    #       {%   set _ = items.append({"job": new_job}) %}
-    #       {% endif %}
-    #       {% set project = items.pop(0) %}
-    #       {% set sorted_jobs = items | sort(attribute='job.name') %}
-    #       {% set _ = sorted_jobs.insert(0, project) %}
-    #       {{ sorted_jobs | to_nice_yaml(indent=2, width=1337) }}
-    #     dest: zuul.d/molecule.yaml
-
     - name: Create role documentation
       copy:
         content: |
@@ -108,4 +49,4 @@
 
           .. ansibleautoplugin::
             :role: kubeinit/roles/{{ _role_name }}
-        dest: "docs/source/roles/role-{{ _role_name }}.rst"
+        dest: "docs/src/roles/role-{{ _role_name }}.rst"
