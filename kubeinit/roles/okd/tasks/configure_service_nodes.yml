@@ -43,7 +43,7 @@
   template:
     src: "../../roles/provision/libvirt/templates/ifcfg-eth0.j2"
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth0'
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -51,7 +51,7 @@
   template:
     src: "../../roles/provision/libvirt/templates/101-cloudinit-hosts.tmpl.j2"
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/hosts.redhat.tmpl'
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -59,7 +59,7 @@
   template:
     src: "../../roles/provision/libvirt/templates/102-cloudinit-cloud.cfg.j2"
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg'
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -68,20 +68,20 @@
     src="{{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }}"
     dest="{{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
     force=yes  # Do not recopy if it has been modified
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Ensure the backing store is large enough
   command: "qemu-img resize {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2 +{{ hostvars[item].disk }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   changed_when: false
   tags:
     - provision_libvirt
 
 - name: Grow the partition
   command: "virt-resize  --expand {{ hostvars[item].root_device }} {{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }} {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -99,7 +99,7 @@
       --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/hosts.redhat.tmpl:/etc/cloud/templates \
       --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg:/etc/cloud \
       --selinux-relabel --root-password password:{{ kubeinit_provision_vms_default_password }}
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -108,7 +108,7 @@
   template:
     src: "../../roles/provision/libvirt/templates/vm.xml.j2"
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/vm.xml'
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -117,7 +117,7 @@
     virsh define {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/vm.xml
   register: libvirt_define_vm
   changed_when: "libvirt_define_vm.rc == 0"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -129,7 +129,7 @@
   template:
     src: "../../roles/provision/libvirt/templates/interface.xml.j2"
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/interface.xml'
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -139,7 +139,7 @@
       {{ item }} \
       {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/interface.xml \
       --config
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -153,7 +153,7 @@
     name: "{{ item }}"
     uri: qemu:///session
     state: running
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -162,7 +162,7 @@
     name: "{{ item }}"
     uri: qemu:///session
     autostart: yes
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -173,14 +173,14 @@
     search_regex: OpenSSH
     delay: 10
     timeout: 600
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Disable SELinux
   selinux: state=disabled
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -189,7 +189,7 @@
     name: "{{ kubeinit_provision_service_dependencies }}"
     state: present
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -202,7 +202,7 @@
     src: "named.conf.j2"
     dest: "/etc/named.conf"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -211,7 +211,7 @@
     src: "named.conf.local.j2"
     dest: "/etc/named/named.conf.local"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -220,7 +220,7 @@
     path: /etc/named/zones
     state: directory
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -229,7 +229,7 @@
     src: "db.j2"
     dest: "/etc/named/zones/db.{{ hostvars[item].ansible_host | ipsubnet(24) | ipaddr('network') }}"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -238,21 +238,21 @@
     src: "db.local.j2"
     dest: "/etc/named/zones/db.{{ kubeinit_provision_cluster_name }}.{{ kubeinit_provision_cluster_domain }}"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Disable IPv6 support
   lineinfile: dest=/etc/sysconfig/named line='OPTIONS="-4"' regexp="^OPTIONS"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Start and enable bind service
   service: name=named state=started enabled=yes
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -265,7 +265,7 @@
     src: "haproxy.cfg.j2"
     dest: "/etc/haproxy/haproxy.cfg"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -276,14 +276,14 @@
   register: allow_haproxy_connect
   changed_when: "allow_haproxy_connect.rc == 0"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Start and enable haproxy service
   service: name=haproxy state=started enabled=yes
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -297,14 +297,14 @@
     regexp: 'Listen 80'
     replace: 'Listen 8080'
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Start and enable httpd service
   service: name=httpd state=started enabled=yes
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -333,7 +333,7 @@
     controlPlane:
       hyperthreading: Enabled
       name: master
-      replicas: {{ groups['okd-master-nodes'] | count }}
+      replicas: {{ groups['okd_master_nodes'] | count }}
     metadata:
       name: {{ kubeinit_provision_cluster_name }}
     networking:
@@ -354,7 +354,7 @@
   register: render_bootstrap_details
   changed_when: "render_bootstrap_details.rc == 0"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -363,7 +363,7 @@
     src: "99_openshift-machineconfig_99-ssh.yaml.j2"
     dest: "/root/install_dir/openshift/99_openshift-machineconfig_99-master-ssh.yaml"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   vars:
     node_type: master
   tags:
@@ -374,7 +374,7 @@
     src: "99_openshift-machineconfig_99-ssh.yaml.j2"
     dest: "/root/install_dir/openshift/99_openshift-machineconfig_99-worker-ssh.yaml"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   vars:
     node_type: worker
   tags:
@@ -393,7 +393,7 @@
   register: render_ignition_files
   changed_when: "render_ignition_files.rc == 0"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 #
@@ -416,6 +416,6 @@
   args:
     executable: /bin/bash
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt

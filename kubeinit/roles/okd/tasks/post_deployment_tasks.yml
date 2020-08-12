@@ -18,7 +18,7 @@
   shell: |
     echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
   delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   loop_control:
     loop_var: cluster_node
   ignore_errors: yes
@@ -40,11 +40,11 @@
   retries: 60
   delay: 60
   # Per each node we have 2 certs one per kubelet-serving and another per kube-apiserver-client-kubelet
-  until: cmd_res.stdout_lines | list | count == ( groups['okd-master-nodes'] | count + groups['okd-worker-nodes'] | count ) * 2
+  until: cmd_res.stdout_lines | list | count == ( groups['okd_master_nodes'] | count + groups['okd_worker_nodes'] | count ) * 2
   # Delegated to be executed in the service node but
   # After the master nodes are deployed
   delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   loop_control:
     loop_var: cluster_node
   tags:
@@ -61,11 +61,11 @@
   changed_when: "cmd_res.rc == 0"
   retries: 60
   delay: 60
-  until: cmd_res.stdout_lines | list | count == ( (groups['okd-master-nodes'] | count) + (groups['okd-worker-nodes'] | count) )
+  until: cmd_res.stdout_lines | list | count == ( (groups['okd_master_nodes'] | count) + (groups['okd_worker_nodes'] | count) )
   # Delegated to be executed in the service node but
   # After the master nodes are deployed
   delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   loop_control:
     loop_var: cluster_node
   tags:
@@ -78,7 +78,7 @@
   register: remove_bootstrap_from_cluster
   changed_when: "remove_bootstrap_from_cluster.rc == 0"
   delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   loop_control:
     loop_var: cluster_node
   ignore_errors: yes
@@ -105,7 +105,7 @@
       persistentVolumeReclaimPolicy: Retain
       nfs:
         path: /var/nfsshare/registry
-        server: {{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}
+        server: {{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}
     EOF
     cat << EOF > ~/registry_pvc.yaml
       apiVersion: v1
@@ -129,7 +129,7 @@
   register: configure_cluster_pv
   changed_when: "configure_cluster_pv.rc == 0"
   delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   loop_control:
     loop_var: cluster_node
   ignore_errors: yes
@@ -145,7 +145,7 @@
     oc get clusteroperator image-registry
     oc get nodes
   delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd-service-nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   loop_control:
     loop_var: cluster_node
   ignore_errors: yes

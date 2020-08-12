@@ -9,12 +9,12 @@
   <ip address='{{ item.ip }}' netmask='{{ item.netmask }}'>
       <dhcp>
           <range start='{{ item.start }}' end='{{ item.end }}'/>
-          {% for host in groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] %}
+          {% for host in groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] %}
           <host mac="{{ hostvars[host].mac }}" name="{{ host }}.{{ kubeinit_provision_cluster_domain }}" ip="{{ hostvars[host].ansible_host }}"/>
           {% endfor %}
       </dhcp>
   </ip>
   <dns>
-    <forwarder domain='{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}' addr="{{ hostvars[groups['okd-service-nodes'][0]].ansible_host }}"/>
+    <forwarder domain='{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}' addr="{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}"/>
   </dns>
 </network>

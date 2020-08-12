@@ -123,7 +123,7 @@
     ssh-keygen -R  {{ item }}
     ssh-keygen -R  {{ item }}.{{ kubeinit_provision_cluster_domain }}
     ssh-keygen -R  {{ hostvars[item].ansible_host }}
-  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
+  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
   when: known_hosts_file.stat.exists | bool
   changed_when: false
   tags:
@@ -136,7 +136,7 @@
     ssh-keygen -R  {{ item }}
     ssh-keygen -R  {{ item }}.{{ kubeinit_provision_cluster_domain }}
     ssh-keygen -R  {{ hostvars[item].ansible_host }}
-  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
+  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -336,7 +336,7 @@
   virt:
     name: "{{ item }}"
     command: destroy
-  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
+  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -345,7 +345,7 @@
   virt:
     name: "{{ item }}"
     command: undefine
-  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
+  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -354,7 +354,7 @@
   file:
     state: absent
     path: "{{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
-  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
+  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -400,7 +400,7 @@
   file:
     state: absent
     path: "{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/"
-  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
+  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -410,7 +410,7 @@
     state: directory
     mode: 0775
     recurse: yes
-  with_items: "{{ groups['okd-master-nodes'] + groups['okd-worker-nodes'] + groups['okd-service-nodes'] + groups['okd-bootstrap-nodes'] }}"
+  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
   tags:
     - provision_libvirt
 
