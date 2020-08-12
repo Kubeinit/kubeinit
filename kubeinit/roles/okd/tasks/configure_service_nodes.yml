@@ -27,6 +27,18 @@
   tags:
     - provision_libvirt
 
+- name: create the hash password for CoreOS cloud user
+  shell: echo "{{ kubeinit_provision_vms_default_password }}" | openssl passwd -1 -stdin
+  register: password_hash
+  tags:
+    - provision_libvirt
+
+- name: register the root user default pass
+  set_fact:
+    kubeinit_provision_vms_default_password_hash={{ password_hash.stdout }}
+  tags:
+    - provision_libvirt
+
 - name: Create the network interface template for networking details
   template:
     src: "../../roles/provision/libvirt/templates/ifcfg-eth0.j2"
@@ -315,9 +327,9 @@
     apiVersion: v1
     baseDomain: {{ kubeinit_provision_cluster_domain }}
     compute:
-    - hyperthreading: Enabled
-      name: worker
-      replicas: 0
+      - hyperthreading: Enabled
+        name: worker
+        replicas: 0
     controlPlane:
       hyperthreading: Enabled
       name: master
@@ -326,11 +338,11 @@
       name: {{ kubeinit_provision_cluster_name }}
     networking:
       clusterNetwork:
-      - cidr: 10.100.0.0/14
-        hostPrefix: 23
+        - cidr: 10.100.0.0/14
+          hostPrefix: 23
       networkType: OpenShiftSDN
       serviceNetwork:
-      - 172.30.0.0/16
+        - 172.30.0.0/16
     platform:
       none: {}
     fips: false
@@ -339,6 +351,37 @@
     EOF
     openshift-install create manifests --dir=install_dir/
     sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
+  register: render_bootstrap_details
+  changed_when: "render_bootstrap_details.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Update ssh access template for master nodes
+  template:
+    src: "99_openshift-machineconfig_99-ssh.yaml.j2"
+    dest: "/root/install_dir/openshift/99_openshift-machineconfig_99-master-ssh.yaml"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
+  vars:
+    node_type: master
+  tags:
+    - provision_libvirt
+
+- name: Update ssh access template for worker nodes
+  template:
+    src: "99_openshift-machineconfig_99-ssh.yaml.j2"
+    dest: "/root/install_dir/openshift/99_openshift-machineconfig_99-worker-ssh.yaml"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
+  vars:
+    node_type: worker
+  tags:
+    - provision_libvirt
+
+- name: "Render ignition files"
+  shell: |
     openshift-install create ignition-configs --dir=install_dir/
     mkdir /var/www/html/okd4
     cp -R install_dir/* /var/www/html/okd4/
@@ -347,13 +390,12 @@
     sudo wget {{ kubeinit_provision_source_images.coreos.uri }}{{ kubeinit_provision_source_images.coreos.sig }}
     sudo chown -R apache: /var/www/html/
     sudo chmod -R 755 /var/www/html/
-  register: render_bootstrap_details
-  changed_when: "render_bootstrap_details.rc == 0"
+  register: render_ignition_files
+  changed_when: "render_ignition_files.rc == 0"
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd-service-nodes'] }}"
   tags:
     - provision_libvirt
-
 #
 # Configure NFS
 #

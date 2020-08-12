@@ -1,0 +1,42 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  creationTimestamp: null
+  labels:
+    machineconfiguration.openshift.io/role: {{ node_type }}
+  name: 99-{{ node_type }}-ssh
+spec:
+  config:
+    ignition:
+      config:
+        replace:
+          verification: {}
+      proxy: {}
+      security:
+        tls: {}
+      timeouts: {}
+      version: 3.1.0
+    passwd:
+      users:
+        - name: core
+          password_hash: "{{ kubeinit_provision_vms_default_password_hash }}"
+          ssh_authorized_keys:
+            - {{ kubeinit_provision_vms_public_key }}
+        - name: {{ kubeinit_provision_cloud_user }}
+          ssh_authorized_keys:
+            - {{ kubeinit_provision_vms_public_key }}
+    storage:
+      files:
+        - path: /etc/ssh/sshd_config.d/20-enable-passwords.conf
+          mode: 0644
+          contents:
+            inline: |
+              # Fedora CoreOS disables SSH password login by default.
+              # Enable it.
+              # This file must sort before 40-disable-passwords.conf.
+              PasswordAuthentication yes
+    systemd: {}
+  fips: false
+  kernelArguments: null
+  kernelType: ""
+  osImageURL: ""

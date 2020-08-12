@@ -14,6 +14,19 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Autoload kubeconfig
+  shell: |
+    echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
+  delegate_to: "{{ cluster_node }}"
+  with_items: "{{ groups['okd-service-nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  ignore_errors: yes
+  register: autoload
+  changed_when: "autoload.rc == 0"
+  tags:
+    - provision_libvirt
+
 - name: "verify that all the csr are loaded and aproved for the deployed nodes"
   shell: |
     set -o pipefail
