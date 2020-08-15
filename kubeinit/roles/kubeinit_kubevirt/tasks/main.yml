@@ -1,5 +1,5 @@
 ---
-# Copyright 2020 Red Hat, Inc.
+# Copyright 2020 KubeInit.
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -32,58 +32,96 @@
   tags:
     - always
 
-- name: "Install semanage"
+- name: Extra config script
+  set_fact:
+     kubeinit_kubevirt_extra_config: |
+       #!/usr/bin/bash
+       set -x
+       main() {
+       sudo rpm-ostree install policycoreutils-python-utils
+       sudo sed -i 's/enforcing/disabled/g' /etc/selinux/config /etc/selinux/config
+       }
+       main
+  tags:
+    - kubeinit_kubevirt
+
+- name: Update ssh access template for master nodes
+  template:
+    src: "99_kubeinit_extra_config.yaml.j2"
+    dest: "/root/99_kubeinit_extra_config_master.yaml"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  vars:
+    node_type: master
+  tags:
+    - kubeinit_kubevirt
+
+- name: Update ssh access template for worker nodes
+  template:
+    src: "99_kubeinit_extra_config.yaml.j2"
+    dest: "/root/99_kubeinit_extra_config_worker.yaml"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  vars:
+    node_type: worker
+  tags:
+    - kubeinit_kubevirt
+
+- name: Apply the extra config machineconfig object
   shell: |
-    sudo rpm-ostree install policycoreutils-python-utils
-  register: semanage_install
-  changed_when: "semanage_install.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_worker_nodes'] }}"
-  tags:
-    - kubeinit_kubevirt
-
-- name: Disable SELinux
-  selinux:
-    state: disabled
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_worker_nodes'] }}"
-  tags:
-    - kubeinit_kubevirt
-
-- name: Reboot guests and wait for it to restart
-  reboot:
-    msg: "Reboot initiated after installing packagese"
-    connect_timeout: 5
-    reboot_timeout: 600
-    pre_reboot_delay: 0
-    post_reboot_delay: 30
-    test_command: whoami
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_worker_nodes'] }}"
-  tags:
-    - kubeinit_kubevirt
-
-- name: "Install KubeVirt"
-  shell: |
-    set -o pipefail
-    export KUBECONFIG=~/install_dir/auth/kubeconfig;
-    # On other OS you might need to define it like
-    export KUBEVIRT_VERSION="v0.32.0-rc.2"
-    # On Linux you can obtain it using 'curl' via:
-    export KUBEVIRT_VERSION=$(curl -s https://api.github.com/repos/kubevirt/kubevirt/releases | grep tag_name | grep -v -- - | sort -V | tail -1 | awk -F':' '{print $2}' | sed 's/,//' | xargs)
-    echo $KUBEVIRT_VERSION
-    kubectl create -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml
-    kubectl create -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml
-    curl -L -o virtctl \
-        https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/virtctl-${KUBEVIRT_VERSION}-linux-amd64
-    chmod +x virtctl
-  args:
-    executable: /bin/bash
-  register: cmd_res
-  changed_when: "cmd_res.rc == 0"
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    # Apply first on worker nodes, then in master nodes
+    oc apply -f /root/99_kubeinit_extra_config_master.yaml
+    oc apply -f /root/99_kubeinit_extra_config_worker.yaml
+    # oc get machineconfigs -o yaml kubeinit-extra-config-master
+    # oc get machineconfigs -o yaml kubeinit-extra-config-worker
+    # oc get nodes -o yaml | grep -e name: -e machineconfiguration
+    oc get machineconfigpool/worker
+    oc get machineconfigpool/master
+    # oc delete machineconfigpool worker
+    # oc describe machineconfigpool
   delegate_to: "{{ cluster_node }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   loop_control:
     loop_var: cluster_node
+  ignore_errors: yes
+  register: cluster_extra_config
+  changed_when: "cluster_extra_config.rc == 0"
   tags:
     - kubeinit_kubevirt
+
+# - name: "wait for cluster nodes to start SSH after reboot from config changes"
+#   wait_for:
+#     port: 22
+#     host: "{{ hostvars[item].ansible_host }}"
+#     search_regex: OpenSSH
+#     delay: 180
+#     timeout: 3600
+#   with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes']}}"
+#   tags:
+#     - kubeinit_kubevirt
+#
+# - name: "Install KubeVirt"
+#   shell: |
+#     set -o pipefail
+#     export KUBECONFIG=~/install_dir/auth/kubeconfig;
+#     # On other OS you might need to define it like
+#     export KUBEVIRT_VERSION="v0.32.0-rc.2"
+#     # On Linux you can obtain it using 'curl' via:
+#     export KUBEVIRT_VERSION=$(curl -s https://api.github.com/repos/kubevirt/kubevirt/releases | grep tag_name | grep -v -- - | sort -V | tail -1 | awk -F':' '{print $2}' | sed 's/,//' | xargs)
+#     echo $KUBEVIRT_VERSION
+#     kubectl create -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml
+#     kubectl create -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml
+#     curl -L -o virtctl \
+#         https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/virtctl-${KUBEVIRT_VERSION}-linux-amd64
+#     chmod +x virtctl
+#   args:
+#     executable: /bin/bash
+#   register: cmd_res
+#   changed_when: "cmd_res.rc == 0"
+#   delegate_to: "{{ cluster_node }}"
+#   with_items: "{{ groups['okd_service_nodes'] }}"
+#   loop_control:
+#     loop_var: cluster_node
+#   tags:
+#     - kubeinit_kubevirt

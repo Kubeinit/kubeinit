@@ -1,0 +1,25 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: {{ node_type }}
+  name: kubeinit-extra-config-{{ node_type }}
+spec:
+  osImageURL: ''
+  config:
+    ignition:
+      config: {}
+      security:
+        tls: {}
+      timeouts: {}
+      version: 2.2.0
+    networkd: {}
+    passwd: {}
+    storage:
+      files:
+      - contents:
+          source: data:text/plain;charset=utf-8;base64,{{ kubeinit_kubevirt_extra_config | b64encode }}
+          verification: {}
+        filesystem: root
+        mode: 420
+        path: /usr/local/bin/kubeinit_kubevirt_extra_config_script

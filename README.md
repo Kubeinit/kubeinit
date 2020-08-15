@@ -35,7 +35,7 @@ The documentation is rendered using Sphinx and uploaded to GitHub pages using a 
 * A hypervisor with Centos 8.
 * We assume that the hypervisor node is called nyctea (defined in the inventory).
 * Have root access with certificates.
-* Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/ccamacho/kubeinit/blob/master/hosts/okd/inventory#L66)
+* Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/ccamacho/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66)
  you will need in your cluster.
 
 ```bash

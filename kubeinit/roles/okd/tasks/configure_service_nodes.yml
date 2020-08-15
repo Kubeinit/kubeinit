@@ -14,28 +14,16 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: get root public key
+- name: get root host public key
   command: cat /root/.ssh/id_rsa.pub
   register: public_key_content
   changed_when: "public_key_content.rc == 0"
   tags:
     - provision_libvirt
 
-- name: register the public key of the root user
+- name: register the public key of the root user from the host
   set_fact:
     kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
-  tags:
-    - provision_libvirt
-
-- name: create the hash password for CoreOS cloud user
-  shell: echo "{{ kubeinit_provision_vms_default_password }}" | openssl passwd -1 -stdin
-  register: password_hash
-  tags:
-    - provision_libvirt
-
-- name: register the root user default pass
-  set_fact:
-    kubeinit_provision_vms_default_password_hash={{ password_hash.stdout }}
   tags:
     - provision_libvirt
 
@@ -90,6 +78,7 @@
 - name: "Inject {{ kubeinit_provision_cloud_user }} virt-customize assets"
   shell: |
     virt-customize -a {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2 \
+      --run-command  "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
       --run-command  'id -u {{ kubeinit_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_provision_cloud_user }}' \
       --ssh-inject {{ kubeinit_provision_cloud_user }}:file:{{ kubeinit_provision_source_keystore_dir }}/{{ kubeinit_provision_source_pubkey_file }} \
       --ssh-inject root:file:/root/.ssh/id_rsa.pub \
@@ -311,6 +300,35 @@
 #
 # Include the install configuration
 #
+
+- name: "Render root keys in the service node"
+  shell: |
+    cd
+    mkdir ~/.ssh
+    ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
+  register: render_service_keys
+  changed_when: "render_service_keys.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+
+- name: get root service machine public key
+  command: cat /root/.ssh/id_rsa.pub
+  register: public_key_service_content
+  changed_when: "public_key_service_content.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: register the public key of the root service machine public key
+  set_fact:
+    kubeinit_provision_service_public_key={{ public_key_service_content.results }}
+  tags:
+    - provision_libvirt
+
 - name: "Render the bootstrap details"
   shell: |
     cd
@@ -347,7 +365,9 @@
       none: {}
     fips: false
     pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
-    sshKey: {{ kubeinit_provision_vms_public_key }}
+    sshKey: |
+      {{ kubeinit_provision_vms_public_key }}
+      {{ kubeinit_provision_service_public_key[0]['stdout'] }}
     EOF
     openshift-install create manifests --dir=install_dir/
     sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
@@ -355,28 +375,6 @@
   changed_when: "render_bootstrap_details.rc == 0"
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Update ssh access template for master nodes
-  template:
-    src: "99_openshift-machineconfig_99-ssh.yaml.j2"
-    dest: "/root/install_dir/openshift/99_openshift-machineconfig_99-master-ssh.yaml"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  vars:
-    node_type: master
-  tags:
-    - provision_libvirt
-
-- name: Update ssh access template for worker nodes
-  template:
-    src: "99_openshift-machineconfig_99-ssh.yaml.j2"
-    dest: "/root/install_dir/openshift/99_openshift-machineconfig_99-worker-ssh.yaml"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  vars:
-    node_type: worker
   tags:
     - provision_libvirt
 
