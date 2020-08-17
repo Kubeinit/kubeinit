@@ -1,6 +1,7 @@
 apiVersion: machineconfiguration.openshift.io/v1
 kind: MachineConfig
 metadata:
+  creationTimestamp: null
   labels:
     machineconfiguration.openshift.io/role: {{ node_type }}
   name: 99-kubeinit-extra-config-{{ node_type }}
@@ -8,7 +9,9 @@ spec:
   osImageURL: ''
   config:
     ignition:
-      config: {}
+      config:
+        replace:
+          verification: {}
       security:
         tls: {}
       timeouts: {}
@@ -18,8 +21,27 @@ spec:
     storage:
       files:
       - contents:
-          source: data:text/plain;charset=utf-8;base64,{{ kubeinit_kubevirt_extra_config | b64encode }}
+          source: data:text/plain;charset=utf-8;base64,{{ kubeinit_kubevirt_extra_config_script | b64encode }}
           verification: {}
         filesystem: root
-        mode: 420
+        mode: 0755
         path: /usr/local/bin/kubeinit_kubevirt_extra_config_script
+    systemd:
+      units:
+        - contents: |
+            [Unit]
+            After=network-online.target
+            Wants=network-online.target
+            Before=systemd-user-sessions.service
+            ConditionPathExists=!/var/lib/restarted-kubeinit-extra-config
+            [Service]
+            RemainAfterExit=true
+            Type=oneshot
+            ExecStart=/usr/local/bin/kubeinit_kubevirt_extra_config_script
+            ExecStartPost=/bin/bash -c " \
+              /usr/bin/touch /var/lib/restarted-kubeinit-extra-config;
+              "
+            [Install]
+            WantedBy=multi-user.target
+          name: run-kubeinit-extra-config.service
+          enabled: true
