@@ -32,143 +32,6 @@
   tags:
     - always
 
-# - name: Extra config script
-#   set_fact:
-#      kubeinit_kubevirt_extra_config_script: |
-#        #!/usr/bin/bash
-#        set -x
-#        main() {
-#        sudo rpm-ostree install policycoreutils-python-utils
-#        sudo sed -i 's/enforcing/disabled/g' /etc/selinux/config /etc/selinux/config
-#        }
-#        main
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: Update extra config script template for master nodes
-#   template:
-#     src: "99_kubeinit_extra_config.yaml.j2"
-#     dest: "/root/99_kubeinit_extra_config_master.yaml"
-#   delegate_to: "{{ item }}"
-#   with_items: "{{ groups['okd_service_nodes'] }}"
-#   vars:
-#     node_type: master
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: Update extra config script template for worker nodes
-#   template:
-#     src: "99_kubeinit_extra_config.yaml.j2"
-#     dest: "/root/99_kubeinit_extra_config_worker.yaml"
-#   delegate_to: "{{ item }}"
-#   with_items: "{{ groups['okd_service_nodes'] }}"
-#   vars:
-#     node_type: worker
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: Apply the extra config machineconfig object for the worker nodes
-#   shell: |
-#     export KUBECONFIG=~/install_dir/auth/kubeconfig
-#     # Apply first on worker nodes, then in master nodes
-#     oc apply -f /root/99_kubeinit_extra_config_worker.yaml
-#   delegate_to: "{{ cluster_node }}"
-#   with_items: "{{ groups['okd_service_nodes'] }}"
-#   loop_control:
-#     loop_var: cluster_node
-#   ignore_errors: yes
-#   register: cluster_extra_config
-#   changed_when: "cluster_extra_config.rc == 0"
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: pause until the ConfigMachine object is processed
-#   pause:
-#     minutes: 2
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: "verify that worker nodes are ok"
-#   shell: |
-#     set -o pipefail
-#     export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-#     oc get machineconfigpool/worker -ojson | jq -r '.status.conditions' | jq -c '.[] | select(.type | contains("Updated"))' | jq -r '.status'
-#   args:
-#     executable: /bin/bash
-#   register: cmd_res
-#   retries: 60
-#   delay: 60
-#   until: cmd_res.stdout == 'True'
-#   delegate_to: "{{ cluster_node }}"
-#   with_items: "{{ groups['okd_service_nodes'] }}"
-#   loop_control:
-#     loop_var: cluster_node
-#   changed_when: "cmd_res.rc == 0"
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: "wait for the worker nodes to start SSH"
-#   wait_for:
-#     port: 22
-#     host: "{{ hostvars[item].ansible_host }}"
-#     search_regex: OpenSSH
-#     delay: 60
-#     timeout: 7200
-#   with_items: "{{ groups['okd_worker_nodes'] }}"
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: Apply the extra config machineconfig object for the master nodes
-#   shell: |
-#     export KUBECONFIG=~/install_dir/auth/kubeconfig
-#     oc apply -f /root/99_kubeinit_extra_config_master.yaml
-#   delegate_to: "{{ cluster_node }}"
-#   with_items: "{{ groups['okd_service_nodes'] }}"
-#   loop_control:
-#     loop_var: cluster_node
-#   ignore_errors: yes
-#   register: cluster_extra_config
-#   changed_when: "cluster_extra_config.rc == 0"
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: pause until the ConfigMachine object is processed
-#   pause:
-#     minutes: 2
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: "verify that master nodes are ok"
-#   shell: |
-#     set -o pipefail
-#     export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-#     oc get machineconfigpool/master -ojson | jq -r '.status.conditions' | jq -c '.[] | select(.type | contains("Updated"))' | jq -r '.status'
-#   args:
-#     executable: /bin/bash
-#   register: cmd_res
-#   retries: 60
-#   delay: 60
-#   until: cmd_res.stdout == 'True'
-#   delegate_to: "{{ cluster_node }}"
-#   with_items: "{{ groups['okd_service_nodes'] }}"
-#   loop_control:
-#     loop_var: cluster_node
-#   changed_when: "cmd_res.rc == 0"
-#   tags:
-#     - kubeinit_kubevirt
-#
-# - name: "wait for the master nodes to start SSH"
-#   wait_for:
-#     port: 22
-#     host: "{{ hostvars[item].ansible_host }}"
-#     search_regex: OpenSSH
-#     delay: 60
-#     timeout: 7200
-#   with_items: "{{ groups['okd_master_nodes'] }}"
-#   tags:
-#     - kubeinit_kubevirt
-
-
 - name: "Install KubeVirt"
   shell: |
     set -o pipefail
@@ -185,6 +48,25 @@
     executable: /bin/bash
   register: cmd_res
   changed_when: "cmd_res.rc == 0"
+  delegate_to: "{{ cluster_node }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  tags:
+    - kubeinit_kubevirt
+
+- name: "Deploy example VM"
+  shell: |
+    set -o pipefail
+    export KUBECONFIG=~/install_dir/auth/kubeconfig;
+    kubectl apply -f https://raw.githubusercontent.com/kubevirt/kubevirt.github.io/master/labs/manifests/vm.yaml
+    ./virtctl start testvm
+    kubectl get vms
+    kubectl get vmis
+  args:
+    executable: /bin/bash
+  register: deploy_example_vm
+  changed_when: "deploy_example_vm.rc == 0"
   delegate_to: "{{ cluster_node }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   loop_control:
