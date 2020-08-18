@@ -2,8 +2,6 @@
 Installation
 ============
 
-At the command line using `yum`.
-
-.. code-block:: console
-
-    $ #add ansible galaxy cmd
+KubeInit is an Ansible collection, to use it
+the only installation requirement is to have Python 3
+and Ansible +2.9.
