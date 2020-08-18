@@ -29,21 +29,38 @@ prescribed architectures.
 KubeInit's documentation is hosted in [this same repository](https://ccamacho.github.io/kubeinit/).
 The documentation is rendered using Sphinx and uploaded to GitHub pages using a GitHub action.
 
+# KubeInit supported scenarios
+
+  <table>
+    <tbody>
+      <tr>
+        <td rowspan="2" style="font-weight: bold;">K8s distro</td>
+        <td colspan="2" style="font-weight: bold;text-align:center;">Driver</td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold;text-align:center;">Libvirt host</td>
+        <td style="font-weight: bold;text-align:center;">Baremetal</td>
+      </tr>
+      <tr>
+        <td>Origin</td>
+        <td>CentOS/Fedora<br/>Debian/Ubuntu</td>
+        <td>WIP</td>
+      </tr>
+      <tr>
+        <td>Kubernetes</td>
+        <td>WIP</td>
+        <td>WIP</td>
+      </tr>
+    </tbody>
+  </table>
+
 # Requirements
 
-* A server with enough RAM and disk space (120GB in RAM and 300GB in disk).
-* A hypervisor with Centos 8.
+* A fresh deployed server with enough RAM and disk space (120GB in RAM and 300GB in disk) and CentOS 8 (it should work also in Fedora/Debian/Ubuntu hosts).
 * We assume that the hypervisor node is called nyctea (defined in the inventory).
 * Have root access with certificates.
 * Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/ccamacho/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66)
  you will need in your cluster.
-
-```bash
-ssh root@nyctea
-ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -P ""
-curl -sS https://github.com/<your_github_username>.keys >> ~/.ssh/authorized_keys
-exit
-```
 
 # How to run
 

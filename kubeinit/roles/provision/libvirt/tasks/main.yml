@@ -18,17 +18,10 @@
 ## Hypervisor installing dependencies and rebooting.
 ##
 
-- name: Fails if not Centos
+- name: Fails if OS is not supported
   fail:
     msg: The hypervisor machine needs to be CentOS/RHEL
-  when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
-  tags:
-    - provision_libvirt
-
-- name: Fails if not 8 or 30
-  fail:
-    msg: CentOS/RHEL version in the hypervisor machine must be 8.x or Fedora 30
-  when: not (ansible_distribution_version|int == 8 or ansible_distribution_version|int == 30)
+  when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora' or ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
   tags:
     - provision_libvirt
 
@@ -101,6 +94,7 @@
     regexp: "^options {{ nested_virtualization_module_name }}.*$"
     line: "options {{ nested_virtualization_module_name }} nested=1"
     create: yes
+    mode: '0644'
   tags:
     - provision_libvirt
 
@@ -144,18 +138,30 @@
 - name: Disable SELinux
   selinux:
     state: disabled
+  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
   tags:
     - provision_libvirt
 
-- name: install requirements
+- name: install CentOS based requirements
   package:
-    name: "{{ kubeinit_provision_hypervisor_dependencies }}"
+    name: "{{ kubeinit_provision_hypervisor_dependencies.centos }}"
     state: present
+  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
+  register: installed_packages
+  tags:
+    - provision_libvirt
+
+- name: install Debian based requirements
+  package:
+    name: "{{ kubeinit_provision_hypervisor_dependencies.debian }}"
+    state: present
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+  register: installed_packages
   tags:
     - provision_libvirt
 
 - name: upgrade all packages
-  yum:
+  package:
     name: '*'
     state: latest
   register: upgraded_packages
@@ -170,7 +176,13 @@
     pre_reboot_delay: 0
     post_reboot_delay: 30
     test_command: whoami
-  when: upgraded_packages is changed
+  when: installed_packages is changed or upgraded_packages is changed
+  tags:
+    - provision_libvirt
+
+- name: Set qemu user depending on the operative system
+  set_fact:
+    kubeinit_qemu_user: "{{ 'qemu' if (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
   tags:
     - provision_libvirt
 
@@ -179,10 +191,10 @@
     validate_certs: False
     use_proxy: True
     url: "{{ item.value.uri }}{{ item.value.image }}"
-    dest: "{{ kubeinit_provision_target_image_dir }}/"
+    dest: "{{ kubeinit_provision_target_image_dir }}/{{ item.value.image }}"
     force: no
-    mode: '0644'
-    owner: qemu
+    mode: '0666'
+    owner: "{{ kubeinit_qemu_user }}"
   with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
   when: "item.value.image"
   tags:
@@ -193,10 +205,10 @@
     validate_certs: False
     use_proxy: True
     url: "{{ item.value.uri }}{{ item.value.kernel }}"
-    dest: "{{ kubeinit_provision_target_image_dir }}/"
+    dest: "{{ kubeinit_provision_target_image_dir }}/{{ item.value.kernel }}"
     force: no
-    mode: '0644'
-    owner: qemu
+    mode: '0666'
+    owner: "{{ kubeinit_qemu_user }}"
   with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
   when: "item.value.kernel"
   tags:
@@ -207,40 +219,29 @@
     validate_certs: False
     use_proxy: True
     url: "{{ item.value.uri }}{{ item.value.initrd }}"
-    dest: "{{ kubeinit_provision_target_image_dir }}/"
+    dest: "{{ kubeinit_provision_target_image_dir }}/{{ item.value.initrd }}"
     force: no
-    mode: '0644'
-    owner: qemu
+    mode: '0666'
+    owner: "{{ kubeinit_qemu_user }}"
   with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
   when: "item.value.initrd"
   tags:
     - provision_libvirt
 
-- name: download raw images
-  get_url:
-    validate_certs: False
-    use_proxy: True
-    url: "{{ item.value.uri }}{{ item.value.raw }}"
-    dest: "{{ kubeinit_provision_target_image_dir }}/"
-    force: no
-    mode: '0644'
-    owner: qemu
-  with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
-  when: "item.value.raw"
-  tags:
-    - provision_libvirt
-
-- name: download sig images
-  get_url:
-    validate_certs: False
-    use_proxy: True
-    url: "{{ item.value.uri }}{{ item.value.sig }}"
-    dest: "{{ kubeinit_provision_target_image_dir }}/"
-    force: no
-    mode: '0644'
-    owner: qemu
-  with_items: "{{ lookup('dict', kubeinit_provision_source_images) | list }}"
-  when: "item.value.sig"
+- name: create the treeinfo directory
+  shell: |
+    cat <<EOF > {{ kubeinit_provision_target_image_dir }}/.treeinfo
+    [general]
+    arch = x86_64
+    family = Fedora CoreOS
+    platforms = x86_64
+    version = 32
+    [images-x86_64]
+    initrd = {{ kubeinit_provision_source_images.coreos.initrd }}
+    kernel = {{ kubeinit_provision_source_images.coreos.kernel }}
+    EOF
+  register: treeinfo
+  changed_when: "treeinfo.rc == 0"
   tags:
     - provision_libvirt
 
@@ -258,6 +259,7 @@
     regexp: "^%{{ kubeinit_provision_cloud_user }}"
     line: "%{{ kubeinit_provision_cloud_user }} ALL=(ALL) NOPASSWD: ALL"
     validate: 'visudo -cf %s'
+    mode: '0644'
   tags:
     - provision_libvirt
 
@@ -274,26 +276,11 @@
   tags:
     - provision_libvirt
 
-- name: check if /usr/bin/qemu-kvm exists
-  stat:
-    path: /usr/bin/qemu-kvm
-  register: qemu_kvm
-  tags:
-    - provision_libvirt
-
-- name: Create symbolic link for qemu
-  file:
-    src: /usr/libexec/qemu-kvm
-    dest: /usr/bin/qemu-kvm
-    state: link
-  when: not qemu_kvm.stat.exists | bool
-  tags:
-    - provision_libvirt
-
 - name: Create ssh folder
   file:
     path: "/home/{{ kubeinit_provision_cloud_user }}/.ssh/"
     state: directory
+    mode: '0600'
   tags:
     - provision_libvirt
 
@@ -318,6 +305,7 @@
     path: "/home/{{ kubeinit_provision_cloud_user }}/.ssh/id_rsa.pub"
     owner: "{{ kubeinit_provision_cloud_user }}"
     group: "{{ kubeinit_provision_cloud_user }}"
+    mode: '0600'
   tags:
     - provision_libvirt
 
@@ -325,6 +313,7 @@
   lineinfile:
     path: "/home/{{ kubeinit_provision_cloud_user }}/.bashrc"
     line: export LIBVIRT_DEFAULT_URI=qemu:///system
+    mode: '0644'
   tags:
     - provision_libvirt
 
@@ -422,6 +411,7 @@
   template:
     src: "nets.xml.j2"
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/nets.xml'
+    mode: '0644'
   with_items: "{{ kubeinit_provision_cluster_nets }}"
   tags:
     - provision_libvirt

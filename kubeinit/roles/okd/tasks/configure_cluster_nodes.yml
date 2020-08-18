@@ -28,24 +28,23 @@
 
 - name: "Create VM definition for the {{ kubeinit_deployment_role }} nodes"
   shell: |
-    kernel={{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.coreos.kernel }}
-    initrd={{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.coreos.initrd }}
-    kernel_args='ip=dhcp rd.neednet=1 console=tty0 console=ttyS0 coreos.inst.stream=stable coreos.inst.install_dev={{ hostvars[item].root_device }} coreos.inst.image_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_provision_source_images.coreos.raw }} coreos.inst.ignition_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_deployment_role }}.ign'
     # If you use the kernel args to deploy the machine
     # Is not possible to render the template as --print-xml > vm.xml
     # If so then is good to have it like 'virsh define vm.xml'
+    kernel_args='ip=dhcp rd.neednet=1 console=tty0 console=ttyS0 coreos.inst.stream=stable coreos.inst.install_dev={{ hostvars[item].root_device }} coreos.inst.image_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_provision_source_images.coreos.raw }} coreos.inst.ignition_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_deployment_role }}.ign'
     virt-install \
         --connect qemu:///system \
         --name={{ item }} \
-        --ram={{ hostvars[item].ram // 1024 }} \
+        --memory memory={{ hostvars[item].ram // 1024 }} \
         --cpuset=auto \
-        --vcpus=4,maxvcpus=8 \
+        --vcpus=8,maxvcpus=16 \
         --os-type=linux \
-        --os-variant=fedora31 \
+        --os-variant=fedora29 \
         --autostart \
         --network network=net-01,mac={{ hostvars[item].mac }},model=virtio \
         --disk size={{ hostvars[item].disk | replace('G','') }},readonly=false \
-        --install kernel=${kernel},initrd=${initrd},kernel_args_overwrite=yes,kernel_args="${kernel_args}"
+        --location {{ kubeinit_provision_target_image_dir }}/ \
+        --extra-args "${kernel_args}"
   with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_bootstrap_nodes'] }}"
   changed_when: false
   when: kubeinit_deployment_role in item

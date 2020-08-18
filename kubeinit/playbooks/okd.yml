@@ -23,6 +23,7 @@
     kubeinit_provision_source_images:
       centos:
         uri: https://cloud.centos.org/centos/8/x86_64/images/
+        iso: ""
         image: CentOS-8-GenericCloud-8.1.1911-20200113.3.x86_64.qcow2
         kernel: ""
         initrd: ""
@@ -30,7 +31,8 @@
         sig: ""
       coreos:
         uri: https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/32.20200715.3.0/x86_64/
-        image: fedora-coreos-32.20200715.3.0-qemu.x86_64.qcow2.xz
+        iso: ""
+        image: ""
         kernel: fedora-coreos-32.20200715.3.0-live-kernel-x86_64
         initrd: fedora-coreos-32.20200715.3.0-live-initramfs.x86_64.img
         raw: fedora-coreos-32.20200715.3.0-metal.x86_64.raw.xz
@@ -47,29 +49,6 @@
       - wget
       - jq
       - socat
-    kubeinit_provision_target_image_dir: /var/lib/libvirt/images
-    kubeinit_provision_cloud_user: toor
-    kubeinit_provision_source_keystore_dir: "/home/{{ kubeinit_provision_cloud_user }}/.ssh"
-    kubeinit_provision_source_pubkey_file: id_rsa.pub
-    kubeinit_provision_vms_default_password: asdfasdf
-    kubeinit_provision_hypervisor_dependencies:
-      - libguestfs-tools-c
-      - python3-libselinux
-      - libvirt
-      - libvirt-daemon
-      - libvirt-daemon-kvm
-      - libvirt-client
-      - qemu-kvm
-      - virt-install
-      - virt-top
-      - virt-viewer
-      - libguestfs-tools
-      - lvm2
-      - python3-libvirt
-      - python3-lxml
-      - curl
-      - binutils
-      - qt5-qtbase
       - gcc
       - make
       - patch
@@ -78,15 +57,74 @@
       - glibc-devel
       - kernel-headers
       - kernel-devel
-      - bash-completion
-      - nano
-      - wget
-      - python3-pip
-      - iptables-services
-      - net-tools
-      - xz
+    kubeinit_provision_target_image_dir: /var/lib/libvirt/images
+    kubeinit_provision_cloud_user: toor
+    kubeinit_provision_source_keystore_dir: "/home/{{ kubeinit_provision_cloud_user }}/.ssh"
+    kubeinit_provision_source_pubkey_file: id_rsa.pub
+    kubeinit_provision_vms_default_password: asdfasdf
+    kubeinit_provision_hypervisor_dependencies:
+      centos:
+        - libguestfs-tools-c
+        - python3-libselinux
+        - libvirt
+        - libvirt-daemon
+        - libvirt-daemon-kvm
+        - libvirt-client
+        - qemu-kvm
+        - virt-install
+        - virt-top
+        - virt-viewer
+        - libguestfs-tools
+        - lvm2
+        - python3-libvirt
+        - python3-lxml
+        - curl
+        - binutils
+        - qt5-qtbase
+        - gcc
+        - make
+        - patch
+        - libgomp
+        - glibc-headers
+        - glibc-devel
+        - kernel-headers
+        - kernel-devel
+        - bash-completion
+        - nano
+        - wget
+        - python3-pip
+        - iptables-services
+        - net-tools
+        - xz
+      debian:
+        - sudo
+        - numad
+        - qemu
+        - qemu-kvm
+        - qemu-system
+        - libvirt-clients
+        - libvirt-daemon-system
+        - libvirt-daemon
+        - virt-manager
+        - virt-top
+        - bridge-utils
+        - libguestfs-tools
+        - genisoimage
+        - virtinst
+        - libosinfo-bin
+        - python3
+        - python3-pip
+        - python3-libvirt
+        - python3-lxml
+        - python-pip
+        - python-libvirt
+        - python-lxml
+        - nano
+        - wget
+        - xz-utils
+        - inetutils-ping
     kubeinit_provision_hypervisor_tmp_dir: /tmp
-    kubeinit_provision_virtual_bridge_name: virbr1
+    kubeinit_provision_virtual_bridge_name: kubeinit_virbr1
     kubeinit_provision_cluster_nets:
       - {name: net-01, ip: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.1, end: 10.0.0.253}
   tasks:

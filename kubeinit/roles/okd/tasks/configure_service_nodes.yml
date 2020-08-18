@@ -31,6 +31,7 @@
   template:
     src: "../../roles/provision/libvirt/templates/ifcfg-eth0.j2"
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth0'
+    mode: '0644'
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
@@ -39,6 +40,7 @@
   template:
     src: "../../roles/provision/libvirt/templates/101-cloudinit-hosts.tmpl.j2"
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/hosts.redhat.tmpl'
+    mode: '0644'
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
@@ -47,15 +49,18 @@
   template:
     src: "../../roles/provision/libvirt/templates/102-cloudinit-cloud.cfg.j2"
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg'
+    mode: '0644'
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Create vm backing store from base vm image
-  copy: remote_src=True
-    src="{{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }}"
-    dest="{{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
-    force=yes  # Do not recopy if it has been modified
+  copy:
+    remote_src: True
+    src: "{{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }}"
+    dest: "{{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
+    force: yes  # Do not recopy if it has been modified
+    mode: '0644'
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
@@ -63,14 +68,16 @@
 - name: Ensure the backing store is large enough
   command: "qemu-img resize {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2 +{{ hostvars[item].disk }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
-  changed_when: false
+  register: qemu_img
+  changed_when: "qemu_img.rc == 0"
   tags:
     - provision_libvirt
 
 - name: Grow the partition
   command: "virt-resize  --expand {{ hostvars[item].root_device }} {{ kubeinit_provision_target_image_dir }}/{{ kubeinit_provision_source_images.centos.image }} {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2"
   with_items: "{{ groups['okd_service_nodes'] }}"
-  changed_when: false
+  register: grow_img
+  changed_when: "grow_img.rc == 0"
   tags:
     - provision_libvirt
 
@@ -78,8 +85,9 @@
 - name: "Inject {{ kubeinit_provision_cloud_user }} virt-customize assets"
   shell: |
     virt-customize -a {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2 \
-      --run-command  "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
-      --run-command  'id -u {{ kubeinit_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_provision_cloud_user }}' \
+      --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
+      --run-command 'id -u {{ kubeinit_provision_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_provision_cloud_user }}' \
+      --run-command "sed -i s/^SELINUX=.*$/SELINUX=disabled/g /etc/selinux/config" \
       --ssh-inject {{ kubeinit_provision_cloud_user }}:file:{{ kubeinit_provision_source_keystore_dir }}/{{ kubeinit_provision_source_pubkey_file }} \
       --ssh-inject root:file:/root/.ssh/id_rsa.pub \
       --ssh-inject root:file:/root/.ssh/authorized_keys \
@@ -89,69 +97,30 @@
       --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg:/etc/cloud \
       --selinux-relabel --root-password password:{{ kubeinit_provision_vms_default_password }}
   with_items: "{{ groups['okd_service_nodes'] }}"
-  changed_when: false
+  register: virt_inject
+  changed_when: "virt_inject.rc == 0"
   tags:
     - provision_libvirt
 
-- name: render the vm configuration
-  template:
-    src: "../../roles/provision/libvirt/templates/vm.xml.j2"
-    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/vm.xml'
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: define vm
+- name: "Create VM definition for the service nodes"
   shell: |
-    virsh define {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/vm.xml
-  register: libvirt_define_vm
-  changed_when: "libvirt_define_vm.rc == 0"
+    virt-install \
+        --connect qemu:///system \
+        --name={{ item }} \
+        --memory memory={{ hostvars[item].ram // 1024 }} \
+        --cpuset=auto \
+        --vcpus=8,maxvcpus=16 \
+        --os-type=linux \
+        --os-variant=rhel8.0 \
+        --autostart \
+        --network network=net-01,mac={{ hostvars[item].mac }},model=virtio \
+        --graphics none \
+        --noautoconsole \
+        --import \
+        --disk {{ kubeinit_provision_target_image_dir }}/{{ item }}.qcow2,format=qcow2,bus=virtio
   with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-#
-# Define pending resources
-#
-
-- name: Create the interface template
-  template:
-    src: "../../roles/provision/libvirt/templates/interface.xml.j2"
-    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/interface.xml'
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Connect the network interfaces
-  shell: |
-    virsh attach-device \
-      {{ item }} \
-      {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/interface.xml \
-      --config
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  changed_when: false
-  tags:
-    - provision_libvirt
-
-##
-## Run all created resources.
-##
-
-- name: Start the VMs
-  virt:
-    name: "{{ item }}"
-    uri: qemu:///session
-    state: running
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: set autostart for a VM
-  virt:
-    name: "{{ item }}"
-    uri: qemu:///session
-    autostart: yes
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  register: virt_install
+  changed_when: "virt_install.rc == 0"
   tags:
     - provision_libvirt
 
@@ -166,17 +135,11 @@
   tags:
     - provision_libvirt
 
-- name: Disable SELinux
-  selinux: state=disabled
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
 - name: install services requirements
-  package:
+  yum:
     name: "{{ kubeinit_provision_service_dependencies }}"
     state: present
+    use_backend: dnf
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
@@ -190,6 +153,7 @@
   template:
     src: "named.conf.j2"
     dest: "/etc/named.conf"
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
@@ -199,6 +163,7 @@
   template:
     src: "named.conf.local.j2"
     dest: "/etc/named/named.conf.local"
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
@@ -208,6 +173,7 @@
   file:
     path: /etc/named/zones
     state: directory
+    mode: '0777'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
@@ -217,6 +183,7 @@
   template:
     src: "db.j2"
     dest: "/etc/named/zones/db.{{ hostvars[item].ansible_host | ipsubnet(24) | ipaddr('network') }}"
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
@@ -226,13 +193,18 @@
   template:
     src: "db.local.j2"
     dest: "/etc/named/zones/db.{{ kubeinit_provision_cluster_name }}.{{ kubeinit_provision_cluster_domain }}"
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
 - name: Disable IPv6 support
-  lineinfile: dest=/etc/sysconfig/named line='OPTIONS="-4"' regexp="^OPTIONS"
+  lineinfile:
+    dest: /etc/sysconfig/named
+    line: 'OPTIONS="-4"'
+    regexp: "^OPTIONS"
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
@@ -253,6 +225,7 @@
   template:
     src: "haproxy.cfg.j2"
     dest: "/etc/haproxy/haproxy.cfg"
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
@@ -285,6 +258,7 @@
     path: /etc/httpd/conf/httpd.conf
     regexp: 'Listen 80'
     replace: 'Listen 8080'
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
