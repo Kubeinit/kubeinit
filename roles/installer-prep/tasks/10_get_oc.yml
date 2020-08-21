@@ -1,0 +1,143 @@
+---
+- name: Set release_url
+  set_fact:
+    release_url: "{{ (webserver_url|length) | ternary(webserver_url, 'https://mirror.openshift.com/pub/openshift-v4/clients/ocp') }}"
+
+- name: Verify Registry host details
+  set_fact:
+    registry_host_exists: true
+  when:
+    - groups['registry_host'] is defined
+    - groups['registry_host']|length
+
+- name: Find any old tmp dirs with OpenShift related binaries
+  find:
+    paths: /tmp
+    patterns: 'ansible.*'
+    file_type: directory
+  register: tmp_results
+
+- name: Delete any old tmp dirs with OpenShift related binaries
+  file:
+    path: "{{ item['path'] }}"
+    state: absent
+  loop: "{{ tmp_results['files'] }}"
+
+- name: Find any existing /usr/local/bin OpenShift binaries
+  find:
+    paths: /usr/local/bin
+    patterns: 'oc,openshift-baremetal-install,kubectl'
+  register: binary_results
+
+- name: Remove any existing /usr/local/bin OpenShift binaries
+  file:
+    path: "{{ item['path'] }}"
+    state: absent
+  loop: "{{ binary_results['files'] }}"
+  become: yes
+
+- name: debug
+  debug:
+    msg: "Url {{ release_url }} version {{ version }}"
+
+- name: Get Release.txt File
+  uri:
+    url: "{{ release_url }}/{{ version }}/release.txt"
+    return_content: yes
+  register: result
+  until: result.status == 200
+  retries: 6 # 1 minute (10 * 6)
+  delay: 10 # Every 10 seconds
+  failed_when: result.content|length == 0 or result.status >= 400
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+- name: Set Fact for Release Image
+  set_fact:
+    release_version: "{{ result.content | regex_search('Version:.*') | regex_replace('Version:\\s*(.*)', '\\1') }}"
+    release_image: "{{ result.content | regex_search('Pull From:.*') | regex_replace('Pull From:\\s*(.*)', '\\1') }}"
+
+- name: Get the release version
+  debug:
+    msg: "release version {{ release_version }}"
+    verbosity: 2
+
+
+- name: Create tmp directory to store OpenShift binaries
+  tempfile:
+    state: directory
+    suffix: "{{ release_version }}"
+  register: tempdiroutput
+
+- name: Set fact for tmp directory
+  set_fact:
+    tempdir: "{{ tempdiroutput.path }}"
+
+- name: Create tmp directory to store OpenShift binaries on registry host
+  tempfile:
+    state: directory
+    suffix: "{{ release_version }}"
+  register: registryhost_tempdir
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+- name: Set fact for tmp directory on registry host
+  set_fact:
+    registry_host_tempdir: "{{ registryhost_tempdir.path }}"
+
+- name: Setting Fact of which ansible temp file to use
+  set_fact:
+    temp_directory_loc: "{{ registry_host_tempdir }}"
+
+- name: Get the ocp client tar gunzip file
+  get_url:
+    url: "{{ release_url }}/{{ version }}/openshift-client-linux-{{ release_version }}.tar.gz"
+    dest: "{{ temp_directory_loc }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+#If the registry host got the tar, lets just copy it to the prov host
+# 15_disconnected_registry_create.yml can handle extracting to the registry host already
+- name: Get the openshift-client-linux-{{ release_version }}.tar.gz from registry host into temp file on control machine
+  fetch:
+    dest: /tmp/
+    flat: yes
+    src: "{{ temp_directory_loc }}/openshift-client-linux-{{ release_version }}.tar.gz"
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+- name: Copy the openshift-client-linux-{{ release_version }}.tar.gz from control machine to the provisioner host
+  copy:
+    src: "/tmp/openshift-client-linux-{{ release_version }}.tar.gz"
+    dest: "{{ tempdir }}/openshift-client-linux-{{ release_version }}.tar.gz"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0755
+  become: yes
+
+- name: Remove the temporary copy of the openshift-client-linux-{{ release_version }}.tar.gz on control machine
+  file:
+    path: "/tmp/openshift-client-linux-{{ release_version }}.tar.gz"
+    state: absent
+  delegate_to: localhost
+
+- name: "Untar the openshift-client-linux-{{ release_version }}.tar.gz"
+  unarchive:
+    src: "{{ tempdir }}/openshift-client-linux-{{ release_version }}.tar.gz"
+    dest: "{{ tempdir }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+    remote_src: yes
+
+- name: Copy oc binary to /usr/local/bin
+  copy:
+    src: "{{ tempdir }}/{{ item }}"
+    dest: /usr/local/bin/
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+    remote_src: yes
+  become: yes
+  loop:
+    - kubectl
+    - oc
