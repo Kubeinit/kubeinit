@@ -1,0 +1,38 @@
+apiVersion: v1
+baseDomain: {{ domain }}
+{%if (http_proxy|length or https_proxy|length) %}
+proxy:
+  httpProxy: {{ http_proxy }}
+  httpsProxy: {{ https_proxy }}
+  noProxy: {{ (no_proxy_list|length) | ternary(no_proxy_list + ',' + provisioning_subnet, provisioning_subnet) }}
+{% endif %}
+metadata:
+  name: {{ cluster }}
+networking:
+  networkType: {{ network_type }}
+{% if ipv6_enabled|bool and not ipv4_baremetal|bool %}
+  clusterNetwork:
+  - cidr: fd01::/48
+    hostPrefix: 64
+  serviceNetwork:
+  - fd02::/112
+{% else %}
+  clusterNetwork:
+  - cidr: {{ clusternetwork_cidr }}
+    hostPrefix: {{ clusternetwork_prefix }}
+  serviceNetwork:
+  - {{ servicenetwork }}
+{% endif %}
+compute:
+- name: worker
+  replicas: {{ numworkers }}
+controlPlane:
+  name: master
+  replicas: {{ nummasters }}
+platform:
+  none: {}
+pullSecret: '{{ pullsecret }}'
+sshKey: '{{ key }}'
+{% if install_config_appends is defined and install_config_appends|length %}
+{{ install_config_appends }}
+{% endif %}

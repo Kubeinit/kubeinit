@@ -1,0 +1,73 @@
+---
+- name: Verify if {{ role_path }}/files/customize_ignition/master/worker is empty
+  find:
+    paths: "{{ role_path }}/files/customize_ignition/{{ item }}"
+    recurse: yes
+    follow: yes
+  register: filesFound
+  with_items:
+    - "master"
+    - "worker"
+  delegate_to: localhost
+
+- name: Modify Ignition Configs
+  block:
+
+  - name: Create OpenShift Ignition Configs
+    shell: |
+      /usr/local/bin/openshift-baremetal-install --dir {{ cluster_config_dir }} create ignition-configs
+  - name: Copy Ignition Config Files
+    copy:
+      src: "{{ cluster_config_dir }}/{{ item }}.ign"
+      dest: "{{ cluster_config_dir }}/{{ item }}.ign.orig"
+      remote_src: yes
+    with_items:
+      - "master"
+      - "worker"
+
+  - name: Create tmp directory to store OpenShift binaries
+    tempfile:
+      state: directory
+    register: tempdiroutput
+
+  - name: Set fact for tmp directory
+    set_fact:
+      tempdir: "{{ tempdiroutput.path }}"
+
+  - name: Copy customize_ignition to tempdir
+    copy:
+      src: "{{ role_path }}/files/customize_ignition"
+      dest: "{{ tempdir }}"
+      force: yes
+
+  - name: Cleanup Any .gitkeep Files in the Fake Root
+    file:
+      path: "{{ tempdir }}/customize_ignition/{{ item }}/.gitkeep"
+      state: absent
+      follow: yes
+    with_items:
+      - "master"
+      - "worker"
+    become: true
+
+  - name: Augment Ignition Config Files
+    script: |
+      filetranspile-1.1.1.py -i {{ cluster_config_dir }}/{{ item }}.ign.orig -f {{ tempdir }}/customize_ignition/{{ item }} -o {{ cluster_config_dir }}/{{ item }}.ign
+    args:
+      executable: python3
+    with_items:
+      - "master"
+      - "worker"
+    become: true
+
+  - name: Create backup of ignition config files
+    copy:
+      src: "{{ cluster_config_dir }}/{{ item }}.ign"
+      dest: "{{ cluster_config_dir }}/{{ item }}.ign.bkup"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
+      remote_src: yes
+    with_items:
+      - "master"
+      - "worker"
