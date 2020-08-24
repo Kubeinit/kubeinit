@@ -2,13 +2,17 @@
 # Generated when provision the VM details from ifcfg-eth0.j2
 #
 BOOTPROTO=static
-DEFROUTE=yes
 NAME=eth0
 DEVICE=eth0
 IPV4_FAILURE_FATAL=no
 DNS1={{ hostvars[item].gateway }}
 DOMAIN={{ kubeinit_provision_cluster_domain }}
 GATEWAY={{ hostvars[item].gateway }}
+{% if kubeinit_bind_external_service_interface.enabled | default(false) %}
+DEFROUTE=no
+{% else %}
+DEFROUTE=yes
+{% endif %}
 IPADDR={{ hostvars[item].ansible_host }}
 NETMASK={{ hostvars[item].netmask }}
 MACADDR={{ hostvars[item].mac }}

@@ -57,6 +57,7 @@
       - glibc-devel
       - kernel-headers
       - kernel-devel
+      - nano
     kubeinit_provision_target_image_dir: /var/lib/libvirt/images
     kubeinit_provision_cloud_user: toor
     kubeinit_provision_source_keystore_dir: "/home/{{ kubeinit_provision_cloud_user }}/.ssh"
@@ -124,9 +125,28 @@
         - xz-utils
         - inetutils-ping
     kubeinit_provision_hypervisor_tmp_dir: /tmp
-    kubeinit_provision_virtual_bridge_name: kubeinit_virbr1
     kubeinit_provision_cluster_nets:
-      - {name: net-01, ip: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.1, end: 10.0.0.253}
+      # kimgtnet0:KubeInitManaGemenTNETwork0 kimgtbr0: KubeInitManaGemenTBRidge0
+      - {name: kimgtnet0, gateway: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.1, end: 10.0.0.253, bridge: kimgtbr0, template: cluster-net.xml.j2, type: internal, main: True, enabled: True}
+    # BIND AND NETWORK EXTERNAL CONFIG
+    kubeinit_bind_external_service_interface:
+      enabled: false
+      # This will attach the eth1 interfate to the bridge kiextbr0
+      # you MUST have the kilocbr0 bridge created and slave to the
+      # physical connection first
+      attached: kiextbr0
+      dev: eth1
+      ip: 10.19.41.157
+      gateway: 10.19.41.254
+      netmask: 255.255.255.0
+  pre_tasks:
+    - name: Check if Ansible meets version requirements.
+      vars:
+        kubeinit_ansible_min_version: 2.9.11
+      assert:
+        that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
+        msg: >
+          "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
   tasks:
     - name: deploy OKD
       include_role:

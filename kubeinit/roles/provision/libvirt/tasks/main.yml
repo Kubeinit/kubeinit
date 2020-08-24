@@ -18,6 +18,26 @@
 ## Hypervisor installing dependencies and rebooting.
 ##
 
+- name: "check if bridge is created"
+  shell: |
+    set -o pipefail
+    nmcli con show | grep {{ kubeinit_bind_external_service_interface.attached }}
+  register: bridge_status
+  ignore_errors: yes
+  when: kubeinit_bind_external_service_interface.enabled
+  tags:
+    - provision_libvirt
+
+- name: Fail if bridge is not created but included
+  fail:
+    msg: |
+      The bridge {{ kubeinit_bind_external_service_interface.attached }} to provide external
+      connectivity is enabled but not created. This is a requirement that needs to be
+      created before running the playbook.
+  when: kubeinit_bind_external_service_interface.enabled and bridge_status.stdout_lines | list | count == 0
+  tags:
+    - provision_libvirt
+
 - name: Fails if OS is not supported
   fail:
     msg: The hypervisor machine needs to be CentOS/RHEL
@@ -112,6 +132,20 @@
   tags:
     - provision_libvirt
 
+# - name: Disable netfilter
+#   shell: |
+#     modprobe br_netfilter
+#     echo "br_netfilter" > /etc/modules-load.d/br_netfilter.conf
+#     sudo tee -a /etc/sysctl.conf <<EOF
+#     net.bridge.bridge-nf-call-ip6tables = 0
+#     net.bridge.bridge-nf-call-iptables = 0
+#     net.bridge.bridge-nf-call-arptables = 0
+#     EOF
+#     sysctl -p /etc/sysctl.conf
+#   changed_when: false
+#   tags:
+#     - provision_libvirt
+
 - name: Reset ssh keys in hypervisor
   shell: |
     ssh-keygen -R  {{ item }}
@@ -147,7 +181,7 @@
     name: "{{ kubeinit_provision_hypervisor_dependencies.centos }}"
     state: present
   when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
-  register: installed_packages
+  register: installed_packages_centos
   tags:
     - provision_libvirt
 
@@ -156,7 +190,7 @@
     name: "{{ kubeinit_provision_hypervisor_dependencies.debian }}"
     state: present
   when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
-  register: installed_packages
+  register: installed_packages_debian
   tags:
     - provision_libvirt
 
@@ -168,6 +202,12 @@
   tags:
     - provision_libvirt
 
+- name: Restart if required
+  set_fact:
+     kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
+  tags:
+    - provision_libvirt
+
 - name: Reboot host and wait for it to restart
   reboot:
     msg: "Reboot initiated by a package upgrade"
@@ -176,7 +216,7 @@
     pre_reboot_delay: 0
     post_reboot_delay: 30
     test_command: whoami
-  when: installed_packages is changed or upgraded_packages is changed
+  when: kubeinit_libvirt_restart | bool
   tags:
     - provision_libvirt
 
@@ -407,21 +447,23 @@
 # Define common resources, networks
 #
 
-- name: render the net configuration
+- name: render KubeInit networks for debugging
   template:
-    src: "nets.xml.j2"
-    dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/nets.xml'
+    src: "{{ item.template }}"
+    dest: "{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item.template | regex_replace('.j2$', '') }}"
     mode: '0644'
   with_items: "{{ kubeinit_provision_cluster_nets }}"
+  when: item.enabled
   tags:
     - provision_libvirt
 
-- name: define KubeInit networks with DHCP enabled
+- name: define KubeInit networks
   virt_net:
     command: define
     name: "{{ item.name }}"
-    xml: '{{ lookup("template", "nets.xml.j2") }}'
+    xml: '{{ lookup("template", item.template) }}'
   with_items: "{{ kubeinit_provision_cluster_nets }}"
+  when: item.enabled
   tags:
     - provision_libvirt
 
@@ -430,6 +472,7 @@
     state: active
     name: "{{ item.name }}"
   with_items: "{{ kubeinit_provision_cluster_nets }}"
+  when: item.enabled
   tags:
     - provision_libvirt
 
@@ -438,5 +481,6 @@
     autostart: yes
     name: "{{ item.name }}"
   with_items: "{{ kubeinit_provision_cluster_nets }}"
+  when: item.enabled
   tags:
     - provision_libvirt

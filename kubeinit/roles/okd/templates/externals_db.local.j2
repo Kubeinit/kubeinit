@@ -1,0 +1,25 @@
+$TTL    604800
+{% for host in groups['okd_service_nodes'] %}
+@       IN      SOA     {{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}. admin.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.(
+{% endfor %}
+                  1     ; Serial
+             604800     ; Refresh
+              86400     ; Retry
+            2419200     ; Expire
+             604800     ; Negative Cache TTL
+)
+
+; name servers - NS records
+{% for host in groups['okd_service_nodes'] %}
+    IN      NS      {{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.
+{% endfor %}
+
+; service node external IP - A records
+{% for host in groups['okd_service_nodes'] %}
+{{ host }}.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.                       IN      A       {{ kubeinit_bind_external_service_interface.ip }}
+api.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.                              IN      A       {{ kubeinit_bind_external_service_interface.ip }}
+api-int.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.                          IN      A       {{ kubeinit_bind_external_service_interface.ip }}
+*.apps.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.                           IN      A       {{ kubeinit_bind_external_service_interface.ip }}
+console-openshift-console.apps.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.   IN      A       {{ kubeinit_bind_external_service_interface.ip }}
+oauth-openshift.apps.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}.             IN      A       {{ kubeinit_bind_external_service_interface.ip }}
+{% endfor %}

@@ -55,53 +55,53 @@
   tags:
     - kubeinit_kubevirt
 
-- name: "wait until crds are loaded"
-  shell: |
-    set -o pipefail
-    export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-    kubectl get crds | grep virtualmachines.kubevirt.io
-  args:
-    executable: /bin/bash
-  register: wait_crd
-  changed_when: "wait_crd.rc == 0"
-  retries: 60
-  delay: 60
-  until: wait_crd.stdout_lines | list | count == 1
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  tags:
-    - kubeinit_kubevirt
+# - name: "wait until crds are loaded"
+#   shell: |
+#     set -o pipefail
+#     export KUBECONFIG=~/install_dir/auth/kubeconfig; \
+#     kubectl get crds | grep virtualmachines.kubevirt.io
+#   args:
+#     executable: /bin/bash
+#   register: wait_crd
+#   changed_when: "wait_crd.rc == 0"
+#   retries: 60
+#   delay: 60
+#   until: wait_crd.stdout_lines | list | count == 1
+#   delegate_to: "{{ cluster_node }}"
+#   with_items: "{{ groups['okd_service_nodes'] }}"
+#   loop_control:
+#     loop_var: cluster_node
+#   tags:
+#     - kubeinit_kubevirt
 
-- name: "Deploy example VM"
-  shell: |
-    set -o pipefail
-    export KUBECONFIG=~/install_dir/auth/kubeconfig;
-    kubectl apply -f https://raw.githubusercontent.com/kubevirt/kubevirt.github.io/master/labs/manifests/vm.yaml
-    ./virtctl start testvm
-  args:
-    executable: /bin/bash
-  register: deploy_example_vm
-  changed_when: "deploy_example_vm.rc == 0"
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  tags:
-    - kubeinit_kubevirt
+# - name: "Deploy example VM"
+#   shell: |
+#     set -o pipefail
+#     export KUBECONFIG=~/install_dir/auth/kubeconfig;
+#     kubectl apply -f https://raw.githubusercontent.com/kubevirt/kubevirt.github.io/master/labs/manifests/vm.yaml
+#     ./virtctl start testvm
+#   args:
+#     executable: /bin/bash
+#   register: deploy_example_vm
+#   changed_when: "deploy_example_vm.rc == 0"
+#   delegate_to: "{{ cluster_node }}"
+#   with_items: "{{ groups['okd_service_nodes'] }}"
+#   loop_control:
+#     loop_var: cluster_node
+#   tags:
+#     - kubeinit_kubevirt
 
-- name: Print several lines of text
-  vars:
-    msg: |
-      Connect to the service node and execute
-      the following steps to test a sample VM:
-      kubectl apply -f https://raw.githubusercontent.com/kubevirt/kubevirt.github.io/master/labs/manifests/vm.yaml
-      ./virtctl start testvm
-      kubectl get vms
-      kubectl get vmis
-      oc get events -n default
-  debug:
-    msg: "{{ msg.split('\n') }}"
-  tags:
-    - kubeinit_kubevirt
+# - name: Print some final data
+#   vars:
+#     msg: |
+#       Connect to the service node and execute
+#       the following steps to test a sample VM:
+#       kubectl apply -f https://raw.githubusercontent.com/kubevirt/kubevirt.github.io/master/labs/manifests/vm.yaml
+#       ./virtctl start testvm
+#       kubectl get vms
+#       kubectl get vmis
+#       oc get events -n default
+#   debug:
+#     msg: "{{ msg.split('\n') }}"
+#   tags:
+#     - kubeinit_kubevirt

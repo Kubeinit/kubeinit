@@ -1,9 +1,42 @@
-zone "{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}" {
-    type master;
-    file "/etc/named/zones/db.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}"; # zone file path
+acl internals {
+    127.0.0.0/8;
+    10.0.0.0/24;
 };
 
-zone "{{ hostvars[groups['okd_service_nodes'][0]].ansible_host | ipaddr('revdns') | regex_replace('^[0-9]+\\.', '') }}" {
-    type master;
-    file "/etc/named/zones/db.{{ hostvars[groups['okd_service_nodes'][0]].ansible_host | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
+view "internal" {
+    match-clients { internals; };
+    recursion yes;
+
+    include "/etc/named.rfc1912.zones";
+
+    zone "." IN {
+        type hint;
+        file "named.ca";
+    };
+
+    zone "{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}" {
+        type master;
+        file "/etc/named/zones/internals/db.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}"; # zone file path
+    };
+
+    zone "{{ hostvars[groups['okd_service_nodes'][0]].ansible_host | ipaddr('revdns') | regex_replace('^[0-9]+\\.', '') }}" {
+        type master;
+        file "/etc/named/zones/internals/db.{{ hostvars[groups['okd_service_nodes'][0]].ansible_host | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
+    };
+
 };
+
+{% if kubeinit_bind_external_service_interface.enabled | default(false) %}
+
+view "external" {
+    match-clients { any; };
+    recursion yes;
+
+    zone "{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}" {
+        type master;
+        file "/etc/named/zones/externals/db.{{kubeinit_provision_cluster_name}}.{{ kubeinit_provision_cluster_domain }}"; # zone file path
+    };
+
+};
+
+{% endif %}
