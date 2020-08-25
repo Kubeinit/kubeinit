@@ -14,7 +14,7 @@
     "units": [{
       "name": "coreos_installer.service",
       "enabled": true,
-      "contents": "[Service]\nType=simple\nRestart=always\nRestartSec=3\nStartLimitIntervalSec=0\nEnvironment=HTTP_PROXY={{ http_proxy }}\nEnvironment=http_proxy={{ http_proxy }}\nEnvironment=HTTPS_PROXY={{ https_proxy }}\nEnvironment=https_proxy={{ https_proxy }}\nEnvironment=NO_PROXY={{ no_proxy_list }}\nEnvironment=no_proxy={{ no_proxy_list }}\nExecStart=/usr/sbin/coreos-installer install --image-url {{ clusterosimage }} --insecure -i /home/core/config.ign {{ device }}\n\n[Install]\nWantedBy=multi-user.target"
+      "contents": "[Service]\nType=oneshot\nEnvironment=HTTP_PROXY={{ http_proxy }}\nEnvironment=http_proxy={{ http_proxy }}\nEnvironment=HTTPS_PROXY={{ https_proxy }}\nEnvironment=https_proxy={{ https_proxy }}\nEnvironment=NO_PROXY={{ no_proxy_list }}\nEnvironment=no_proxy={{ no_proxy_list }}\nExecStartPre=ExecStart=/usr/bin/coreos-installer install --image-url {{ clusterosimage }} --insecure -i /home/core/config.ign {{ device }}\n\n[ExecStartPost]\nreboot[Install]\nWantedBy=multi-user.target"
 }]
 },
 "storage": {
@@ -25,5 +25,4 @@
       "contents": { "source": "data:text/plain;base64,{{ lookup('file', file_path) | string | b64encode }}" }
     }]
   }
-}`
-
+}

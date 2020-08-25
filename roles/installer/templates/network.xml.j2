@@ -1,0 +1,25 @@
+<network ipv6='no'>
+  <name>{{ network_name }}</name>
+  <forward mode='nat'>
+    <nat>
+      <port start='1024' end='65535'/>
+    </nat>
+  </forward>
+  <bridge name='virbr0' stp='on' delay='0' />
+  <domain name='{{ cluster }}.{{ domain }}' localOnly='yes'/>
+  <dns>
+    <forwarder domain='apps.{{ cluster }}.{{ domain }}' addr='127.0.0.1'/>
+    <host ip='{{ api_vip }}'>
+      <hostname>api</hostname>
+    </host>
+    <host ip='{{ ingress_vip }}'>
+      <hostname>registry</hostname>
+      <hostname>hypervisor</hostname>
+    </host>
+  </dns>
+  <ip address='{{ ingress_vip }}' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='{{ dhcp_range_start }}' end='{{ dhcp_range_end }}'/>
+    </dhcp>
+  </ip>
+</network>

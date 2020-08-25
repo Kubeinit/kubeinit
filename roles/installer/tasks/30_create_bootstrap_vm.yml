@@ -1,0 +1,49 @@
+---
+- name: Delete previous qcow2 image
+  file:
+    path: "{{ default_libvirt_pool_dir }}/bootstrap.qcow2"
+    state: absent
+
+- name: Create new bootstrap qcow2 image
+  command: "qemu-img create -f qcow2 {{ default_libvirt_pool_dir }}/bootstrap.qcow2 60G"
+
+- name: Create default baremetal network
+  virt_net:
+    command: define
+    name: baremetal-{{ cluster }}
+    xml: '{{ lookup("template", "{{ role_path }}/templates/network.xml.j2") }}'
+  vars:
+    network_name: baremetal-{{ cluster }}
+  when: virtualized_install
+
+- name: Start baremetal network
+  virt_net:
+    command: start
+    name: baremetal-{{ cluster }}
+  when: virtualized_install
+
+- name: Add interface to public zone
+  firewalld:
+    zone: public
+    interface: virbr0
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Define bootstrap vm
+  virt:
+    command: define
+    xml: '{{ lookup("template", "{{ role_path }}/templates/domain.xml.j2") }}'
+    autostart: yes
+  vars:
+    domain_name: bootstrap-{{ cluster }}
+    domain_memory: 8388608
+    domain_cpu: 4
+    domain_iso: "{{ cluster_config_dir }}/generated_isos/bootstrap.iso"
+    domain_disk: "{{ default_libvirt_pool_dir }}/bootstrap.qcow2"
+    domain_network: "baremetal-{{ cluster }}"
+
+- name: Start bootstrap vm
+  virt:
+    name: bootstrap-{{ cluster }}
+    state: running

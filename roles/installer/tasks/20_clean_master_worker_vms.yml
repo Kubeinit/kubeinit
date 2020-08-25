@@ -55,3 +55,17 @@
     state: absent
   loop: "{{ find_results['files'] }}"
   become: yes
+
+- name: Delete old baremetal network
+  virt_net:
+    command: destroy
+    name: baremetal-{{ cluster }}
+  ignore_errors: true
+  become: yes
+
+- name: Undefine old baremetal network
+  virt_net:
+    command: undefine
+    name: baremetal-{{ cluster }}
+  ignore_errors: true
+  become: yes
