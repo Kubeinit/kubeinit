@@ -42,7 +42,7 @@
     dest: '{{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth1'
     mode: '0644'
   with_items: "{{ groups['okd_service_nodes'] }}"
-  when: kubeinit_bind_external_service_interface.enabled
+  when: kubeinit_bind_external_service_interface_enabled
   tags:
     - provision_libvirt
 
@@ -103,7 +103,7 @@
       --ssh-inject root:file:/root/.ssh/authorized_keys \
       --hostname {{ item }}.{{ kubeinit_provision_cluster_domain }} \
       --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
-      {% if kubeinit_bind_external_service_interface.enabled %}
+      {% if kubeinit_bind_external_service_interface_enabled %}
       --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth1:/etc/sysconfig/network-scripts \
       {% endif %}
       --copy-in {{ kubeinit_provision_hypervisor_tmp_dir }}/{{ item }}/hosts.redhat.tmpl:/etc/cloud/templates \
@@ -131,7 +131,7 @@
               --network network={{ net.name }}{% if net.main %},mac={{ hostvars[item].mac }}{% endif %},model=virtio \
           {% endif %}
         {% endfor %}
-        {% if kubeinit_bind_external_service_interface.enabled %}
+        {% if kubeinit_bind_external_service_interface_enabled %}
               --network bridge={{ kubeinit_bind_external_service_interface.attached }},model=virtio \
         {% endif %}
         --graphics none \
@@ -246,7 +246,7 @@
     mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
-  when: kubeinit_bind_external_service_interface.enabled | default(false)
+  when: kubeinit_bind_external_service_interface_enabled | default(false)
   tags:
     - provision_libvirt
 
