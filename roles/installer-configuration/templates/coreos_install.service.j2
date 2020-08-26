@@ -14,7 +14,7 @@
     "units": [{
       "name": "coreos_installer.service",
       "enabled": true,
-      "contents": "[Service]\nType=oneshot\nEnvironment=HTTP_PROXY={{ http_proxy }}\nEnvironment=http_proxy={{ http_proxy }}\nEnvironment=HTTPS_PROXY={{ https_proxy }}\nEnvironment=https_proxy={{ https_proxy }}\nEnvironment=NO_PROXY={{ no_proxy_list }}\nEnvironment=no_proxy={{ no_proxy_list }}\nExecStartPre=ExecStart=/usr/bin/coreos-installer install --image-url {{ clusterosimage }} --insecure -i /home/core/config.ign {{ device }}\n\n[ExecStartPost]\nreboot[Install]\nWantedBy=multi-user.target"
+      "contents": "[Unit]\nAfter=network.target\nAfter=network-online.target\n[Service]\nType=oneshot\nEnvironment=HTTP_PROXY={{ http_proxy }}\nEnvironment=http_proxy={{ http_proxy }}\nEnvironment=HTTPS_PROXY={{ https_proxy }}\nEnvironment=https_proxy={{ https_proxy }}\nEnvironment=NO_PROXY={{ no_proxy_list }}\nEnvironment=no_proxy={{ no_proxy_list }}\nExecStart=/usr/bin/coreos-installer install --image-url {{ clusterosimage }} --insecure -i /home/core/config.ign {{ device }}\nExecStartPost=reboot\n\n[Install]\nWantedBy=multi-user.target"
 }]
 },
 "storage": {
