@@ -1,0 +1,30 @@
+---
+- name: Delete previous qcow2 images for master
+  file:
+    path: "{{ default_libvirt_pool_dir }}/master-{{ item }}.qcow2"
+    state: absent
+  with_sequence: start=1 end={{ num_masters }}
+
+- name: Create new master qcow2 images
+  command: "qemu-img create -f qcow2 {{ default_libvirt_pool_dir }}/master-{{ item }}.qcow2 60G"
+  with_sequence: start=1 end={{ num_masters }}
+
+- name: Define master vms
+  virt:
+    command: define
+    xml: '{{ lookup("template", "{{ role_path }}/templates/domain.xml.j2") }}'
+    autostart: yes
+  with_sequence: start=1 end={{ num_masters }}
+  vars:
+    domain_name: master-{{ cluster }}-{{ item }}
+    domain_memory: 16777216
+    domain_cpu: 4
+    domain_iso: "{{ cluster_config_dir }}/generated_isos/master.iso"
+    domain_disk: "{{ default_libvirt_pool_dir }}/master-{{ item }}.qcow2"
+    domain_network: "baremetal-{{ cluster }}"
+
+- name: Start master vms
+  virt:
+    name: master-{{ cluster }}-{{ item }}
+    state: running
+  with_sequence: start=1 end={{ num_masters }}
