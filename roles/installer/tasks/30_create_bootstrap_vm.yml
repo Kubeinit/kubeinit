@@ -14,6 +14,7 @@
     xml: '{{ lookup("template", "{{ role_path }}/templates/network.xml.j2") }}'
   vars:
     network_name: baremetal-{{ cluster }}
+    gateway_with_mask: "{{ gateway_ip }}/24"
   when: virtualized_install
 
 - name: Start baremetal network
@@ -42,6 +43,7 @@
     domain_iso: "{{ cluster_config_dir }}/generated_isos/bootstrap.iso"
     domain_disk: "{{ default_libvirt_pool_dir }}/bootstrap.qcow2"
     domain_network: "baremetal-{{ cluster }}"
+    domain_mac: "52:54:00:45:7f:00"
 
 - name: Start bootstrap vm
   virt:

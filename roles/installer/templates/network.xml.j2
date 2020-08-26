@@ -23,6 +23,14 @@
   <ip address='{{ gateway_ip }}' netmask='255.255.255.0'>
     <dhcp>
       <range start='{{ dhcp_range_start }}' end='{{ dhcp_range_end }}'/>
+      {% if virtualized_install %}
+          {% for n in range(num_masters) %}
+              <host mac="52:54:00:45:7f:0{{ n }}" name="master-{{ cluster }}-{{ n }}" ip="{{ gateway_with_mask | next_nth_usable(n+10) }}" />
+          {% endfor %}
+          {% for n in range(num_workers) %}
+              <host mac="52:54:00:45:7f:1{{ n }}" name="worker-{{ cluster }}-{{ n }}" ip="{{ gateway_with_mask | next_nth_usable(n+20) }}" />
+          {% endfor %}
+      {% endif %}
     </dhcp>
   </ip>
 </network>
