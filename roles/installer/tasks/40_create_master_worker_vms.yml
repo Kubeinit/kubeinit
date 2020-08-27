@@ -29,3 +29,28 @@
     name: master-{{ cluster }}-{{ item }}
     state: running
   with_sequence: start=1 end={{ num_masters }}
+
+- name: Create new worker qcow2 images
+  command: "qemu-img create -f qcow2 {{ default_libvirt_pool_dir }}/worker-{{ item }}.qcow2 60G"
+  with_sequence: start=1 end={{ num_workers }}
+
+- name: Define worker vms
+  virt:
+    command: define
+    xml: '{{ lookup("template", "{{ role_path }}/templates/domain.xml.j2") }}'
+    autostart: yes
+  with_sequence: start=1 end={{ num_workers }}
+  vars:
+    domain_name: worker-{{ cluster }}-{{ item }}
+    domain_memory: 16777216
+    domain_cpu: 4
+    domain_iso: "{{ cluster_config_dir }}/generated_isos/worker.iso"
+    domain_disk: "{{ default_libvirt_pool_dir }}/worker-{{ item }}.qcow2"
+    domain_network: "baremetal-{{ cluster }}"
+    domain_mac: "52:54:00:45:7f:1{{ item }}"
+
+- name: Start worker vms
+  virt:
+    name: worker-{{ cluster }}-{{ item }}
+    state: running
+  with_sequence: start=1 end={{ num_workers }}
