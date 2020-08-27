@@ -24,11 +24,12 @@
     <dhcp>
       <range start='{{ dhcp_range_start }}' end='{{ dhcp_range_end }}'/>
       {% if virtualized_install %}
+              <host mac="52:54:00:45:7f:00" name="bootstrap-{{ cluster }}" ip="{{ gateway_with_mask | next_nth_usable(9) }}" />
           {% for n in range(num_masters) %}
-              <host mac="52:54:00:45:7f:0{{ n }}" name="master-{{ cluster }}-{{ n }}" ip="{{ gateway_with_mask | next_nth_usable(n+10) }}" />
+              <host mac="52:54:00:45:7f:0{{ n+1 }}" name="master-{{ cluster }}-{{ n+1 }}" ip="{{ gateway_with_mask | next_nth_usable(n+10) }}" />
           {% endfor %}
           {% for n in range(num_workers) %}
-              <host mac="52:54:00:45:7f:1{{ n }}" name="worker-{{ cluster }}-{{ n }}" ip="{{ gateway_with_mask | next_nth_usable(n+20) }}" />
+              <host mac="52:54:00:45:7f:1{{ n+1 }}" name="worker-{{ cluster }}-{{ n+1 }}" ip="{{ gateway_with_mask | next_nth_usable(n+20) }}" />
           {% endfor %}
       {% endif %}
     </dhcp>
