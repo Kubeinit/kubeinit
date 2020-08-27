@@ -79,5 +79,9 @@ ansible-playbook \
 ```
 
 After provisioning any of the scenarios, you should have your environment ready to go.
-
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.
+
+# HowTo's
+
+* [The easiest and fastest way to deploy an OKD 4.5 cluster in a Libvirt/KVM Host](https://www.anstack.com/blog/2020/07/31/the-fastest-and-simplest-way-to-deploy-okd-openshift-4-5.html)
+* [KubeInit external access for OpenShift/OKD deployments with Libvirt](https://www.anstack.com/blog/2020/08/25/KubeInit-External-access-for-OpenShift-OKD-deployments-with-Libvirt.html)
