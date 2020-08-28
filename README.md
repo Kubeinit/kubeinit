@@ -1,5 +1,5 @@
 <p style="text-align: center" align="center">
-    <a href="https://www.kubeinit.com"><img src="https://raw.githubusercontent.com/ccamacho/kubeinit/master/images/logo.svg?sanitize=true" alt="The KUBErnetes INITiator"/></a>
+    <a href="https://www.kubeinit.com"><img src="https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo.svg?sanitize=true" alt="The KUBErnetes INITiator"/></a>
 </p>
 
 **The KUBErnetes INITiator**
@@ -12,9 +12,9 @@
 </p>
 
 <p style="text-align: center" align="center">
-    <a href="https://github.com/ccamacho/kubeinit/actions?workflow=linters"><img height="20px" src="https://github.com/ccamacho/kubeinit/workflows/linters/badge.svg?event=push"/> </a>
-    <a href="https://github.com/ccamacho/kubeinit/actions?workflow=docs_build"><img height="20px" src="https://github.com/ccamacho/kubeinit/workflows/docs_build/badge.svg?event=push"/> </a>
-    <a href="https://github.com/ccamacho/kubeinit/actions?workflow=molecule"><img height="20px" src="https://github.com/ccamacho/kubeinit/workflows/molecule/badge.svg?event=push"/> </a>
+    <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=linters"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/linters/badge.svg?event=push"/> </a>
+    <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=docs_build"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/docs_build/badge.svg?event=push"/> </a>
+    <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=molecule"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/molecule/badge.svg?event=push"/> </a>
     <a href="https://opensource.org/licenses/Apache-2.0"><img height="20px" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/> </a>
 </p>
 
@@ -26,7 +26,7 @@ prescribed architectures.
 
 # Documentation
 
-KubeInit's documentation is hosted in [this same repository](https://ccamacho.github.io/kubeinit/).
+KubeInit's documentation is hosted in [this same repository](https://kubeinit.github.io/kubeinit/).
 The documentation is rendered using Sphinx and uploaded to GitHub pages using a GitHub action.
 
 # KubeInit supported scenarios
@@ -59,7 +59,7 @@ The documentation is rendered using Sphinx and uploaded to GitHub pages using a 
 * A fresh deployed server with enough RAM and disk space (120GB in RAM and 300GB in disk) and CentOS 8 (it should work also in Fedora/Debian/Ubuntu hosts).
 * We assume that the hypervisor node is called nyctea (defined in the inventory).
 * Have root access with certificates.
-* Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/ccamacho/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66)
+* Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66)
  you will need in your cluster.
 
 # How to run
@@ -68,7 +68,7 @@ The following example command will deploy a multi-master OKD 4.5 cluster with 1 
 in a single command and in approximately 30 minutes.
 
 ```bash
-git clone https://github.com/ccamacho/kubeinit.git
+git clone https://github.com/Kubeinit/kubeinit.git
 cd kubeinit
 ansible-playbook \
     --user root \
