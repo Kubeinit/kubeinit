@@ -4,7 +4,6 @@ Contributing
 
 Adding roles into this project is easy and starts with a compatible skeleton.
 
-
 Creating new roles automatically
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -24,3 +23,17 @@ From the repository root directory execute:
 .. note::  Please use only *kubeinit-rolename* words for defining the role name, for example, replace **kubeinit-example** with **kubeinit-bind**, **kubeinit-kubevirt**, or whatever the service name will be.
 
 This command will generate the role, initial molecule default tests, and the documentation stub.
+
+Linting new roles and code
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to run a lint check automatically before pushing
+code or pull requests.
+
+From the repository root directory execute:
+
+.. code-block:: console
+
+    tox -e linters
+
+If the test pass all the executed tests should have succeeded.
