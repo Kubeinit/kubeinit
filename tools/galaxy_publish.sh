@@ -59,7 +59,9 @@ if [ "$publish" == "1" ]; then
     echo 'This version is not published, publishing!...'
     # We need to remove the table as Ansible Galaxy do not support it.
     # we just remove those lines and render the README.md file
-    sed '/.*|.*|.*|.*|.*|.*|.*|/d' README.md > ./kubeinit/README.md
+    sed '/.*supported scenarios.*/d' README.md > ./kubeinit/README.md
+    sed '/<table.*>/,/<\/table>/d' README.md > ./kubeinit/README.md
+
     cd ./kubeinit/
     mkdir -p releases
     ansible-galaxy collection build -v --force --output-path releases/
