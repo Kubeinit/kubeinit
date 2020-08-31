@@ -105,7 +105,7 @@
 - name: Set cluster image URL override if not provided by the user
   set_fact:
     clusterosimage: "http://{{ the_host_url }}:{{ webserver_caching_port }}/{{ rhcos_uri }}?sha256={{ rhcos_sha256 }}"
-  when: clusterosimage is not defined or clusterosimage|length < 1
+  when: download_rhcos_image|bool and ( clusterosimage is not defined or clusterosimage|length < 1 )
   delegate_to: "{{ groups['registry_host'][0] }}"
 
 #Leaving SELinux details alone and not using ":z"
