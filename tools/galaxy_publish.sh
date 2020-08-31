@@ -42,7 +42,6 @@ publish="1"
 #
 
 for ver in $all_published_versions; do
-
     echo "--"
     echo "Published: "$ver
     echo "Built: "$current_galaxy_version
