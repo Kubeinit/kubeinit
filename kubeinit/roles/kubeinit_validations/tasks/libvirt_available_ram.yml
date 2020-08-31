@@ -16,21 +16,21 @@
 
 
 #
-# Make sure the mount path of libvirt has enough space in the hypervisor
+# Make sure the mount of RAM if enough for all machines
 #
 
-- name: Get libvirt directory free space
+- name: Get hypervisor total RAM
   shell: |
     set -o pipefail
-    df -BG --output=avail {{ kubeinit_validations_libvirt_path }} | grep -v Avail
-  register: kubeinit_validations_libvirt_free_space
-  changed_when: "kubeinit_validations_libvirt_free_space.rc == 0"
+    free --kilo  | grep ^Mem | tr -s ' ' | cut -d ' ' -f 2
+  register: kubeinit_validations_libvirt_total_ram
+  changed_when: "kubeinit_validations_libvirt_total_ram.rc == 0"
   tags:
     - provision_libvirt
 
-- name: Get total inventory disk usage
+- name: Get total required RAM
   set_fact:
-    kubeinit_validations_libvirt_disk_usage: "{{ kubeinit_validations_libvirt_disk_usage|default(0)|int + hostvars[item].disk[:-1]|int }}"
+    kubeinit_validations_libvirt_required_ram: "{{ kubeinit_validations_libvirt_required_ram|default(0)|int + hostvars[item].ram|int }}"
   with_items:
     - "{{ groups['okd_service_nodes'] }}"
     - "{{ groups['okd_bootstrap_nodes'] }}"
@@ -39,11 +39,10 @@
   tags:
     - provision_libvirt
 
-- name: Make sure there is enough free space
+- name: Make sure there is enough free RAM
   assert:
     that:
-      - kubeinit_validations_libvirt_free_space.stdout[:-1]|int > kubeinit_validations_libvirt_disk_usage|float * 1.1
-    msg: "It seems there is not enough disk space (Required: {{ kubeinit_validations_libvirt_disk_usage|float * 1.1 }} Total: {{ kubeinit_validations_libvirt_free_space.stdout[:-1]|int }})"
-
+      - kubeinit_validations_libvirt_total_ram.stdout|int > kubeinit_validations_libvirt_required_ram|float * 1.1
+    msg: "It seems there is not enough RAM (Required: {{ kubeinit_validations_libvirt_required_ram|float * 1.1 }} Total: {{ kubeinit_validations_libvirt_total_ram.stdout|int }})"
   tags:
     - provision_libvirt
