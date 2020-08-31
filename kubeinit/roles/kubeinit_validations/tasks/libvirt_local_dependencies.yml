@@ -15,15 +15,25 @@
 # under the License.
 
 
-- name: Converge
-  hosts: all
-  # roles:
-  #   - role: "{{ role_name }}"
-  tasks:
-    - name: Message for "{{ role_name }}"
-      vars:
-        msg: |
-          Finishing the execution of
-          the test for "{{ role_name }}"
-      debug:
-        msg: "{{ msg.split('\n') }}"
+#
+# Make sure required packages are installed in the local machine
+#
+
+- name: Gather the rpm package facts
+  delegate_to: localhost
+  become: no
+  package_facts:
+    manager: auto
+  tags:
+    - provision_libvirt
+
+- name: Make sure required packages are installed
+  delegate_to: localhost
+  become: no
+  assert:
+    that:
+      - packages['{{ item }}'] is defined
+  with_items:
+    - "{{ kubeinit_validations_local_required_packages }}"
+  tags:
+    - provision_libvirt
