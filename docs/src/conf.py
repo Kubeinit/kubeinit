@@ -75,6 +75,7 @@ pygments_style = 'native'
 # html_theme = '_theme'
 # html_static_path = ['static']
 
+html_favicon = "favicon.ico"
 html_logo = "white_text_logo.png"
 html_theme_options = {
     'logo_only': True,
