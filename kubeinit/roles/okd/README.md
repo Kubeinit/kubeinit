@@ -1,4 +1,5 @@
 # okd
 
-Check the role [official docs](https://kubeinit.github.io/kubeinit/)
+Please, refer to the role
+[official docs](https://kubeinit.github.io/kubeinit/)
 for further information.

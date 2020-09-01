@@ -32,28 +32,9 @@ The documentation is rendered using Sphinx and uploaded to GitHub pages using a 
 
 # KubeInit supported scenarios
 
-  <table>
-    <tbody>
-      <tr>
-        <td rowspan="2" style="font-weight: bold;">K8s distro</td>
-        <td colspan="2" style="font-weight: bold;text-align:center;">Driver</td>
-      </tr>
-      <tr>
-        <td style="font-weight: bold;text-align:center;">Libvirt host</td>
-        <td style="font-weight: bold;text-align:center;">Baremetal</td>
-      </tr>
-      <tr>
-        <td>Origin</td>
-        <td>CentOS/Fedora<br/>Debian/Ubuntu</td>
-        <td>WIP</td>
-      </tr>
-      <tr>
-        <td>Kubernetes</td>
-        <td>WIP</td>
-        <td>WIP</td>
-      </tr>
-    </tbody>
-  </table>
+**K8s distribution:** OKD/OpenShift
+**Driver:** Libvirt
+**OS:** CentOS/Fedora, Debian/Ubuntu	
 
 # Requirements
 

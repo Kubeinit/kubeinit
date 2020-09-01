@@ -59,6 +59,7 @@ fi
 PS1="[\u@\h \W]\$" source "${HOME}/test-python/bin/activate"
 
 cd ./kubeinit/roles/
-pytest --color=no \
-       --html=${HOME}/reports.html \
-       --self-contained-html
+python3 -m pytest \
+        --color=no \
+        --html=${HOME}/reports.html \
+        --self-contained-html

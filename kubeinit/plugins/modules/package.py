@@ -17,7 +17,7 @@ ANSIBLE_METADATA = {
 
 DOCUMENTATION = '''
 ---
-module: read_resources
+module: package
 
 short_description: Example module
 
@@ -48,24 +48,8 @@ EXAMPLES = '''
 '''
 
 RETURN = '''
-resources:
-    description: List of resources deserialized from YAML file
-    returned: success
-    type: complex
-    contains:
-        type:
-            description: Type of the resource.
-            returned: success
-            type: str
-        params:
-            description: Resource parameters important for import.
-            returned: success
-            type: complex
-        info:
-            description: Additional resource, not needed for import.
-            returned: success
-            type: complex
 '''
+
 
 from ansible.module_utils.basic import AnsibleModule
 

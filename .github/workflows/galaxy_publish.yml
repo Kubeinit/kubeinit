@@ -2,31 +2,33 @@
 name: galaxy_publish
 on: [push]
 jobs:
-    build:
-        runs-on: ubuntu-latest
-        strategy:
-            max-parallel: 4
-            matrix:
-                python-version: [3.7]
-        steps:
-            - uses: actions/checkout@v2
-            - name: Set up Python ${{ matrix.python-version }}
-              uses: actions/setup-python@v1
-              with:
-                  python-version: ${{ matrix.python-version }}
-            - name: Install dependencies
-              run: |
-                sudo apt update -y
-                sudo apt install ansible jq -y
-                sudo locale-gen en_US.UTF-8
-                sudo dpkg-reconfigure locales
-                sudo apt install build-essential findutils -y
-                sudo python -m pip install --upgrade pip
-                sudo python -m pip install --upgrade virtualenv
-                sudo python -m pip install --upgrade setuptools
-                sudo python -m pip install --upgrade tox
-                sudo python -m pip install --upgrade shyaml
-            - name: Create collection build and publish
-              run: |
-                  chmod +x ./tools/galaxy_publish.sh
-                  sudo ./tools/galaxy_publish.sh -k ${{ secrets.GALAXY_KEY }}
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.8]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install ansible jq -y
+          sudo locale-gen en_US.UTF-8
+          sudo dpkg-reconfigure locales
+          sudo apt install build-essential findutils -y
+          sudo apt-get --purge autoremove python3-pip
+          sudo apt-get --purge autoremove python-pip
+          sudo apt install python3-pip
+          sudo python3 -m pip install --upgrade pip
+          sudo python3 -m pip install --upgrade virtualenv
+          sudo python3 -m pip install --upgrade setuptools
+          sudo python3 -m pip install -r ./test-requirements.txt
+      - name: Create collection build and publish
+        run: |
+          chmod +x ./tools/galaxy_publish.sh
+          sudo ./tools/galaxy_publish.sh -k ${{ secrets.GALAXY_KEY }}
