@@ -1,11 +1,12 @@
 #!/bin/python3
 
-from github import Github
+"""Main CI job script."""
 
 import os
 import subprocess
-import sys
 import time
+
+from github import Github
 
 gh = Github(os.environ['GH_TOKEN'])
 
@@ -27,7 +28,9 @@ url = os.getenv('CI_PIPELINE_URL', "")
 # `whitelist_domain` as part of the committer's email
 #
 
+
 def main():
+    """Run the main method."""
     for branch in branches:
         for pr in repo.get_pulls(state='open', sort='created', base=branch.name):
             labels = [item.name for item in pr.labels]
@@ -59,13 +62,13 @@ def main():
                 print("-------------")
                 print("-------------")
 
-
                 # We update the status to show that we are executing the e2e test
                 print("Current status")
                 print(repo.get_commit(sha=sha).get_statuses())
                 repo.get_commit(sha=sha).create_status(state="pending",
-                                                       target_url=url+str(pipeline_id),
-                                                       description="e2e job execution %s %s" % (distro, driver),
+                                                       target_url=url + str(pipeline_id),
+                                                       description="e2e job execution %s %s" % (distro,
+                                                                                                driver),
                                                        context="e2e-%s-%s" % (distro, driver))
                 print("The pipeline ID is: " + str(pipeline_id))
                 print("The clouds.yml path is: " + str(vars_file_path))
@@ -73,10 +76,17 @@ def main():
                 start_time = time.time()
                 try:
                     print("We call the downstream job configuring its parameters")
-                    output = subprocess.check_call("./run.sh %s %s %s %s %s" % (str(branch.name), str(pr.number), str(vars_file_path), str(distro), str(driver)), shell=True)
+                    output = subprocess.check_call("./ci/run.sh %s %s %s %s %s" % (str(branch.name),
+                                                                                   str(pr.number),
+                                                                                   str(vars_file_path),
+                                                                                   str(distro),
+                                                                                   str(driver)),
+                                                   shell=True)
                 except Exception:
                     output = 1
-                desc = ("%s to %s - Executed in: %s minutes" % (distro, driver, round((time.time() - start_time)/60,2)))
+                desc = ("%s to %s - Executed in: %s minutes" % (distro,
+                                                                driver,
+                                                                round((time.time() - start_time) / 60, 2)))
 
                 if output == 0:
                     state = "success"
@@ -85,13 +95,16 @@ def main():
 
                 # We update the status with the job result
                 repo.get_commit(sha=sha).create_status(state=state,
-                                                       target_url=url+str(pipeline_id),
+                                                       target_url=url + str(pipeline_id),
                                                        description=desc,
-                                                       context="e2e-%s-%s" % (distro, driver))
+                                                       context="e2e-%s-%s" % (distro,
+                                                                              driver))
             else:
-                print("We already have the tag and the result, so no need to do anything")
+                print("No need to do anything")
+
 
 def remove_label(the_label, pr):
+    """Remove a label."""
     labels = [label for label in repo.get_labels()]
     if any(filter(lambda l: l.name == the_label, labels)):
         r_label = repo.get_label(the_label)
@@ -99,7 +112,9 @@ def remove_label(the_label, pr):
         r_label = repo.create_label(the_label, "32CD32")
     pr.remove_from_labels(r_label)
 
+
 def assign_label(the_label, pr):
+    """Assign a label."""
     labels = [label for label in repo.get_labels()]
     if any(filter(lambda l: l.name == the_label, labels)):
         new_label = repo.get_label(the_label)

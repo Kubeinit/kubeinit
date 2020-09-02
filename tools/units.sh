@@ -12,4 +12,4 @@ cd ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
 
 export HOME=$(eval echo ~$USER)
 
-ansible-test sanity --skip-test import
+pytest -r a --html=~/units_report.html --self-contained-html --color yes ../kubeinit/tests/unit -vvv

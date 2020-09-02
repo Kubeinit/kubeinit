@@ -13,6 +13,7 @@
 
 <p style="text-align: center" align="center">
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=linters"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/linters/badge.svg?event=push"/> </a>
+    <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=units"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/units/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=docs_build"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/docs_build/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=molecule"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/molecule/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=galaxy_publish"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/galaxy_publish/badge.svg?event=push"/> </a>
