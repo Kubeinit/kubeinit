@@ -1,4 +1,6 @@
 #!/usr/bin/python
+"""Podman container lib."""
+
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019 Ansible Project
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
@@ -705,13 +707,13 @@ container:
 
 import json
 
+from ansible.module_utils._text import to_bytes, to_native
 from ansible.module_utils.basic import AnsibleModule, env_fallback
 from ansible.module_utils.podman.common import run_podman_command
-from ansible.module_utils._text import to_bytes, to_native
 
 
 def construct_command_from_params(action, params):
-    """Creates list of arguments for podman CLI command
+    """Create list of arguments for podman CLI command.
 
     Arguments:
         action {str} -- action type from 'run', 'stop', 'create', 'delete', 'start'
@@ -1015,7 +1017,7 @@ def construct_command_from_params(action, params):
 
 
 def ensure_image_exists(module, image):
-    """If image is passed, ensure it exists, if not - pull it or fail
+    """If image is passed, ensure it exists, if not - pull it or fail.
 
     Arguments:
         module {obj} -- ansible module object
@@ -1042,19 +1044,18 @@ def ensure_image_exists(module, image):
 
 
 class PodmanContainer:
-    """Perform container tasks
+    """Perform container tasks.
 
     Manages podman container, inspects it and checks its current state
     """
 
     def __init__(self, module, name):
-        """Initialize PodmanContainer class
+        """Initialize PodmanContainer class.
 
         Arguments:
             module {obj} -- ansible module object
             name {str} -- name of container
         """
-
         super(PodmanContainer, self).__init__()
         self.module = module
         self.name = name
@@ -1062,28 +1063,28 @@ class PodmanContainer:
 
     @property
     def exists(self):
-        """Check if container exists """
+        """Check if container exists."""
         return bool(self.info != {})
 
     @property
     def different(self):
-        """Check if container is different"""
+        """Check if container is different."""
         # TODO(sshnaidm): implement difference calculation between input vars
         # and current container to understand if we need to recreate it
         return True
 
     @property
     def running(self):
-        """Return True if container is running now"""
+        """Return True if container is running now."""
         return self.exists and self.info["State"]["Running"]
 
     @property
     def stopped(self):
-        """Return True if container exists and is not running now"""
+        """Return True if container exists and is not running now."""
         return self.exists and not self.info["State"]["Running"]
 
     def get_info(self):
-        """Inspect container and gather info about it"""
+        """Inspect container and gather info about it."""
         rc, out, err = run_podman_command(
             module=self.module,
             args=["container", "inspect", self.name],
@@ -1092,7 +1093,7 @@ class PodmanContainer:
         return json.loads(out)[0] if rc == 0 else {}
 
     def _perform_action(self, action):
-        """Perform action with container
+        """Perform action with container.
 
         Arguments:
             action {str} -- action to perform - start, create, stop, run, delete
@@ -1112,49 +1113,48 @@ class PodmanContainer:
             )
 
     def run(self):
-        """Run the container"""
+        """Run the container."""
         self._perform_action("run")
 
     def delete(self):
-        """Delete the container"""
+        """Delete the container."""
         self._perform_action("delete")
 
     def stop(self):
-        """Stop the container"""
+        """Stop the container."""
         self._perform_action("stop")
 
     def start(self):
-        """Start the container"""
+        """Start the container."""
         self._perform_action("start")
 
     def create(self):
-        """Create the container"""
+        """Create the container."""
         self._perform_action("create")
 
     def recreate(self):
-        """Recreate the container"""
+        """Recreate the container."""
         self.delete()
         self.run()
 
     def restart(self):
-        """Restart the container"""
+        """Restart the container."""
         self.stop()
         self.run()
 
 
 class PodmanManager:
-    """Module manager class
+    """Module manager class.
 
     Defines according to parameters what actions should be applied to container
     """
 
     def __init__(self, module):
-        """Initialize PodmanManager class
+        """Initialize PodmanManager class.
 
         Arguments:
             module {obj} -- ansible module object
         """
-
         super(PodmanManager, self).__init__()
 
         self.module = module
@@ -1176,7 +1176,7 @@ class PodmanManager:
         self.container = PodmanContainer(self.module, self.name)
 
     def update_container_result(self, changed=True):
-        """Inspect the current container, update results with last info and exit
+        """Inspect the current container, update results with last info and exit.
 
         Keyword Arguments:
             changed {bool} -- whether any action was performed (default: {True})
@@ -1192,7 +1192,7 @@ class PodmanManager:
         self.module.exit_json(**self.results)
 
     def make_started(self):
-        """Run actions if desired state is 'started'"""
+        """Run actions if desired state is 'started'."""
         if self.container.running and (self.container.different or self.recreate):
             self.container.recreate()
             self.results["actions"].append("recreated %s" % self.container.name)
@@ -1217,7 +1217,7 @@ class PodmanManager:
             self.update_container_result()
 
     def make_stopped(self):
-        """Run actions if desired state is 'stopped'"""
+        """Run actions if desired state is 'stopped'."""
         if not self.container.exists and not self.image:
             self.module.fail_json(
                 msg="Cannot create container when image is not specified!"
@@ -1234,7 +1234,7 @@ class PodmanManager:
             self.update_container_result()
 
     def make_absent(self):
-        """Run actions if desired state is 'absent'"""
+        """Run actions if desired state is 'absent'."""
         if not self.container.exists:
             self.results.update({"changed": False})
         elif self.container.exists:
@@ -1247,7 +1247,7 @@ class PodmanManager:
         self.module.exit_json(**self.results)
 
     def execute(self):
-        """Execute the desired action according to map of actions and states"""
+        """Execute the desired action according to map of actions and states."""
         states_map = {
             "present": self.make_started,
             "started": self.make_started,
@@ -1262,6 +1262,7 @@ class PodmanManager:
 
 
 def main():
+    """Run the main method."""
     module = AnsibleModule(
         argument_spec=dict(
             cmd_args=dict(type="list", default=[], elements="str"),

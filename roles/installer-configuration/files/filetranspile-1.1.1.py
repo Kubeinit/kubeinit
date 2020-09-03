@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Takes a fake root and appends them into a provided ignition configuration.
-"""
+"""Take a fake root and appends them into a provided ignition configuration."""
 
 import abc
 import argparse
@@ -10,25 +8,21 @@ import json
 import os
 import pathlib
 import stat
-import yaml
-
 from urllib.parse import quote
+
+import yaml
 
 __version__ = "1.1.1"
 
 
 class FileTranspilerError(Exception):
-    """
-    Base exception for FileTranspiler errors.
-    """
+    """Base exception for FileTranspiler errors."""
 
     pass
 
 
 class IgnitionSpec(abc.ABC):
-    """
-    Base class for IgnitionSpec classes.
-    """
+    """Base class for IgnitionSpec classes."""
 
     def __init__(self, ignition_cfg, cli_args):
         """
@@ -46,7 +40,7 @@ class IgnitionSpec(abc.ABC):
     @abc.abstractmethod
     def file_to_ignition(self, file_path, file_contents, mode):
         """
-        Turns a file into an ignition snippet.
+        Turn a file into an ignition snippet.
 
         :param file_path: Path to where the file should be placed.
         :type file_path: str
@@ -62,7 +56,7 @@ class IgnitionSpec(abc.ABC):
     @abc.abstractmethod
     def link_to_ignition(self, file_path, target_path):
         """
-        Turns a symbolic link into an ignition snippet.
+        Turn a symbolic link into an ignition snippet.
 
         :param file_path: Path to where the file should be placed.
         :type file_path: str
@@ -111,7 +105,7 @@ class IgnitionSpec(abc.ABC):
 
     def merge(self):
         """
-        Merges the fakeroot into the ignition config.
+        Merge the fakeroot into the ignition config.
 
         :returns: The merged ignition config
         :rtype: dict
@@ -163,13 +157,11 @@ class IgnitionSpec(abc.ABC):
 
 
 class SpecV2(IgnitionSpec):
-    """
-    Spec v2 implementation for merging files.
-    """
+    """Spec v2 implementation for merging files."""
 
     def file_to_ignition(self, file_path, file_contents, mode):
         """
-        Turns a file into an ignition snippet.
+        Turn a file into an ignition snippet.
 
         :param file_path: Path to where the file should be placed.
         :type file_path: str
@@ -189,7 +181,7 @@ class SpecV2(IgnitionSpec):
 
     def link_to_ignition(self, file_path, target_path):
         """
-        Turns a symbolic link into an ignition snippet.
+        Turn a symbolic link into an ignition snippet.
 
         :param file_path: Path to where the file should be placed.
         :type file_path: str
@@ -207,13 +199,11 @@ class SpecV2(IgnitionSpec):
 
 
 class SpecV3(IgnitionSpec):
-    """
-    Spec v3 implementation for merging files.
-    """
+    """Spec v3 implementation for merging files."""
 
     def file_to_ignition(self, file_path, file_contents, mode):
         """
-        Turns a file into an ignition snippet.
+        Turn a file into an ignition snippet.
 
         :param file_path: Path to where the file should be placed.
         :type file_path: str
@@ -233,7 +223,7 @@ class SpecV3(IgnitionSpec):
 
     def link_to_ignition(self, file_path, target_path):
         """
-        Turns a symbolic link into an ignition snippet.
+        Turn a symbolic link into an ignition snippet.
 
         :param file_path: Path to where the file should be placed.
         :type file_path: str
@@ -252,8 +242,10 @@ class SpecV3(IgnitionSpec):
 
 def loader(ignition_file):
     """
-    Loads the ignition json into a structure, senses the ignition
-    spec version, and returns the structure and it's spec class.
+    Load the ignition json into a structure.
+
+    Senses the ignition spec version, and
+    returns the structure and it's spec class.
 
     :param ignition_file: Path to the ignition file to parse
     :type ignition_file: str
@@ -279,9 +271,7 @@ def loader(ignition_file):
 
 
 def main():
-    """
-    Main entry point
-    """
+    """Execute the main entry point."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-i", "--ignition", help="Path to ignition file to use as the base"
