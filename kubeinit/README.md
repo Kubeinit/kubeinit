@@ -20,21 +20,35 @@
     <a href="https://opensource.org/licenses/Apache-2.0"><img height="20px" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/> </a>
 </p>
 
-# Abstract
+# What is KubeInit?
 
 KubeInit provides Ansible playbooks and roles for the deployment and configuration of multiple Kubernetes distributions.
-The main goal of KubeInit is to have a fully automated way to deploy in a single command a curated list of
-prescribed architectures.
+
+# Mission
+
+KubeInit's mission is to have a fully automated way to deploy in a single command a curated list of
+prescribed architectures based on the following principles **(G.I.V.E.)**.
+
+<span style="font-weight: bold; font-size: 200%;color: #000;">G</span>uide new and experienced users and contributors to deploy quickly and easily
+Kubernetes clusters based on a set of prescribed architectures.
+
+<span style="font-weight: bold; font-size: 200%;color: #000;">I</span>ncentivate new users and contributors to overcome the learning curve to
+succesfully deploy complex Kubernetes scenarios.
+
+<span style="font-weight: bold; font-size: 200%;color: #000;">V</span>erify automatically that the defined prescribed architectures work seamlessly.
+
+<span style="font-weight: bold; font-size: 200%;color: #000;">E</span>engage with the upstream community for maintaining a strong community.
 
 # Documentation
 
-KubeInit's documentation is hosted in [this same repository](https://kubeinit.github.io/kubeinit/).
-The documentation is rendered using Sphinx and uploaded to GitHub pages using a GitHub action.
+KubeInit's documentation is hosted in [this same repository](https://docs.kubeinit.com).
 
 # KubeInit supported scenarios
 
-**K8s distribution:** OKD/OpenShift
+**K8s distribution:** OKD
+
 **Driver:** Libvirt
+
 **OS:** CentOS/Fedora, Debian/Ubuntu	
 
 # Requirements
