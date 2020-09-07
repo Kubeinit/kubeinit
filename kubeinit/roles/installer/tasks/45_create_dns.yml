@@ -1,0 +1,11 @@
+---
+- name: Add dns entry for the cluster
+  template:
+    src: "{{ role_path }}/templates/dnsmasq.conf.j2"
+    dest: "/etc/NetworkManager/dnsmasq.d/openshift_{{ cluster }}.conf"
+    mode: '0755'
+
+- name: Restart NetworkManager to apply
+  service:
+    name: NetworkManager
+    state: restarted

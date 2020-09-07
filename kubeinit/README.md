@@ -32,8 +32,8 @@ prescribed architectures based on the following principles **(G.I.V.E.)**.
 **G**uide new and experienced users and contributors to deploy quickly and easily
 Kubernetes clusters based on a set of prescribed architectures.
 
-**I**centivate new users and contributors to overcome the learning curve to
-succesfully deploy complex Kubernetes scenarios.
+**I**ncentivate new users and contributors to overcoming the learning curve to
+successfully deploy complex Kubernetes scenarios.
 
 **V**erify automatically that the defined prescribed architectures work seamlessly.
 

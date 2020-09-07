@@ -1,0 +1,36 @@
+---
+- name: Remove previous running haproxy
+  containers.podman.podman_container:
+    name: haproxy_{{ cluster }}
+    state: absent
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+- name: Generate haproxy cfg file
+  template:
+    src: "{{ role_path }}/templates/haproxy.cfg.j2"
+    dest: "{{ cluster_config_dir }}/haproxy.cfg"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  vars:
+    gateway_with_mask: "{{ gateway_ip }}/24"
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+- name: Create tmp directory for haproxy
+  tempfile:
+    state: directory
+  register: tempdiroutput
+
+- name: Set fact for tmp directory
+  set_fact:
+    tempdir: "{{ tempdiroutput.path }}"
+
+- name: Start haproxy for the cluster
+  containers.podman.podman_container:
+    name: haproxy_{{ cluster }}
+    image: haproxy:1.7
+    network: host
+    volumes:
+      - "{{ cluster_config_dir }}:/usr/local/etc/haproxy"
+      - "{{ tempdir }}:/var/lib/haproxy"
+  delegate_to: "{{ groups['registry_host'][0] }}"

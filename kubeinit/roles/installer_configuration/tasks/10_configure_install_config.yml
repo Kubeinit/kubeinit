@@ -1,0 +1,41 @@
+---
+- name: Verify that SSH key for {{ ansible_user }} exists
+  stat:
+    path: "{{ ansible_user_dir }}/.ssh/id_rsa.pub"
+  register: sshkeypath
+
+- name: Get the contents of the ssh key for {{ ansible_user }}
+  slurp:
+    src: "{{ ansible_user_dir }}/.ssh/id_rsa.pub"
+  register: sshkey
+  when: sshkeypath.stat.exists
+
+- name: Set Fact for the ssh key of {{ ansible_user }}
+  set_fact:
+    key: "{{ sshkey['content'] | b64decode }}"
+
+- name: Set Fact of num of workers and masters based on inventory
+  set_fact:
+    num_workers: "{{ groups['workers'] | default([]) | length }}"
+    num_masters: "{{ groups['masters'] | length }}"
+  when: groups['masters'] is defined and groups['workers'] is defined
+
+- name: Generate install-config.yaml
+  template:
+    src: install-config.j2
+    dest: "{{ cluster_config_dir }}/install-config.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+  when:
+  - pullsecret is defined
+  - pullsecret | length > 0
+
+- name: Make a backup of the install-config.yaml file
+  copy:
+    src: "{{ cluster_config_dir }}/install-config.yaml"
+    dest: "{{ cluster_config_dir }}/install-config.yaml.bkup"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+    remote_src: yes

@@ -19,7 +19,7 @@ prescribed architectures based on the following principles **(G.I.V.E.)**.
 
     <p><span style="font-weight: bold; font-size: 200%;color: #000;">G</span>uide new and experienced users and contributors to deploy quickly and easily Kubernetes clusters based on a set of prescribed architectures.</p>
 
-    <p><span style="font-weight: bold; font-size: 200%;color: #000;">I</span>ncentivate new users and contributors to overcome the learning curve to succesfully deploy complex Kubernetes scenarios.</p>
+    <p><span style="font-weight: bold; font-size: 200%;color: #000;">I</span>ncentivate new users and contributors to overcoming the learning curve to successfully deploy complex Kubernetes scenarios.</p>
 
     <p><span style="font-weight: bold; font-size: 200%;color: #000;">V</span>erify automatically that the defined prescribed architectures work seamlessly.</p>
 
