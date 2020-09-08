@@ -1,0 +1,32 @@
+---
+# vars file for installer
+pullsecret_file: "{{ ansible_user_dir }}/clusterconfigs/pull-secret.txt"
+cmd: openshift-baremetal-install
+default_libvirt_pool_dir: /var/lib/libvirt/images/
+
+# packages needed for the disconnected registry tasks
+packages_registry:
+  - podman
+  - libvirt
+  - python3
+  - jq
+  - httpd
+  - httpd-tools
+  - python3-dns
+
+# Format for podman query when creating disconnected registry
+podman_format_name: !unsafe "{{.Names}}"
+
+# Registry directories to be created
+registry_dir_auth: "{{ registry_dir }}/auth"
+registry_dir_cert: "{{ registry_dir }}/certs"
+registry_dir_data: "{{ registry_dir }}/data"
+
+# Name of the pod running as the registry.
+pod_name_registry: ocpdiscon-registry
+
+# The information for the locally created registry
+local_registry: "{{ groups['registry_host'][0] }}:{{ registry_port }}"
+local_repo: ocp4/openshift4
+registry_creation: false
+url_passed: false

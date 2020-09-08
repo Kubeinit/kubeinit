@@ -12,4 +12,8 @@ cd ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
 
 export HOME=$(eval echo ~$USER)
 
-ansible-test sanity --skip-test import
+ansible-test sanity \
+    --skip-test pylint \
+    --skip-test future-import-boilerplate \
+    --skip-test shebang \
+    --skip-test metaclass-boilerplate

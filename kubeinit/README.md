@@ -20,28 +20,43 @@
     <a href="https://opensource.org/licenses/Apache-2.0"><img height="20px" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/> </a>
 </p>
 
-# Abstract
+# What is KubeInit?
 
 KubeInit provides Ansible playbooks and roles for the deployment and configuration of multiple Kubernetes distributions.
-The main goal of KubeInit is to have a fully automated way to deploy in a single command a curated list of
-prescribed architectures.
+
+# Mission
+
+KubeInit's mission is to have a fully automated way to deploy in a single command a curated list of
+prescribed architectures based on the following principles **(G.I.V.E.)**.
+
+**G**uide new and experienced users and contributors to deploy quickly and easily
+Kubernetes clusters based on a set of prescribed architectures.
+
+**I**ncentivate new users and contributors to overcoming the learning curve to
+successfully deploy complex Kubernetes scenarios.
+
+**V**erify automatically that the defined prescribed architectures work seamlessly.
+
+**E**ngage with the upstream community for giving and receiving feedback,
+and cross-pollination to spark and amplify creativity, serendipity, and interdisciplinary friction.
 
 # Documentation
 
-KubeInit's documentation is hosted in [this same repository](https://kubeinit.github.io/kubeinit/).
-The documentation is rendered using Sphinx and uploaded to GitHub pages using a GitHub action.
+KubeInit's documentation is hosted in [this same repository](https://docs.kubeinit.com).
 
 # KubeInit supported scenarios
 
-**K8s distribution:** OKD/OpenShift
+**K8s distribution:** OKD
+
 **Driver:** Libvirt
+
 **OS:** CentOS/Fedora, Debian/Ubuntu	
 
 # Requirements
 
 * A fresh deployed server with enough RAM and disk space (120GB in RAM and 300GB in disk) and CentOS 8 (it should work also in Fedora/Debian/Ubuntu hosts).
 * We assume that the hypervisor node is called nyctea (defined in the inventory).
-* Have root access with certificates.
+* Have root passwordless access with certificates.
 * Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66)
  you will need in your cluster.
 
@@ -64,7 +79,8 @@ ansible-playbook \
 After provisioning any of the scenarios, you should have your environment ready to go.
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.
 
-# HowTo's
+# HowTo's and presentations
 
 * [The easiest and fastest way to deploy an OKD 4.5 cluster in a Libvirt/KVM Host](https://www.anstack.com/blog/2020/07/31/the-fastest-and-simplest-way-to-deploy-okd-openshift-4-5.html)
 * [KubeInit external access for OpenShift/OKD deployments with Libvirt](https://www.anstack.com/blog/2020/08/25/KubeInit-External-access-for-OpenShift-OKD-deployments-with-Libvirt.html)
+* [KubeInit: Inheriting good practices from the OpenStack ecosystem to improve the way we deploy OKD/OpenShift](https://docs.google.com)

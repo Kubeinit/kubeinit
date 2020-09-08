@@ -1,0 +1,30 @@
+---
+- name: Remove previously existing pods
+  command: podman rm -f coreos_livecd_{{ item }}
+  ignore_errors: true
+  register: rem_pods
+  changed_when: "rem_pods.rc == 0"
+  with_items:
+    - "bootstrap"
+    - "master"
+    - "worker"
+
+- name: Remove previous generated isos
+  file:
+    state: absent
+    path: "{{ cluster_config_dir }}/generated_isos"
+
+- name: Create directory for the generated isos
+  file:
+    path: "{{ cluster_config_dir }}/generated_isos"
+    state: directory
+    mode: "0755"
+
+- name: Generate ISOs for the diferent roles
+  command: "podman run --name coreos_livecd_{{ item }} --volume {{ cluster_config_dir }}:/image_customization  --entrypoint=\"/bin/sh\" {{ coreos_livecd_image }} -c '/data/coreos-installer iso embed -c /image_customization/generated_ignition/final_{{ item }}.ign -o /image_customization/generated_isos/{{ item }}.iso /data/livecd.iso -f'"
+  register: isos_gen
+  changed_when: "isos_gen.rc == 0"
+  with_items:
+    - "bootstrap"
+    - "master"
+    - "worker"

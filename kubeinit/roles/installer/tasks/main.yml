@@ -1,0 +1,16 @@
+---
+- name: Start installation process
+  block:
+    - include_tasks: 10_clean_bootstrap_vm.yml
+    - include_tasks: 20_clean_master_worker_vms.yml
+      when: virtualized_install
+    - include_tasks: 30_create_bootstrap_vm.yml
+    - include_tasks: 40_create_master_worker_vms.yml
+      when: virtualized_install
+    - include_tasks: 45_create_dns.yml
+      when: virtualized_install
+    - include_tasks: 50_create_haproxy.yml
+      when: virtualized_install
+    - include_tasks: 60_wait_for_bootstrap.yml
+    - include_tasks: 70_wait_for_installer.yml
+  tags: installer

@@ -1,0 +1,127 @@
+---
+- name: Copy PullSecret into {{ pullsecret_file }}
+  copy:
+    content: "{{ pullsecret }}"
+    dest: "{{ pullsecret_file }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+    force: yes
+
+- name: Get the PullSecret from provisioner into temp file on control machine
+  fetch:
+    dest: /tmp/
+    flat: yes
+    src: "{{ dir }}/pull-secret.txt"
+  when:
+    - registry_creation|bool
+    - groups['registry_host'][0] != groups['provisioner'][0]
+
+- name: Create config dir
+  file:
+    path: "{{ dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  when:
+    - registry_creation|bool
+    - groups['registry_host'][0] != groups['provisioner'][0]
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+- name: Copy the PullSecret from control machine to the registry host
+  copy:
+    src: /tmp/pull-secret.txt
+    dest: "{{ dir }}/pull-secret.txt"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0755
+  become: yes
+  when:
+    - registry_creation|bool
+    - groups['registry_host'][0] != groups['provisioner'][0]
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+- name: Remove the temporary copy of the PullSecret on control machine
+  file:
+    path: /tmp/pull-secret.txt
+    state: absent
+  when:
+    - registry_creation|bool
+    - groups['registry_host'][0] != groups['provisioner'][0]
+
+- name: Create tmp directory to store OpenShift binaries
+  tempfile:
+    state: directory
+  register: tempdiroutput
+
+- name: Set fact for tmp directory
+  set_fact:
+    tempdir: "{{ tempdiroutput.path }}"
+
+- name: Setting Fact of which ansible temp file to use
+  set_fact:
+    tempdir_loc: "{{ disconnected_installer | ternary(registry_host_tempdir, tempdir) }}"
+
+- name: Test
+  debug:
+     msg: "disconencted {{ disconnected_installer }}"
+#on my other system tempdir_loc required .path (in case you need to revert)
+- name: Extracting the installer
+  command: |
+          /usr/local/bin/oc adm release extract --registry-config {{ pullsecret_file | quote }} --command={{ cmd |quote }} --to {{ tempdir_loc }} {{ disconnected_installer | ternary(disconnected_installer, release_image) }}
+  args:
+    chdir: "{{ tempdir }}"
+  when: (disconnected_installer|length )
+  delegate_to: "{{ disconnected_installer | ternary(groups['registry_host'][0], groups['provisioner'][0]) }}"
+
+- name: Remove the temporary copy of the PullSecret on registry host
+  file:
+    path: "{{ dir }}"
+    state: absent
+  when:
+    - registry_creation|bool
+    - groups['registry_host'][0] != groups['provisioner'][0]
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+- name: Copy openshift-baremetal-install binary to /usr/local/bin
+  copy:
+    #src: "{{ tempdir_loc.path }}/openshift-baremetal-install"
+    src: "{{ tempdir_loc }}/openshift-baremetal-install"
+    dest: /usr/local/bin/
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+    remote_src: yes
+  delegate_to: "{{ disconnected_installer | ternary(groups['registry_host'][0], groups['provisioner'][0]) }}"
+  become: yes
+
+- name: Get the openshift-baremetal-install from registry host into temp file on control machine
+  fetch:
+    dest: /tmp/
+    flat: yes
+    #src: "{{ tempdir_loc.path }}/openshift-baremetal-install"
+    src: "{{ tempdir_loc }}/openshift-baremetal-install"
+  when: registry_creation|bool
+  delegate_to: "{{ groups['registry_host'][0] }}"
+
+- name: Copy the openshift-baremetal-install binary from control machine to the provisioner host
+  copy:
+    src: /tmp/openshift-baremetal-install
+    dest: "/usr/local/bin/openshift-baremetal-install"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0755
+  become: yes
+  when:
+    - registry_creation|bool
+    - groups['registry_host'][0] != groups['provisioner'][0]
+
+- name: Remove the temporary copy of the openshift-baremetal-install binary on control machine
+  file:
+    path: "/tmp/openshift-baremetal-install"
+    state: absent
+  when:
+    - registry_creation|bool
+    - groups['registry_host'][0] != groups['provisioner'][0]
+  delegate_to: localhost

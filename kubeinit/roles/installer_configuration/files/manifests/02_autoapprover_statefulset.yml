@@ -1,0 +1,48 @@
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: autoapprover
+  namespace: openshift-infra
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      node-role.kubernetes.io/master: ''
+  template:
+    metadata:
+      labels:
+        node-role.kubernetes.io/master: ''
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Equal"
+        value: ""
+        effect: "NoSchedule"
+      serviceAccountName: autoapprover
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: signer
+        image: quay.io/openshift/origin-cli:latest
+        command:
+        - /bin/bash
+        - -c
+        args:
+        - |
+          #!/bin/bash
+          set -o errexit
+          set -o nounset
+          set -o pipefail
+
+          pushd /tmp
+          wget http://mirror.centos.org/centos/8/AppStream/x86_64/os/Packages/oniguruma-6.8.2-1.el8.x86_64.rpm
+          rpm -i oniguruma-6.8.2-1.el8.x86_64.rpm
+          wget http://mirror.centos.org/centos/8/AppStream/x86_64/os/Packages/jq-1.5-12.el8.x86_64.rpm
+          rpm -i  jq-1.5-12.el8.x86_64.rpm
+          popd
+
+          unset KUBECONFIG
+          while true; do
+            oc get csr -ojson | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve
+            sleep 60
+          done

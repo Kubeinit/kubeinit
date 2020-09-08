@@ -1,0 +1,79 @@
+[all:vars]
+
+# vars to create and define the usage for a local registry
+registry_port="5000"
+registry_dir="/opt/registry"
+cert_country=US 
+cert_state=MyState
+cert_locality=MyCity
+cert_organization=MyCompany
+cert_organizational_unit=MyDepartment
+disconnected_registry_user=dummy
+disconnected_registry_password=dummy
+
+# perform a disconnected install, or use internet
+disconnected_installer=true
+
+# cluster settings
+clusternetwork_cidr=10.128.0.0/14
+clusternetwork_prefix=23
+servicenetwork=172.30.0.0/16
+ipv6_enabled=false
+domain = "upi.local"
+cluster = "testing"
+extcidrnet="192.168.112.199/24"
+
+# SDN ... can be OpenShiftSDN or OVNKubernetes
+network_type="OVNKubernetes"
+pullsecret='<your_pull_secret>'
+
+# network definition for provisioner and baremetal network
+
+# ip for the haproxy load balancing the API
+api_vip=192.168.123.1
+
+# ip of the registry/provisioner host
+hypervisor_vip=192.168.112.199
+
+# gateway ip for the baremetal network
+gateway_ip=192.168.123.1
+
+# dhcp start/end range for baremetal network
+dhcp_range_start=192.168.123.100
+dhcp_range_end=192.168.123.150
+
+# proxy settings
+http_proxy=""
+https_proxy=""
+no_proxy_list=""
+
+# if true, perform an installation with libvirt vms
+virtualized_install=true
+
+# when doing a virtualized install, define the number of masters and workers
+num_masters=3
+num_workers=2
+
+# where to copy the final rhcos image on servers
+devices={'bootstrap':'/dev/sda', 'master':'/dev/sda', 'worker':'/dev/sda'}
+
+# directory used to store the cluster configuration files (install-config.yaml, pull-secret.txt)
+cluster_config_dir="{{ ansible_user_dir }}/clusterconfigs"
+
+# version of openshift installer
+version="4.6.0-0-2020-07-31-080025"
+
+# when set, get ocp contents from this alternative webserver. If not, read from internet
+webserver_url = ""
+
+# coreos live cd registry url
+coreos_livecd_image=quay.io/yrobla/coreos-live-cd
+
+# registry host
+[registry_host]
+# host that will contain the registry for disconnected installs. Can be the same as provisioner
+registry.testing.upi.local
+
+[provisioner]
+# host from where the installation is performed
+localhost ansible_connection=local
