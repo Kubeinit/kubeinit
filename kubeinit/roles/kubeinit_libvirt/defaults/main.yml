@@ -1,0 +1,106 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+# All variables intended for modification should be placed in this file.
+
+# All variables within this role should have a prefix of "kubeinit_libvirt_"
+kubeinit_libvirt_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
+kubeinit_libvirt_hide_sensitive_logs: true
+
+kubeinit_libvirt_target_image_dir: /var/lib/libvirt/images
+kubeinit_libvirt_cloud_user: toor
+kubeinit_libvirt_source_keystore_dir: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh"
+kubeinit_libvirt_source_pubkey_file: id_rsa.pub
+kubeinit_libvirt_vms_default_password: asdfasdf
+
+kubeinit_libvirt_hypervisor_dependencies:
+  centos:
+    - libguestfs-tools-c
+    - python3-libselinux
+    - libvirt
+    - libvirt-daemon
+    - libvirt-daemon-kvm
+    - libvirt-client
+    - qemu-kvm
+    - virt-install
+    - virt-top
+    - virt-viewer
+    - libguestfs-tools
+    - lvm2
+    - python3-libvirt
+    - python3-lxml
+    - curl
+    - binutils
+    - qt5-qtbase
+    - gcc
+    - make
+    - patch
+    - libgomp
+    - glibc-headers
+    - glibc-devel
+    - kernel-headers
+    - kernel-devel
+    - bash-completion
+    - nano
+    - wget
+    - python3-pip
+    - iptables-services
+    - net-tools
+    - xz
+  debian:
+    - sudo
+    - numad
+    - qemu
+    - qemu-kvm
+    - qemu-system
+    - libvirt-clients
+    - libvirt-daemon-system
+    - libvirt-daemon
+    - virt-manager
+    - virt-top
+    - bridge-utils
+    - libguestfs-tools
+    - genisoimage
+    - virtinst
+    - libosinfo-bin
+    - python3
+    - python3-pip
+    - python3-libvirt
+    - python3-lxml
+    - python-pip
+    - python-libvirt
+    - python-lxml
+    - nano
+    - wget
+    - xz-utils
+    - inetutils-ping
+kubeinit_libvirt_hypervisor_tmp_dir: /tmp
+kubeinit_libvirt_cluster_nets:
+ # kimgtnet0:KubeInitManaGemenTNETwork0 kimgtbr0: KubeInitManaGemenTBRidge0
+  - {name: kimgtnet0, gateway: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.1, end: 10.0.0.253, bridge: kimgtbr0, template: cluster-net.xml.j2, type: internal, main: True, enabled: True}
+
+# EXTERNAL NETWORK CONFIG
+kubeinit_libvirt_external_service_interface_enabled: false
+kubeinit_libvirt_external_service_interface:
+  # This will attach the eth1 interfate to the bridge kiextbr0
+  # you MUST have the kiextbr0 bridge created and with the
+  # physical connection slaved first
+  attached: kiextbr0
+  dev: eth1
+  ip: 10.19.41.157
+  gateway: 10.19.41.254
+  netmask: 255.255.255.0

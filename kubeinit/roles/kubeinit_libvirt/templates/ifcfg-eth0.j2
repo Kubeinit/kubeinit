@@ -1,0 +1,25 @@
+#
+# Generated when provision the VM details from ifcfg-eth0.j2
+#
+BOOTPROTO=static
+NAME=eth0
+DEVICE=eth0
+IPV4_FAILURE_FATAL=no
+DNS1={{ hostvars[item].gateway }}
+DOMAIN={{ kubeinit_okd_cluster_domain }}
+GATEWAY={{ hostvars[item].gateway }}
+{% if kubeinit_libvirt_external_service_interface_enabled | default(false) %}
+DEFROUTE=no
+{% else %}
+DEFROUTE=yes
+{% endif %}
+IPADDR={{ hostvars[item].ansible_host }}
+NETMASK={{ hostvars[item].netmask }}
+MACADDR={{ hostvars[item].mac }}
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+LINKDELAY=60
+
+# We need to add LINKDELAY
+# https://access.redhat.com/solutions/2523931
