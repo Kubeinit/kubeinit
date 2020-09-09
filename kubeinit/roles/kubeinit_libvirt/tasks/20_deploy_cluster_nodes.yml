@@ -1,0 +1,56 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: "Create VM definition for the {{ kubeinit_deployment_role }} nodes"
+  shell: |
+    # If you use the kernel args to deploy the machine
+    # Is not possible to render the template as --print-xml > vm.xml
+    # If so then is good to have it like 'virsh define vm.xml'
+    kernel_args='ip=dhcp rd.neednet=1 console=tty0 console=ttyS0 coreos.inst.stream=stable coreos.inst.install_dev={{ hostvars[item].root_device }} coreos.inst.image_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_okd_source_images.coreos.raw }} coreos.inst.ignition_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_deployment_role }}.ign'
+    virt-install \
+        --connect qemu:///system \
+        --name={{ item }} \
+        --memory memory={{ hostvars[item].ram // 1024 }} \
+        --cpuset=auto \
+        --vcpus=8,maxvcpus=16 \
+        --os-type=linux \
+        --os-variant=fedora29 \
+        --autostart \
+        {% for net in kubeinit_libvirt_cluster_nets %}
+          {% if net.enabled %}
+              --network network={{ net.name }}{% if net.main %},mac={{ hostvars[item].mac }}{% endif %},model=virtio \
+          {% endif %}
+        {% endfor %}
+        --disk size={{ hostvars[item].disk | replace('G','') }},readonly=false \
+        --location {{ kubeinit_libvirt_target_image_dir }}/ \
+        --extra-args "${kernel_args}"
+  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_bootstrap_nodes'] }}"
+  changed_when: false
+  when: kubeinit_deployment_role in item
+  tags:
+    - provision_libvirt
+
+- name: "wait for {{ kubeinit_deployment_role }} nodes to start SSH"
+  wait_for:
+    port: 22
+    host: "{{ hostvars[item].ansible_host }}"
+    search_regex: OpenSSH
+    delay: 10
+    timeout: 7200
+  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_bootstrap_nodes'] }}"
+  when: kubeinit_deployment_role in item
+  tags:
+    - provision_libvirt

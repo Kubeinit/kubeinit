@@ -1,0 +1,320 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: install services requirements
+  yum:
+    name: "{{ kubeinit_okd_service_dependencies }}"
+    state: present
+    use_backend: dnf
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+#
+# Configure bind
+#
+
+- name: Create named.conf
+  template:
+    src: "named.conf.j2"
+    dest: "/etc/named.conf"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create named.conf.local
+  template:
+    src: "named.conf.local.j2"
+    dest: "/etc/named/named.conf.local"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create BIND zones directoy
+  file:
+    path: /etc/named/zones
+    state: directory
+    mode: '0777'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create BIND zones directoy
+  file:
+    path: /etc/named/zones/internals
+    state: directory
+    mode: '0777'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create BIND zones directoy
+  file:
+    path: /etc/named/zones/externals
+    state: directory
+    mode: '0777'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create BIND db internal subnet
+  template:
+    src: "internals_db.j2"
+    dest: "/etc/named/zones/internals/db.{{ hostvars[item].ansible_host | ipsubnet(24) | ipaddr('network') }}"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create BIND db internal zone
+  template:
+    src: "internals_db.local.j2"
+    dest: "/etc/named/zones/internals/db.{{ kubeinit_okd_cluster_name }}.{{ kubeinit_okd_cluster_domain }}"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create BIND db external zone
+  template:
+    src: "externals_db.local.j2"
+    dest: "/etc/named/zones/externals/db.{{ kubeinit_okd_cluster_name }}.{{ kubeinit_okd_cluster_domain }}"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  when: kubeinit_libvirt_external_service_interface_enabled | default(false)
+  tags:
+    - provision_libvirt
+
+- name: Disable IPv6 support
+  lineinfile:
+    dest: /etc/sysconfig/named
+    line: 'OPTIONS="-4"'
+    regexp: "^OPTIONS"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Start and enable bind service
+  service: name=named state=started enabled=yes
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+#
+# Configure HAproxy
+#
+
+- name: Create config file
+  template:
+    src: "haproxy.cfg.j2"
+    dest: "/etc/haproxy/haproxy.cfg"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: "allow access to the cluster"
+  shell: |
+    setsebool -P haproxy_connect_any 1
+    setsebool -P httpd_read_user_content 1
+  register: allow_haproxy_connect
+  changed_when: "allow_haproxy_connect.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Start and enable haproxy service
+  service: name=haproxy state=started enabled=yes
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+#
+# Configure httpd
+#
+
+- name: Use 8080 port in service node
+  replace:
+    path: /etc/httpd/conf/httpd.conf
+    regexp: 'Listen 80'
+    replace: 'Listen 8080'
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Start and enable httpd service
+  service: name=httpd state=started enabled=yes
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+#
+# Include the install configuration
+#
+
+- name: "Render root keys in the service node"
+  shell: |
+    cd
+    mkdir ~/.ssh
+    ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
+  register: render_service_keys
+  changed_when: "render_service_keys.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+
+- name: get root service machine public key
+  command: cat /root/.ssh/id_rsa.pub
+  register: public_key_service_content
+  changed_when: "public_key_service_content.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: register the public key of the root service machine public key
+  set_fact:
+    kubeinit_provision_service_public_key={{ public_key_service_content.results }}
+  tags:
+    - provision_libvirt
+
+- name: "Render the bootstrap details"
+  shell: |
+    set -o pipefail
+    cd
+    rm -rf install_dir
+    mkdir install_dir
+    wget {{ kubeinit_okd_dependencies.client }}
+    wget {{ kubeinit_okd_dependencies.installer }}
+    for f in *.tar.gz; do tar -xvf "$f"; done
+    mv kubectl oc openshift-install /usr/local/bin/
+    oc version
+    openshift-install version
+    cat << EOF > ./install_dir/install-config.yaml
+    ---
+    apiVersion: v1
+    baseDomain: {{ kubeinit_okd_cluster_domain }}
+    compute:
+      - hyperthreading: Enabled
+        name: worker
+        replicas: 0
+    controlPlane:
+      hyperthreading: Enabled
+      name: master
+      replicas: {{ groups['okd_master_nodes'] | count }}
+    metadata:
+      name: {{ kubeinit_okd_cluster_name }}
+    networking:
+      clusterNetwork:
+        - cidr: 10.100.0.0/14
+          hostPrefix: 23
+      networkType: OpenShiftSDN
+      serviceNetwork:
+        - 172.30.0.0/16
+    platform:
+      none: {}
+    fips: false
+    pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
+    sshKey: |
+      {{ kubeinit_provision_vms_public_key }}
+      {{ kubeinit_provision_service_public_key[0]['stdout'] }}
+    EOF
+    openshift-install create manifests --dir=install_dir/
+    # Be aware of this option, explain the consequences in:
+    # https://www.anstack.com/blog/2020/08/16/a-review-of-the-machineconfig-operator.html
+    sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
+  register: render_bootstrap_details
+  changed_when: "render_bootstrap_details.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: "Render ignition files"
+  shell: |
+    openshift-install create ignition-configs --dir=install_dir/
+    mkdir /var/www/html/okd4
+    cp -R install_dir/* /var/www/html/okd4/
+    cd /var/www/html/okd4/
+    sudo wget {{ kubeinit_okd_source_images.coreos.uri }}{{ kubeinit_okd_source_images.coreos.raw }}
+    sudo wget {{ kubeinit_okd_source_images.coreos.uri }}{{ kubeinit_okd_source_images.coreos.sig }}
+    sudo chown -R apache: /var/www/html/
+    sudo chmod -R 755 /var/www/html/
+  register: render_ignition_files
+  changed_when: "render_ignition_files.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Autoload kubeconfig
+  shell: |
+    echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
+  delegate_to: "{{ cluster_node }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  ignore_errors: yes
+  register: autoload
+  changed_when: "autoload.rc == 0"
+  tags:
+    - provision_libvirt
+
+#
+# Configure NFS
+#
+
+- name: "configure NFS shares"
+  shell: |
+    set -o pipefail
+    systemctl enable nfs-server rpcbind
+    systemctl start nfs-server rpcbind
+    mkdir -p /var/nfsshare/registry
+    chmod -R 777 /var/nfsshare
+    chown -R nobody:nobody /var/nfsshare
+    echo '/var/nfsshare {{ hostvars[item].ansible_host | ipsubnet(24) }}(rw,sync,no_root_squash,no_all_squash,no_wdelay)' | tee /etc/exports
+    setsebool -P nfs_export_all_rw 1
+    systemctl restart nfs-server
+  register: nfs_share_config
+  changed_when: "nfs_share_config.rc == 0"
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt

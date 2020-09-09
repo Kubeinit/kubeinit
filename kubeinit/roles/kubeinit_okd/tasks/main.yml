@@ -1,0 +1,123 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Run validations
+  include_role:
+    name: "../../roles/kubeinit_validations"
+    tasks_from: 70_libvirt.yml
+  tags: provision_libvirt
+
+- name: provision the initial virtual infra
+  include_role:
+   name: "../../roles/kubeinit_libvirt"
+   tasks_from: main.yml
+  tags: provision_libvirt
+
+- name: Deploy the cluster service node
+  include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 10_deploy_service_nodes.yml
+  tags: provision_libvirt
+
+- name: Configure the cluster service node
+  include_role:
+    name: "../../roles/kubeinit_okd"
+    tasks_from: 10_configure_service_nodes.yml
+  tags: provision_libvirt
+
+- name: Deploy the cluster bootstrap nodes
+  include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 20_deploy_cluster_nodes.yml
+  with_items:
+    - bootstrap
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_role: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
+- name: Configure the cluster bootstrap nodes
+  include_role:
+    name: "../../roles/kubeinit_okd"
+    tasks_from: 20_configure_cluster_nodes.yml
+  with_items:
+    - bootstrap
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_role: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
+- name: Deploy the cluster master nodes
+  include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 20_deploy_cluster_nodes.yml
+  with_items:
+    - master
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_role: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
+- name: Configure the cluster master nodes
+  include_role:
+    name: "../../roles/kubeinit_okd"
+    tasks_from: 20_configure_cluster_nodes.yml
+  with_items:
+    - master
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_role: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
+- name: Deploy the cluster worker nodes
+  include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 20_deploy_cluster_nodes.yml
+  with_items:
+    - worker
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_role: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
+- name: Configure the cluster worker nodes
+  include_role:
+    name: "../../roles/kubeinit_okd"
+    tasks_from: 20_configure_cluster_nodes.yml
+  with_items:
+    - worker
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_role: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
+- name: Finish post deployment tasks
+  include_role:
+    name: "../../roles/kubeinit_okd"
+    tasks_from: 30_post_deployment_tasks.yml
+  tags: provision_libvirt
+
+- name: Deploy KubeVirt
+  include_role:
+    name: "../../roles/kubeinit_kubevirt"
+    tasks_from: main.yml
+  tags: kubeinit_kubevirt
