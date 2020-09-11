@@ -17,6 +17,7 @@
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=docs_build"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/docs_build/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=molecule"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/molecule/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=galaxy_publish"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/galaxy_publish/badge.svg?event=push"/> </a>
+    <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=container_image"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/container_image/badge.svg?event=push"/> </a>
     <a href="https://opensource.org/licenses/Apache-2.0"><img height="20px" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/> </a>
 </p>
 
@@ -83,4 +84,5 @@ To connect to the nodes from the hypervisor use the IP addresses from the invent
 
 * [The easiest and fastest way to deploy an OKD 4.5 cluster in a Libvirt/KVM Host](https://www.anstack.com/blog/2020/07/31/the-fastest-and-simplest-way-to-deploy-okd-openshift-4-5.html)
 * [KubeInit external access for OpenShift/OKD deployments with Libvirt](https://www.anstack.com/blog/2020/08/25/KubeInit-External-access-for-OpenShift-OKD-deployments-with-Libvirt.html)
+* [Deploying KubeInit from a container](https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html)
 * [KubeInit: Inheriting good practices from the OpenStack ecosystem to improve the way we deploy OKD/OpenShift](https://docs.google.com)
