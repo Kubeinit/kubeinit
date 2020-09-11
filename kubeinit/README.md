@@ -62,6 +62,11 @@ KubeInit's documentation is hosted in [this same repository](https://docs.kubein
 
 # How to run
 
+There are two ways of launching Kubeinit, directly using the
+ansible-playbook command, or by running it inside a container.
+
+## Directly executing the deployment playbook
+
 The following example command will deploy a multi-master OKD 4.5 cluster with 1 worker node
 in a single command and in approximately 30 minutes.
 
@@ -78,6 +83,29 @@ ansible-playbook \
 
 After provisioning any of the scenarios, you should have your environment ready to go.
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.
+
+## Running the deployment command from a container
+
+The whole process is explained in the [HowTo's](https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html).
+The following commands build a container image with the project inside of it, and then
+launches the container executing the ansible-playbook command with all the
+standard ansible-playbook parameters.
+
+```
+git clone https://github.com/Kubeinit/kubeinit.git
+cd kubeinit
+podman build -t kubeinit/kubeinit .
+
+podman run --rm -it \
+    -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+    -v /etc/hosts:/etc/hosts \
+    kubeinit/kubeinit \
+        --user root \
+        -v -i ./hosts/okd/inventory \
+        --become \
+        --become-user root \
+        ./playbooks/okd.yml
+```
 
 # HowTo's and presentations
 
