@@ -185,6 +185,35 @@
   tags:
     - provision_libvirt
 
+- name: enable firewalld services
+  block:
+    - name: Enable Services (firewalld)
+      service:
+        name: "firewalld"
+        state: started
+        enabled: yes
+    - name: Enable HTTP for firewalld
+      firewalld:
+        service: http
+        permanent: yes
+        state: enabled
+        immediate: yes
+    - name: Enable HTTPS for firewalld
+      firewalld:
+        service: https
+        permanent: yes
+        state: enabled
+        immediate: yes
+    - name: Enable DNS for firewalld
+      firewalld:
+        service: dns
+        permanent: yes
+        state: enabled
+        immediate: yes
+  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
+  tags:
+    - provision_libvirt
+
 - name: install Debian based requirements
   package:
     name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
