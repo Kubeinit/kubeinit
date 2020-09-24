@@ -17,6 +17,7 @@
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=docs_build"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/docs_build/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=molecule"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/molecule/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=galaxy_publish"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/galaxy_publish/badge.svg?event=push"/> </a>
+    <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=container_image"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/container_image/badge.svg?event=push"/> </a>
     <a href="https://opensource.org/licenses/Apache-2.0"><img height="20px" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/> </a>
 </p>
 
@@ -62,6 +63,11 @@ KubeInit's documentation is hosted in [this same repository](https://docs.kubein
 
 # How to run
 
+There are two ways of launching Kubeinit, directly using the
+ansible-playbook command, or by running it inside a container.
+
+## Directly executing the deployment playbook
+
 The following example command will deploy a multi-master OKD 4.5 cluster with 1 worker node
 in a single command and in approximately 30 minutes.
 
@@ -79,8 +85,32 @@ ansible-playbook \
 After provisioning any of the scenarios, you should have your environment ready to go.
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.
 
+## Running the deployment command from a container
+
+The whole process is explained in the [HowTo's](https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html).
+The following commands build a container image with the project inside of it, and then
+launches the container executing the ansible-playbook command with all the
+standard ansible-playbook parameters.
+
+```
+git clone https://github.com/Kubeinit/kubeinit.git
+cd kubeinit
+podman build -t kubeinit/kubeinit .
+
+podman run --rm -it \
+    -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+    -v /etc/hosts:/etc/hosts \
+    kubeinit/kubeinit \
+        --user root \
+        -v -i ./hosts/okd/inventory \
+        --become \
+        --become-user root \
+        ./playbooks/okd.yml
+```
+
 # HowTo's and presentations
 
 * [The easiest and fastest way to deploy an OKD 4.5 cluster in a Libvirt/KVM Host](https://www.anstack.com/blog/2020/07/31/the-fastest-and-simplest-way-to-deploy-okd-openshift-4-5.html).
 * [KubeInit external access for OpenShift/OKD deployments with Libvirt](https://www.anstack.com/blog/2020/08/25/KubeInit-External-access-for-OpenShift-OKD-deployments-with-Libvirt.html).
+* [Deploying KubeInit from a container](https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html).
 * [KubeInit: Bringing good practices from the OpenStack ecosystem to improve the way OKD/OpenShift deploys](https://www.twitch.tv/videos/750577055), [slides](https://speakerdeck.com/redhatopenshift/openshift-deploys).
