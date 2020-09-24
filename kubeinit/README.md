@@ -81,6 +81,6 @@ To connect to the nodes from the hypervisor use the IP addresses from the invent
 
 # HowTo's and presentations
 
-* [The easiest and fastest way to deploy an OKD 4.5 cluster in a Libvirt/KVM Host](https://www.anstack.com/blog/2020/07/31/the-fastest-and-simplest-way-to-deploy-okd-openshift-4-5.html)
-* [KubeInit external access for OpenShift/OKD deployments with Libvirt](https://www.anstack.com/blog/2020/08/25/KubeInit-External-access-for-OpenShift-OKD-deployments-with-Libvirt.html)
-* [KubeInit: Inheriting good practices from the OpenStack ecosystem to improve the way we deploy OKD/OpenShift](https://docs.google.com)
+* [The easiest and fastest way to deploy an OKD 4.5 cluster in a Libvirt/KVM Host](https://www.anstack.com/blog/2020/07/31/the-fastest-and-simplest-way-to-deploy-okd-openshift-4-5.html).
+* [KubeInit external access for OpenShift/OKD deployments with Libvirt](https://www.anstack.com/blog/2020/08/25/KubeInit-External-access-for-OpenShift-OKD-deployments-with-Libvirt.html).
+* [KubeInit: Bringing good practices from the OpenStack ecosystem to improve the way OKD/OpenShift deploys](https://www.twitch.tv/videos/750577055), [slides](https://speakerdeck.com/redhatopenshift/openshift-deploys).
