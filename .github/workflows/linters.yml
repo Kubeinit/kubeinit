@@ -3,7 +3,7 @@ name: linters
 on: [push, pull_request]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       max-parallel: 4
       matrix:
@@ -16,18 +16,12 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        sudo apt update -y
-        sudo apt install ansible jq -y
-        sudo locale-gen en_US.UTF-8
-        sudo dpkg-reconfigure locales
-        sudo apt install build-essential findutils -y
-        sudo apt-get --purge autoremove python3-pip
-        sudo apt-get --purge autoremove python-pip
-        sudo apt install python3-pip
+        sudo apt-get update -y
+        sudo apt-get install ansible jq libyaml-dev git build-essential findutils -y
         sudo python3 -m pip install --upgrade pip
         sudo python3 -m pip install --upgrade virtualenv
         sudo python3 -m pip install --upgrade setuptools
-        sudo python3 -m pip install -r ./test-requirements.txt
+        sudo python3 -m pip install --upgrade -r ./test-requirements.txt
     - name: Run Linters
       run: |
         tox -e linters

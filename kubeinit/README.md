@@ -110,7 +110,7 @@ podman run --rm -it \
 
 # HowTo's and presentations
 
-* [The easiest and fastest way to deploy an OKD 4.5 cluster in a Libvirt/KVM Host](https://www.anstack.com/blog/2020/07/31/the-fastest-and-simplest-way-to-deploy-okd-openshift-4-5.html)
-* [KubeInit external access for OpenShift/OKD deployments with Libvirt](https://www.anstack.com/blog/2020/08/25/KubeInit-External-access-for-OpenShift-OKD-deployments-with-Libvirt.html)
-* [Deploying KubeInit from a container](https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html)
-* [KubeInit: Inheriting good practices from the OpenStack ecosystem to improve the way we deploy OKD/OpenShift](https://docs.google.com)
+* [The easiest and fastest way to deploy an OKD 4.5 cluster in a Libvirt/KVM Host](https://www.anstack.com/blog/2020/07/31/the-fastest-and-simplest-way-to-deploy-okd-openshift-4-5.html).
+* [KubeInit external access for OpenShift/OKD deployments with Libvirt](https://www.anstack.com/blog/2020/08/25/KubeInit-External-access-for-OpenShift-OKD-deployments-with-Libvirt.html).
+* [Deploying KubeInit from a container](https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html).
+* [KubeInit: Bringing good practices from the OpenStack ecosystem to improve the way OKD/OpenShift deploys](https://www.twitch.tv/videos/750577055), [slides](https://speakerdeck.com/redhatopenshift/openshift-deploys).
