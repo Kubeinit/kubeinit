@@ -16,4 +16,5 @@ ansible-test sanity \
     --skip-test pylint \
     --skip-test future-import-boilerplate \
     --skip-test shebang \
-    --skip-test metaclass-boilerplate
+    --skip-test metaclass-boilerplate \
+    -v --docker --python 2.7
