@@ -76,8 +76,12 @@
 # Configure PV
 #
 
-- name: "Render the bootstrap details"
+- name: "Add some example PV and claims"
   shell: |
+    # We create the folder for the PV in our NFS share
+    # mkdir -p /var/nfsshare/registry
+    # chmod -R 777 /var/nfsshare/registry
+    # chown -R nobody:nobody /var/nfsshare/registry
     cat << EOF > ~/registry_pv.yaml
     apiVersion: v1
     kind: PersistentVolume
@@ -88,7 +92,7 @@
         storage: 100Gi
       accessModes:
         - ReadWriteMany
-      storageClassName: nfs01
+      storageClassName: nfs01registry
       persistentVolumeReclaimPolicy: Retain
       nfs:
         path: /var/nfsshare/registry
@@ -100,19 +104,22 @@
       metadata:
         name: image-registry-pvc
       spec:
+      volumeName: image-registry-pv
         accessModes:
           - ReadWriteMany
         resources:
           requests:
             storage: 100Gi
-        storageClassName: nfs01
+        storageClassName: nfs01registry
         volumeMode: Filesystem
     EOF
-    export KUBECONFIG=~/install_dir/auth/kubeconfig
-    oc create -f ~/registry_pv.yaml
-    oc create -f ~/registry_pvc.yaml
-    oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"managementState":"Managed"}}'
-    oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"pvc":{"claim":"image-registry-pvc"}}}}'
+    # export KUBECONFIG=~/install_dir/auth/kubeconfig
+    # oc create -f ~/registry_pv.yaml
+    # oc create -f ~/registry_pvc.yaml
+    # We patch the imageregistry operator to use
+    # the recently created PV by assigning a managed PVC
+    # oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"managementState":"Managed"}}'
+    # oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"pvc":{"claim":"image-registry-pvc"}}}}'
   register: configure_cluster_pv
   changed_when: "configure_cluster_pv.rc == 0"
   delegate_to: "{{ cluster_node }}"
@@ -127,9 +134,6 @@
   shell: |
     echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
     export KUBECONFIG=~/install_dir/auth/kubeconfig
-    oc get pvc -n openshift-image-registry
-    oc get pv
-    oc get clusteroperator image-registry
     oc get nodes
   delegate_to: "{{ cluster_node }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
