@@ -91,8 +91,15 @@ kubeinit_libvirt_hypervisor_dependencies:
     - inetutils-ping
 kubeinit_libvirt_hypervisor_tmp_dir: /tmp
 kubeinit_libvirt_cluster_nets:
- # kimgtnet0:KubeInitManaGemenTNETwork0 kimgtbr0: KubeInitManaGemenTBRidge0
-  - {name: kimgtnet0, gateway: 10.0.0.254, netmask: 255.255.255.0, start: 10.0.0.1, end: 10.0.0.253, bridge: kimgtbr0, template: cluster-net.xml.j2, type: internal, main: True, enabled: True}
+  # The following array is built with variables from the inventory
+  # kimgtnet0:KubeInitManaGemenTNETwork0 kimgtbr0: KubeInitManaGemenTBRidge0
+  - {name: "{{ kubeinit_inventory_network_name }}",
+     gateway: "{{ kubeinit_inventory_network_gateway }}",
+     netmask: "{{ kubeinit_inventory_network_netmask }}",
+     start: "{{ kubeinit_inventory_network_dhcp_start }}",
+     end: "{{ kubeinit_inventory_network_dhcp_end }}",
+     bridge: "{{ kubeinit_inventory_network_bridge }}",
+     template: cluster-net.xml.j2, type: internal, main: True, enabled: True}
 
 # EXTERNAL NETWORK CONFIG
 kubeinit_libvirt_external_service_interface_enabled: false
@@ -100,7 +107,7 @@ kubeinit_libvirt_external_service_interface:
   # This will attach the eth1 interfate to the bridge kiextbr0
   # you MUST have the kiextbr0 bridge created and with the
   # physical connection slaved first
-  attached: kiextbr0
+  attached: "{{ kubeinit_inventory_network_bridge_external }}"
   dev: eth1
   ip: 10.19.41.157
   gateway: 10.19.41.254
