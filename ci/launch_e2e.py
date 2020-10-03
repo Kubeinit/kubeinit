@@ -16,9 +16,6 @@ pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
 repo = gh.get_repo("kubeinit/kubeinit")
 branches = repo.get_branches()
 
-label_run_okd_libvirt = "okd-libvirt-deploy"
-label_run_k8s_libvirt = "k8s-libvirt-deploy"
-
 # Something linke:
 # url = "https://gitlab.com/kubeinit/kubeinit-ci/pipelines/"
 url = os.getenv('CI_PIPELINE_URL', "")
@@ -42,16 +39,34 @@ def main():
             execute = False
             # We assign the executed label to avoid executing this agains the same PR over and over
             # We mark the PR as e2e-executed
-            if (label_run_okd_libvirt in labels):
+            if ("okd-libvirt-3-master-0-worker" in labels):
                 distro = "okd"
                 driver = "libvirt"
+                master = "3"
+                worker = "0"
                 execute = True
-                remove_label(label_run_okd_libvirt, pr)
-            elif (label_run_k8s_libvirt in labels):
-                distro = "k8s"
+                remove_label("okd-libvirt-3-master-0-worker", pr)
+            elif ("okd-libvirt-3-master-1-worker" in labels):
+                distro = "okd"
                 driver = "libvirt"
+                master = "3"
+                worker = "1"
                 execute = True
-                remove_label(label_run_k8s_libvirt, pr)
+                remove_label("okd-libvirt-3-master-1-worker", pr)
+            elif ("okd-libvirt-1-master-0-worker" in labels):
+                distro = "okd"
+                driver = "libvirt"
+                master = "1"
+                worker = "0"
+                execute = True
+                remove_label("okd-libvirt-1-master-0-worker", pr)
+            elif ("okd-libvirt-1-master-1-worker" in labels):
+                distro = "okd"
+                driver = "libvirt"
+                master = "1"
+                worker = "1"
+                execute = True
+                remove_label("okd-libvirt-1-master-1-worker", pr)
 
             if execute:
                 print("Let's run the e2e job, distro %s driver %s " % (distro, driver))
@@ -67,26 +82,25 @@ def main():
                 print(repo.get_commit(sha=sha).get_statuses())
                 repo.get_commit(sha=sha).create_status(state="pending",
                                                        target_url=url + str(pipeline_id),
-                                                       description="e2e job execution %s %s" % (distro,
-                                                                                                driver),
-                                                       context="e2e-%s-%s" % (distro, driver))
+                                                       description="Running...",
+                                                       context="%s-%s-%s-master-%s-worker" % (distro, driver, master, worker))
                 print("The pipeline ID is: " + str(pipeline_id))
                 print("The clouds.yml path is: " + str(vars_file_path))
                 # We trigger the e2e job
                 start_time = time.time()
                 try:
                     print("We call the downstream job configuring its parameters")
-                    output = subprocess.check_call("./ci/run.sh %s %s %s %s %s" % (str(branch.name),
-                                                                                   str(pr.number),
-                                                                                   str(vars_file_path),
-                                                                                   str(distro),
-                                                                                   str(driver)),
+                    output = subprocess.check_call("./ci/run.sh %s %s %s %s %s %s %s" % (str(branch.name),
+                                                                                         str(pr.number),
+                                                                                         str(vars_file_path),
+                                                                                         str(distro),
+                                                                                         str(driver),
+                                                                                         str(master),
+                                                                                         str(worker)),
                                                    shell=True)
                 except Exception:
                     output = 1
-                desc = ("%s to %s - Executed in: %s minutes" % (distro,
-                                                                driver,
-                                                                round((time.time() - start_time) / 60, 2)))
+                desc = ("Successful in %s minutes" % (round((time.time() - start_time) / 60, 2)))
 
                 if output == 0:
                     state = "success"
@@ -97,8 +111,10 @@ def main():
                 repo.get_commit(sha=sha).create_status(state=state,
                                                        target_url=url + str(pipeline_id),
                                                        description=desc,
-                                                       context="e2e-%s-%s" % (distro,
-                                                                              driver))
+                                                       context="%s-%s-%s-master-%s-worker" % (distro,
+                                                                                              driver,
+                                                                                              master,
+                                                                                              worker))
             else:
                 print("No need to do anything")
 
