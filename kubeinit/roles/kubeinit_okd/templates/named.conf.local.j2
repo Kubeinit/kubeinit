@@ -1,6 +1,6 @@
 acl internals {
     127.0.0.0/8;
-    10.0.0.0/24;
+    {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }};
 };
 
 view "internal" {
@@ -13,7 +13,7 @@ view "internal" {
         file "named.ca";
     };
 
-    zone "{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}" {
+    zone "{{ kubeinit_okd_cluster_name }}.{{ kubeinit_okd_cluster_domain }}" {
         type master;
         file "/etc/named/zones/internals/db.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}"; # zone file path
     };
@@ -31,7 +31,7 @@ view "external" {
     match-clients { any; };
     allow-query { any; };
 
-    zone "{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}" {
+    zone "{{ kubeinit_okd_cluster_name }}.{{ kubeinit_okd_cluster_domain }}" {
         type master;
         file "/etc/named/zones/externals/db.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}"; # zone file path
     };

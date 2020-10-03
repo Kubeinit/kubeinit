@@ -81,11 +81,18 @@ frontend okd4_http_ingress_traffic_fe
 backend okd4_http_ingress_traffic_be
     balance source
     mode tcp
-{% if groups['okd_worker_nodes'] is defined and groups['okd_worker_nodes']|length > 0 %}
+{% if groups['okd_worker_nodes'] is defined and groups['okd_worker_nodes']|length > 0 and kubeinit_okd_disable_masters_schedulable %}
 {% for host in groups['okd_worker_nodes'] %}
     server      {{ host }} {{ hostvars[groups['okd_worker_nodes'][loop.index - 1]].ansible_host }}:80 check
 {% endfor %}
-{% else%}
+{% elif groups['okd_worker_nodes'] is defined and groups['okd_worker_nodes']|length > 0 and not kubeinit_okd_disable_masters_schedulable %}
+{% for host in groups['okd_worker_nodes'] %}
+    server      {{ host }} {{ hostvars[groups['okd_worker_nodes'][loop.index - 1]].ansible_host }}:80 check
+{% endfor %}
+{% for host in groups['okd_master_nodes'] %}
+    server      {{ host }} {{ hostvars[groups['okd_master_nodes'][loop.index - 1]].ansible_host }}:80 check
+{% endfor %}
+{% else %}
 {% for host in groups['okd_master_nodes'] %}
     server      {{ host }} {{ hostvars[groups['okd_master_nodes'][loop.index - 1]].ansible_host }}:80 check
 {% endfor %}
@@ -100,11 +107,18 @@ frontend okd4_https_ingress_traffic_fe
 backend okd4_https_ingress_traffic_be
     balance source
     mode tcp
-{% if groups['okd_worker_nodes'] is defined and groups['okd_worker_nodes']|length > 0 %}
+{% if groups['okd_worker_nodes'] is defined and groups['okd_worker_nodes']|length > 0 and kubeinit_okd_disable_masters_schedulable %}
 {% for host in groups['okd_worker_nodes'] %}
     server      {{ host }} {{ hostvars[groups['okd_worker_nodes'][loop.index - 1]].ansible_host }}:443 check
 {% endfor %}
-{% else%}
+{% elif groups['okd_worker_nodes'] is defined and groups['okd_worker_nodes']|length > 0 and not kubeinit_okd_disable_masters_schedulable %}
+{% for host in groups['okd_worker_nodes'] %}
+    server      {{ host }} {{ hostvars[groups['okd_worker_nodes'][loop.index - 1]].ansible_host }}:443 check
+{% endfor %}
+{% for host in groups['okd_master_nodes'] %}
+    server      {{ host }} {{ hostvars[groups['okd_master_nodes'][loop.index - 1]].ansible_host }}:443 check
+{% endfor %}
+{% else %}
 {% for host in groups['okd_master_nodes'] %}
     server      {{ host }} {{ hostvars[groups['okd_master_nodes'][loop.index - 1]].ansible_host }}:443 check
 {% endfor %}
