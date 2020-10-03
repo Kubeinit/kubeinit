@@ -58,17 +58,44 @@
   tags:
     - provision_libvirt
 
-- name: "remove bootstrap node from haproxy"
+- name: "use single node cluster"
   shell: |
-    sed -i '/bootstrap/s/^/#/' /etc/haproxy/haproxy.cfg
-    systemctl reload haproxy
-  register: remove_bootstrap_from_cluster
-  changed_when: "remove_bootstrap_from_cluster.rc == 0"
+    set -o pipefail
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    oc get nodes
+
+    oc patch clusterversion/version --type='merge' -p "$(cat <<- EOF
+    spec:
+      overrides:
+        - group: apps/v1
+          kind: Deployment
+          name: etcd-quorum-guard
+          namespace: openshift-machine-config-operator
+          unmanaged: true
+    EOF
+    )"
+    oc scale --replicas=1 deployment/etcd-quorum-guard -n openshift-machine-config-operator || true
+    oc scale --replicas=1 ingresscontroller/default -n openshift-ingress-operator || true
+    oc scale --replicas=1 deployment.apps/console -n openshift-console || true
+    oc scale --replicas=1 deployment.apps/downloads -n openshift-console || true
+    oc scale --replicas=1 deployment.apps/oauth-openshift -n openshift-authentication || true
+    oc scale --replicas=1 deployment.apps/packageserver -n openshift-operator-lifecycle-manager || true
+    # Optional
+    oc scale --replicas=1 deployment.apps/prometheus-adapter -n openshift-monitoring || true
+    oc scale --replicas=1 deployment.apps/thanos-querier -n openshift-monitoring || true
+    oc scale --replicas=1 statefulset.apps/prometheus-k8s -n openshift-monitoring || true
+    oc scale --replicas=1 statefulset.apps/alertmanager-main -n openshift-monitoring || true
+  args:
+    executable: /bin/bash
+  register: single_node_cluster
+  changed_when: "single_node_cluster.rc == 0"
+  when: (groups['okd_master_nodes'] | count) == 1
+  # Delegated to be executed in the service node but
+  # After the master nodes are deployed
   delegate_to: "{{ cluster_node }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   loop_control:
     loop_var: cluster_node
-  ignore_errors: yes
   tags:
     - provision_libvirt
 
@@ -89,7 +116,7 @@
       name: image-registry-pv
     spec:
       capacity:
-        storage: 100Gi
+        storage: 5Gi
       accessModes:
         - ReadWriteMany
       storageClassName: nfs01registry
@@ -109,7 +136,7 @@
           - ReadWriteMany
         resources:
           requests:
-            storage: 100Gi
+            storage: 5Gi
         storageClassName: nfs01registry
         volumeMode: Filesystem
     EOF
@@ -127,6 +154,61 @@
   loop_control:
     loop_var: cluster_node
   ignore_errors: yes
+  tags:
+    - provision_libvirt
+
+- name: Wait for installer to complete
+  command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info
+  register: result
+  retries: 5
+  delay: 20
+  until: result.rc == 0
+  delegate_to: "{{ cluster_node }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  ignore_errors: yes
+  changed_when: "result.rc == 0"
+  tags:
+    - provision_libvirt
+
+- name: "remove bootstrap node from haproxy"
+  shell: |
+    sed -i '/bootstrap/s/^/#/' /etc/haproxy/haproxy.cfg
+    systemctl reload haproxy
+  register: remove_bootstrap_from_cluster
+  changed_when: "remove_bootstrap_from_cluster.rc == 0"
+  delegate_to: "{{ cluster_node }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  ignore_errors: yes
+  tags:
+    - provision_libvirt
+
+- name: Destroy vms
+  virt:
+    name: "{{ item }}"
+    command: destroy
+  with_items: "{{ groups['okd_bootstrap_nodes'] }}"
+  ignore_errors: true
+  tags:
+    - provision_libvirt
+
+- name: Undefine vms
+  virt:
+    name: "{{ item }}"
+    command: undefine
+  with_items: "{{ groups['okd_bootstrap_nodes'] }}"
+  ignore_errors: true
+  tags:
+    - provision_libvirt
+
+- name: Remove VMs storage
+  file:
+    state: absent
+    path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
+  with_items: "{{ groups['okd_bootstrap_nodes'] }}"
   tags:
     - provision_libvirt
 

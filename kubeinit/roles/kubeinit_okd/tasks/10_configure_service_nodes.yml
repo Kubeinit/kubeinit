@@ -255,13 +255,25 @@
       {{ kubeinit_provision_service_public_key[0]['stdout'] }}
     EOF
     openshift-install create manifests --dir=install_dir/
-    # Be aware of this option, explain the consequences in:
-    # https://www.anstack.com/blog/2020/08/16/a-review-of-the-machineconfig-operator.html
-    sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
   register: render_bootstrap_details
   changed_when: "render_bootstrap_details.rc == 0"
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: "Disable master schedulable"
+  shell: |
+    set -o pipefail
+    cd
+    # Be aware of this option, explain the consequences in:
+    # https://www.anstack.com/blog/2020/08/16/a-review-of-the-machineconfig-operator.html
+    sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
+  register: disable_masters_sched
+  changed_when: "disable_masters_sched.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  when: kubeinit_okd_disable_masters_schedulable | default(true)
   tags:
     - provision_libvirt
 
