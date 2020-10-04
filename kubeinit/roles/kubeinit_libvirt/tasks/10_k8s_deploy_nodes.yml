@@ -32,7 +32,8 @@
     src: "../../roles/kubeinit_libvirt/templates/ifcfg-eth0.j2"
     dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth0'
     mode: '0644'
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 
@@ -41,7 +42,8 @@
     src: "../../roles/kubeinit_libvirt/templates/ifcfg-eth1.j2"
     dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth1'
     mode: '0644'
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   when: kubeinit_libvirt_external_service_interface_enabled
   tags:
     - provision_libvirt
@@ -51,7 +53,8 @@
     src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
     dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/hosts.redhat.tmpl'
     mode: '0644'
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 
@@ -60,32 +63,36 @@
     src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
     dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg'
     mode: '0644'
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 
 - name: Create vm backing store from base vm image
   copy:
     remote_src: True
-    src: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_okd_source_images.centos.image }}"
+    src: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}"
     dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
     force: yes  # Do not recopy if it has been modified
     mode: '0644'
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 
 - name: Ensure the backing store is large enough
   command: "qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2 +{{ hostvars[item].disk }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   register: qemu_img
   changed_when: "qemu_img.rc == 0"
   tags:
     - provision_libvirt
 
 - name: Grow the partition
-  command: "virt-resize  --expand {{ hostvars[item].root_device }} {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_okd_source_images.centos.image }} {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  command: "virt-resize  --expand {{ hostvars[item].root_device }} {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }} {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   register: grow_img
   changed_when: "grow_img.rc == 0"
   tags:
@@ -101,15 +108,16 @@
       --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
       --ssh-inject root:file:/root/.ssh/id_rsa.pub \
       --ssh-inject root:file:/root/.ssh/authorized_keys \
-      --hostname {{ item }}.{{ kubeinit_okd_cluster_domain }} \
+      --hostname {{ item }}.{{ kubeinit_common_cluster_domain }} \
       --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
-      {% if kubeinit_libvirt_external_service_interface_enabled %}
+      {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in item %}
       --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/ifcfg-eth1:/etc/sysconfig/network-scripts \
       {% endif %}
       --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/hosts.redhat.tmpl:/etc/cloud/templates \
       --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg:/etc/cloud \
       --selinux-relabel --root-password password:{{ kubeinit_libvirt_vms_default_password }}
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   register: virt_inject
   changed_when: "virt_inject.rc == 0"
   tags:
@@ -131,14 +139,15 @@
               --network network={{ net.name }}{% if net.main %},mac={{ hostvars[item].mac }}{% endif %},model=virtio \
           {% endif %}
         {% endfor %}
-        {% if kubeinit_libvirt_external_service_interface_enabled %}
+        {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in item %}
               --network bridge={{ kubeinit_libvirt_external_service_interface.attached }},model=virtio \
         {% endif %}
         --graphics none \
         --noautoconsole \
         --import \
         --disk {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2,format=qcow2,bus=virtio
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   register: virt_install
   changed_when: "virt_install.rc == 0"
   tags:
@@ -151,6 +160,7 @@
     search_regex: OpenSSH
     delay: 10
     timeout: 600
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt

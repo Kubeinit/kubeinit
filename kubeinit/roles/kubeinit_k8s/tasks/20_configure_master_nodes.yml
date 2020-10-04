@@ -1,0 +1,85 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: "Echo hello master"
+  shell: |
+    echo "Hello world master"
+  register: echo_hello
+  changed_when: "echo_hello.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+##
+## Initial config
+##
+
+- name: Clean kubeadm and initializing Kubernetes cluster
+  shell: |
+    kubeadm reset -f || true
+    kubeadm init \
+        --apiserver-advertise-address {{ hostvars[groups['k8s_master_nodes'][0]].ansible_host }} \
+        --pod-network-cidr={{ kubeinit_k8s_pod_network_cidr }}
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Get the join command
+  shell: |
+    kubeadm token create --print-join-command
+  register: k8s_master_kubeadm_init_output
+  changed_when: "k8s_master_kubeadm_init_output.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Storing Logs and Generated token for future purpose.
+  copy: content={{ k8s_master_kubeadm_init_output.results[0].stdout }} dest=~/k8s_token
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create kube directory
+  file:
+    path: ~/.kube
+    state: directory
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Copying required files
+  shell: |
+   sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
+   sudo chown $(id -u):$(id -g) ~/.kube/config
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Install Network Add-on
+  command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'] }}"
+  tags:
+    - provision_libvirt

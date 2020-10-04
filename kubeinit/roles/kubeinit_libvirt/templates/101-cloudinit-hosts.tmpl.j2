@@ -20,6 +20,6 @@
 ::1 localhost.localdomain localhost
 ::1 localhost6.localdomain6 localhost6
 
-{% for host in groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] %}
-{{ hostvars[host].ansible_host }} {{ host }}.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }} {{ host }}
+{% for host in groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list %}
+{{ hostvars[host].ansible_host }} {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }} {{ host }}
 {% endfor %}

@@ -149,9 +149,10 @@
 - name: Reset ssh keys in hypervisor
   shell: |
     ssh-keygen -R  {{ item }}
-    ssh-keygen -R  {{ item }}.{{ kubeinit_okd_cluster_domain }}
+    ssh-keygen -R  {{ item }}.{{ kubeinit_common_cluster_domain }}
     ssh-keygen -R  {{ hostvars[item].ansible_host }}
-  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   when: known_hosts_file.stat.exists | bool
   changed_when: false
   tags:
@@ -162,9 +163,10 @@
   delegate_to: localhost
   shell: |
     ssh-keygen -R  {{ item }}
-    ssh-keygen -R  {{ item }}.{{ kubeinit_okd_cluster_domain }}
+    ssh-keygen -R  {{ item }}.{{ kubeinit_common_cluster_domain }}
     ssh-keygen -R  {{ hostvars[item].ansible_host }}
-  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   changed_when: false
   tags:
     - provision_libvirt
@@ -264,7 +266,7 @@
     force: no
     mode: '0666'
     owner: "{{ kubeinit_qemu_user }}"
-  with_items: "{{ lookup('dict', kubeinit_okd_source_images) | list }}"
+  with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
   when: "item.value.image"
   tags:
     - provision_libvirt
@@ -278,7 +280,7 @@
     force: no
     mode: '0666'
     owner: "{{ kubeinit_qemu_user }}"
-  with_items: "{{ lookup('dict', kubeinit_okd_source_images) | list }}"
+  with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
   when: "item.value.kernel"
   tags:
     - provision_libvirt
@@ -292,7 +294,7 @@
     force: no
     mode: '0666'
     owner: "{{ kubeinit_qemu_user }}"
-  with_items: "{{ lookup('dict', kubeinit_okd_source_images) | list }}"
+  with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
   when: "item.value.initrd"
   tags:
     - provision_libvirt
@@ -306,8 +308,8 @@
     platforms = x86_64
     version = 32
     [images-x86_64]
-    initrd = {{ kubeinit_okd_source_images.coreos.initrd }}
-    kernel = {{ kubeinit_okd_source_images.coreos.kernel }}
+    initrd = {{ kubeinit_libvirt_source_images.coreos.initrd }}
+    kernel = {{ kubeinit_libvirt_source_images.coreos.kernel }}
     EOF
   register: treeinfo
   changed_when: "treeinfo.rc == 0"
@@ -394,7 +396,8 @@
   virt:
     name: "{{ item }}"
     command: destroy
-  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -403,7 +406,8 @@
   virt:
     name: "{{ item }}"
     command: undefine
-  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   ignore_errors: true
   tags:
     - provision_libvirt
@@ -412,7 +416,8 @@
   file:
     state: absent
     path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 
@@ -458,7 +463,8 @@
   file:
     state: absent
     path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/"
-  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 
@@ -468,13 +474,14 @@
     state: directory
     mode: 0775
     recurse: yes
-  with_items: "{{ groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 
-#
-# Define common resources, networks
-#
+##
+## Define common resources, networks
+##
 
 - name: render KubeInit networks for debugging
   template:

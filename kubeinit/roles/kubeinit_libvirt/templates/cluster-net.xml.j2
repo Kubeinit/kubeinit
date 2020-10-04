@@ -10,13 +10,16 @@
       <dhcp>
           <range start='{{ item.start }}' end='{{ item.end }}'/>
           {% if item.main %}
-          {% for host in groups['okd_master_nodes'] + groups['okd_worker_nodes'] + groups['okd_service_nodes'] + groups['okd_bootstrap_nodes'] %}
-          <host mac="{{ hostvars[host].mac }}" name="{{ host }}.{{ kubeinit_okd_cluster_domain }}" ip="{{ hostvars[host].ansible_host }}"/>
+          {% for host in groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list %}
+          <host mac="{{ hostvars[host].mac }}" name="{{ host }}.{{ kubeinit_common_cluster_domain }}" ip="{{ hostvars[host].ansible_host }}"/>
           {% endfor %}
           {% endif %}
       </dhcp>
   </ip>
   <dns>
-    <forwarder domain='{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}' addr="{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}"/>
+  {% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+  <forwarder domain='{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}' addr="{{ hostvars[host].ansible_host }}"/>
+  {% endfor %}
   </dns>
+
 </network>

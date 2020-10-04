@@ -1,0 +1,41 @@
+options {
+    listen-on port 53 { 127.0.0.1; {{ hostvars[groups['k8s_service_nodes'][0]].ansible_host }}; {% if kubeinit_libvirt_external_service_interface_enabled | default(false) %}{{ kubeinit_libvirt_external_service_interface.ip }}; {% endif %}};
+
+    directory          "/var/named";
+    dump-file          "/var/named/data/cache_dump.db";
+    statistics-file    "/var/named/data/named_stats.txt";
+    memstatistics-file "/var/named/data/named_mem_stats.txt";
+    recursing-file     "/var/named/data/named.recursing";
+    secroots-file      "/var/named/data/named.secroots";
+
+    allow-query        { localhost; {{ hostvars[groups['k8s_service_nodes'][0]].ansible_host | ipsubnet(24) }}; };
+
+    recursion yes;
+    allow-recursion { any; };
+
+    forwarders {
+      8.8.8.8;
+      8.8.4.4;
+    };
+
+    dnssec-enable yes;
+    dnssec-validation yes;
+
+    /* Path to ISC DLV key */
+    bindkeys-file "/etc/named.root.key";
+
+    managed-keys-directory "/var/named/dynamic";
+
+    pid-file "/run/named/named.pid";
+    session-keyfile "/run/named/session.key";
+};
+
+logging {
+    channel default_debug {
+        file "data/named.run";
+        severity dynamic;
+    };
+};
+
+include "/etc/named.root.key";
+include "/etc/named/named.conf.local";

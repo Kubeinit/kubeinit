@@ -1,5 +1,5 @@
 $TTL    604800
-{% for host in groups['okd_service_nodes'] %}
+{% for host in groups['k8s_service_nodes'] %}
 @       IN      SOA     {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}. admin.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.(
 {% endfor %}
                   1     ; Serial
@@ -10,12 +10,12 @@ $TTL    604800
 )
 
 ; name servers - NS records
-{% for host in groups['okd_service_nodes'] %}
+{% for host in groups['k8s_service_nodes'] %}
     IN      NS      {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.
 {% endfor %}
 
 ; service node external IP - A records
-{% for host in groups['okd_service_nodes'] %}
+{% for host in groups['k8s_service_nodes'] %}
 {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.                       IN      A       {{ kubeinit_libvirt_external_service_interface.ip }}
 api.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.                              IN      A       {{ kubeinit_libvirt_external_service_interface.ip }}
 api-int.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.                          IN      A       {{ kubeinit_libvirt_external_service_interface.ip }}
