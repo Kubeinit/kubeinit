@@ -33,24 +33,29 @@ git log -n 5 --pretty=oneline
 # git fetch ccamacho
 # git cherry-pick 58f718a29d5611234304b1e144a69
 
+# Here we might define some different
+# variables depending on the scenario
 if [[ "$DISTRO" == "okd" && "$DRIVER" == "libvirt" ]]; then
-cat << EOF > scenario_variables.yml
-kubeinit_libvirt_test_variable: asdf
-kubeinit_libvirt_test_variable1: asdf
+sudo tee scenario_variables.yml > /dev/null <<'EOF'
+kubeinit_libvirt_test_variable1: example_var
+EOF
+else
+sudo tee scenario_variables.yml > /dev/null <<'EOF'
+kubeinit_libvirt_test_variable2: example_var2
 EOF
 fi
 
 # By default we deploy 3 master and 1 worker cluster
 # the case of 3 master is already by default
 # the case of 1 worker is already by default
-
+# We use the .*- expresion to comment the line
+# no matter the distro, i.e., okd-master or k8s-master
 if [[ "$MASTER" == "1" ]]; then
-sed -i "s/okd-master-02/#okd-master-02/g" ./hosts/okd/inventory
-sed -i "s/okd-master-03/#okd-master-03/g" ./hosts/okd/inventory
+sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/$DISTRO/inventory
+sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/$DISTRO/inventory
 fi
-
 if [[ "$WORKER" == "0" ]]; then
-sed -i "s/okd-worker-01/#okd-worker-01/g" ./hosts/okd/inventory
+sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/$DISTRO/inventory
 fi
 
 # We need to remove any created VM in other jobs
@@ -68,7 +73,7 @@ done;
 
 ansible-playbook \
     --user root \
-    -v -i ./hosts/okd/inventory \
+    -v -i ./hosts/$DISTRO/inventory \
     --become \
     --become-user root \
     -e @scenario_variables.yml \

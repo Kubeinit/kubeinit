@@ -32,10 +32,7 @@
   set_fact:
     kubeinit_validations_libvirt_required_ram: "{{ kubeinit_validations_libvirt_required_ram|default(0)|int + hostvars[item].ram|int }}"
   with_items:
-    - "{{ groups['okd_service_nodes'] }}"
-    - "{{ groups['okd_bootstrap_nodes'] }}"
-    - "{{ groups['okd_master_nodes'] }}"
-    - "{{ groups['okd_worker_nodes'] }}"
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 

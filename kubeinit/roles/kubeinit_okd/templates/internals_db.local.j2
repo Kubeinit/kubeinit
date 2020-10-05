@@ -1,6 +1,6 @@
 $TTL    604800
 {% for host in groups['okd_service_nodes'] %}
-@       IN      SOA     {{ host }}.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}. admin.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.(
+@       IN      SOA     {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}. admin.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.(
 {% endfor %}
                   1     ; Serial
              604800     ; Refresh
@@ -11,41 +11,41 @@ $TTL    604800
 
 ; name servers - NS records
 {% for host in groups['okd_service_nodes'] %}
-    IN      NS      {{ host }}.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.
+    IN      NS      {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.
 {% endfor %}
 
 ; name servers - A records
 {% for host in groups['okd_service_nodes'] %}
-{{ host }}.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.          IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
+{{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.          IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 ; OpenShift Container Platform Cluster - A records
 {% for host in groups['okd_master_nodes'] %}
-{{ host }}.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.          IN      A       {{ hostvars[groups['okd_master_nodes'][loop.index - 1]].ansible_host }}
+{{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.          IN      A       {{ hostvars[groups['okd_master_nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 {% for host in groups['okd_worker_nodes'] %}
-{{ host }}.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.          IN      A       {{ hostvars[groups['okd_worker_nodes'][loop.index - 1]].ansible_host }}
+{{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.          IN      A       {{ hostvars[groups['okd_worker_nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 {% for host in groups['okd_bootstrap_nodes'] %}
-{{ host }}.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.          IN      A       {{ hostvars[groups['okd_bootstrap_nodes'][loop.index - 1]].ansible_host }}
+{{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.          IN      A       {{ hostvars[groups['okd_bootstrap_nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - A records
 {% for host in groups['okd_service_nodes'] %}
-api.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.                              IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
-api-int.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.                          IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
-*.apps.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.                           IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
-console-openshift-console.apps.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.   IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
-oauth-openshift.apps.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.             IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
+api.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.                              IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
+api-int.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.                          IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
+*.apps.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.                           IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
+console-openshift-console.apps.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.   IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
+oauth-openshift.apps.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.             IN      A       {{ hostvars[groups['okd_service_nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 {% for host in groups['okd_master_nodes'] %}
-etcd-{{ loop.index - 1 }}.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.        IN      A       {{ hostvars[groups['okd_master_nodes'][loop.index - 1]].ansible_host }}
+etcd-{{ loop.index - 1 }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.        IN      A       {{ hostvars[groups['okd_master_nodes'][loop.index - 1]].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - SRV records
 {% for host in groups['okd_master_nodes'] %}
-_etcd-server-ssl._tcp.{{kubeinit_okd_cluster_name}}.{{ kubeinit_okd_cluster_domain }}.    86400   IN    SRV     0    10    2380    etcd-{{ loop.index - 1 }}
+_etcd-server-ssl._tcp.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.    86400   IN    SRV     0    10    2380    etcd-{{ loop.index - 1 }}
 {% endfor %}
