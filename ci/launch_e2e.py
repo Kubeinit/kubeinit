@@ -67,6 +67,20 @@ def main():
                 worker = "1"
                 execute = True
                 remove_label("okd-libvirt-1-master-1-worker", pr)
+            elif ("k8s-libvirt-3-master-1-worker" in labels):
+                distro = "k8s"
+                driver = "libvirt"
+                master = "3"
+                worker = "1"
+                execute = True
+                remove_label("k8s-libvirt-3-master-1-worker", pr)
+            elif ("k8s-libvirt-3-master-0-worker" in labels):
+                distro = "k8s"
+                driver = "libvirt"
+                master = "3"
+                worker = "0"
+                execute = True
+                remove_label("k8s-libvirt-3-master-0-worker", pr)
             elif ("k8s-libvirt-1-master-1-worker" in labels):
                 distro = "k8s"
                 driver = "libvirt"
@@ -74,7 +88,13 @@ def main():
                 worker = "1"
                 execute = True
                 remove_label("k8s-libvirt-1-master-1-worker", pr)
-
+            elif ("k8s-libvirt-1-master-0-worker" in labels):
+                distro = "k8s"
+                driver = "libvirt"
+                master = "1"
+                worker = "0"
+                execute = True
+                remove_label("k8s-libvirt-1-master-0-worker", pr)
             if execute:
                 print("Let's run the e2e job, distro %s driver %s " % (distro, driver))
                 print("-------------")

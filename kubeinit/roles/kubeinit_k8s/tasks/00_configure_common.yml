@@ -65,6 +65,7 @@
   file:
     path: /etc/yum.repos.d/crio.repo
     state: touch
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -113,6 +114,7 @@
   file:
     path: /etc/yum.repos.d/kubernetes.repo
     state: touch
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -137,15 +139,15 @@
   tags:
     - provision_libvirt
 
-- name: Upgrade all packages
-  yum:
-    name: '*'
-    state: latest
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+# - name: Upgrade all packages
+#   yum:
+#     name: '*'
+#     state: latest
+#   delegate_to: "{{ item }}"
+#   with_items:
+#     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+#   tags:
+#     - provision_libvirt
 
 #
 # cri-o config
@@ -225,6 +227,7 @@
   file:
     path: /etc/crio/net.d
     state: directory
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -253,6 +256,7 @@
   file:
     path: /etc/default/kubelet
     state: touch
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -284,6 +288,7 @@
   file:
     path: /etc/crio/net.d/10-crio-bridge.conf
     state: touch
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -324,6 +329,7 @@
   file:
     path: /usr/share/containers/oci/hooks.d
     state: directory
+    mode: '0777'
   delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -349,6 +355,7 @@
 - name: install requirements
   package:
     name:
+      - tc
       - podman-docker
       - yum-utils
       - device-mapper-persistent-data

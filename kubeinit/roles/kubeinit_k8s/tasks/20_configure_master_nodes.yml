@@ -14,46 +14,54 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "Echo hello master"
-  shell: |
-    echo "Hello world master"
-  register: echo_hello
-  changed_when: "echo_hello.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_master_nodes'] }}"
-  tags:
-    - provision_libvirt
-
 ##
-## Initial config
+## Setup the first master node
 ##
-
 - name: Clean kubeadm and initializing Kubernetes cluster
   shell: |
     kubeadm reset -f || true
     kubeadm init \
-        --apiserver-advertise-address {{ hostvars[groups['k8s_master_nodes'][0]].ansible_host }} \
+        --control-plane-endpoint "api.{{ kubeinit_common_cluster_name }}.{{ kubeinit_common_cluster_domain }}:6443" \
+        --upload-certs \
         --pod-network-cidr={{ kubeinit_k8s_pod_network_cidr }}
-  changed_when: false
+  register: k8s_master_kubeadm_master_init_output
+  changed_when: "k8s_master_kubeadm_master_init_output.rc == 0"
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_master_nodes'] }}"
+  with_items: "{{ groups['k8s_master_nodes'][0] }}"
   tags:
     - provision_libvirt
 
-- name: Get the join command
-  shell: |
-    kubeadm token create --print-join-command
-  register: k8s_master_kubeadm_init_output
-  changed_when: "k8s_master_kubeadm_init_output.rc == 0"
+- debug: var=k8s_master_kubeadm_master_init_output
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_master_nodes'] }}"
+  with_items: "{{ groups['k8s_master_nodes'][0] }}"
   tags:
     - provision_libvirt
 
-- name: Storing Logs and Generated token for future purpose.
-  copy: content={{ k8s_master_kubeadm_init_output.results[0].stdout }} dest=~/k8s_token
+- name: Get the master join key
+  set_fact:
+    k8s_master_kubeadm_init_master_join_key: "{{ item }}"
+  when: "'--control-plane --certificate-key' in item"
+  with_items:
+  - "{{ k8s_master_kubeadm_master_init_output.results[0].stdout_lines }}"
+  delegate_to: "{{ groups['k8s_master_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+- debug: var=k8s_master_kubeadm_init_master_join_key
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+# This task will copy the join key across all the master nodes
+- name: Storing the master join key to add the other master nodes.
+  copy:
+    content: "{{ k8s_master_kubeadm_init_master_join_key }}"
+    dest: ~/k8s_master_join_key
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['k8s_master_nodes'] }}"
+  when: groups['k8s_master_nodes'] | length > 1
   tags:
     - provision_libvirt
 
@@ -61,8 +69,9 @@
   file:
     path: ~/.kube
     state: directory
+    mode: '0644'
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_master_nodes'] }}"
+  with_items: "{{ groups['k8s_master_nodes'][0] }}"
   tags:
     - provision_libvirt
 
@@ -72,6 +81,27 @@
    sudo chown $(id -u):$(id -g) ~/.kube/config
   changed_when: false
   delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+- name: Get the join command
+  shell: |
+    kubeadm token create --print-join-command
+  register: k8s_master_kubeadm_init_output
+  changed_when: "k8s_master_kubeadm_init_output.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+# This needs to be stored in all the master nodes
+- name: Storing the join cluster command token.
+  copy:
+    content: "{{ k8s_master_kubeadm_init_output.results[0].stdout }}"
+    dest: ~/k8s_token
+    mode: '0644'
+  delegate_to: "{{ item }}"
   with_items: "{{ groups['k8s_master_nodes'] }}"
   tags:
     - provision_libvirt
@@ -80,6 +110,58 @@
   command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
   changed_when: false
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_master_nodes'] }}"
+  with_items: "{{ groups['k8s_master_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+##
+## Execute to configure all the other master nodes
+##
+
+- name: Modprobe ip forward
+  shell: |
+    modprobe br_netfilter
+    echo '1' > /proc/sys/net/ipv4/ip_forward
+    mkdir -p /proc/sys/net/bridge/
+    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+    sysctl -p
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'][1:] }}"
+  when: groups['k8s_master_nodes'] | length > 1
+  tags:
+    - provision_libvirt
+
+- name: Joining aditional master nodes using the PK
+  shell: |
+   kubeadm reset -f || true
+   sed "s/$/{{ k8s_master_kubeadm_init_master_join_key }}/g" k8s_token > ~/k8s_master_join_command.sh
+   sh k8s_master_join_command.sh
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'][1:] }}"
+  when: groups['k8s_master_nodes'] | length > 1
+  tags:
+    - provision_libvirt
+
+- name: Create kube directory
+  file:
+    path: ~/.kube
+    state: directory
+    mode: '0777'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'][1:] }}"
+  when: groups['k8s_master_nodes'] | length > 1
+  tags:
+    - provision_libvirt
+
+- name: Copying required files
+  shell: |
+   sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
+   sudo chown $(id -u):$(id -g) ~/.kube/config
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'][1:] }}"
+  when: groups['k8s_master_nodes'] | length > 1
   tags:
     - provision_libvirt

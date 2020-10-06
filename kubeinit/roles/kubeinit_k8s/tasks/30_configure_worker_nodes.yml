@@ -14,32 +14,30 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "Echo hello worker"
-  shell: |
-    echo "Hello world worker"
-  register: echo_hello
-  changed_when: "echo_hello.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_worker_nodes'] }}"
-  tags:
-    - provision_libvirt
-
 - name: Copying token to a variables
   slurp:
     src: ~/k8s_token
   register: kubernetes_master_kubeadm_init_output
   delegate_to: "{{ item }}"
   with_items: "{{ groups['k8s_master_nodes'][0] }}"
+  when: groups['k8s_worker_nodes'] | length > 0
   tags:
     - provision_libvirt
 
 - debug:
-    msg: "{{ kubernetes_master_kubeadm_init_output.results[0].content | b64decode }}"
+    msg: "{{ kubernetes_master_kubeadm_init_output.results[0].content | default('Empty file') | b64decode }}"
+  when: groups['k8s_worker_nodes'] | length > 0
+  tags:
+    - provision_libvirt
 
 - name: Storing the master Generated token for future purpose.
-  copy: content={{ kubernetes_master_kubeadm_init_output.results[0].content | b64decode }} dest=~/k8s_token
+  copy:
+    content: "{{ kubernetes_master_kubeadm_init_output.results[0].content | default('Empty file') | b64decode }}"
+    dest: ~/k8s_token
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['k8s_worker_nodes'] }}"
+  when: groups['k8s_worker_nodes'] | length > 0
   tags:
     - provision_libvirt
 
@@ -53,6 +51,7 @@
   changed_when: false
   delegate_to: "{{ item }}"
   with_items: "{{ groups['k8s_worker_nodes'] }}"
+  when: groups['k8s_worker_nodes'] | length > 0
   tags:
     - provision_libvirt
 
@@ -64,6 +63,7 @@
   changed_when: false
   delegate_to: "{{ item }}"
   with_items: "{{ groups['k8s_worker_nodes'] }}"
+  when: groups['k8s_worker_nodes'] | length > 0
   tags:
     - provision_libvirt
 
@@ -71,7 +71,8 @@
   shell: |
    kubectl label node {{ item }}.{{ kubeinit_common_cluster_domain }} node-role.kubernetes.io/worker=
   changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_master_nodes'][0] }}"
+  delegate_to: "{{ groups['k8s_master_nodes'][0] }}"
+  with_items: "{{ groups['k8s_worker_nodes'] }}"
+  when: groups['k8s_worker_nodes'] | length > 0
   tags:
     - provision_libvirt
