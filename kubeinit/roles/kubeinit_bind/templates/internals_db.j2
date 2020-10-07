@@ -1,0 +1,40 @@
+$TTL    604800
+
+; This file is rendered using a template from a KubeInit role
+; This file will be overriden each time the playbook runs
+; No not edit directly
+; More information at: https://github.com/kubeinit/kubeinit
+
+{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+@       IN      SOA     {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}. admin.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.(
+{% endfor %}
+                  6     ; Serial
+             604800     ; Refresh
+              86400     ; Retry
+            2419200     ; Expire
+             604800     ; Negative Cache TTL
+)
+
+; name servers - NS records
+{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+    IN      NS      {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.
+{% endfor %}
+
+; KubeInit cluster Cluster - PTR records
+{% for host in groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list %}
+{{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.
+{% endfor %}
+
+{% for host in groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list %}
+{{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.
+{% endfor %}
+
+{% for host in groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list %}
+{{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.
+{% endfor %}
+
+{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+{{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR {{ host }}.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.
+{{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR api.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.
+{{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR api-int.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}.
+{% endfor %}

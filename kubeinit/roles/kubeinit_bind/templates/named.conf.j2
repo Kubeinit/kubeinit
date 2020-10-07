@@ -4,7 +4,7 @@
 /* More information at: https://github.com/kubeinit/kubeinit */
 
 options {
-    listen-on port 53 { 127.0.0.1; {{ hostvars[groups['k8s_service_nodes'][0]].ansible_host }}; {% if kubeinit_libvirt_external_service_interface_enabled | default(false) %}{{ kubeinit_libvirt_external_service_interface.ip }}; {% endif %}};
+    listen-on port 53 { 127.0.0.1; {{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host }}; {% if kubeinit_libvirt_external_service_interface_enabled | default(false) %}{{ kubeinit_libvirt_external_service_interface.ip }}; {% endif %}};
 
     directory          "/var/named";
     dump-file          "/var/named/data/cache_dump.db";
@@ -13,7 +13,7 @@ options {
     recursing-file     "/var/named/data/named.recursing";
     secroots-file      "/var/named/data/named.secroots";
 
-    allow-query        { localhost; {{ hostvars[groups['k8s_service_nodes'][0]].ansible_host | ipsubnet(24) }}; };
+    allow-query        { localhost; {{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipsubnet(24) }}; };
 
     recursion yes;
     allow-recursion { any; };
