@@ -28,105 +28,14 @@
 # Configure bind
 #
 
-- name: Create named.conf
-  template:
-    src: "named.conf.j2"
-    dest: "/etc/named.conf"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
+- name: Configure Bind
+  delegate_to: "{{ groups['okd_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_bind
+    tasks_from: main
   tags:
     - provision_libvirt
-
-- name: Create named.conf.local
-  template:
-    src: "named.conf.local.j2"
-    dest: "/etc/named/named.conf.local"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Create BIND zones directoy
-  file:
-    path: /etc/named/zones
-    state: directory
-    mode: '0777'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Create BIND zones directoy
-  file:
-    path: /etc/named/zones/internals
-    state: directory
-    mode: '0777'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Create BIND zones directoy
-  file:
-    path: /etc/named/zones/externals
-    state: directory
-    mode: '0777'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Create BIND db internal subnet
-  template:
-    src: "internals_db.j2"
-    dest: "/etc/named/zones/internals/db.{{ hostvars[item].ansible_host | ipsubnet(24) | ipaddr('network') }}"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Create BIND db internal zone
-  template:
-    src: "internals_db.local.j2"
-    dest: "/etc/named/zones/internals/db.{{ kubeinit_common_cluster_name }}.{{ kubeinit_common_cluster_domain }}"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Create BIND db external zone
-  template:
-    src: "externals_db.local.j2"
-    dest: "/etc/named/zones/externals/db.{{ kubeinit_common_cluster_name }}.{{ kubeinit_common_cluster_domain }}"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  when: kubeinit_libvirt_external_service_interface_enabled | default(false)
-  tags:
-    - provision_libvirt
-
-- name: Disable IPv6 support
-  lineinfile:
-    dest: /etc/sysconfig/named
-    line: 'OPTIONS="-4"'
-    regexp: "^OPTIONS"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Start and enable bind service
-  service: name=named state=started enabled=yes
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
 #
 # Configure HAproxy
 #

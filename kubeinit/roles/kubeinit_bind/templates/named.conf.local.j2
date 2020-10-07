@@ -23,9 +23,9 @@ view "internal" {
         file "/etc/named/zones/internals/db.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}"; # zone file path
     };
 
-    zone "{{ hostvars[groups['k8s_service_nodes'][0]].ansible_host | ipaddr('revdns') | regex_replace('^[0-9]+\\.', '') }}" {
+    zone "{{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipaddr('revdns') | regex_replace('^[0-9]+\\.', '') }}" {
         type master;
-        file "/etc/named/zones/internals/db.{{ hostvars[groups['k8s_service_nodes'][0]].ansible_host | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
+        file "/etc/named/zones/internals/db.{{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
     };
 
 };
