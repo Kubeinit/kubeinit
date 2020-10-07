@@ -144,6 +144,8 @@ def main():
                                                                                               worker))
             else:
                 print("No need to do anything")
+            if execute:
+                exit()
 
 
 def remove_label(the_label, pr):
