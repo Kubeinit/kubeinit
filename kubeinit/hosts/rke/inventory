@@ -1,0 +1,80 @@
+#
+# Common variables for the inventory
+#
+
+[all:vars]
+# ansible_python_interpreter=/usr/bin/python3
+kubeinit_inventory_network_gateway=10.0.0.254
+kubeinit_inventory_network_netmask=255.255.255.0
+kubeinit_inventory_network_dhcp_start=10.0.0.1
+kubeinit_inventory_network_dhcp_end=10.0.0.253
+kubeinit_inventory_network_cidr=24
+kubeinit_inventory_network_net=10.0.0.0
+kubeinit_inventory_network_name=kimgtnet0
+kubeinit_inventory_network_bridge=kimgtbr0
+kubeinit_inventory_network_bridge_external=kiextbr0
+
+[rke_master_nodes:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o ProxyCommand="ssh -W %h:%p root@nyctea"'
+os=centos
+disk=25G
+ram=25165824
+prefix=24
+netmask=255.255.255.0
+gateway=10.0.0.254
+devicename=eth0
+root_device=/dev/sda1
+
+[rke_worker_nodes:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o ProxyCommand="ssh -W %h:%p root@nyctea"'
+os=centos
+disk=30G
+ram=8388608
+prefix=24
+netmask=255.255.255.0
+gateway=10.0.0.254
+devicename=eth0
+root_device=/dev/sda1
+
+[rke_service_nodes:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o ProxyCommand="ssh -W %h:%p root@nyctea"'
+os=centos
+disk=150G
+ram=12582912
+prefix=24
+netmask=255.255.255.0
+gateway=10.0.0.254
+devicename=eth0
+root_device=/dev/sda1
+
+#
+# Hosts definitions
+#
+[hypervisor_nodes]
+hypervisor-01 ansible_host=nyctea ansible_ssh_common_args='-o StrictHostKeyChecking="no"'
+
+# Only use an odd number configuration, this means
+# enabling only 1, 3, or 5 master nodes at a time.
+[rke_master_nodes]
+rke-master-01 ansible_host=10.0.0.1 mac=52:54:00:47:91:72
+# rke-master-02 ansible_host=10.0.0.2 mac=52:54:00:94:59:96
+# rke-master-03 ansible_host=10.0.0.3 mac=52:54:00:80:48:54
+# rke-master-04 ansible_host=10.0.0.4 mac=52:54:00:89:47:35
+# rke-master-05 ansible_host=10.0.0.5 mac=52:54:00:37:49:40
+
+# From .6 to .99 worker nodes
+[rke_worker_nodes]
+# rke-worker-01 ansible_host=10.0.0.6 mac=52:54:00:11:48:25
+# rke-worker-02 ansible_host=10.0.0.7 mac=52:54:00:82:39:53
+# rke-worker-03 ansible_host=10.0.0.8 mac=52:54:00:58:77:10
+# rke-worker-04 ansible_host=10.0.0.9 mac=52:54:00:36:51:70
+# rke-worker-05 ansible_host=10.0.0.10 mac=52:54:00:88:55:36
+# rke-worker-06 ansible_host=10.0.0.11 mac=52:54:00:64:31:39
+# rke-worker-07 ansible_host=10.0.0.12 mac=52:54:00:26:46:24
+# rke-worker-08 ansible_host=10.0.0.13 mac=52:54:00:27:85:70
+# rke-worker-09 ansible_host=10.0.0.14 mac=52:54:00:22:66:71
+# rke-worker-10 ansible_host=10.0.0.15 mac=52:54:00:97:97:10
+
+# From .100 to .109 service nodes
+[rke_service_nodes]
+rke-service-01 ansible_host=10.0.0.100 mac=52:54:00:25:24:22
