@@ -302,22 +302,11 @@
 # Configure NFS
 #
 
-- name: "configure NFS shares"
-  shell: |
-    set -o pipefail
-    systemctl enable nfs-server rpcbind
-    systemctl start nfs-server rpcbind
-    mkdir -p /var/nfsshare
-    chmod -R 777 /var/nfsshare
-    chown -R nobody:nobody /var/nfsshare
-    echo '/var/nfsshare {{ hostvars[item].ansible_host | ipsubnet(24) }}(rw,sync,no_root_squash,no_all_squash,no_wdelay)' | tee /etc/exports
-    setsebool -P nfs_export_all_rw 1
-    systemctl restart nfs-server
-  register: nfs_share_config
-  changed_when: "nfs_share_config.rc == 0"
-  args:
-    executable: /bin/bash
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
+- name: Configure NFS
+  delegate_to: "{{ groups['okd_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_nfs
+    tasks_from: main
   tags:
     - provision_libvirt
