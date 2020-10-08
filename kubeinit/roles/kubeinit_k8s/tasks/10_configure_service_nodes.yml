@@ -163,21 +163,12 @@
 # Configure httpd
 #
 
-- name: Use 8080 port in service node
-  replace:
-    path: /etc/httpd/conf/httpd.conf
-    regexp: 'Listen 80'
-    replace: 'Listen 8080'
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Start and enable httpd service
-  service: name=httpd state=started enabled=yes
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_service_nodes'] }}"
+- name: Configure Apache
+  delegate_to: "{{ groups['k8s_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_apache
+    tasks_from: main
   tags:
     - provision_libvirt
 
