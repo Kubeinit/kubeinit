@@ -40,31 +40,12 @@
 # Configure HAproxy
 #
 
-- name: Create HAProxy config file
-  template:
-    src: "haproxy.cfg.j2"
-    dest: "/etc/haproxy/haproxy.cfg"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: "allow access to the cluster"
-  shell: |
-    setsebool -P haproxy_connect_any 1
-    setsebool -P httpd_read_user_content 1
-  register: allow_haproxy_connect
-  changed_when: "allow_haproxy_connect.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Start and enable haproxy service
-  service: name=haproxy state=started enabled=yes
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_service_nodes'] }}"
+- name: Configure HAProxy
+  delegate_to: "{{ groups['k8s_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_haproxy
+    tasks_from: main
   tags:
     - provision_libvirt
 
