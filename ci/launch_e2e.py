@@ -39,7 +39,75 @@ def main():
             execute = False
             # We assign the executed label to avoid executing this agains the same PR over and over
             # We mark the PR as e2e-executed
-            if ("okd-libvirt-3-master-0-worker" in labels):
+
+            #
+            # Charmed Distribution of Kubernetes
+            #
+            if ("cdk-libvirt-3-master-1-worker" in labels):
+                distro = "cdk"
+                driver = "libvirt"
+                master = "3"
+                worker = "1"
+                execute = True
+                remove_label("cdk-libvirt-3-master-1-worker", pr)
+            elif ("cdk-libvirt-3-master-0-worker" in labels):
+                distro = "cdk"
+                driver = "libvirt"
+                master = "3"
+                worker = "0"
+                execute = True
+                remove_label("cdk-libvirt-3-master-0-worker", pr)
+            elif ("cdk-libvirt-1-master-1-worker" in labels):
+                distro = "cdk"
+                driver = "libvirt"
+                master = "1"
+                worker = "1"
+                execute = True
+                remove_label("cdk-libvirt-1-master-1-worker", pr)
+            elif ("cdk-libvirt-1-master-0-worker" in labels):
+                distro = "cdk"
+                driver = "libvirt"
+                master = "1"
+                worker = "0"
+                execute = True
+                remove_label("cdk-libvirt-1-master-0-worker", pr)
+
+            #
+            # Rancher Kubernetes Engine
+            #
+            elif ("rke-libvirt-3-master-1-worker" in labels):
+                distro = "rke"
+                driver = "libvirt"
+                master = "3"
+                worker = "1"
+                execute = True
+                remove_label("rke-libvirt-3-master-1-worker", pr)
+            elif ("rke-libvirt-3-master-0-worker" in labels):
+                distro = "rke"
+                driver = "libvirt"
+                master = "3"
+                worker = "0"
+                execute = True
+                remove_label("rke-libvirt-3-master-0-worker", pr)
+            elif ("rke-libvirt-1-master-1-worker" in labels):
+                distro = "rke"
+                driver = "libvirt"
+                master = "1"
+                worker = "1"
+                execute = True
+                remove_label("rke-libvirt-1-master-1-worker", pr)
+            elif ("rke-libvirt-1-master-0-worker" in labels):
+                distro = "rke"
+                driver = "libvirt"
+                master = "1"
+                worker = "0"
+                execute = True
+                remove_label("rke-libvirt-1-master-0-worker", pr)
+
+            #
+            # Origin Kubernetes Distribution
+            #
+            elif ("okd-libvirt-3-master-0-worker" in labels):
                 distro = "okd"
                 driver = "libvirt"
                 master = "3"
@@ -67,6 +135,10 @@ def main():
                 worker = "1"
                 execute = True
                 remove_label("okd-libvirt-1-master-1-worker", pr)
+
+            #
+            # Kubernetes
+            #
             elif ("k8s-libvirt-3-master-1-worker" in labels):
                 distro = "k8s"
                 driver = "libvirt"
@@ -95,6 +167,7 @@ def main():
                 worker = "0"
                 execute = True
                 remove_label("k8s-libvirt-1-master-0-worker", pr)
+
             if execute:
                 print("Let's run the e2e job, distro %s driver %s " % (distro, driver))
                 print("-------------")

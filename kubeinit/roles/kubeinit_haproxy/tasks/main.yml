@@ -32,18 +32,24 @@
   tags:
     - always
 
+- name: Install HAProxy
+  package:
+    name:
+      - haproxy
+    state: present
+
 - name: Create HAProxy config file
   template:
     src: "haproxy.cfg.j2"
     dest: "/etc/haproxy/haproxy.cfg"
     mode: '0644'
 
-- name: "allow access to the cluster"
-  shell: |
-    setsebool -P haproxy_connect_any 1
-    setsebool -P httpd_read_user_content 1
-  register: allow_haproxy_connect
-  changed_when: "allow_haproxy_connect.rc == 0"
+# - name: "allow access to the cluster"
+#   shell: |
+#     setsebool -P haproxy_connect_any 1
+#     setsebool -P httpd_read_user_content 1
+#   register: allow_haproxy_connect
+#   changed_when: "allow_haproxy_connect.rc == 0"
 
 - name: Start and enable haproxy service
-  service: name=haproxy state=started enabled=yes
+  service: name=haproxy state=restarted enabled=yes

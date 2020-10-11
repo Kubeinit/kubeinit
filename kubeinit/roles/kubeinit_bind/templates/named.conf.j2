@@ -6,12 +6,14 @@
 options {
     listen-on port 53 { 127.0.0.1; {{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host }}; {% if kubeinit_libvirt_external_service_interface_enabled | default(false) %}{{ kubeinit_libvirt_external_service_interface.ip }}; {% endif %}};
 
+    {% if kubeinit_common_cluster_distro == 'okd' or kubeinit_common_cluster_distro == 'k8s' %}
     directory          "/var/named";
     dump-file          "/var/named/data/cache_dump.db";
     statistics-file    "/var/named/data/named_stats.txt";
     memstatistics-file "/var/named/data/named_mem_stats.txt";
     recursing-file     "/var/named/data/named.recursing";
     secroots-file      "/var/named/data/named.secroots";
+    {% endif %}
 
     allow-query        { localhost; {{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipsubnet(24) }}; };
 
@@ -25,22 +27,27 @@ options {
 
     dnssec-enable yes;
     dnssec-validation yes;
+    filter-aaaa-on-v4 yes;
 
     /* Path to ISC DLV key */
-    bindkeys-file "/etc/named.root.key";
-
-    managed-keys-directory "/var/named/dynamic";
-
-    pid-file "/run/named/named.pid";
-    session-keyfile "/run/named/session.key";
+    /* Use the defaults */
+    /* bindkeys-file "/etc/named.root.key"; */
+    /* managed-keys-directory "/var/{{ kubeinit_bind_config_folder }}/dynamic"; */
+    /* pid-file "/run/named/named.pid"; */
+    /* session-keyfile "/run/named/session.key"; */
 };
 
-logging {
-    channel default_debug {
-        file "data/named.run";
-        severity dynamic;
-    };
-};
+/* logging { */
+/*   channel default_debug { */
+/*     file "data/named.run"; */
+/*     severity dynamic; */
+/*   }; */
+/* }; */
 
+{% if kubeinit_common_cluster_distro == 'okd' or kubeinit_common_cluster_distro == 'k8s' %}
 include "/etc/named.root.key";
-include "/etc/named/named.conf.local";
+{% elif kubeinit_common_cluster_distro == 'cdk' or kubeinit_common_cluster_distro == 'rke' %}
+include "/etc/bind/bind.keys";
+{% endif %}
+
+include "/etc/{{ kubeinit_bind_config_folder }}/named.conf.local";

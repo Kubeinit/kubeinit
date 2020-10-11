@@ -1,5 +1,5 @@
 ---
-# Copyright 2020 KubeInit.
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -14,20 +14,65 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Run validations
+  include_role:
+    name: "../../roles/kubeinit_validations"
+    tasks_from: 70_libvirt.yml
+    public: yes
+  tags: provision_libvirt
 
-# "kubeinit_cdk" will search for and load any operating system variable file
+- name: provision the initial virtual infra
+  include_role:
+   name: "../../roles/kubeinit_libvirt"
+   tasks_from: main.yml
+   public: yes
+  tags: provision_libvirt
 
-# found within the "vars/" path. If no OS files are found the task will skip.
-- name: Gather variables for each operating system
-  include_vars: "{{ item }}"
-  with_first_found:
-    - skip: true
-      files:
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_version.split('.')[0] }}.yml"
-        - "{{ ansible_os_family | lower }}.yml"
-  tags:
-    - always
+- name: Deploy the cluster nodes
+  include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 10_rke_deploy_nodes.yml
+    public: yes
+  tags: provision_libvirt
+
+- name: Configure the cluster common config
+  include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 00_configure_common.yml
+    public: yes
+  tags: provision_libvirt
+
+- name: Configure the cluster service node
+  include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 10_configure_service_nodes.yml
+    public: yes
+  tags: provision_libvirt
+
+- name: Configure the cluster master nodes
+  include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 20_configure_master_nodes.yml
+    public: yes
+  tags: provision_libvirt
+
+- name: Configure the cluster worker nodes
+  include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 30_configure_worker_nodes.yml
+    public: yes
+  tags: provision_libvirt
+
+- name: Deploy RKE
+  include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 40_deploy_cdk.yml
+    public: yes
+  tags: provision_libvirt
+
+- name: Finish post deployment tasks
+  include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 50_post_deployment_tasks.yml
+    public: yes
+  tags: provision_libvirt

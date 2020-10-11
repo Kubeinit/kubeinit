@@ -1,5 +1,5 @@
 ---
-# Copyright 2020 KubeInit.
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -14,13 +14,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-# All variables intended for modification should be placed in this file.
-
-# All variables within this role should have a prefix of "kubeinit_cdk_"
-kubeinit_cdk_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
-kubeinit_cdk_hide_sensitive_logs: true
-
-kubeinit_common_cluster_distro: cdk
-kubeinit_common_cluster_name: watata
-kubeinit_common_cluster_domain: kubeinit.local
+- name: Install root public from service node in masters
+  shell: |
+   echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['rke_master_nodes'] }}"
+  tags:
+    - provision_libvirt

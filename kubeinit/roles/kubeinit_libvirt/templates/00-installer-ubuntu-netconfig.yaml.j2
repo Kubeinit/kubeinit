@@ -1,0 +1,30 @@
+# This file is rendered using a	template from a KubeInit role
+# This file will be overriden each time	the playbook runs
+# No not edit directly
+# More information at: https://github.com/kubeinit/kubeinit
+network:
+  version: 2
+  renderer: networkd
+
+  ethernets:
+    enp1s0:
+      dhcp4: true
+      dhcp6: false
+      addresses: [{{ hostvars[item].ansible_host }}/{{ hostvars[item].prefix }}]
+      gateway4: {{ hostvars[item].gateway }}
+      mtu: 1500
+      nameservers:
+        addresses: [{{ hostvars[item].gateway }}]
+{% if kubeinit_libvirt_external_service_interface_enabled and 'service' in item %}
+    {{ kubeinit_libvirt_external_service_interface.dev }}:
+      dhcp4: true
+      dhcp6: false
+      addresses: [{{ kubeinit_libvirt_external_service_interface.ip }}/{{ kubeinit_libvirt_external_service_interface.netmask }}]
+      gateway4: {{ kubeinit_libvirt_external_service_interface.gateway }}
+      mtu: 1500
+      nameservers:
+        addresses: [{{ kubeinit_libvirt_external_service_interface.gateway }}]
+{% endif %}
+
+# enp1s0
+# enp2s0

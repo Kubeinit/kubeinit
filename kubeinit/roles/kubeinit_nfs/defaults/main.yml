@@ -20,3 +20,10 @@
 # All variables within this role should have a prefix of "kubeinit_nfs_"
 kubeinit_nfs_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
 kubeinit_nfs_hide_sensitive_logs: true
+
+kubeinit_nfs_packages_aux: "{% if ( kubeinit_common_cluster_distro == 'rke' or kubeinit_common_cluster_distro == 'cdk' ) %}
+                                 nfs-kernel-server, nfs-common
+                             {% else %}
+                                 nfs-utils
+                             {% endif %}"
+kubeinit_nfs_packages: "{{ kubeinit_nfs_packages_aux.split(',') }}"
