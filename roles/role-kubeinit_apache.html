@@ -39,7 +39,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Role - kubeinit_bind" href="role-kubeinit_bind.html" />
-    <link rel="prev" title="&lt;no title&gt;" href="role-installer_prep.html" /> 
+    <link rel="prev" title="Documented roles in KubeInit" href="../roles.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -195,6 +195,16 @@
 <span class="c1"># All variables within this role should have a prefix of &quot;kubeinit_apache_&quot;</span>
 <span class="nt">kubeinit_apache_debug</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">(ansible_verbosity</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">int)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">bool</span><span class="nv"> </span><span class="s">}}&#39;</span>
 <span class="nt">kubeinit_apache_hide_sensitive_logs</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="nt">kubeinit_apache_service_name</span><span class="p">:</span> <span class="s">&quot;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_common_cluster_distro</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">&#39;rke&#39;</span><span class="nv"> </span><span class="s">or\</span>
+  <span class="s">\ kubeinit_common_cluster_distro</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">&#39;cdk&#39;</span><span class="nv"> </span><span class="s">)</span><span class="nv"> </span><span class="s">%}apache2{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}httpd{%</span><span class="nv"> </span><span class="s">endif</span><span class="nv"> </span><span class="s">%}&quot;</span>
+<span class="nt">kubeinit_apache_config_file_ports</span><span class="p">:</span> <span class="s">&quot;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_common_cluster_distro</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">&#39;rke&#39;\</span>
+  <span class="s">\ or</span><span class="nv"> </span><span class="s">kubeinit_common_cluster_distro</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">&#39;cdk&#39;</span><span class="nv"> </span><span class="s">)</span><span class="nv"> </span><span class="s">%}/etc/apache2/ports.conf{%</span><span class="nv"> </span><span class="s">else\</span>
+  <span class="s">\ %}/etc/httpd/conf/httpd.conf{%</span><span class="nv"> </span><span class="s">endif</span><span class="nv"> </span><span class="s">%}&quot;</span>
+<span class="nt">kubeinit_apache_packages_aux</span><span class="p">:</span> <span class="s">&quot;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_common_cluster_distro</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">&#39;rke&#39;</span><span class="nv"> </span><span class="s">or\</span>
+  <span class="s">\ kubeinit_common_cluster_distro</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">&#39;cdk&#39;</span><span class="nv"> </span><span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">apache2</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">httpd</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif\</span>
+  <span class="s">\ %}&quot;</span>
+<span class="nt">kubeinit_apache_packages</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_apache_packages_aux.split(&#39;,&#39;)</span><span class="nv"> </span><span class="s">}}&quot;</span>
 </pre></div>
 </div>
 </div>
@@ -243,7 +253,7 @@
         <a href="role-kubeinit_bind.html" class="btn btn-neutral float-right" title="Role - kubeinit_bind" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="role-installer_prep.html" class="btn btn-neutral float-left" title="&lt;no title&gt;" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="../roles.html" class="btn btn-neutral float-left" title="Documented roles in KubeInit" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
