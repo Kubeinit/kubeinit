@@ -1,0 +1,100 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+#
+# Configure bind
+#
+
+- name: Configure Bind
+  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_bind
+    tasks_from: main
+  tags:
+    - provision_libvirt
+#
+# Configure HAproxy
+#
+
+- name: Configure HAProxy
+  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_haproxy
+    tasks_from: main
+  tags:
+    - provision_libvirt
+
+#
+# Configure httpd
+#
+
+- name: Configure Apache
+  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_apache
+    tasks_from: main
+  tags:
+    - provision_libvirt
+
+#
+# Configure NFS
+#
+
+- name: Configure NFS
+  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_nfs
+    tasks_from: main
+  tags:
+    - provision_libvirt
+
+#
+# Include the install configuration
+#
+
+- name: "Render root keys in the service node"
+  shell: |
+    set -o pipefail
+    cd
+    mkdir -p ~/.ssh
+    rm -f ~/.ssh/id_rsa && echo -e 'y\n' | ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
+  args:
+    executable: /bin/bash
+  register: render_service_keys
+  changed_when: "render_service_keys.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['rke_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: get root service machine public key
+  command: cat /root/.ssh/id_rsa.pub
+  register: public_key_service_content
+  changed_when: "public_key_service_content.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['rke_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: register the public key of the root service machine public key
+  set_fact:
+    kubeinit_provision_service_public_key={{ public_key_service_content.results[0].stdout }}
+  tags:
+    - provision_libvirt

@@ -32,12 +32,20 @@
   tags:
     - always
 
+- name: Install Apache
+  package:
+    name: "{{ kubeinit_apache_packages }}"
+    state: present
+
 - name: Use 8080 port in service node
   replace:
-    path: /etc/httpd/conf/httpd.conf
+    path: "{{ kubeinit_apache_config_file_ports }}"
     regexp: 'Listen 80'
     replace: 'Listen 8080'
     mode: '0644'
 
 - name: Start and enable httpd service
-  service: name=httpd state=started enabled=yes
+  service:
+    name: "{{ kubeinit_apache_service_name }}"
+    state: restarted
+    enabled: yes

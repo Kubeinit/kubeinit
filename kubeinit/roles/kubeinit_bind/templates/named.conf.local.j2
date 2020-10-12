@@ -11,21 +11,25 @@ acl internals {
 view "internal" {
     match-clients { internals; };
 
+    {% if kubeinit_common_cluster_distro == 'okd' or kubeinit_common_cluster_distro == 'k8s' %}
     include "/etc/named.rfc1912.zones";
+    {% elif kubeinit_common_cluster_distro == 'cdk' or kubeinit_common_cluster_distro == 'rke' %}
+    include "/etc/bind/zones.rfc1918";
+    {% endif %}
 
-    zone "." IN {
-        type hint;
-        file "named.ca";
-    };
+    /*zone "." IN {*/
+    /*    type hint;*/
+    /*    file "named.ca";*/
+    /*};*/
 
     zone "{{ kubeinit_common_cluster_name }}.{{ kubeinit_common_cluster_domain }}" {
         type master;
-        file "/etc/named/zones/internals/db.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}"; # zone file path
+        file "/etc/{{ kubeinit_bind_config_folder }}/zones/internals/db.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}"; # zone file path
     };
 
     zone "{{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipaddr('revdns') | regex_replace('^[0-9]+\\.', '') }}" {
         type master;
-        file "/etc/named/zones/internals/db.{{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
+        file "/etc/{{ kubeinit_bind_config_folder }}/zones/internals/db.{{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
     };
 
 };
@@ -38,7 +42,7 @@ view "external" {
 
     zone "{{ kubeinit_common_cluster_name }}.{{ kubeinit_common_cluster_domain }}" {
         type master;
-        file "/etc/named/zones/externals/db.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}"; # zone file path
+        file "/etc/{{ kubeinit_bind_config_folder }}/zones/externals/db.{{kubeinit_common_cluster_name}}.{{ kubeinit_common_cluster_domain }}"; # zone file path
     };
 
 };

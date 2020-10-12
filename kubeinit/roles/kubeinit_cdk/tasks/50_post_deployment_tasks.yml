@@ -1,5 +1,5 @@
 ---
-# Copyright 2020 KubeInit.
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -14,13 +14,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-# All variables intended for modification should be placed in this file.
-
-# All variables within this role should have a prefix of "kubeinit_cdk_"
-kubeinit_cdk_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
-kubeinit_cdk_hide_sensitive_logs: true
-
-kubeinit_common_cluster_distro: cdk
-kubeinit_common_cluster_name: watata
-kubeinit_common_cluster_domain: kubeinit.local
+- name: "final step"
+  shell: |
+    echo "Final step"
+  register: final_step
+  changed_when: "final_step.rc == 0"
+  delegate_to: "{{ cluster_node }}"
+  with_items: "{{ groups['cdk_service_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  ignore_errors: yes
+  tags:
+    - provision_libvirt
