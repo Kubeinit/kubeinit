@@ -14,11 +14,49 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "Install CDK"
+- name: Render the cluster template
+  template:
+    src: "cloud.yml.j2"
+    dest: "~/cloud.yml"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['cdk_service_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+- name: "Install the CDK controller"
   shell: |
     cd
     snap install juju --classic
-    # juju deploy charmed-kubernetes --overlay your-overlay.yaml
+    juju add-cloud --local {{ kubeinit_common_cluster_name }} -f cloud.yml
+    echo "bootstrapping juju..."
+    juju bootstrap --no-gui \
+    --bootstrap-series=focal \
+    --debug manual/root@127.0.0.1 > juju-bootstrap.log 2>&1
+  register: install_cdk
+  changed_when: "install_cdk.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['cdk_service_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+- name: "Add machines"
+  shell: |
+    ssh-keyscan {{ hostvars[item].ansible_host }}
+    sleep 2
+    ssh-keyscan {{ hostvars[item].ansible_host }} >> ~/.ssh/known_hosts
+    juju add-machine --debug ssh:root@{{ hostvars[item].ansible_host }} > juju-add-machine-{{ item }}.log 2>&1
+  register: add_cdk_machines
+  changed_when: "add_cdk_machines.rc == 0"
+  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: "Deploy CDK"
+  shell: |
+    juju deploy canonical-kubernetes
   register: install_cdk
   changed_when: "install_cdk.rc == 0"
   delegate_to: "{{ item }}"
