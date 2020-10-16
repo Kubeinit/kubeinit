@@ -9,6 +9,17 @@ Welcome to KubeInit's documentation!
 KubeInit provides Ansible playbooks and roles for the deployment
 and configuration of multiple Kubernetes distributions.
 
+Contributors
+============
+
+First thing first, thank you to all KubeInit's contributors.
+
+..  ghcontributors:: kubeinit/kubeinit
+    :limit: 200
+    :order: DESC
+    :exclude: kubeinit-bot,sphinx
+
+
 Mission
 =======
 
