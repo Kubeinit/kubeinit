@@ -3,7 +3,7 @@ name: molecule
 on: [push, pull_request]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       max-parallel: 4
       matrix:
@@ -22,13 +22,11 @@ jobs:
         sudo dpkg-reconfigure locales
         sudo apt install build-essential findutils -y
         sudo apt-get --purge autoremove python3-pip
-        sudo apt-get --purge autoremove python-pip
-        sudo apt install python3-pip
+        sudo apt install python3-pip -y
         sudo python3 -m pip install --upgrade pip
         sudo python3 -m pip install --upgrade virtualenv
         sudo python3 -m pip install --upgrade setuptools
-        sudo python3 -m pip install -r ./test-requirements.txt
-        # sudo bash ./molecule/run.sh
+        sudo bash ./molecule/run.sh
     - uses: actions/upload-artifact@v2
       with:
         name: MoleculeResultHTML

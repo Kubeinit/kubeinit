@@ -24,6 +24,7 @@ set -xeuo
 ## Vars ----------------------------------------------------------------------
 export PROJECT_DIR=${PWD}
 export KUBEINIT_JOB_ANSIBLE_ARGS=${KUBEINIT_JOB_ANSIBLE_ARGS:-"-vvvvv"}
+export ANSIBLE_REMOTE_TMP=/tmp/$USER/ansible
 
 if [ ! -f tox.ini ]; then
     echo "EXECUTE THIS SCRIPT FROM THE REPOSITORY ROOT DIRECTORY"
@@ -60,6 +61,8 @@ PS1="[\u@\h \W]\$" source "${HOME}/test-python/bin/activate"
 
 cd ./kubeinit/roles/
 python3 -m pytest \
+        --trace \
+        --ansible-args=${KUBEINIT_JOB_ANSIBLE_ARGS} \
         --color=no \
         --html=${HOME}/reports.html \
         --self-contained-html
