@@ -64,5 +64,5 @@ python3 -m pytest \
         --trace \
         --ansible-args=${KUBEINIT_JOB_ANSIBLE_ARGS} \
         --color=no \
-        --html=${HOME}/reports.html \
+        --html=/tmp/reports.html \
         --self-contained-html
