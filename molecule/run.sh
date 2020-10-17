@@ -62,7 +62,7 @@ PS1="[\u@\h \W]\$" source "${HOME}/test-python/bin/activate"
 cd ./kubeinit/roles/
 python3 -m pytest \
         --trace \
-        --ansible-args=${KUBEINIT_JOB_ANSIBLE_ARGS}
+        --ansible-args=${KUBEINIT_JOB_ANSIBLE_ARGS} \
         --color=no \
         --html=${HOME}/reports.html \
         --self-contained-html
