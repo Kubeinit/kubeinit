@@ -17,6 +17,16 @@
 #
 # Initial config
 #
+- name: Disable SWAP
+  shell: |
+    swapoff -a
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
 - name: Resize root partition
   shell: |
     echo 'Reclaim space for root partition'

@@ -1,0 +1,154 @@
+---
+# From: https://api.jujucharms.com/charmstore/v5/charmed-kubernetes/archive/bundle.yaml
+
+description: A highly-available, production-grade Kubernetes cluster.
+series: focal
+machines:
+{% for item in groups['cdk_master_nodes'] + groups['cdk_worker_nodes'] %}
+  "{{ loop.index0 }}":
+{% endfor %}
+services:
+  containerd:
+    annotations:
+      gui-x: '475'
+      gui-y: '800'
+    charm: cs:~containers/containerd-94
+    resources: {}
+  easyrsa:
+    annotations:
+      gui-x: '90'
+      gui-y: '420'
+    charm: cs:~containers/easyrsa-333
+    constraints: root-disk=8G
+    num_units: 1
+    resources:
+      easyrsa: 5
+    to:
+    # This means that we will deploy the service
+    # In the first worker node as the numbering starts
+    # at 0. So, the amount of master nodes index will be
+    # the first worker node.
+{% if groups['cdk_worker_nodes'] | count > 0 %}
+    - "{{ groups['cdk_master_nodes'] | count }}"
+{% else %}
+    - "0"
+{% endif %}
+  etcd:
+    annotations:
+      gui-x: '800'
+      gui-y: '420'
+    charm: cs:~containers/etcd-540
+    constraints: root-disk=8G
+    num_units: {{ groups['cdk_master_nodes'] | count }}
+    options:
+      channel: 3.4/stable
+    resources:
+      core: 0
+      etcd: 3
+      snapshot: 0
+    to:
+{% for item in groups['cdk_master_nodes'] %}
+    - "{{ loop.index0 }}"
+{% endfor %}
+  flannel:
+    annotations:
+      gui-x: '475'
+      gui-y: '605'
+    charm: cs:~containers/flannel-506
+    resources:
+      flannel-amd64: 646
+      flannel-arm64: 643
+      flannel-s390x: 630
+  kubeapi-load-balancer:
+    annotations:
+      gui-x: '450'
+      gui-y: '250'
+    charm: cs:~containers/kubeapi-load-balancer-747
+    constraints: mem=4G root-disk=8G
+    expose: true
+    num_units: 1
+    resources: {}
+    to:
+    # This means that we will deploy the service
+    # In the first worker node as the numbering starts
+    # at 0. So, the amount of master nodes index will be
+    # the first worker node.
+{% if groups['cdk_worker_nodes'] | count > 0 %}
+    - "{{ groups['cdk_master_nodes'] | count }}"
+{% else %}
+    - "0"
+{% endif %}
+  kubernetes-master:
+    annotations:
+      gui-x: '800'
+      gui-y: '850'
+    charm: cs:~containers/kubernetes-master-891
+    constraints: cores=2 mem=4G root-disk=16G
+    num_units: {{ groups['cdk_master_nodes'] | count }}
+    options:
+      channel: 1.19/stable
+    resources:
+      cdk-addons: 0
+      core: 0
+      kube-apiserver: 0
+      kube-controller-manager: 0
+      kube-proxy: 0
+      kube-scheduler: 0
+      kubectl: 0
+    to:
+{% for item in groups['cdk_master_nodes'] %}
+    - "{{ loop.index0 }}"
+{% endfor %}
+{% if groups['cdk_worker_nodes'] | count > 0 %}
+  kubernetes-worker:
+    annotations:
+      gui-x: '90'
+      gui-y: '850'
+    charm: cs:~containers/kubernetes-worker-704
+    constraints: cores=4 mem=4G root-disk=16G
+    expose: true
+    num_units: {{ groups['cdk_worker_nodes'] | count }}
+    options:
+      channel: 1.19/stable
+    resources:
+      cni-amd64: 674
+      cni-arm64: 665
+      cni-s390x: 677
+      core: 0
+      kube-proxy: 0
+      kubectl: 0
+      kubelet: 0
+    to:
+{% for item in groups['cdk_worker_nodes'] %}
+    - "{{ loop.index0 + groups['cdk_master_nodes'] | count }}"
+{% endfor %}
+{% endif %}
+relations:
+- - kubernetes-master:kube-api-endpoint
+  - kubeapi-load-balancer:apiserver
+- - kubernetes-master:loadbalancer
+  - kubeapi-load-balancer:loadbalancer
+- - kubernetes-master:kube-control
+  - kubernetes-worker:kube-control
+- - kubernetes-master:certificates
+  - easyrsa:client
+- - etcd:certificates
+  - easyrsa:client
+- - kubernetes-master:etcd
+  - etcd:db
+- - kubernetes-worker:certificates
+  - easyrsa:client
+- - kubernetes-worker:kube-api-endpoint
+  - kubeapi-load-balancer:website
+- - kubeapi-load-balancer:certificates
+  - easyrsa:client
+- - flannel:etcd
+  - etcd:db
+- - flannel:cni
+  - kubernetes-master:cni
+- - flannel:cni
+  - kubernetes-worker:cni
+- - containerd:containerd
+  - kubernetes-worker:container-runtime
+- - containerd:containerd
+  - kubernetes-master:container-runtime
