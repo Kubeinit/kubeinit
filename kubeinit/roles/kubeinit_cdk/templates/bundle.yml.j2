@@ -128,27 +128,33 @@ relations:
   - kubeapi-load-balancer:apiserver
 - - kubernetes-master:loadbalancer
   - kubeapi-load-balancer:loadbalancer
+{% if groups['cdk_worker_nodes'] | count > 0 %}
 - - kubernetes-master:kube-control
   - kubernetes-worker:kube-control
+{% endif %}
 - - kubernetes-master:certificates
   - easyrsa:client
 - - etcd:certificates
   - easyrsa:client
 - - kubernetes-master:etcd
   - etcd:db
+{% if groups['cdk_worker_nodes'] | count > 0 %}
 - - kubernetes-worker:certificates
   - easyrsa:client
 - - kubernetes-worker:kube-api-endpoint
   - kubeapi-load-balancer:website
+{% endif %}
 - - kubeapi-load-balancer:certificates
   - easyrsa:client
 - - flannel:etcd
   - etcd:db
 - - flannel:cni
   - kubernetes-master:cni
+{% if groups['cdk_worker_nodes'] | count > 0 %}
 - - flannel:cni
   - kubernetes-worker:cni
 - - containerd:containerd
   - kubernetes-worker:container-runtime
+{% endif %}
 - - containerd:containerd
   - kubernetes-master:container-runtime
