@@ -36,7 +36,6 @@ current_galaxy_name=$(cat kubeinit/galaxy.yml | shyaml get-value name)
 publish="1"
 
 # Specific for GH releases
-repo_full_name=$(git config --get remote.origin.url | sed 's/.*:\/\/github.com\///;s/.git$//')
 branch=$(git rev-parse --abbrev-ref HEAD)
 token=$(git config --global github.token)
 
@@ -88,7 +87,6 @@ if [ "$publish" == "1" ]; then
     ansible-galaxy collection publish \
         releases/$current_galaxy_namespace-$current_galaxy_name-$current_galaxy_version.tar.gz --api-key $KARG
 
-    # Create a GH release
-    curl --data "$(generate_post_data)" "https://api.github.com/repos/$repo_full_name/releases?access_token=$token"
-
+    echo "https://api.github.com/repos/kubeinit/kubeinit/releases"
+    curl --data "$(generate_post_data)" "https://api.github.com/repos/kubeinit/kubeinit/releases?access_token=$token"
 fi
