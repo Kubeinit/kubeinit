@@ -37,7 +37,6 @@ publish="1"
 
 # Specific for GH releases
 branch=$(git rev-parse --abbrev-ref HEAD)
-token=$(git config --global github.token)
 
 #
 # Post data method for GH release
@@ -45,7 +44,7 @@ token=$(git config --global github.token)
 
 generate_post_data()
 {
-timestamp=$(date +"%Y-%m-%d-%M-%S")
+timestamp=$(date +"%Y-%m-%d-%H-%M-%S")
   cat <<EOF
 {
   "tag_name": "$current_galaxy_version",
