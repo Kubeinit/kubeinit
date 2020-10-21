@@ -35,6 +35,30 @@ current_galaxy_namespace=$(cat kubeinit/galaxy.yml | shyaml get-value namespace)
 current_galaxy_name=$(cat kubeinit/galaxy.yml | shyaml get-value name)
 publish="1"
 
+# Specific for GH releases
+repo_full_name=$(git config --get remote.origin.url | sed 's/.*:\/\/github.com\///;s/.git$//')
+branch=$(git rev-parse --abbrev-ref HEAD)
+token=$(git config --global github.token)
+
+#
+# Post data method for GH release
+#
+
+generate_post_data()
+{
+timestamp=$(date +"%Y-%m-%d-%M-%S")
+  cat <<EOF
+{
+  "tag_name": "$current_galaxy_version",
+  "target_commitish": "$branch",
+  "name": "$current_galaxy_version.kubeinit-$timestamp",
+  "body": "Release changelog at: https://docs.kubeinit.com/changelog.html#$current_galaxy_version",
+  "draft": false,
+  "prerelease": false
+}
+EOF
+}
+
 #
 # Check all the current published versions and if the
 # packaged to be created has a different version, then
@@ -63,4 +87,8 @@ if [ "$publish" == "1" ]; then
     ansible-galaxy collection build -v --force --output-path releases/
     ansible-galaxy collection publish \
         releases/$current_galaxy_namespace-$current_galaxy_name-$current_galaxy_version.tar.gz --api-key $KARG
+
+    # Create a GH release
+    curl --data "$(generate_post_data)" "https://api.github.com/repos/$repo_full_name/releases?access_token=$token"
+
 fi
