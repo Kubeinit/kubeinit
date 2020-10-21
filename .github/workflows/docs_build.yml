@@ -4,13 +4,15 @@ on:
   push:
     branches:
       - master
-    paths:
-      - 'docs/**'
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Render the changelog file
+        run: |
+          GITCHANGELOG_CONFIG_FILENAME=./tools/gitchangelog.rc ./tools/gitchangelog.py > ./docs/src/changelog.rst
+          cat ./docs/src/changelog.rst
       - uses: kubeinit/sphinx-action@master
         with:
           pre-build-command: |
