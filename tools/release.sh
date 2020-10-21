@@ -45,15 +45,15 @@ branch=$(git rev-parse --abbrev-ref HEAD)
 generate_post_data()
 {
 timestamp=$(date +"%Y-%m-%d-%H-%M-%S")
-release_count=$(curl https://api.github.com/repos/kubeinit/kubeinit/releases/ | jq '. | length')
-next_id=$((release_count + 1))
+permadate=$(date +"%Y-%m-%d")
+dashed_version="${current_galaxy_version//./-}"
 
   cat <<EOF
 {
   "tag_name": "$current_galaxy_version",
   "target_commitish": "$branch",
   "name": "$current_galaxy_version.kubeinit-$timestamp",
-  "body": "Release changelog at: https://docs.kubeinit.com/changelog.html#id$next_id",
+  "body": "Release changelog at: https://docs.kubeinit.com/changelog.html#v$dashed_version-release-date-$permadate",
   "draft": false,
   "prerelease": false
 }

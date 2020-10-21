@@ -74,18 +74,19 @@ pygments_style = 'native'
 # Sphinx are currently 'default' and 'sphinxdoc'.
 # html_theme_path = ["."]
 # html_theme = '_theme'
-# html_static_path = ['static']
 
+htmlhelp_basename = '%sdocs' % project
 html_favicon = "favicon.ico"
 html_logo = "white_text_logo.png"
+html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
     'logo_only': True,
     'display_version': False,
 }
-
-# Output file base name for HTML help builder.
-htmlhelp_basename = '%sdocs' % project
-html_theme = 'sphinx_rtd_theme'
+html_static_path = ['static']
+html_css_files = [
+    'css/custom.css',
+]
 
 needed_module_utils = [
     'module_1',

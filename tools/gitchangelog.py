@@ -1310,11 +1310,18 @@ def rest_py(data, opts={}):
         return (label.strip() + "\n") + (char * len(label) + "\n")
 
     def render_version(version):
-        title = "%s (%s)" % (version["tag"], version["date"]) \
+        #title = "%s (%s)" % (version["tag"], version["date"]) \
+        title = "v%s - Release date: %s" % (version["tag"], version["date"]) \
                 if version["tag"] else \
                 opts["unreleased_version_label"]
+        # The rest_title method, takes the title and put the underline character
+        # then, we add a new line. For example:
+        # this is an example title
+        # ------------------------
+        #
+        # then all the commits are procesed
         s = rest_title(title, char="-")
-
+        s += "\n\n"
         sections = version["sections"]
         nb_sections = len(sections)
         for section in sections:
