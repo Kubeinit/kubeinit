@@ -49,3 +49,4 @@ Content
    roles
    modules
    howtos_and_presentations
+   changelog
