@@ -87,6 +87,5 @@ if [ "$publish" == "1" ]; then
     ansible-galaxy collection publish \
         releases/$current_galaxy_namespace-$current_galaxy_name-$current_galaxy_version.tar.gz --api-key $KARG
 
-    echo "https://api.github.com/repos/kubeinit/kubeinit/releases"
-    curl --data "$(generate_post_data)" "https://api.github.com/repos/kubeinit/kubeinit/releases?access_token=$token"
+    curl --data "$(generate_post_data)" "https://api.github.com/repos/kubeinit/kubeinit/releases?access_token=$GITHUB_TOKEN"
 fi
