@@ -1,8 +1,18 @@
 ---
+# This job will execute a release:
+# Ansible galaxy new release
+# GitHub release with tag
+# Documents release
 name: release
-on: [push]
+
+on:
+  push:
+    branches:
+      - master
+
 jobs:
-  build:
+
+  release_sw:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
@@ -32,3 +42,55 @@ jobs:
         run: |
           chmod +x ./tools/release.sh
           sudo GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} ./tools/release.sh -k ${{ secrets.GALAXY_KEY }}
+
+  release_docs:
+    needs: release_sw
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use checkout v2 with all git log available
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Render the changelog file
+        run: |
+          GITCHANGELOG_CONFIG_FILENAME=./tools/gitchangelog.rc ./tools/gitchangelog.py > ./docs/src/changelog.rst
+          cat ./docs/src/changelog.rst
+      - uses: kubeinit/sphinx-action@master
+        with:
+          pre-build-command: |
+            apt-get update -y && \
+            apt install build-essential -y && \
+            apt install gcc -y && \
+            touch /tmp/sphinx-log && \
+            pip3 install --upgrade pip && \
+            pip3 install --upgrade virtualenv && \
+            pip3 install --upgrade setuptools && \
+            pip3 install -r test-requirements.txt && \
+            pip3 install --upgrade ruamel.yaml && \
+            pip3 install --upgrade sphinx-rtd-theme && \
+            ansible-galaxy collection build kubeinit -v --force --output-path . && \
+            LATEST=$(ls kubeinit-kubeinit*.tar.gz | grep -v latest | sort -V | tail -n1) && \
+            ln -sf $LATEST kubeinit-kubeinit-latest.tar.gz && \
+            ansible-galaxy collection install --force kubeinit-kubeinit-latest.tar.gz
+          docs-folder: "docs/src/"
+      - uses: actions/upload-artifact@v1
+        with:
+          name: DocumentationHTML
+          path: docs/src/_build/html/
+          if-no-files-found: error
+      - name: Commit documentation changes
+        run: |
+          git clone https://github.com/kubeinit/kubeinit.git --branch gh-pages --single-branch gh-pages
+          cp -r docs/src/_build/html/* gh-pages/
+          cd gh-pages
+          git config --local user.email "bot@kubeinit.com"
+          git config --local user.name "KubeInit's bot"
+          git add .
+          git commit -m "Update documentation" -a || true
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          force: true
+          branch: gh-pages
+          directory: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
