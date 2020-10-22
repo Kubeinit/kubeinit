@@ -24,11 +24,19 @@
   tags:
     - provision_libvirt
 
+- name: Download rancher
+  get_url:
+    url: "https://github.com/rancher/rke/releases/download/v1.1.9/rke_linux-amd64"
+    dest: ~/
+    mode: '0755'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['rke_service_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
 - name: "Install RKE"
   shell: |
-    cd
-    wget https://github.com/rancher/rke/releases/download/v1.1.9/rke_linux-amd64
-    mv rke_linux-amd64 rke
+    mv ~/rke_linux-amd64 ~/rke
     chmod +x rke
     ~/rke --version
     ~/rke up

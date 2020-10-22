@@ -157,20 +157,21 @@
   tags:
     - provision_libvirt
 
-- name: Wait for installer to complete
-  command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info
-  register: result
-  retries: 5
-  delay: 20
-  until: result.rc == 0
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  ignore_errors: yes
-  changed_when: "result.rc == 0"
-  tags:
-    - provision_libvirt
+# This can take a lot of time until the cluster converges
+# - name: Wait for installer to complete
+#   command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info
+#   register: result
+#   retries: 5
+#   delay: 20
+#   until: result.rc == 0
+#   delegate_to: "{{ cluster_node }}"
+#   with_items: "{{ groups['okd_service_nodes'] }}"
+#   loop_control:
+#     loop_var: cluster_node
+#   ignore_errors: yes
+#   changed_when: "result.rc == 0"
+#   tags:
+#     - provision_libvirt
 
 - name: "remove bootstrap node from haproxy"
   shell: |
@@ -186,7 +187,7 @@
   tags:
     - provision_libvirt
 
-- name: Destroy vms
+- name: Destroy bootstrap node VM
   virt:
     name: "{{ item }}"
     command: destroy
@@ -195,7 +196,7 @@
   tags:
     - provision_libvirt
 
-- name: Undefine vms
+- name: Undefine bootstrap node VM
   virt:
     name: "{{ item }}"
     command: undefine
@@ -204,7 +205,7 @@
   tags:
     - provision_libvirt
 
-- name: Remove VMs storage
+- name: Remove bootstrap node VM storage
   file:
     state: absent
     path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"

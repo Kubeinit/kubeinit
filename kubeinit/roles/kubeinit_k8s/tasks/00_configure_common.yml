@@ -17,6 +17,18 @@
 #
 # Initial config
 #
+- name: Resize root partition
+  shell: |
+    echo 'Reclaim space for root partition'
+    growpart /dev/vda 1
+    xfs_growfs /dev/vda1
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
 - name: Enable kernel modules and IP forward
   shell: |
     modprobe br_netfilter
