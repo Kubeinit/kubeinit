@@ -123,7 +123,7 @@
   tags:
     - provision_libvirt
 
-- name: "Render the bootstrap details"
+- name: "Install okd client and installer"
   shell: |
     set -o pipefail
     cd
@@ -133,35 +133,25 @@
     mv kubectl oc openshift-install /usr/local/bin/
     oc version
     openshift-install version
-    cat << EOF > ./install_dir/install-config.yaml
-    ---
-    apiVersion: v1
-    baseDomain: {{ kubeinit_common_cluster_domain }}
-    compute:
-      - hyperthreading: Enabled
-        name: worker
-        replicas: 0
-    controlPlane:
-      hyperthreading: Enabled
-      name: master
-      replicas: {{ groups['okd_master_nodes'] | count }}
-    metadata:
-      name: {{ kubeinit_common_cluster_name }}
-    networking:
-      clusterNetwork:
-        - cidr: 10.100.0.0/14
-          hostPrefix: 23
-      networkType: OpenShiftSDN
-      serviceNetwork:
-        - 172.30.0.0/16
-    platform:
-      none: {}
-    fips: false
-    pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
-    sshKey: |
-      {{ kubeinit_provision_vms_public_key }}
-      {{ kubeinit_provision_service_public_key[0]['stdout'] }}
-    EOF
+  register: install_client_and_installer
+  changed_when: "install_client_and_installer.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Render the cluster template
+  template:
+    src: "install-config.yaml.j2"
+    dest: "~/install_dir/install-config.yaml"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: "Render the bootstrap details"
+  shell: |
     openshift-install create manifests --dir=install_dir/
   register: render_bootstrap_details
   changed_when: "render_bootstrap_details.rc == 0"
