@@ -24,6 +24,17 @@
   tags:
     - provision_libvirt
 
+- name: Resize root partition
+  shell: |
+    echo 'Reclaim space for root partition'
+    growpart /dev/vda 1
+    xfs_growfs /dev/vda1
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
 #
 # Configure bind
 #
@@ -94,14 +105,30 @@
   tags:
     - provision_libvirt
 
+- name: Download okd installer
+  get_url:
+    url: "{{ kubeinit_okd_dependencies.installer }}"
+    dest: ~/
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Download okd client
+  get_url:
+    url: "{{ kubeinit_okd_dependencies.client }}"
+    dest: ~/
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
 - name: "Render the bootstrap details"
   shell: |
     set -o pipefail
     cd
     rm -rf install_dir
     mkdir install_dir
-    wget {{ kubeinit_okd_dependencies.client }}
-    wget {{ kubeinit_okd_dependencies.installer }}
     for f in *.tar.gz; do tar -xvf "$f"; done
     mv kubectl oc openshift-install /usr/local/bin/
     oc version
@@ -158,18 +185,61 @@
   tags:
     - provision_libvirt
 
+- name: Create directory for apache
+  file:
+    path: /var/www/html/okd4
+    state: directory
+    owner: apache
+    group: apache
+    mode: 0775
+    recurse: yes
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Download coreos raw image
+  get_url:
+    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.raw }}"
+    dest: /var/www/html/okd4/
+    owner: apache
+    group: apache
+    mode: 0775
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Download coreos sig image
+  get_url:
+    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.sig }}"
+    dest: /var/www/html/okd4/
+    owner: apache
+    group: apache
+    mode: 0775
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
 - name: "Render ignition files"
   shell: |
     openshift-install create ignition-configs --dir=install_dir/
-    mkdir /var/www/html/okd4
     cp -R install_dir/* /var/www/html/okd4/
-    cd /var/www/html/okd4/
-    sudo wget {{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.raw }}
-    sudo wget {{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.sig }}
-    sudo chown -R apache: /var/www/html/
-    sudo chmod -R 755 /var/www/html/
   register: render_ignition_files
   changed_when: "render_ignition_files.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+
+- name: "Apply permissions to the apache folder"
+  shell: |
+    sudo chown -R apache: /var/www/html/
+    sudo chmod -R 755 /var/www/html/
+  register: apply_apache_permissions
+  changed_when: "apply_apache_permissions.rc == 0"
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:

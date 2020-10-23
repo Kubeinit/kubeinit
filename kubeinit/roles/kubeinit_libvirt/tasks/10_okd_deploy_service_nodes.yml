@@ -64,28 +64,21 @@
   tags:
     - provision_libvirt
 
-- name: Create vm backing store from base vm image
-  copy:
-    remote_src: True
-    src: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}"
-    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-    force: yes  # Do not recopy if it has been modified
-    mode: '0644'
-  with_items: "{{ groups['okd_service_nodes'] }}"
+- name: Remove old disk images
+  file:
+    path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
+    state: absent
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 
-- name: Ensure the backing store is large enough
-  command: "qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2 +{{ hostvars[item].disk }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  register: qemu_img
-  changed_when: "qemu_img.rc == 0"
-  tags:
-    - provision_libvirt
-
-- name: Grow the partition
-  command: "virt-resize  --expand {{ hostvars[item].root_device }} {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }} {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-  with_items: "{{ groups['okd_service_nodes'] }}"
+- name: Grow the partitions
+  shell: |
+    qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2'
+    qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2 +{{ hostvars[item].disk }}
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   register: grow_img
   changed_when: "grow_img.rc == 0"
   tags:
