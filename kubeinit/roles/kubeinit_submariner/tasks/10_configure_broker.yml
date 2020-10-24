@@ -1,5 +1,5 @@
 ---
-# Copyright 2020 KubeInit.
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -14,12 +14,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-# All variables intended for modification should be placed in this file.
-
-# All variables within this role should have a prefix of "kubeinit_submariner_"
-kubeinit_submariner_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
-kubeinit_submariner_hide_sensitive_logs: true
-
-kubeinit_submariner_is_broker: false
-kubeinit_submariner_is_secondary: false
+- name: "Configure broker cluster"
+  shell: |
+    export PATH=$PATH:~/.local/bin
+    subctl deploy-broker
+  args:
+    executable: /bin/bash
+  register: install_subctl
+  changed_when: "install_subctl.rc == 0"
+  when: kubeinit_submariner_is_broker

@@ -1,0 +1,38 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Copying the broker-info.subm to the destination cluster
+  #slurp:
+  #  src: ~/broker-info.subm
+  shell: |
+    # TODO:FIXME: Hardwired variables
+    scp root@10.0.0.100:/root/broker-info.subm .
+    scp ./broker-info.subm root@10.0.1.100:/root/
+  register: kubeinit_submariner_broker_info
+  changed_when: "kubeinit_submariner_broker_info.rc == 0"
+  # delegate_to: "okd-service-01"
+  delegate_to: "hypervisor-01"
+  when: kubeinit_submariner_is_secondary
+
+- name: "Configure join cluster"
+  shell: |
+    export PATH=$PATH:~/.local/bin
+    subctl join ./broker-info.subm --servicecidr 10.43.0.0/16 --no-label
+  args:
+    executable: /bin/bash
+  register: join_cluster
+  changed_when: "join_cluster.rc == 0"
+  when: kubeinit_submariner_is_secondary
