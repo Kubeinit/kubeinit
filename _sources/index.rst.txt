@@ -44,7 +44,6 @@ Content
 
    contributing
    installation
-   contributing_roles
    usage
    roles
    modules

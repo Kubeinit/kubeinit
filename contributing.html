@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>So You Want to Contribute… &mdash; KubeInit  documentation</title>
+  <title>Contributing &mdash; KubeInit  documentation</title>
   
 
   
@@ -86,13 +86,21 @@
             
             
               <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">So You Want to Contribute…</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#documentation">Documentation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Contributing</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#communication">Communication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-new-roles-automatically">Creating new roles automatically</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#linting-new-roles-and-code">Linting new roles and code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#linting-commits">Linting commits</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#format">Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#message-subject-first-line">Message subject (first line)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#message-body">Message body</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#footer">Footer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="contributing_roles.html">Contributing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="roles.html">Documented roles in KubeInit</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Documented modules in KubeInit</a></li>
@@ -144,7 +152,7 @@
     
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>So You Want to Contribute…</li>
+      <li>Contributing</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -163,19 +171,123 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="so-you-want-to-contribute">
-<h1>So You Want to Contribute…<a class="headerlink" href="#so-you-want-to-contribute" title="Permalink to this headline">¶</a></h1>
-<p>For general information on contributing to KubeInit, please check out the
-contributor guide.</p>
-<div class="section" id="documentation">
-<h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h2>
-<p>Documentation for the KubeInit can be found <a class="reference external" href="https://docs.kubeinit.com">here</a></p>
-</div>
+  <div class="section" id="contributing">
+<h1>Contributing<a class="headerlink" href="#contributing" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="communication">
 <h2>Communication<a class="headerlink" href="#communication" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>IRC channel <code class="docutils literal notranslate"><span class="pre">#kubeinit</span></code> at FreeNode</p></li>
 </ul>
+</div>
+<div class="section" id="creating-new-roles-automatically">
+<h2>Creating new roles automatically<a class="headerlink" href="#creating-new-roles-automatically" title="Permalink to this headline">¶</a></h2>
+<p>Adding roles into this project is easy and starts with a compatible skeleton.</p>
+<p>We will use the same role generation script from tripleo-ansible
+to automatically create new roles based in a pre-defined skeleton.</p>
+<p>From the repository root directory execute:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">ansible-playbook \</span>
+<span class="go">    -i &#39;localhost,&#39; \</span>
+<span class="go">    role-addition.yml \</span>
+<span class="go">    -e ansible_connection=local \</span>
+<span class="go">    -e role_name=kubeinit-example</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Please use only <em>kubeinit-rolename</em> words for defining the role name, for example, replace <strong>kubeinit-example</strong> with <strong>kubeinit-bind</strong>, <strong>kubeinit-kubevirt</strong>, or whatever the service name will be.</p>
+</div>
+<p>This command will generate the role, initial molecule default tests, and the documentation stub.</p>
+</div>
+<div class="section" id="linting-new-roles-and-code">
+<h2>Linting new roles and code<a class="headerlink" href="#linting-new-roles-and-code" title="Permalink to this headline">¶</a></h2>
+<p>It is possible to run a lint check automatically before pushing
+code or pull requests.</p>
+<p>From the repository root directory execute:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">tox -e linters</span>
+</pre></div>
+</div>
+<p>If the test pass all the executed tests should have succeeded.</p>
+</div>
+<div class="section" id="linting-commits">
+<h2>Linting commits<a class="headerlink" href="#linting-commits" title="Permalink to this headline">¶</a></h2>
+<p>For every pull request is executed a syntax check, this is
+for multiple reasons.</p>
+<ul class="simple">
+<li><p>Automatic generating of the changelog.</p></li>
+<li><p>Simple navigation through git history (e.g. ignoring style changes).</p></li>
+</ul>
+<div class="section" id="format">
+<h3>Format<a class="headerlink" href="#format" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">&lt;feat&gt;: &lt;add an awesome feature&gt;</span>
+<span class="go">^----^  ^----------------------^</span>
+<span class="go">|       |</span>
+<span class="go">|       +-&gt; Summary in present tense.</span>
+<span class="go">|</span>
+<span class="go">+-------&gt; Type: chore, docs, feat, fix, refactor, style, test, build, ci, perf, and revert (always lowercase).</span>
+
+<span class="go">&lt;body&gt; ----&gt; The commit&#39;s body.</span>
+
+<span class="go">&lt;footer&gt; ----&gt; An optional footer.</span>
+</pre></div>
+</div>
+<p>Accepted types:</p>
+<ul class="simple">
+<li><p><cite>feat</cite>: new feature for the user, not a new feature for build script</p></li>
+<li><p><cite>fix</cite>: bug fix for the user, not a fix to a build script</p></li>
+<li><p><cite>docs</cite>: changes to the documentation</p></li>
+<li><p><cite>style</cite>: formatting, missing semi colons, etc; no production code change</p></li>
+<li><p><cite>refactor</cite>: refactoring production code, eg. renaming a variable</p></li>
+<li><p><cite>test</cite>: adding missing tests, refactoring tests; no production code change</p></li>
+<li><p><cite>chore</cite>: updating grunt tasks etc; no production code change</p></li>
+<li><p><cite>build</cite>: a change to the build process</p></li>
+<li><p><cite>ci</cite>: changes to CI configuration files and scripts</p></li>
+<li><p><cite>perf</cite>: a code change that improves performance</p></li>
+<li><p><cite>revert</cite>: reverting a change</p></li>
+</ul>
+</div>
+<div class="section" id="message-subject-first-line">
+<h3>Message subject (first line)<a class="headerlink" href="#message-subject-first-line" title="Permalink to this headline">¶</a></h3>
+<p>The first line cannot be longer than 70 characters, the second line is always
+blank and other lines should be wrapped at 80 characters. The type and scope
+should always be lowercase as shown below.</p>
+</div>
+<div class="section" id="message-body">
+<h3>Message body<a class="headerlink" href="#message-body" title="Permalink to this headline">¶</a></h3>
+<p>Uses the imperative, present tense: “change” not “changed” nor “changes” and
+includes motivation for the change and contrasts with previous behavior.</p>
+</div>
+<div class="section" id="footer">
+<h3>Footer<a class="headerlink" href="#footer" title="Permalink to this headline">¶</a></h3>
+<p>An optional, last line separated by a blank line with keywords like:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">...</span>
+
+<span class="go">Close #123</span>
+</pre></div>
+</div>
+<p>or</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">...</span>
+
+<span class="go">Fixes #123</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="examples">
+<h3>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h3>
+<p>OK:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">feat: include a new role</span>
+
+<span class="go">This feature adds a new role to implement</span>
+<span class="go">an awesome new feature.</span>
+</pre></div>
+</div>
+<p>WRONG:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">Feat: Include a new role</span>
+
+<span class="go">This feature adds a new role to implement</span>
+<span class="go">an awesome new feature.</span>
+</pre></div>
+</div>
+</div>
 </div>
 </div>
 
