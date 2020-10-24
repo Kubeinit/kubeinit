@@ -14,6 +14,16 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: update packages
+  yum:
+    name: "*"
+    state: latest
+    use_backend: dnf
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
 - name: install services requirements
   yum:
     name: "{{ kubeinit_okd_service_dependencies }}"
