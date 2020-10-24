@@ -14,15 +14,25 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "final step"
+- name: Touch resolv file
   shell: |
-    echo "Final step"
-  register: final_step
-  changed_when: "final_step.rc == 0"
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['rke_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  ignore_errors: yes
+    rm -rf /etc/resolv.conf
+    ln -s /etc/resolvconf/resolv.conf.d/head /etc/resolv.conf
+    echo "nameserver {{ kubeinit_inventory_network_gateway }}" > /etc/resolv.conf
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: Restart the resolvconf service
+  shell: |
+    service resolvconf restart
+    systemctl restart systemd-resolved
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt

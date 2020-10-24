@@ -17,6 +17,36 @@
 #
 # Initial config
 #
+- name: Force apt-get update
+  shell: |
+    apt-get update
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: update packages
+  package:
+    name: "*"
+    state: present
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: install common requirements
+  package:
+    name: "{{ kubeinit_rke_common_dependencies }}"
+    state: present
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
 - name: Resize root partition
   shell: |
     echo 'Reclaim space for root partition'

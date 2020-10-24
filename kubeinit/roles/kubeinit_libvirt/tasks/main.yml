@@ -150,7 +150,7 @@
 - name: Reset ssh keys in hypervisor
   shell: |
     ssh-keygen -R  {{ item }}
-    ssh-keygen -R  {{ item }}.{{ kubeinit_common_cluster_domain }}
+    ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
     ssh-keygen -R  {{ hostvars[item].ansible_host }}
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -164,7 +164,7 @@
   delegate_to: localhost
   shell: |
     ssh-keygen -R  {{ item }}
-    ssh-keygen -R  {{ item }}.{{ kubeinit_common_cluster_domain }}
+    ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
     ssh-keygen -R  {{ hostvars[item].ansible_host }}
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"

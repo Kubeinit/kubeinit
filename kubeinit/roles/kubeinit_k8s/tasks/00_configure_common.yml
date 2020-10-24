@@ -17,6 +17,36 @@
 #
 # Initial config
 #
+- name: update packages
+  package:
+    name: "*"
+    state: present
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: install common requirements
+  package:
+    name: "{{ kubeinit_k8s_common_dependencies }}"
+    state: present
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: Add the local DNS server as a local resolver
+  lineinfile:
+    path: /etc/resolv.conf
+    line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
 - name: Resize root partition
   shell: |
     echo 'Reclaim space for root partition'
