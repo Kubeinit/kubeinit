@@ -17,10 +17,16 @@
 - name: Copying the broker-info.subm to the destination cluster
   #slurp:
   #  src: ~/broker-info.subm
+  # TODO:FIXME: Hardwired variables
   shell: |
-    # TODO:FIXME: Hardwired variables
     scp root@10.0.0.100:/root/broker-info.subm .
     scp ./broker-info.subm root@10.0.1.100:/root/
+
+    # Moving the Kubeconfig files
+    scp root@10.0.0.100:/root/install_dir/auth/kubeconfig .
+    scp kubeconfig root@10.0.1.100:/root/
+  args:
+    executable: /bin/bash
   register: kubeinit_submariner_broker_info
   changed_when: "kubeinit_submariner_broker_info.rc == 0"
   # delegate_to: "okd-service-01"
@@ -28,9 +34,11 @@
   when: kubeinit_submariner_is_secondary
 
 - name: "Configure join cluster"
+  # TODO:FIXME: Remove hardwired variables
   shell: |
     export PATH=$PATH:~/.local/bin
-    subctl join --kubeconfig ~/kube_config_cluster.yml ./broker-info.subm --servicecidr 10.43.0.0/16 --version dev --disable-nat
+    subctl join --kubeconfig ~/kube_config_cluster.yml ./broker-info.subm --servicecidr 10.43.0.0/16 --version dev --no-label --disable-nat
+    # subctl verify ~/kubeconfig ~/kube_config_cluster.yml --verbose
   args:
     executable: /bin/bash
   register: join_cluster
