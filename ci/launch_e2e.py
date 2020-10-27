@@ -37,136 +37,165 @@ def main():
             print(committer_email)
 
             execute = False
+            scenario = "default"
             # We assign the executed label to avoid executing this agains the same PR over and over
             # We mark the PR as e2e-executed
 
             #
             # Charmed Distribution of Kubernetes
             #
-            if ("cdk-libvirt-3-master-1-worker" in labels):
+            if ("cdk-libvirt-3-master-1-worker-default" in labels):
                 distro = "cdk"
                 driver = "libvirt"
                 master = "3"
                 worker = "1"
                 execute = True
-                remove_label("cdk-libvirt-3-master-1-worker", pr)
-            elif ("cdk-libvirt-3-master-0-worker" in labels):
+                scenario = "default"
+                remove_label("cdk-libvirt-3-master-1-worker-default", pr)
+            elif ("cdk-libvirt-3-master-0-worker-default" in labels):
                 distro = "cdk"
                 driver = "libvirt"
                 master = "3"
                 worker = "0"
                 execute = True
-                remove_label("cdk-libvirt-3-master-0-worker", pr)
-            elif ("cdk-libvirt-1-master-1-worker" in labels):
+                scenario = "default"
+                remove_label("cdk-libvirt-3-master-0-worker-default", pr)
+            elif ("cdk-libvirt-1-master-1-worker-default" in labels):
                 distro = "cdk"
                 driver = "libvirt"
                 master = "1"
                 worker = "1"
                 execute = True
-                remove_label("cdk-libvirt-1-master-1-worker", pr)
-            elif ("cdk-libvirt-1-master-0-worker" in labels):
+                scenario = "default"
+                remove_label("cdk-libvirt-1-master-1-worker-default", pr)
+            elif ("cdk-libvirt-1-master-0-worker-default" in labels):
                 distro = "cdk"
                 driver = "libvirt"
                 master = "1"
                 worker = "0"
                 execute = True
-                remove_label("cdk-libvirt-1-master-0-worker", pr)
+                scenario = "default"
+                remove_label("cdk-libvirt-1-master-0-worker-default", pr)
 
             #
             # Rancher Kubernetes Engine
             #
-            elif ("rke-libvirt-3-master-1-worker" in labels):
+            elif ("rke-libvirt-3-master-1-worker-default" in labels):
                 distro = "rke"
                 driver = "libvirt"
                 master = "3"
                 worker = "1"
                 execute = True
-                remove_label("rke-libvirt-3-master-1-worker", pr)
-            elif ("rke-libvirt-3-master-0-worker" in labels):
+                scenario = "default"
+                remove_label("rke-libvirt-3-master-1-worker-default", pr)
+            elif ("rke-libvirt-3-master-0-worker-default" in labels):
                 distro = "rke"
                 driver = "libvirt"
                 master = "3"
                 worker = "0"
                 execute = True
-                remove_label("rke-libvirt-3-master-0-worker", pr)
-            elif ("rke-libvirt-1-master-1-worker" in labels):
+                scenario = "default"
+                remove_label("rke-libvirt-3-master-0-worker-default", pr)
+            elif ("rke-libvirt-1-master-1-worker-default" in labels):
                 distro = "rke"
                 driver = "libvirt"
                 master = "1"
                 worker = "1"
                 execute = True
-                remove_label("rke-libvirt-1-master-1-worker", pr)
-            elif ("rke-libvirt-1-master-0-worker" in labels):
+                scenario = "default"
+                remove_label("rke-libvirt-1-master-1-worker-default", pr)
+            elif ("rke-libvirt-1-master-0-worker-default" in labels):
                 distro = "rke"
                 driver = "libvirt"
                 master = "1"
                 worker = "0"
                 execute = True
-                remove_label("rke-libvirt-1-master-0-worker", pr)
+                scenario = "default"
+                remove_label("rke-libvirt-1-master-0-worker-default", pr)
 
             #
             # Origin Kubernetes Distribution
             #
-            elif ("okd-libvirt-3-master-0-worker" in labels):
+            elif ("okd-libvirt-3-master-0-worker-default" in labels):
                 distro = "okd"
                 driver = "libvirt"
                 master = "3"
                 worker = "0"
                 execute = True
-                remove_label("okd-libvirt-3-master-0-worker", pr)
-            elif ("okd-libvirt-3-master-1-worker" in labels):
+                scenario = "default"
+                remove_label("okd-libvirt-3-master-0-worker-default", pr)
+            elif ("okd-libvirt-3-master-1-worker-default" in labels):
                 distro = "okd"
                 driver = "libvirt"
                 master = "3"
                 worker = "1"
                 execute = True
-                remove_label("okd-libvirt-3-master-1-worker", pr)
-            elif ("okd-libvirt-1-master-0-worker" in labels):
+                scenario = "default"
+                remove_label("okd-libvirt-3-master-1-worker-default", pr)
+            elif ("okd-libvirt-1-master-0-worker-default" in labels):
                 distro = "okd"
                 driver = "libvirt"
                 master = "1"
                 worker = "0"
                 execute = True
-                remove_label("okd-libvirt-1-master-0-worker", pr)
-            elif ("okd-libvirt-1-master-1-worker" in labels):
+                scenario = "default"
+                remove_label("okd-libvirt-1-master-0-worker-default", pr)
+            elif ("okd-libvirt-1-master-1-worker-default" in labels):
                 distro = "okd"
                 driver = "libvirt"
                 master = "1"
                 worker = "1"
                 execute = True
-                remove_label("okd-libvirt-1-master-1-worker", pr)
+                scenario = "default"
+                remove_label("okd-libvirt-1-master-1-worker-default", pr)
 
             #
             # Kubernetes
             #
-            elif ("k8s-libvirt-3-master-1-worker" in labels):
+            elif ("k8s-libvirt-3-master-1-worker-default" in labels):
                 distro = "k8s"
                 driver = "libvirt"
                 master = "3"
                 worker = "1"
                 execute = True
-                remove_label("k8s-libvirt-3-master-1-worker", pr)
-            elif ("k8s-libvirt-3-master-0-worker" in labels):
+                scenario = "default"
+                remove_label("k8s-libvirt-3-master-1-worker-default", pr)
+            elif ("k8s-libvirt-3-master-0-worker-default" in labels):
                 distro = "k8s"
                 driver = "libvirt"
                 master = "3"
                 worker = "0"
                 execute = True
-                remove_label("k8s-libvirt-3-master-0-worker", pr)
-            elif ("k8s-libvirt-1-master-1-worker" in labels):
+                scenario = "default"
+                remove_label("k8s-libvirt-3-master-0-worker-default", pr)
+            elif ("k8s-libvirt-1-master-1-worker-default" in labels):
                 distro = "k8s"
                 driver = "libvirt"
                 master = "1"
                 worker = "1"
                 execute = True
-                remove_label("k8s-libvirt-1-master-1-worker", pr)
-            elif ("k8s-libvirt-1-master-0-worker" in labels):
+                scenario = "default"
+                remove_label("k8s-libvirt-1-master-1-worker-default", pr)
+            elif ("k8s-libvirt-1-master-0-worker-default" in labels):
                 distro = "k8s"
                 driver = "libvirt"
                 master = "1"
                 worker = "0"
                 execute = True
-                remove_label("k8s-libvirt-1-master-0-worker", pr)
+                scenario = "default"
+                remove_label("k8s-libvirt-1-master-0-worker-default", pr)
+
+            #
+            # Misc jobs
+            #
+            elif ("multiple-libvirt-3-master-1-worker-submariner" in labels):
+                distro = "multiple"
+                driver = "libvirt"
+                master = "3"
+                worker = "1"
+                execute = True
+                scenario = "submariner"
+                remove_label("multiple-libvirt-3-master-1-worker-submariner", pr)
 
             if execute:
                 print("Let's run the e2e job, distro %s driver %s " % (distro, driver))
@@ -183,20 +212,25 @@ def main():
                 repo.get_commit(sha=sha).create_status(state="pending",
                                                        target_url=url + str(pipeline_id),
                                                        description="Running...",
-                                                       context="%s-%s-%s-master-%s-worker" % (distro, driver, master, worker))
+                                                       context="%s-%s-%s-master-%s-worker-%s" % (distro,
+                                                                                                 driver,
+                                                                                                 master,
+                                                                                                 worker,
+                                                                                                 scenario))
                 print("The pipeline ID is: " + str(pipeline_id))
                 print("The clouds.yml path is: " + str(vars_file_path))
                 # We trigger the e2e job
                 start_time = time.time()
                 try:
                     print("We call the downstream job configuring its parameters")
-                    output = subprocess.check_call("./ci/run.sh %s %s %s %s %s %s %s" % (str(branch.name),
-                                                                                         str(pr.number),
-                                                                                         str(vars_file_path),
-                                                                                         str(distro),
-                                                                                         str(driver),
-                                                                                         str(master),
-                                                                                         str(worker)),
+                    output = subprocess.check_call("./ci/run.sh %s %s %s %s %s %s %s %s" % (str(branch.name),
+                                                                                            str(pr.number),
+                                                                                            str(vars_file_path),
+                                                                                            str(distro),
+                                                                                            str(driver),
+                                                                                            str(master),
+                                                                                            str(worker),
+                                                                                            str(scenario)),
                                                    shell=True)
                 except Exception:
                     output = 1
@@ -211,10 +245,11 @@ def main():
                 repo.get_commit(sha=sha).create_status(state=state,
                                                        target_url=url + str(pipeline_id),
                                                        description=desc,
-                                                       context="%s-%s-%s-master-%s-worker" % (distro,
-                                                                                              driver,
-                                                                                              master,
-                                                                                              worker))
+                                                       context="%s-%s-%s-master-%s-worker-%s" % (distro,
+                                                                                                 driver,
+                                                                                                 master,
+                                                                                                 worker,
+                                                                                                 scenario))
             else:
                 print("No need to do anything")
             if execute:
