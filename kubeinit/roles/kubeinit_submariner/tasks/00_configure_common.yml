@@ -16,12 +16,47 @@
 
 - name: "Install subctl"
   shell: |
-    curl -Ls https://get.submariner.io > ./install_submariner.sh
-    bash ./install_submariner.sh
+    curl -Ls https://get.submariner.io > ~/install_submariner.sh
+    bash ~/install_submariner.sh
     export PATH=$PATH:~/.local/bin
-    echo export PATH=\$PATH:~/.local/bin >> ~/.profile
   args:
     executable: /bin/bash
   register: install_subctl
   changed_when: "install_subctl.rc == 0"
-  when: kubeinit_submariner_is_broker or kubeinit_submariner_is_secondary
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: Check if ~/.profile exists
+  stat:
+    path: ~/.profile
+  register: profile_exists
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: Append subctl path to profile
+  lineinfile:
+    line: export PATH=$PATH:~/.local/bin
+    dest: ~/.profile
+  when: profile_exists.stat.exists and (kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool)
+
+- name: Check if ~/.bash_profile exists
+  stat:
+    path: ~/.bash_profile
+  register: bash_profile_exists
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: Append subctl path to bash_profile
+  lineinfile:
+    line: export PATH=$PATH:~/.local/bin
+    dest: ~/.bash_profile
+  when: bash_profile_exists.stat.exists and (kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool)
+
+- name: Check if ~/.bashrc exists
+  stat:
+    path: ~/.bashrc
+  register: bashrc_exists
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: Append subctl path to bashrc
+  lineinfile:
+    line: export PATH=$PATH:~/.local/bin
+    dest: ~/.bashrc
+  when: bashrc_exists.stat.exists and (kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool)
