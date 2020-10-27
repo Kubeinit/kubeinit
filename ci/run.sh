@@ -8,6 +8,7 @@ DISTRO="$4"
 DRIVER="$5"
 MASTER="$6"
 WORKER="$7"
+SCENARIO="$8"
 
 echo "The branch is $BRANCH_NAME"
 echo "The pull request is $PULL_REQUEST"
@@ -16,6 +17,7 @@ echo "The distro is $DISTRO"
 echo "The driver is $DRIVER"
 echo "The amount of master nodes is $MASTER"
 echo "The amount of worker nodes is $WORKER"
+echo "The scenario is $SCENARIO"
 
 # Clone the repo
 rm -rf tmp
@@ -71,10 +73,15 @@ done;
 # tenants should be defined depending on where we will need to run the job
 #
 
-ansible-playbook \
-    --user root \
-    -v -i ./hosts/$DISTRO/inventory \
-    --become \
-    --become-user root \
-    -e @scenario_variables.yml \
-    ./playbooks/$DISTRO.yml
+if [[ "$SCENARIO" == "submariner" ]]; then
+    ./submariner.sh
+elif [[ "$SCENARIO" == "default" ]];
+then
+    ansible-playbook \
+        --user root \
+        -v -i ./hosts/$DISTRO/inventory \
+        --become \
+        --become-user root \
+        -e @scenario_variables.yml \
+        ./playbooks/$DISTRO.yml
+fi
