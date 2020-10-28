@@ -14,8 +14,96 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+# - name: Bounce cluster kimgtnet0 network
+#   virt_net:
+#     command: destroy
+#     name: "kimgtnet0"
+#   delegate_to: "hypervisor-01"
+#   when: kubeinit_submariner_is_broker|bool
+#
+# - name: Bounce cluster kimgtnet1 network
+#   virt_net:
+#     command: destroy
+#     name: "kimgtnet1"
+#   delegate_to: "hypervisor-01"
+#   when: kubeinit_submariner_is_broker|bool
+#
+# - name: Start cluster kimgtnet0 network
+#   virt_net:
+#     command: start
+#     name: "kimgtnet0"
+#   delegate_to: "hypervisor-01"
+#   when: kubeinit_submariner_is_broker|bool
+#
+# - name: Start cluster kimgtnet1 network
+#   virt_net:
+#     command: start
+#     name: "kimgtnet1"
+#   delegate_to: "hypervisor-01"
+#   when: kubeinit_submariner_is_broker|bool
+#
+# # When we create the first network, we attach a
+# # secondary forwarder DNS register to be able to
+# # resolve any DNS registry from the secondary cluster.
+# #
+# # The problem is that we attach a forwarder rule to a
+# # network that does not exists yet. So, when we create
+# # the secondary cluster all DNS queries work fine.
+# # But the first cluster is not able to reach the machines
+# # in the secondary network (second cluster).
+# #
+# # To reach them again we bounce both networks and
+# # and then execute a detach/atach of all the net interfaces
+# # Doing this we gain back full connectivity access
+# # from/to both clusters, and DNS fully works in both envs.
+# #
+#
+# - name: "Bounce cluster guests net interfaces"
+#   shell: |
+#     set -o pipefail
+#     set -e
+#     virsh detach-interface --domain {{ item }} --type network --mac {{ hostvars[item].mac }}
+#     sleep 30
+#     virsh attach-interface --domain {{ item }} --type network --source {{ kubeinit_inventory_network_name }} --mac {{ hostvars[item].mac }} --model virtio
+#   args:
+#     executable: /bin/bash
+#   register: bounce_interfaces
+#   changed_when: "bounce_interfaces.rc == 0"
+#   with_items:
+#     - "{{ groups['all'] | map('regex_search','^(.*service.*|.*master.*|.*worker.*)$') | select('string') | list }}"
+#   delegate_to: "hypervisor-01"
+#   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+#
+# - name: wait for the guests to have ssh connectivity again after the interface detach/attach
+#   wait_for:
+#     port: 22
+#     host: "{{ hostvars[item].ansible_host }}"
+#     search_regex: OpenSSH
+#     delay: 10
+#     timeout: 600
+#   with_items:
+#     - "{{ groups['all'] | map('regex_search','^(.*service.*|.*master.*|.*worker.*)$') | select('string') | list }}"
+#   delegate_to: "hypervisor-01"
+#   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: "Make sure there the traffic is allowed from/to the cluster net"
+  #TODO:FIXME: remove hardwired values
+  shell: |
+    set -e
+    iptables -I FORWARD 1 --source 0.0.0.0/0 --destination 10.0.0.0/24 -j ACCEPT # -m state --state RELATED,ESTABLISHED
+    iptables -I FORWARD 1 --source 10.0.0.0/24 --destination 0.0.0.0/0 -j ACCEPT # -m state --state RELATED,ESTABLISHED
+    iptables -I FORWARD 1 --source 0.0.0.0/0 --destination 10.0.1.0/24 -j ACCEPT # -m state --state RELATED,ESTABLISHED
+    iptables -I FORWARD 1 --source 10.0.1.0/24 --destination 0.0.0.0/0 -j ACCEPT # -m state --state RELATED,ESTABLISHED
+  args:
+    executable: /bin/bash
+  register: check_firewall
+  changed_when: "check_firewall.rc == 0"
+  delegate_to: "hypervisor-01"
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
 - name: "Install subctl"
   shell: |
+    set -e
     curl -Ls https://get.submariner.io > ~/install_submariner.sh
     bash ~/install_submariner.sh
     export PATH=$PATH:~/.local/bin

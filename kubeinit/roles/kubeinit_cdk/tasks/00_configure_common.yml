@@ -37,6 +37,28 @@
   tags:
     - provision_libvirt
 
+- name: Enable cloud init
+  shell: |
+    systemctl enable cloud-init
+    systemctl start cloud-init
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: Reboot immediately after the package update
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: update_packages is changed
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
 - name: install common requirements
   package:
     name: "{{ kubeinit_cdk_common_dependencies }}"

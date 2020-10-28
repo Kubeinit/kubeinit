@@ -47,10 +47,20 @@
   tags:
     - provision_libvirt
 
-- name: Create the network cloudinit templates for networking details
+- name: Create the main config file for cloud-init
   template:
     src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
     dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg'
+    mode: '0644'
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: Create the datasource cloud-init file
+  template:
+    src: "../../roles/kubeinit_libvirt/templates/90-cloudinit-dpkg.cfg.j2"
+    dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/90_dpkg.cfg'
     mode: '0644'
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -89,9 +99,10 @@
       --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
       --ssh-inject root:file:/root/.ssh/id_rsa.pub \
       --ssh-inject root:file:/root/.ssh/authorized_keys \
-      --hostname {{ item }}.{{ kubeinit_inventory_cluster_domain }} \
+      --hostname {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} \
       --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/00-installer-ubuntu-netconfig.yaml:/etc/netplan \
       --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/hosts.debian.tmpl:/etc/cloud/templates \
+      --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/90_dpkg.cfg:/etc/cloud/cloud.cfg.d \
       --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg:/etc/cloud
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -130,7 +141,7 @@
   tags:
     - provision_libvirt
 
-- name: wait for the host to boot
+- name: wait for the guests to boot
   wait_for:
     port: 22
     host: "{{ hostvars[item].ansible_host }}"

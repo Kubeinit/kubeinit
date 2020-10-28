@@ -196,6 +196,14 @@ def main():
                 execute = True
                 scenario = "submariner"
                 remove_label("multiple-libvirt-3-master-1-worker-submariner", pr)
+            elif ("multiple-libvirt-1-master-2-worker-submariner" in labels):
+                distro = "multiple"
+                driver = "libvirt"
+                master = "1"
+                worker = "2"
+                execute = True
+                scenario = "submariner"
+                remove_label("multiple-libvirt-1-master-2-worker-submariner", pr)
 
             if execute:
                 print("Let's run the e2e job, distro %s driver %s " % (distro, driver))
