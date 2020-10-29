@@ -521,3 +521,19 @@
   when: item.enabled
   tags:
     - provision_libvirt
+
+- name: "Make sure there the traffic is allowed from/to the cluster net"
+  # TODO:FIXME: These rules must be persisted
+  # TODO:FIXME: Maybe we can remove any REJECT rule from the iptables
+  shell: |
+    set -e
+    iptables -I FORWARD 1 --source 0.0.0.0/0 --destination {{ item.net }}/{{ item.cidr }} -j ACCEPT # -m state --state RELATED,ESTABLISHED
+    iptables -I FORWARD 1 --source {{ item.net }}/{{ item.cidr }} --destination 0.0.0.0/0 -j ACCEPT # -m state --state RELATED,ESTABLISHED
+  args:
+    executable: /bin/bash
+  register: check_firewall
+  changed_when: "check_firewall.rc == 0"
+  with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+  when: item.enabled
+  tags:
+    - provision_libvirt

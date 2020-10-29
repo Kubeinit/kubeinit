@@ -32,6 +32,44 @@
     name: "*"
     state: latest
   delegate_to: "{{ item }}"
+  register: update_packages
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+# TODO:FIXME: cloud-init is taking too much time in configure the nodes, it is
+# trying to get other datasource_list than local so it needs to timeout every time
+- name: Enable cloud init
+  shell: |
+    systemctl enable cloud-init
+    systemctl start cloud-init
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: Reboot immediately after the package update
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: update_packages is changed
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: Wait for the reboot to complete if there was a change.
+  wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300
+  when: update_packages is changed
+  delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
