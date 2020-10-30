@@ -14,12 +14,19 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-# - name: Verify cluster deployment
-#   shell: |
-#     kubectl get Gateways -A -o yaml
-#     subctl verify ~/kubeconfig_okd ~/kubeconfig_rke --verbose --enable-disruptive
-#   args:
-#     executable: /bin/bash
-#   register: subma_verify
-#   changed_when: "subma_verify.rc == 0"
-#   when: kubeinit_submariner_is_secondary|bool
+- name: Verify cluster deployment
+  shell: |
+    set -o pipefail
+    set -e
+    export PATH=$PATH:~/.local/bin
+    # kubectl get Gateways -A -o yaml
+    # subctl verify ~/kubeconfig_okd ~/kubeconfig_rke --verbose --enable-disruptive
+    subctl show all | grep connected
+  args:
+    executable: /bin/bash
+  retries: 10
+  delay: 10
+  register: subma_verify
+  until: subma_verify.rc == 0
+  changed_when: "subma_verify.rc == 0"
+  when: kubeinit_submariner_is_secondary|bool

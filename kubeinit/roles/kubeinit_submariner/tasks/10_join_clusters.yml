@@ -14,22 +14,43 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Render the iptables persist template
+  template:
+    src: "iptables_hypervisor_nat_config.j2"
+    dest: "~/iptables_hypervisor_nat_config"
+    mode: '0644'
+  delegate_to: "hypervisor-01"
+  when: kubeinit_submariner_is_broker|bool
+
+- name: "Make sure there the traffic is allowed from/to the cluster net"
+  # TODO:FIXME: These rules must be persisted
+  # TODO:FIXME: Maybe we can remove any REJECT rule from the iptables
+  # TODO:FIXME: Hardwired IPs
+  shell: |
+    set -e
+    iptables-restore /root/iptables_hypervisor_nat_config
+  args:
+    executable: /bin/bash
+  register: check_firewall
+  changed_when: "check_firewall.rc == 0"
+  delegate_to: "hypervisor-01"
+  when: kubeinit_submariner_is_broker|bool
+
 - name: "Configure broker cluster"
   shell: |
     set -e
     export PATH=$PATH:~/.local/bin
-    subctl deploy-broker --kubeconfig ~/install_dir/auth/kubeconfig --globalnet
+    subctl deploy-broker --kubeconfig ~/install_dir/auth/kubeconfig --globalnet --service-discovery --globalnet-cidr-range {{ kubeinit_submariner_globalnet_cidr_range }}
   args:
     executable: /bin/bash
   register: install_subctl
   changed_when: "install_subctl.rc == 0"
   when: kubeinit_submariner_is_broker|bool
 
-- name: Copy the broker-info.subm and kubeconfig to the hypervisor
-  # TODO:FIXME: Hardwired variables
+- name: Copy the broker-info.subm to the hypervisor
   shell: |
-    scp -oStrictHostKeyChecking=no root@10.0.0.100:/root/broker-info.subm /root/broker-info.subm
-    scp -oStrictHostKeyChecking=no root@10.0.0.100:/root/install_dir/auth/kubeconfig /root/kubeconfig_okd
+    set -e
+    scp -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}:/root/broker-info.subm /root/broker-info.subm
   args:
     executable: /bin/bash
   register: kubeinit_submariner_get_files_from_broker
@@ -37,58 +58,46 @@
   delegate_to: "hypervisor-01"
   when: kubeinit_submariner_is_broker|bool
 
-- name: Copying the broker-info.subm and kubeconfig to the destination cluster
-  #slurp:
-  #  src: ~/broker-info.subm
-  # TODO:FIXME: Hardwired variables
+- name: Copy the kubeconfig to the hypervisor
   shell: |
-    scp -oStrictHostKeyChecking=no ./broker-info.subm root@10.0.1.100:/root/
-    scp -oStrictHostKeyChecking=no ~/kubeconfig_okd root@10.0.1.100:/root/
+    set -e
+    scp -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}:~/.kube/config /root/kubeconfig_{{ kubeinit_inventory_cluster_distro }}
+  args:
+    executable: /bin/bash
+  register: kubeinit_submariner_get_files_from_broker
+  changed_when: "kubeinit_submariner_get_files_from_broker.rc == 0"
+  delegate_to: "hypervisor-01"
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: Copying the broker-info.subm and kubeconfig to the destination cluster
+  shell: |
+    set -e
+    scp -oStrictHostKeyChecking=no ./broker-info.subm root@{{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}:/root/
+    scp -oStrictHostKeyChecking=no /root/kubeconfig_* root@{{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}:/root/
   args:
     executable: /bin/bash
   register: kubeinit_submariner_broker_info
   changed_when: "kubeinit_submariner_broker_info.rc == 0"
-  # delegate_to: "okd-service-01"
   delegate_to: "hypervisor-01"
   when: kubeinit_submariner_is_secondary|bool
 
-- name: "Join broker to the cluster"
+- name: "Join cluster to the broker"
   shell: |
     export PATH=$PATH:~/.local/bin
-    subctl join --kubeconfig ~/install_dir/auth/kubeconfig ./broker-info.subm --servicecidr 172.30.0.0/16 --no-label --disable-nat --enable-pod-debugging --cable-driver libreswan
+    subctl join --kubeconfig ~/.kube/config ./broker-info.subm --servicecidr {{ kubeinit_inventory_cluster_service_cidr }} --no-label --disable-nat --enable-pod-debugging --cable-driver libreswan --clusterid {{ kubeinit_inventory_cluster_name }}
   args:
     executable: /bin/bash
   register: join_cluster
   changed_when: "join_cluster.rc == 0"
-  when: kubeinit_submariner_is_broker|bool
-
-- name: "Join secondary to the cluster"
-  shell: |
-    export PATH=$PATH:~/.local/bin
-    cp ~/kube_config_cluster.yml ~/kubeconfig_rke
-    subctl join --kubeconfig ~/kube_config_cluster.yml ./broker-info.subm --servicecidr 10.43.0.0/16 --no-label --disable-nat --enable-pod-debugging --cable-driver libreswan
-  args:
-    executable: /bin/bash
-  register: join_cluster
-  changed_when: "join_cluster.rc == 0"
-  when: kubeinit_submariner_is_secondary|bool
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: Tag worker node
-  # We assume there is always a worker node in the cluster
   shell: |
-    KUBECONFIG=~/install_dir/auth/kubeconfig kubectl label node {{ groups['all'] | map('regex_search','^.*worker.*$') | select('string') | list | first }} submariner.io/gateway=true --overwrite
+    KUBECONFIG=~/.kube/config kubectl label node {{ item }} submariner.io/gateway=true --overwrite
   args:
     executable: /bin/bash
   register: tag_worker_okd
   changed_when: "tag_worker_okd.rc == 0"
-  when: kubeinit_submariner_is_broker|bool
-
-- name: Tag worker node
-  # We assume there is always a worker node in the cluster
-  shell: |
-    KUBECONFIG=~/kube_config_cluster.yml kubectl label node {{ groups['all'] | map('regex_search','^.*worker.*$') | select('string') | list | first }} submariner.io/gateway=true --overwrite
-  args:
-    executable: /bin/bash
-  register: tag_worker_rke
-  changed_when: "tag_worker_rke.rc == 0"
-  when: kubeinit_submariner_is_secondary|bool
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*worker.*$') | select('string') | list }}"
