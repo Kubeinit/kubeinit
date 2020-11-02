@@ -59,3 +59,25 @@
   changed_when: "autoload.rc == 0"
   tags:
     - provision_libvirt
+
+- name: Create kube directory
+  file:
+    path: ~/.kube
+    state: directory
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['rke_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Copy the kubeconfig
+  shell: |
+    cp ~/kube_config_cluster.yml ~/.kube/config
+  delegate_to: "{{ cluster_node }}"
+  with_items: "{{ groups['rke_service_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  register: copy_kubeconfig
+  changed_when: "copy_kubeconfig.rc == 0"
+  tags:
+    - provision_libvirt

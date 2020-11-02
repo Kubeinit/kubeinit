@@ -63,13 +63,13 @@
     - provision_libvirt
 
 - name: Wait for the reboot to complete if there was a change.
-  wait_for_connection:
-    connect_timeout: 20
-    sleep: 5
-    delay: 5
-    timeout: 300
+  wait_for:
+    port: 22
+    host: "{{ hostvars[item].ansible_host }}"
+    search_regex: OpenSSH
+    delay: 10
+    timeout: 7200
   when: update_packages is changed
-  delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:

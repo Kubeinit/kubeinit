@@ -20,7 +20,30 @@
     state: latest
     use_backend: dnf
   delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
+  with_items: "{{ groups['okd_service_nodes'][0] }}"
+  register: update_packages
+  tags:
+    - provision_libvirt
+
+- name: Reboot immediately after the package update
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: update_packages is changed
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+- name: Wait for the reboot to complete if there was a change.
+  wait_for:
+    port: 22
+    host: "{{ hostvars[item].ansible_host }}"
+    search_regex: OpenSSH
+    delay: 10
+    timeout: 7200
+  when: update_packages is changed
+  with_items: "{{ groups['okd_service_nodes'][0] }}"
   tags:
     - provision_libvirt
 
@@ -240,6 +263,16 @@
     sudo chmod -R 755 /var/www/html/
   register: apply_apache_permissions
   changed_when: "apply_apache_permissions.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create kube directory
+  file:
+    path: ~/.kube
+    state: directory
+    mode: '0644'
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:

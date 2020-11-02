@@ -23,6 +23,31 @@
     name: "*"
     state: latest
     use_backend: dnf
+  register: update_packages
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: Reboot immediately after the package update
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: update_packages is changed
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: Wait for the reboot to complete if there was a change.
+  wait_for:
+    port: 22
+    host: "{{ hostvars[item].ansible_host }}"
+    search_regex: OpenSSH
+    delay: 10
+    timeout: 7200
+  when: update_packages is changed
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:

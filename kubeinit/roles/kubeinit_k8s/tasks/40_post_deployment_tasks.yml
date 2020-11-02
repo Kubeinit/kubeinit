@@ -14,15 +14,30 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "final step"
-  shell: |
-    echo "Final step"
-  register: final_step
-  changed_when: "final_step.rc == 0"
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['k8s_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  ignore_errors: yes
+- name: Copying the kubeconfig to a variable
+  slurp:
+    src: ~/.kube/config
+  register: kubeinit_k8s_cluster_kubeconfig
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_master_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+- name: Create kube directory
+  file:
+    path: ~/.kube
+    state: directory
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['k8s_service_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+- name: Storing the master kubeconfig to the services machine.
+  copy:
+    content: "{{ kubeinit_k8s_cluster_kubeconfig.results[0].content | default('Empty file') | b64decode }}"
+    dest: ~/.kube/config
+    mode: '0644'
+  delegate_to: "{{ groups['k8s_service_nodes'][0] }}"
   tags:
     - provision_libvirt

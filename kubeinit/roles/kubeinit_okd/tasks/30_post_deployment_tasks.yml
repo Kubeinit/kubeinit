@@ -228,6 +228,18 @@
   tags:
     - provision_libvirt
 
+- name: Copy the kubeconfig
+  shell: |
+    cp ~/install_dir/auth/kubeconfig ~/.kube/config
+  delegate_to: "{{ cluster_node }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  register: copy_kubeconfig
+  changed_when: "copy_kubeconfig.rc == 0"
+  tags:
+    - provision_libvirt
+
 - name: Display final debug info
   debug:
     var: final_output_info
