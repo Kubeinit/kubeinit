@@ -46,6 +46,19 @@
   tags:
     - provision_libvirt
 
+- name: Fails if CentOS 7 hypervisor
+  fail:
+    msg: |
+      CentOS 7 is not supported as CentOS 8 guests are used.
+      Refer to: https://access.redhat.com/solutions/4073061
+      This issue is caused by the forward compatibility of xfs
+      file system between CentOS 7 and CentOS 8.
+      Xfs file system in CentOS 8 uses reflink and sparse files,
+      but CentOS 7 kernel does not understand them and refuses to mount it.
+  when: (ansible_distribution == 'CentOS' and ansible_distribution_major_version == "7")
+  tags:
+    - provision_libvirt
+
 - name: Check if Intel virtualization is supported
   shell: |
     set -e
