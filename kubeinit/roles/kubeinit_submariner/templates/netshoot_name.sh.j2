@@ -1,0 +1,31 @@
+#!/bin/sh
+
+NODE=$1
+
+if [[ "$CONTEXT" != "" ]]; then
+	CONTEXT="--context ${CONTEXT}"
+fi
+
+
+if [[ x"$NODE" == x ]]; then
+   echo please provide a node name as the first argument
+   echo ""
+   kubectl $CONTEXT get nodes -o wide
+   echo ""
+   echo "submariner gws:"
+   echo ""
+   kubectl $CONTEXT get nodes -o wide -l submariner.io/gateway=true
+   exit 1
+fi
+
+kubectl $CONTEXT run tmp-shell-$(uuidgen) --generator=run-pod/v1 --rm -i --tty --overrides='{"spec":
+       { "securityContext":{
+            "allowPrivilegeEscalation": "true",
+            "privileged": "true",
+            "runAsUser": 0,
+	    "runAsNonRoot": false,
+	    "readOnlyFilesystem": "false",
+            "capabilities": {"add": ["ALL"]} },
+         "hostNetwork": true,
+	 "nodeName":"'$NODE'",
+         "tolerations": [{"operator": "Exists"}]}}' --image nicolaka/netshoot -- /bin/bash
