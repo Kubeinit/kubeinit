@@ -22,16 +22,15 @@
     - provision_libvirt
 
 - name: register the public key of the root user from the host
-  set_fact:
-    kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
+  set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
   tags:
     - provision_libvirt
 
 - name: Create the interfaces template for networking details
   template:
     src: "../../roles/kubeinit_libvirt/templates/00-installer-ubuntu-netconfig.yaml.j2"
-    dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/00-installer-ubuntu-netconfig.yaml'
-    mode: '0644'
+    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/00-installer-ubuntu-netconfig.yaml"
+    mode: "0644"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
@@ -40,8 +39,8 @@
 - name: Create the hosts template
   template:
     src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
-    dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/hosts.debian.tmpl'
-    mode: '0644'
+    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/hosts.debian.tmpl"
+    mode: "0644"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
@@ -50,8 +49,8 @@
 - name: Create the main config file for cloud-init
   template:
     src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
-    dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg'
-    mode: '0644'
+    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg"
+    mode: "0644"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
@@ -60,8 +59,8 @@
 - name: Create the datasource cloud-init file
   template:
     src: "../../roles/kubeinit_libvirt/templates/90-cloudinit-dpkg.cfg.j2"
-    dest: '{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/90_dpkg.cfg'
-    mode: '0644'
+    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/90_dpkg.cfg"
+    mode: "0644"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
@@ -118,7 +117,7 @@
         --name={{ item }} \
         --memory memory={{ hostvars[item].ram // 1024 }} \
         --cpuset=auto \
-        --vcpus=8,maxvcpus=16 \
+        --vcpus={{ hostvars[item].vcpus }},maxvcpus={{ hostvars[item].maxvcpus }} \
         --os-type=linux \
         --os-variant=ubuntu18.04 \
         --autostart \
