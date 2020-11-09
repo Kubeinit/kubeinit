@@ -1,0 +1,33 @@
+---
+
+- name: Enable Ubuntu repositories
+  shell: |
+    set -o pipefail
+    apt-get install software-properties-common -y
+    . /etc/os-release
+    echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+    curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
+    sudo apt-get update -qq
+  args:
+    executable: /bin/bash
+  register: enable_repos
+  changed_when: "enable_repos.rc == 0"
+  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
+
+- name: Make sure needed packages are installed
+  package:
+    state: present
+    name: "{{ kubeinit_registry_required_packages | default([]) }}"
+
+- name: Create directory to hold the registry files
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: u=rwX,g=rX,o=rX
+    recurse: yes
+  with_items:
+    - "{{ kubeinit_registry_directory_auth }}"
+    - "{{ kubeinit_registry_directory_cert }}"
+    - "{{ kubeinit_registry_directory_data }}"
