@@ -120,38 +120,38 @@ authentication:
   webhook: null
 addons: ""
 addons_include: []
-system_images:
-  etcd: rancher/coreos-etcd:v3.4.3-rancher1
-  alpine: rancher/rke-tools:v0.1.65
-  nginx_proxy: rancher/rke-tools:v0.1.65
-  cert_downloader: rancher/rke-tools:v0.1.65
-  kubernetes_services_sidecar: rancher/rke-tools:v0.1.65
-  kubedns: rancher/k8s-dns-kube-dns:1.15.2
-  dnsmasq: rancher/k8s-dns-dnsmasq-nanny:1.15.2
-  kubedns_sidecar: rancher/k8s-dns-sidecar:1.15.2
-  kubedns_autoscaler: rancher/cluster-proportional-autoscaler:1.7.1
-  coredns: rancher/coredns-coredns:1.6.9
-  coredns_autoscaler: rancher/cluster-proportional-autoscaler:1.7.1
-  nodelocal: rancher/k8s-dns-node-cache:1.15.7
-  kubernetes: rancher/hyperkube:v1.18.9-rancher1
-  flannel: rancher/coreos-flannel:v0.12.0
-  flannel_cni: rancher/flannel-cni:v0.3.0-rancher6
-  calico_node: rancher/calico-node:v3.13.4
-  calico_cni: rancher/calico-cni:v3.13.4
-  calico_controllers: rancher/calico-kube-controllers:v3.13.4
-  calico_ctl: rancher/calico-ctl:v3.13.4
-  calico_flexvol: rancher/calico-pod2daemon-flexvol:v3.13.4
-  canal_node: rancher/calico-node:v3.13.4
-  canal_cni: rancher/calico-cni:v3.13.4
-  canal_flannel: rancher/coreos-flannel:v0.12.0
-  canal_flexvol: rancher/calico-pod2daemon-flexvol:v3.13.4
-  weave_node: weaveworks/weave-kube:2.6.4
-  weave_cni: weaveworks/weave-npc:2.6.4
-  pod_infra_container: rancher/pause:3.1
-  ingress: rancher/nginx-ingress-controller:nginx-0.35.0-rancher1
-  ingress_backend: rancher/nginx-ingress-controller-defaultbackend:1.5-rancher1
-  metrics_server: rancher/metrics-server:v0.3.6
-  windows_pod_infra_container: rancher/kubelet-pause:v0.1.4
+#system_images:
+#  etcd: rancher/coreos-etcd:v3.4.3-rancher1
+#  alpine: rancher/rke-tools:v0.1.65
+#  nginx_proxy: rancher/rke-tools:v0.1.65
+#  cert_downloader: rancher/rke-tools:v0.1.65
+#  kubernetes_services_sidecar: rancher/rke-tools:v0.1.65
+#  kubedns: rancher/k8s-dns-kube-dns:1.15.2
+#  dnsmasq: rancher/k8s-dns-dnsmasq-nanny:1.15.2
+#  kubedns_sidecar: rancher/k8s-dns-sidecar:1.15.2
+#  kubedns_autoscaler: rancher/cluster-proportional-autoscaler:1.7.1
+#  coredns: rancher/coredns-coredns:1.6.9
+#  coredns_autoscaler: rancher/cluster-proportional-autoscaler:1.7.1
+#  nodelocal: rancher/k8s-dns-node-cache:1.15.7
+#  kubernetes: rancher/hyperkube:v1.18.9-rancher1
+#  flannel: rancher/coreos-flannel:v0.12.0
+#  flannel_cni: rancher/flannel-cni:v0.3.0-rancher6
+#  calico_node: rancher/calico-node:v3.13.4
+#  calico_cni: rancher/calico-cni:v3.13.4
+#  calico_controllers: rancher/calico-kube-controllers:v3.13.4
+#  calico_ctl: rancher/calico-ctl:v3.13.4
+#  calico_flexvol: rancher/calico-pod2daemon-flexvol:v3.13.4
+#  canal_node: rancher/calico-node:v3.13.4
+#  canal_cni: rancher/calico-cni:v3.13.4
+#  canal_flannel: rancher/coreos-flannel:v0.12.0
+#  canal_flexvol: rancher/calico-pod2daemon-flexvol:v3.13.4
+#  weave_node: weaveworks/weave-kube:2.6.4
+#  weave_cni: weaveworks/weave-npc:2.6.4
+#  pod_infra_container: rancher/pause:3.1
+#  ingress: rancher/nginx-ingress-controller:nginx-0.35.0-rancher1
+#  ingress_backend: rancher/nginx-ingress-controller-defaultbackend:1.5-rancher1
+#  metrics_server: rancher/metrics-server:v0.3.6
+#  windows_pod_infra_container: rancher/kubelet-pause:v0.1.4
 ssh_key_path: ~/.ssh/id_rsa
 ssh_cert_path: ""
 ssh_agent_auth: false
@@ -160,7 +160,15 @@ authorization:
   options: {}
 ignore_docker_version: false
 kubernetes_version: ""
+{% if kubeinit_registry_enabled | default(false)%}
+private_registries:
+  - url: {{ kubeinit_registry_uri }}
+    user: {{ kubeinit_registry_user }}
+    password: {{ kubeinit_registry_password }}
+    is_default: true
+{% else %}
 private_registries: []
+{% endif %}
 ingress:
   provider: ""
   options: {}

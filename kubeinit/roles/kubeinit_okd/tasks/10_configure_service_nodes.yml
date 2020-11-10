@@ -68,17 +68,16 @@
   tags:
     - provision_libvirt
 
-#
-# Configure local registry
-#
-
-- name: Configure a local container image registry
-  delegate_to: "{{ groups['okd_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_registry
-    tasks_from: main
-  when: kubeinit_registry_enabled|bool
+- name: Create directory for apache
+  file:
+    path: /var/www/html/okd4
+    state: directory
+    owner: apache
+    group: apache
+    mode: 0775
+    recurse: yes
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
 
@@ -180,10 +179,44 @@
     mv kubectl oc openshift-install /usr/local/bin/
     oc version
     openshift-install version
+  args:
+    executable: /bin/bash
   register: install_client_and_installer
   changed_when: "install_client_and_installer.rc == 0"
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+#
+# Configure local registry
+#
+
+- name: "Render the required container images"
+  shell: |
+    set -o pipefail
+    URL=$( curl -s "https://api.github.com/repos/openshift/okd/releases/tags/{{ kubeinit_okd_registry_release_tag }}" \
+       | jq -r '.assets[] | select(.name=="release.txt") | .browser_download_url' )
+
+    curl -LO "$URL"
+
+    cat release.txt | grep quay | grep -v "Pull From" | tr -s ' ' | cut -d ' ' -f 3 > ~/kubeinit_deployment_images.txt
+  args:
+    executable: /bin/bash
+  register: render_images_list
+  changed_when: "render_images_list.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Configure a local container image registry
+  delegate_to: "{{ groups['okd_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_registry
+    tasks_from: main
+  when: kubeinit_registry_enabled|bool
   tags:
     - provision_libvirt
 
@@ -192,6 +225,16 @@
     src: "install-config.yaml.j2"
     dest: "~/install_dir/install-config.yaml"
     mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: "Backup the install config file"
+  shell: |
+    cp ~/install_dir/install-config.yaml ~/install-config.yaml
+  register: backup_install_config
+  changed_when: "backup_install_config.rc == 0"
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
@@ -222,14 +265,12 @@
   tags:
     - provision_libvirt
 
-- name: Create directory for apache
-  file:
-    path: /var/www/html/okd4
-    state: directory
-    owner: apache
-    group: apache
-    mode: 0775
-    recurse: yes
+- name: "Render ignition files"
+  shell: |
+    openshift-install create ignition-configs --dir=install_dir/
+    cp -R install_dir/* /var/www/html/okd4/
+  register: render_ignition_files
+  changed_when: "render_ignition_files.rc == 0"
   delegate_to: "{{ item }}"
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
@@ -258,18 +299,6 @@
   with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt
-
-- name: "Render ignition files"
-  shell: |
-    openshift-install create ignition-configs --dir=install_dir/
-    cp -R install_dir/* /var/www/html/okd4/
-  register: render_ignition_files
-  changed_when: "render_ignition_files.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
 
 - name: "Apply permissions to the apache folder"
   shell: |
