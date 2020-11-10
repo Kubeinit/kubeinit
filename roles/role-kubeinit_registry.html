@@ -198,6 +198,52 @@
 <span class="c1"># All variables within this role should have a prefix of &quot;kubeinit_registry_&quot;</span>
 <span class="nt">kubeinit_registry_debug</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">(ansible_verbosity</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">int)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">bool</span><span class="nv"> </span><span class="s">}}&#39;</span>
 <span class="nt">kubeinit_registry_hide_sensitive_logs</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="nt">kubeinit_registry_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="nt">kubeinit_registry_user</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">registryusername</span>
+<span class="nt">kubeinit_registry_password</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">registrypassword</span>
+<span class="nt">kubeinit_registry_email</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example@domain.com</span>
+<span class="c1"># The space after the first single quote is required, do not remove</span>
+<span class="c1"># Something in Ansible appears to be recognizing this as valid Python,</span>
+<span class="c1"># so it&#39;s getting transformed into a Python list and then serialized</span>
+<span class="c1"># using Python&#39;s str(), which is why we end up with the single-quoted values.</span>
+<span class="nt">kubeinit_registry_pullsecret</span><span class="p">:</span> <span class="s">&#39;</span><span class="nv">  </span><span class="s">{</span><span class="nv"> </span><span class="s">&quot;auths&quot;:</span><span class="nv"> </span><span class="s">{}</span><span class="nv"> </span><span class="s">}&#39;</span>
+
+<span class="nt">kubeinit_registry_required_packages_aux</span><span class="p">:</span> <span class="s">&quot;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_inventory_cluster_distro\</span>
+  <span class="s">\ ==</span><span class="nv"> </span><span class="s">&#39;rke&#39;</span><span class="nv"> </span><span class="s">or</span><span class="nv"> </span><span class="s">kubeinit_inventory_cluster_distro</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">&#39;cdk&#39;</span><span class="nv"> </span><span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">podman,</span><span class="nv"> </span><span class="s">python3,</span><span class="nv"> </span><span class="s">python3-dns,\</span>
+  <span class="s">\ jq,</span><span class="nv"> </span><span class="s">apache2-utils,</span><span class="nv"> </span><span class="s">skopeo</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">podman,</span><span class="nv"> </span><span class="s">python3,</span><span class="nv"> </span><span class="s">python3-dns,</span><span class="nv"> </span><span class="s">jq,</span><span class="nv"> </span><span class="s">httpd-tools,\</span>
+  <span class="s">\ skopeo</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif</span><span class="nv"> </span><span class="s">%}&quot;</span>
+<span class="nt">kubeinit_registry_required_packages</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_required_packages_aux.split(&#39;,&#39;)\</span>
+  <span class="s">\ }}&quot;</span>
+
+<span class="nt">kubeinit_registry_directory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/var/kubeinit/local_registry</span>
+<span class="nt">kubeinit_registry_directory_auth</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_directory</span><span class="nv"> </span><span class="s">}}/auth&#39;</span>
+<span class="nt">kubeinit_registry_directory_cert</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_directory</span><span class="nv"> </span><span class="s">}}/certs&#39;</span>
+<span class="nt">kubeinit_registry_directory_data</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_directory</span><span class="nv"> </span><span class="s">}}/data&#39;</span>
+
+<span class="nt">kubeinit_registry_port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5000</span>
+<span class="nt">kubeinit_registry_host</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">hostvars[</span><span class="nv"> </span><span class="s">groups[&#39;all&#39;]</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">map(&#39;regex_search&#39;,&#39;^.*service.*$&#39;)\</span>
+  <span class="s">\ |</span><span class="nv"> </span><span class="s">select(&#39;string&#39;)</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">list</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">first</span><span class="nv"> </span><span class="s">].inventory_hostname</span><span class="nv"> </span><span class="s">}}&quot;</span>
+<span class="nt">kubeinit_registry_fqdn</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_host</span><span class="nv"> </span><span class="s">}}.{{</span><span class="nv"> </span><span class="s">kubeinit_inventory_cluster_name</span>
+  <span class="s">}}.{{</span><span class="nv"> </span><span class="s">kubeinit_inventory_cluster_domain</span><span class="nv"> </span><span class="s">}}&#39;</span>
+<span class="nt">kubeinit_registry_uri</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_fqdn</span><span class="nv"> </span><span class="s">}}:{{</span><span class="nv"> </span><span class="s">kubeinit_registry_port</span><span class="nv"> </span><span class="s">}}&#39;</span>
+
+<span class="nt">kubeinit_registry_local_repository</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ocp4/openshift4</span>
+<span class="nt">kubeinit_registry_remote_repositories</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">quay.io/openshift-release-dev/ocp-v4.0-art-dev</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">registry.svc.ci.openshift.org/ocp/release</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">quay.io/openshift-release-dev/ocp-release</span>
+
+<span class="nt">kubeinit_registry_auth_file</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">registry-auths.json</span>
+<span class="nt">kubeinit_registry_pod_name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">kubeinit-registry</span>
+<span class="nt">kubeinit_registry_appends_file</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">install-config-appends.yml</span>
+
+<span class="nt">kubeinit_registry_certificate_country</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">US</span>
+<span class="nt">kubeinit_registry_certificate_state</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">MyState</span>
+<span class="nt">kubeinit_registry_certificate_locality</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">MyCity</span>
+<span class="nt">kubeinit_registry_certificate_organization</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">MyCompany</span>
+<span class="nt">kubeinit_registry_certificate_organizational_unit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">MyDepartment</span>
 </pre></div>
 </div>
 </div>
