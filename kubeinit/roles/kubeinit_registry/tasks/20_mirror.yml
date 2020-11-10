@@ -1,0 +1,27 @@
+---
+
+- name: Create temporary pullsecret file
+  copy:
+    content: "{{ kubeinit_registry_pullsecret }}"
+    dest: "{{ ansible_env.HOME }}/pullsecret.txt"
+    mode: '0755'
+    force: yes
+
+- name: Mirror remote registry to local
+  shell: |
+    set -o pipefail
+    # /usr/local/bin/oc adm release mirror \
+    #  -a "{{ ansible_env.HOME }}/pullsecret.txt" \
+    #  --from="release_image | quote" \
+    #  --to-release-image="{{ kubeinit_registry_uri | quote }}/{{ kubeinit_registry_local_repository | quote }}:release_version | quote" \
+    #  --to="{{ kubeinit_registry_uri | quote }}/{{ kubeinit_registry_local_repository | quote }}"
+    # skopeo sync --src docker --dest docker release_image | quote {{ kubeinit_registry_uri | quote }}/{{ kubeinit_registry_local_repository | quote }}:release_version | quote
+  args:
+    executable: /bin/bash
+  register: mirror_registry
+  changed_when: "mirror_registry.rc == 0"
+
+# - name: Remove temporary pullsecret file
+#   file:
+#     path: "{{ ansible_env.HOME }}/pullsecret.txt"
+#     state: absent

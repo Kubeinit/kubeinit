@@ -25,6 +25,20 @@
     - provision_libvirt
 
 #
+# Configure local registry
+#
+
+- name: Configure a local container image registry
+  delegate_to: "{{ groups['k8s_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_registry
+    tasks_from: main
+  when: kubeinit_registry_enabled|bool
+  tags:
+    - provision_libvirt
+
+#
 # Configure bind
 #
 

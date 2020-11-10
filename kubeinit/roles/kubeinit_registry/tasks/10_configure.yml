@@ -1,0 +1,311 @@
+---
+- name: Verify the certificate variables are set
+  fail:
+    msg:
+    - "Must specify kubeinit_registry_certificate_country"
+    - "kubeinit_registry_certificate_country: {{ kubeinit_registry_certificate_country }}"
+  when: ( kubeinit_registry_certificate_country is not defined )
+    or  ( kubeinit_registry_certificate_country is none )
+    or  ( kubeinit_registry_certificate_country | trim | length == 0 )
+
+- name: Verify the certificate variables are set
+  fail:
+    msg:
+    - "Must specify kubeinit_registry_certificate_state"
+    - "kubeinit_registry_certificate_state: {{ kubeinit_registry_certificate_state }}"
+  when: ( kubeinit_registry_certificate_state is not defined )
+    or  ( kubeinit_registry_certificate_state is none )
+    or  ( kubeinit_registry_certificate_state | trim | length == 0 )
+
+- name: Verify the certificate variables are set
+  fail:
+    msg:
+    - "Must specify kubeinit_registry_certificate_locality"
+    - "kubeinit_registry_certificate_locality: {{ kubeinit_registry_certificate_locality }}"
+  when: ( kubeinit_registry_certificate_locality is not defined )
+    or  ( kubeinit_registry_certificate_locality is none )
+    or  ( kubeinit_registry_certificate_locality | trim | length == 0 )
+
+- name: Verify the certificate variables are set
+  fail:
+    msg:
+    - "Must specify kubeinit_registry_certificate_organization"
+    - "kubeinit_registry_certificate_organization: {{ kubeinit_registry_certificate_organization }}"
+  when: ( kubeinit_registry_certificate_organization is not defined )
+    or  ( kubeinit_registry_certificate_organization is none )
+    or  ( kubeinit_registry_certificate_organization | trim | length == 0 )
+
+- name: Verify the certificate variables are set
+  fail:
+    msg:
+    - "Must specify kubeinit_registry_certificate_organizational_unit"
+    - "kubeinit_registry_certificate_organizational_unit: {{ kubeinit_registry_certificate_organizational_unit }}"
+  when: ( kubeinit_registry_certificate_organizational_unit is not defined )
+    or  ( kubeinit_registry_certificate_organizational_unit is none )
+    or  ( kubeinit_registry_certificate_organizational_unit | trim | length == 0 )
+
+- name: Generate htpasswd entry
+  command: htpasswd -bBn {{ kubeinit_registry_user }} {{ kubeinit_registry_password }}
+  register: htpass_entry
+  changed_when: "htpass_entry.rc == 0"
+
+- name: Write htpasswd file
+  copy:
+    content: '{{ htpass_entry.stdout }}'
+    dest: "{{ kubeinit_registry_directory_auth }}/htpasswd"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+    backup: yes
+    force: yes
+
+- name: Set disconnected_auth
+  set_fact:
+    disconnected_registry_up: "{{ kubeinit_registry_user }}:{{ kubeinit_registry_password }}"
+
+- name: Create registry auth for pullsecret
+  set_fact:
+    # The spaces after the first single quote is required, do not remove
+    # Something in Ansible appears to be recognizing this as valid Python,
+    # so it's getting transformed into a Python list and then serialized
+    # using Python's str(), which is why we end up with the single-quoted values.
+    disconnected_auth: '  {"{{ kubeinit_registry_fqdn }}": {"auth": "{{ disconnected_registry_up | b64encode }}", "email": "{{ kubeinit_registry_email }}" } }'
+
+- name: Write auth for disconnected to registry host
+  copy:
+    content: "{{ disconnected_auth }}"
+    dest: "{{ ansible_env.HOME }}/{{ kubeinit_registry_auth_file }}"
+    mode: '0755'
+    backup: yes
+    force: yes
+
+- name: Write auth for disconnected to localhost
+  copy:
+    content: "{{ disconnected_auth }}"
+    dest: "~/{{ kubeinit_registry_auth_file }}"
+    mode: '0755'
+    backup: yes
+    force: yes
+
+- name: append auth to pullsecret
+  shell: |
+    set -o pipefail
+    echo '{{ kubeinit_registry_pullsecret }}' | jq -c \
+      '.auths += {{ disconnected_auth }}'
+  args:
+    executable: /bin/bash
+  register: new_pullsecret
+  changed_when: "new_pullsecret.rc == 0"
+
+- name: set pullsecret with new auth
+  set_fact:
+    pullsecret: "{{ new_pullsecret.stdout }}"
+
+- name: Generate an OpenSSL private key
+  openssl_privatekey:
+   path: "{{ kubeinit_registry_directory_cert }}/domain.key"
+
+- name: Generate an OpenSSL CSR
+  openssl_csr:
+    path: "{{ kubeinit_registry_directory_cert }}/domain.csr"
+    privatekey_path: "{{ kubeinit_registry_directory_cert }}/domain.key"
+    common_name: "{{ kubeinit_registry_fqdn }}"
+    country_name: "{{ kubeinit_registry_certificate_country }}"
+    state_or_province_name: "{{ kubeinit_registry_certificate_state }}"
+    locality_name: "{{ kubeinit_registry_certificate_locality }}"
+    organization_name: "{{ kubeinit_registry_certificate_organization }}"
+    organizational_unit_name: "{{ kubeinit_registry_certificate_organizational_unit }}"
+    basic_constraints_critical: yes
+    create_subject_key_identifier: yes
+    basic_constraints: ['CA:TRUE']
+    subject_alt_name: "{{ item.value | map('regex_replace', '^', 'DNS:') | list }}"
+  with_dict:
+    dns_server:
+    - "{{ kubeinit_registry_host }}"
+    - "{{ kubeinit_registry_fqdn }}"
+
+- name: Generate a selfsigned OpenSSL CA Certificate
+  openssl_certificate:
+    path: "{{ kubeinit_registry_directory_cert }}/domainCA.crt"
+    privatekey_path: "{{ kubeinit_registry_directory_cert }}/domain.key"
+    csr_path: "{{ kubeinit_registry_directory_cert }}/domain.csr"
+    provider: selfsigned
+
+- name: Generate an ownca OpenSSL Certificate
+  openssl_certificate:
+    path: "{{ kubeinit_registry_directory_cert }}/domain.crt"
+    ownca_privatekey_path: "{{ kubeinit_registry_directory_cert }}/domain.key"
+    csr_path: "{{ kubeinit_registry_directory_cert }}/domain.csr"
+    ownca_path: "{{ kubeinit_registry_directory_cert }}/domainCA.crt"
+    ownca_create_authority_key_identifier: yes
+    provider: ownca
+
+- name: Copy cert to pki directory
+  copy:
+    src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
+    dest: /etc/pki/ca-trust/source/anchors/domain.crt
+    remote_src: yes
+    group: "{{ ansible_user }}"
+    owner: "{{ ansible_user }}"
+    mode: 0644
+    force: yes
+    backup: yes
+  become: true
+  when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd'
+
+- name: Copy cert to pki directory
+  copy:
+    src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
+    dest: /usr/local/share/ca-certificates/domain.crt
+    remote_src: yes
+    group: "{{ ansible_user }}"
+    owner: "{{ ansible_user }}"
+    mode: 0644
+    force: yes
+    backup: yes
+  become: true
+  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
+
+- name: Update the CA trust files
+  command: update-ca-trust extract
+  register: update_ca_trust_files
+  changed_when: "update_ca_trust_files.rc == 0"
+  become: true
+  when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd'
+
+- name: Update the CA trust files
+  command: update-ca-certificates
+  register: update_ca_certs
+  changed_when: "update_ca_certs.rc == 0"
+  become: true
+  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
+
+- name: Create container to serve the registry
+  containers.podman.podman_container:
+    name: "{{ kubeinit_registry_pod_name }}"
+    image: docker.io/library/registry:2
+    state: stopped
+    network: host
+    ports:
+        - "{{ kubeinit_registry_port }}:{{ kubeinit_registry_port }}"
+    volumes:
+      - "{{ kubeinit_registry_directory_data }}:/var/lib/registry:z"
+      - "{{ kubeinit_registry_directory_auth }}:/auth:z"
+      - "{{ kubeinit_registry_directory_cert }}:/certs:z"
+    env:
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Registry
+      REGISTRY_HTTP_SECRET: ALongRandomSecretForRegistry
+      REGISTRY_AUTH_HTPASSWD_PATH: auth/htpasswd
+      REGISTRY_HTTP_TLS_CERTIFICATE: certs/domain.crt
+      REGISTRY_HTTP_TLS_KEY: certs/domain.key
+  register: registry_container_info
+
+- name: Setting facts about the container that will run the registry
+  set_fact:
+    container_registry_name: "{{ registry_container_info.container.Name }}"
+    container_registry_pidfile: "{{ registry_container_info.container.ConmonPidFile }}"
+
+- name: Ensure user specific systemd instance are persistent
+  command: |
+    /usr/bin/loginctl enable-linger {{ ansible_user }}
+  register: systemd_instance_persist
+  changed_when: "systemd_instance_persist.rc == 0"
+
+- name: Create systemd user directory
+  file:
+    path: "{{ ansible_user_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0775'
+
+- name: Copy the systemd service file
+  copy:
+    content: |
+      [Unit]
+      Description=Podman container-registry.service
+      [Service]
+      Restart=on-failure
+      ExecStart=/usr/bin/podman start {{ container_registry_name }}
+      ExecStop=/usr/bin/podman stop -t 10 {{ container_registry_name }}
+      KillMode=none
+      Type=forking
+      PIDFile={{ container_registry_pidfile }}
+      [Install]
+      WantedBy=default.target
+    dest: "{{ ansible_user_dir }}/.config/systemd/user/container-registry.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Reload systemd service
+  systemd:
+    daemon_reexec: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Enable container-registry.service
+  systemd:
+    name: container-registry
+    enabled: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Start container-registry.service
+  systemd:
+    name: container-registry
+    state: started
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Read in the contents of domain.crt
+  slurp:
+    src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
+  register: domain_cert_b64
+
+- name: Set trustbundle fact to contents of domain.crt
+  set_fact:
+    trustbundle: "{{ domain_cert_b64.content | string | b64decode }}"
+
+- name: Create mirrorred registry information
+  set_fact:
+    install_config_appends: "{{ lookup('template', 'install-config-appends.j2') }}"
+
+- name: Create {{ kubeinit_registry_appends_file }}
+  copy:
+    content: "{{ install_config_appends }}"
+    dest: "{{ ansible_env.HOME }}/{{ kubeinit_registry_appends_file }}"
+    mode: '0755'
+    backup: yes
+    force: yes
+
+- name: Create {{ kubeinit_registry_appends_file }} on localhost
+  copy:
+    content: "{{ install_config_appends }}"
+    dest: "~/{{ kubeinit_registry_appends_file }}"
+    mode: '0755'
+    backup: yes
+    force: yes
+
+- name: Information
+  debug:
+    msg:
+    - "To reuse this disconnected registry for other deployments, you must do the following:"
+    - "Add the authentication from either "
+    - "    {{ ansible_env.HOME }}/{{ kubeinit_registry_auth_file }} on {{ inventory_hostname }}"
+    - "    or {{ ansible_env.HOME }}/{{ kubeinit_registry_auth_file }} on this server to your pull secret."
+    - ""
+    - "Append the contents of either of the "
+    - "    {{ ansible_env.HOME }}/{{ kubeinit_registry_appends_file }} on {{ inventory_hostname }} "
+    - "    or {{ ansible_env.HOME }}/{{ kubeinit_registry_appends_file }} on this server to your"
+    - "    install-config.yaml file."
+
+- name: Fetch the domain cert from the registry host
+  fetch:
+    dest: /tmp/domain.crt
+    src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
+    flat: yes
