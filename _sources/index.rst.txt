@@ -48,4 +48,6 @@ Content
    roles
    modules
    howtos_and_presentations
+   inventory_diagrams
+   playbook_diagrams
    changelog
