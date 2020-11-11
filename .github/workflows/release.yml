@@ -51,6 +51,49 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Render the projects roles and inventory diagrams
+        run: |
+          sudo apt-get install graphviz -y
+          sudo python3 -m pip install --upgrade pip
+          sudo python3 -m pip install --upgrade virtualenv
+          sudo python3 -m pip install --upgrade setuptools
+          sudo python3 -m pip install --upgrade ansible-inventory-grapher
+          sudo python3 -m pip install --upgrade ansible-playbook-grapher
+
+          for f in ./playbooks/*; do
+              filename=$(basename $f)
+              echo "ansible-playbook-grapher ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename"
+              ansible-playbook-grapher ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename
+          cat << EOF >> ./docs/src/playbook_diagrams.rst
+
+          $filename playbook architecture
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/playbook_$filename.svg
+            :width: 400
+            :alt: Alternative text
+
+          EOF
+          done
+
+          for f in ./hosts/*; do
+              filename=$(basename $f)
+              echo "ansible-inventory-grapher -i ./hosts/$filename/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png"
+              ansible-inventory-grapher -i hosts/$filename/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png
+          cat << EOF >> ./docs/src/inventory_diagrams.rst
+
+          $filename inventory architecture
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/inventory_$filename.png
+            :width: 400
+            :alt: Alternative text
+
+          EOF
+          done
+
+          cat ./docs/src/playbook_diagrams.rst
+          cat ./docs/src/inventory_diagrams.rst
       - name: Render the changelog file
         run: |
           GITCHANGELOG_CONFIG_FILENAME=./tools/gitchangelog.rc ./tools/gitchangelog.py > ./docs/src/changelog.rst
