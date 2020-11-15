@@ -20,7 +20,20 @@ networking:
 platform:
   none: {}
 fips: false
+{% if kubeinit_registry_pullsecret is defined | default(false) %}
+pullSecret: '{{ kubeinit_registry_pullsecret | to_json }}'
+{% else %}
 pullSecret: '{"auths":{"fake":{"auth": "bar"}}}'
+{% endif %}
 sshKey: |
   {{ kubeinit_provision_vms_public_key }}
   {{ kubeinit_provision_service_public_key[0]['stdout'] }}
+additionalTrustBundle: |
+  {{ trustbundle | regex_replace('\n', '\n  ') }}
+imageContentSources:
+- mirrors:
+  - {{ kubeinit_registry_uri }}/okd
+  source: quay.io/openshift/okd
+- mirrors:
+  - {{ kubeinit_registry_uri }}/okd
+  source: quay.io/openshift/okd-content

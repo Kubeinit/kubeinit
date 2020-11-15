@@ -18,15 +18,59 @@
 # Configure local registry
 #
 
-- name: Configure a local container image registry
-  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_registry
-    tasks_from: main
-  when: kubeinit_registry_enabled|bool
+- name: Render the cluster template
+  template:
+    src: "cluster.yml.j2"
+    dest: "~/cluster.yml"
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['rke_service_nodes'][0] }}"
   tags:
     - provision_libvirt
+
+- name: Download rancher
+  get_url:
+    url: "https://github.com/rancher/rke/releases/download/{{ kubeinit_rke_registry_release_tag }}/rke_linux-amd64"
+    dest: ~/
+    mode: '0755'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['rke_service_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+- name: "Adjust installer"
+  shell: |
+    mv ~/rke_linux-amd64 ~/rke
+    chmod +x rke
+  register: adjust_installer
+  changed_when: "adjust_installer.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['rke_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: "Render the required container images"
+  shell: |
+    set -o pipefail
+    ~/rke config --system-images | grep -v 'INFO' | grep -v 'level=info' > ~/kubeinit_deployment_images.txt
+  args:
+    executable: /bin/bash
+  register: render_images_list
+  changed_when: "render_images_list.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['rke_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+# - name: Configure a local container image registry
+#   delegate_to: "{{ groups['rke_service_nodes'][0] }}"
+#   # delegate_facts: true
+#   import_role:
+#     name: ../../roles/kubeinit_registry
+#     tasks_from: main
+#   when: kubeinit_registry_enabled|bool
+#   tags:
+#     - provision_libvirt
 
 #
 # Configure bind

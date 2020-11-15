@@ -14,6 +14,19 @@
   changed_when: "enable_repos.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
+- name: Enable CentOS 8 repositories
+  shell: |
+    set -o pipefail
+    dnf -y module disable container-tools
+    dnf -y install 'dnf-command(copr)'
+    dnf -y copr enable rhcontainerbot/container-selinux
+    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo
+  args:
+    executable: /bin/bash
+  register: enable_repos
+  changed_when: "enable_repos.rc == 0"
+  when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd'
+
 - name: Make sure needed packages are installed
   package:
     state: present
