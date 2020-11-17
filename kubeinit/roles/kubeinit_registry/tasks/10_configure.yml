@@ -71,23 +71,7 @@
     # using Python's str(), which is why we end up with the single-quoted values.
     disconnected_auth: '  {"{{ kubeinit_registry_uri }}": {"auth": "{{ disconnected_registry_up | b64encode }}", "email": "{{ kubeinit_registry_email }}" } }'
 
-- name: Write auth for disconnected to registry host
-  copy:
-    content: "{{ disconnected_auth }}"
-    dest: "{{ ansible_env.HOME }}/{{ kubeinit_registry_auth_file }}"
-    mode: '0755'
-    backup: yes
-    force: yes
-
-- name: Write auth for disconnected to localhost
-  copy:
-    content: "{{ disconnected_auth }}"
-    dest: "~/{{ kubeinit_registry_auth_file }}"
-    mode: '0755'
-    backup: yes
-    force: yes
-
-- name: append auth to pullsecret
+- name: append auths to pullsecret
   shell: |
     set -o pipefail
     echo '{{ kubeinit_registry_pullsecret }}' | jq -c \
@@ -97,9 +81,35 @@
   register: new_pullsecret
   changed_when: "new_pullsecret.rc == 0"
 
+- name: Write auth for disconnected to localhost
+  copy:
+    content: "{{ new_pullsecret.stdout }}"
+    dest: "~/{{ kubeinit_registry_auth_file }}"
+    mode: '0755'
+    backup: yes
+    force: yes
+
+- name: save kubeinit_okd_registry_pullsecret trimmed
+  shell: |
+    set -o pipefail
+    echo '{{ kubeinit_okd_registry_pullsecret }}' | jq .auths
+  args:
+    executable: /bin/bash
+  register: kubeinit_okd_registry_pullsecret_trimmed
+  changed_when: "kubeinit_okd_registry_pullsecret_trimmed.rc == 0"
+
+- name: append auth from OKD to pullsecret
+  shell: |
+    set -o pipefail
+    echo '{{ new_pullsecret.stdout }}' | jq '.auths += {{ kubeinit_okd_registry_pullsecret_trimmed.stdout }}'
+  args:
+    executable: /bin/bash
+  register: new_pullsecret_with_okd
+  changed_when: "new_pullsecret_with_okd.rc == 0"
+
 - name: set pullsecret with new auth
   set_fact:
-    kubeinit_registry_pullsecret: "{{ new_pullsecret.stdout }}"
+    kubeinit_registry_pullsecret: "{{ new_pullsecret_with_okd.stdout }}"
 
 - name: Generate an OpenSSL private key
   openssl_privatekey:
