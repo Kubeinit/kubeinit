@@ -26,6 +26,24 @@
   changed_when: "install_subctl.rc == 0"
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
+- name: "Install submariner based on a PR"
+  shell: |
+    set -o pipefail
+    set -e
+    PR_ID=$(echo "{{ kubeinit_submariner_test_pr_url }}" | rev | cut -d'/' -f 1 | rev)
+    git clone https://github.com/submariner-io/submariner-operator
+    cd submariner-operator
+    git fetch origin pull/$PR_ID/head
+    git checkout -b pr FETCH_HEAD
+    git log -n 5 --pretty=oneline
+    make build
+    make images
+  args:
+    executable: /bin/bash
+  register: install_subctl
+  changed_when: "install_subctl.rc == 0"
+  when: (kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool) and (kubeinit_submariner_test_pr_url | length > 0 )
+
 - name: Check if ~/.profile exists
   stat:
     path: ~/.profile
