@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo "Executing run_submariner.sh"
+
 BRANCH_NAME="$1"
 PULL_REQUEST="$2"
 VARS_YAML_PATH="$3"
@@ -23,7 +25,7 @@ echo "The scenario is $SCENARIO"
 rm -rf tmp
 mkdir -p tmp
 cd tmp
-git clone -n https://github.com/kubeinit/kubeinit.git
+git clone https://github.com/kubeinit/kubeinit.git
 cd kubeinit
 
 # TODO:Remove when merged
@@ -96,6 +98,15 @@ done;
 #
 
 if [[ "$SCENARIO" == "submariner" ]]; then
+
+    # This will:
+    # Deploy two kubernetes clusters,
+    # it will install subctl in the services nodes of the broker cluster,
+    # it will create a submariner broker cluster,
+    # it will install subctl in the services nodes of the seconday node,
+    # and it will join the secondary cluster to the broker.
+    # Also it will pass an extra variable with the patch to test
+
     # Deploy the fisrt cluster (okd)
     ansible-playbook \
         --user root \

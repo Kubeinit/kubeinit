@@ -81,35 +81,17 @@
   register: new_pullsecret
   changed_when: "new_pullsecret.rc == 0"
 
-- name: Write auth for disconnected to localhost
+- name: Override final kubeinit_registry_pullsecret with both auths
+  set_fact:
+    kubeinit_registry_pullsecret: '{{ new_pullsecret.stdout }}'
+
+- name: Write auth for disconnected to localhost with only the local registry auth details
   copy:
-    content: "{{ new_pullsecret.stdout }}"
+    content: '  { "auths": {{ disconnected_auth }} }'
     dest: "~/{{ kubeinit_registry_auth_file }}"
     mode: '0755'
     backup: yes
     force: yes
-
-- name: save kubeinit_okd_registry_pullsecret trimmed
-  shell: |
-    set -o pipefail
-    echo '{{ kubeinit_okd_registry_pullsecret }}' | jq .auths
-  args:
-    executable: /bin/bash
-  register: kubeinit_okd_registry_pullsecret_trimmed
-  changed_when: "kubeinit_okd_registry_pullsecret_trimmed.rc == 0"
-
-- name: append auth from OKD to pullsecret
-  shell: |
-    set -o pipefail
-    echo '{{ new_pullsecret.stdout }}' | jq '.auths += {{ kubeinit_okd_registry_pullsecret_trimmed.stdout }}'
-  args:
-    executable: /bin/bash
-  register: new_pullsecret_with_okd
-  changed_when: "new_pullsecret_with_okd.rc == 0"
-
-- name: set pullsecret with new auth
-  set_fact:
-    kubeinit_registry_pullsecret: "{{ new_pullsecret_with_okd.stdout }}"
 
 - name: Generate an OpenSSL private key
   openssl_privatekey:

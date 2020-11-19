@@ -14,35 +14,75 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "Install subctl"
+- name: "Get submariner code based on a PR or from master"
   shell: |
+    set -o pipefail
     set -e
-    curl -Ls https://get.submariner.io > ~/install_submariner.sh
-    bash ~/install_submariner.sh
-    export PATH=$PATH:~/.local/bin
+    PR_ID=$(echo "{{ kubeinit_submariner_test_pr_url }}" | rev | cut -d'/' -f 1 | rev)
+    rm -rf submariner-operator
+    git clone https://github.com/submariner-io/submariner-operator submariner-operator
+    cd submariner-operator
+    RE='^[0-9]+$'
+    if [[ $PR_ID =~ $RE ]] ; then
+        git fetch origin pull/$PR_ID/head
+        git checkout -b pr FETCH_HEAD
+        git log -n 5 --pretty=oneline
+    fi
+  args:
+    executable: /bin/bash
+  register: get_submariner_operator_code
+  changed_when: "get_submariner_operator_code.rc == 0"
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: "Clean previous images"
+  shell: |
+    set -o pipefail
+    set -e
+
+    # Remove the previously created images
+    docker system prune -af;
+  args:
+    executable: /bin/bash
+  register: clean_all_local_images
+  changed_when: "clean_all_local_images.rc == 0"
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: "Make clean"
+  make:
+    chdir: ~/submariner-operator
+    target: clean
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: "Make the subctl binary"
+  make:
+    chdir: ~/submariner-operator
+    target: bin/subctl
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: "Make build"
+  make:
+    chdir: ~/submariner-operator
+    target: build
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: "Make images"
+  make:
+    chdir: ~/submariner-operator
+    target: images
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: "Make the subctl binary available"
+  shell: |
+    set -o pipefail
+    set -e
+
+    mkdir -p ~/.local/bin/
+    cp ~/submariner-operator/bin/subctl ~/.local/bin/;
   args:
     executable: /bin/bash
   register: install_subctl
   changed_when: "install_subctl.rc == 0"
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
-
-- name: "Install submariner based on a PR"
-  shell: |
-    set -o pipefail
-    set -e
-    PR_ID=$(echo "{{ kubeinit_submariner_test_pr_url }}" | rev | cut -d'/' -f 1 | rev)
-    git clone https://github.com/submariner-io/submariner-operator
-    cd submariner-operator
-    git fetch origin pull/$PR_ID/head
-    git checkout -b pr FETCH_HEAD
-    git log -n 5 --pretty=oneline
-    make build
-    make images
-  args:
-    executable: /bin/bash
-  register: install_subctl
-  changed_when: "install_subctl.rc == 0"
-  when: (kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool) and (kubeinit_submariner_test_pr_url | length > 0 )
 
 - name: Check if ~/.profile exists
   stat:
