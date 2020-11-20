@@ -14,19 +14,39 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: "Remove repo file"
+  shell: |
+    set -o pipefail
+    set -e
+    rm -rf submariner-operator
+  args:
+    executable: /bin/bash
+  register: remove_repo_existing
+  changed_when: "remove_repo_existing.rc == 0"
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: Get submariner-operator repository content
+  git:
+    repo: https://github.com/submariner-io/submariner-operator
+    dest: ~/submariner-operator
+    force: yes
+    version: master
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
 - name: "Get submariner code based on a PR or from master"
   shell: |
     set -o pipefail
     set -e
     PR_ID=$(echo "{{ kubeinit_submariner_test_pr_url }}" | rev | cut -d'/' -f 1 | rev)
-    rm -rf submariner-operator
-    git clone https://github.com/submariner-io/submariner-operator submariner-operator
     cd submariner-operator
     RE='^[0-9]+$'
-    if [[ $PR_ID =~ $RE ]] ; then
+    if [[ $PR_ID =~ $RE ]]; then
+        echo "Testing PR: $PR_ID"
         git fetch origin pull/$PR_ID/head
         git checkout -b pr FETCH_HEAD
         git log -n 5 --pretty=oneline
+    else
+        echo "Running from master"
     fi
   args:
     executable: /bin/bash
@@ -77,7 +97,8 @@
     set -e
 
     mkdir -p ~/.local/bin/
-    cp ~/submariner-operator/bin/subctl ~/.local/bin/;
+    rm -rf ~/.local/bin/subctl
+    cp ~/submariner-operator/bin/subctl ~/.local/bin/
   args:
     executable: /bin/bash
   register: install_subctl
