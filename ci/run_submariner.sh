@@ -38,6 +38,7 @@ sudo tee scenario_variables.yml > /dev/null <<'EOF'
 kubeinit_submariner_test_pr_url: "https://github.com/submariner-io/submariner-operator/pull/$PULL_REQUEST"
 EOF
 
+cat scenario_variables.yml
 
 # By default we deploy 3 master and 1 worker cluster
 # the case of 3 master is already by default
