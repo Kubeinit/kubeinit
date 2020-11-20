@@ -62,16 +62,30 @@
   tags:
     - provision_libvirt
 
-# - name: Configure a local container image registry
-#   delegate_to: "{{ groups['rke_service_nodes'][0] }}"
-#   # delegate_facts: true
-#   import_role:
-#     name: ../../roles/kubeinit_registry
-#     tasks_from: main
-#   when: kubeinit_registry_enabled|bool
-#   tags:
-#     - provision_libvirt
+- name: Configure a local container image registry
+  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_registry
+    tasks_from: main
+  when: kubeinit_registry_enabled|bool
+  tags:
+    - provision_libvirt
 
+- name: Enable insecure registry in Docker
+  shell: |
+    # This is mandatory so the cluster nodes can fetch the
+    # images from the local (insecure) registry
+    sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
+    systemctl daemon-reload
+    systemctl restart docker
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
+  when: kubeinit_registry_enabled|bool
+  tags:
+    - provision_libvirt
 #
 # Configure bind
 #

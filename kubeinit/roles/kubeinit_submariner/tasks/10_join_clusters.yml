@@ -40,6 +40,8 @@
   shell: |
     set -e
     export PATH=$PATH:~/.local/bin
+
+    touch ~/broker-info.subm;
     subctl deploy-broker --kubeconfig ~/install_dir/auth/kubeconfig --service-discovery {% if kubeinit_submariner_globalnet_enabled %} --globalnet --globalnet-cidr-range {{ kubeinit_submariner_globalnet_cidr_range }} {% endif %}
   args:
     executable: /bin/bash
@@ -84,7 +86,7 @@
 - name: "Join cluster to the broker"
   shell: |
     export PATH=$PATH:~/.local/bin
-    subctl join --kubeconfig ~/.kube/config ./broker-info.subm --servicecidr {{ kubeinit_inventory_cluster_service_cidr }} --no-label --disable-nat --enable-pod-debugging --cable-driver libreswan --clusterid {{ kubeinit_inventory_cluster_name }}
+    subctl join --kubeconfig ~/.kube/config ./broker-info.subm --servicecidr {{ kubeinit_inventory_cluster_service_cidr }} --no-label --disable-nat --enable-pod-debugging --cable-driver libreswan --clusterid {{ kubeinit_inventory_cluster_name }} # --image-override=quay.io/submariner/submariner-operator:devel
   args:
     executable: /bin/bash
   register: join_cluster

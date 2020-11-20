@@ -40,10 +40,10 @@ def main():
             #
             # Charmed Distribution of Kubernetes
             #
-            if ("Image override" in pr.title):
+            if ("feat: add image-override flag to subctl command" in pr.title):
                 distro = "multiple"
                 driver = "libvirt"
-                master = "3"
+                master = "1"
                 worker = "2"
                 execute = True
                 scenario = "submariner"
