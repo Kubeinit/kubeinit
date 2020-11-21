@@ -34,9 +34,11 @@ cd kubeinit
 # git fetch ccamacho
 # git cherry-pick 58f718a29d5611234304b1e144a69
 
-sudo tee scenario_variables.yml > /dev/null <<'EOF'
+sudo tee scenario_variables.yml > /dev/null <<EOF
 kubeinit_submariner_test_pr_url: "https://github.com/submariner-io/submariner-operator/pull/$PULL_REQUEST"
 EOF
+
+echo "The content of the scenario_variables.yml file is:"
 
 cat scenario_variables.yml
 
