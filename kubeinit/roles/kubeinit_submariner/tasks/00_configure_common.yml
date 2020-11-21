@@ -33,16 +33,33 @@
     version: master
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
+- name: "Get the PR ID"
+  shell: |
+    set -o pipefail
+    set -e
+    echo "{{ kubeinit_submariner_test_pr_url }}" | rev | cut -d'/' -f 1 | rev
+  args:
+    executable: /bin/bash
+  register: get_repo_pr_id
+  changed_when: "get_repo_pr_id.rc == 0"
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: configure a variable with the PR ID
+  set_fact:
+    kubeinit_submariner_test_pr_id: '{{ get_repo_pr_id.stdout }}'
+
 - name: "Get submariner code based on a PR or from master"
   shell: |
     set -o pipefail
     set -e
-    PR_ID=$(echo "{{ kubeinit_submariner_test_pr_url }}" | rev | cut -d'/' -f 1 | rev)
+    echo "Getting repo from: {{ kubeinit_submariner_test_pr_url }}"
+    echo "Getting the ID: {{ kubeinit_submariner_test_pr_id }}"
+
     cd submariner-operator
     RE='^[0-9]+$'
-    if [[ $PR_ID =~ $RE ]]; then
-        echo "Testing PR: $PR_ID"
-        git fetch origin pull/$PR_ID/head
+    if [[ {{ kubeinit_submariner_test_pr_id }} =~ $RE ]]; then
+        echo "Testing PR: {{ kubeinit_submariner_test_pr_id }}"
+        git fetch origin pull/{{ kubeinit_submariner_test_pr_id }}/head
         git checkout -b pr FETCH_HEAD
         git log -n 5 --pretty=oneline
     else
