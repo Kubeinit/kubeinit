@@ -40,14 +40,18 @@ git log -n 5 --pretty=oneline
 # Here we might define some different
 # variables depending on the scenario
 if [[ "$DISTRO" == "okd" && "$DRIVER" == "libvirt" ]]; then
-sudo tee scenario_variables.yml > /dev/null <<'EOF'
+sudo tee scenario_variables.yml > /dev/null <<EOF
 kubeinit_libvirt_test_variable1: example_var
 EOF
 else
-sudo tee scenario_variables.yml > /dev/null <<'EOF'
+sudo tee scenario_variables.yml > /dev/null <<EOF
 kubeinit_libvirt_test_variable2: example_var2
 EOF
 fi
+
+echo "The content of the scenario_variables.yml file is:"
+
+cat scenario_variables.yml
 
 # By default we deploy 3 master and 1 worker cluster
 # the case of 3 master is already by default
