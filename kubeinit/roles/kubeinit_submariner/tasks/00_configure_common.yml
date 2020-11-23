@@ -96,16 +96,34 @@
     target: bin/subctl
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
+# We need this in both cluster and there are 2 different registries (1 per cluster)
 - name: "Make build"
   make:
     chdir: ~/submariner-operator
     target: build
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
+# We need this in both cluster and there are 2 different registries (1 per cluster)
 - name: "Make images"
   make:
     chdir: ~/submariner-operator
     target: images
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+# We need this in both cluster and there are 2 different registries (1 per cluster)
+- name: "Push the image to the local registry"
+  shell: |
+    set -o pipefail
+    set -e
+    LOCAL_REGISTRY=$(cat ~/registry-auths.json | jq .auths | jq -r 'keys[]')
+    docker tag quay.io/submariner/submariner-operator:devel $LOCAL_REGISTRY/submariner/submariner-operator:devel;
+    cp registry-auths.json ~/config.json
+    # --config will search the config.json in ~/
+    docker --config ~/ push $LOCAL_REGISTRY/submariner/submariner-operator:devel;
+  args:
+    executable: /bin/bash
+  register: push_submariner_to_local_registry
+  changed_when: "push_submariner_to_local_registry.rc == 0"
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: "Make the subctl binary available"

@@ -85,8 +85,12 @@
 
 - name: "Join cluster to the broker"
   shell: |
+    set -o pipefail
+    set -e
+
     export PATH=$PATH:~/.local/bin
-    subctl join --kubeconfig ~/.kube/config ./broker-info.subm --servicecidr {{ kubeinit_inventory_cluster_service_cidr }} --no-label --disable-nat --enable-pod-debugging --cable-driver libreswan --clusterid {{ kubeinit_inventory_cluster_name }} --image-override='submariner-operator=quay.io/submariner/submariner-operator:devel'
+    LOCAL_REGISTRY=$(cat ~/registry-auths.json | jq .auths | jq -r 'keys[]')
+    subctl join --kubeconfig ~/.kube/config ./broker-info.subm --servicecidr {{ kubeinit_inventory_cluster_service_cidr }} --no-label --disable-nat --enable-pod-debugging --cable-driver libreswan --clusterid {{ kubeinit_inventory_cluster_name }} --image-override="submariner-operator=$LOCAL_REGISTRY/submariner/submariner-operator:devel"
   args:
     executable: /bin/bash
   register: join_cluster
