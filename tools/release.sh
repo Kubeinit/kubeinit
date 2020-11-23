@@ -1,27 +1,24 @@
 #!/bin/bash
 
-PARAMS=""
-while (( "$#" )); do
-    case "$1" in
-        -k|--galaxy-key)
-            KARG=$2
-            shift 2
-            ;;
-        --) # end argument parsing
-            shift
-            break
-            ;;
-        -*|--*=) # unsupported flags
-            echo "Error: Unsupported flag $1" >&2
-            echo "Please use ./publish.sh [-k <galaxy key> | --galaxy-key <galaxy key>]" >&2
-            exit 1
-            ;;
-        *) # preserve positional arguments
-            PARAMS="$PARAMS $1"
-            shift
-            ;;
-    esac
-done
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo "GITHUB_TOKEN is not set";
+    exit 1;
+fi
+
+if [ -z "$QUAY_USER" ]; then
+    echo "QUAY_USER is not set";
+    exit 1;
+fi
+
+if [ -z "$QUAY_KEY" ]; then
+    echo "QUAY_KEY is not set";
+    exit 1;
+fi
+
+if [ -z "$GALAXY_KEY" ]; then
+    echo "GALAXY_KEY is not set";
+    exit 1;
+fi
 
 #
 # Initial variables
@@ -83,11 +80,18 @@ done
 if [ "$publish" == "1" ]; then
     echo 'This version is not published, publishing!...'
 
+    echo 'Building and pushing the container image to quay...'
+    docker login -u="$QUAY_USER" -p="$QUAY_KEY" quay.io
+    docker build . --file Dockerfile --tag quay.io/kubeinit/kubeinit:$current_galaxy_version
+    docker push quay.io/kubeinit/kubeinit:$current_galaxy_version
+
+    echo 'Building and pushing the Ansible collecction to Ansible Galaxy...'
     cd ./kubeinit/
     mkdir -p releases
     ansible-galaxy collection build -v --force --output-path releases/
     ansible-galaxy collection publish \
-        releases/$current_galaxy_namespace-$current_galaxy_name-$current_galaxy_version.tar.gz --api-key $KARG
+        releases/$current_galaxy_namespace-$current_galaxy_name-$current_galaxy_version.tar.gz --api-key $GALAXY_KEY
 
+    echo 'Building and pushing a new tag GitHub...'
     curl --data "$(generate_post_data)" "https://api.github.com/repos/kubeinit/kubeinit/releases?access_token=$GITHUB_TOKEN"
 fi
