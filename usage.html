@@ -89,8 +89,13 @@
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Usage</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#okd-4-5-multi-master-cluster-with-1-10-worker-nodes-and-kubevirt">OKD 4.5 multi-master cluster with 1-10 worker nodes and KubeVirt</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#okd-4-5-multi-master-cluster-with-1-10-worker-nodes">OKD 4.5 multi-master cluster with 1-10 worker nodes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#directly-executing-the-deployment-playbook">Directly executing the deployment playbook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-the-deployment-command-from-a-container">Running the deployment command from a container</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#running-from-the-git-repository">Running from the GIT repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-from-a-release">Running from a release</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="roles.html">Documented roles in KubeInit</a></li>
@@ -166,38 +171,50 @@
             
   <div class="section" id="usage">
 <h1>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h1>
-<p>Once kubeInit has been installed navigate to the
-project’s root directory and run Ansible.</p>
-<p>Here are described the currently supported scenarios.</p>
+<p>There are two ways of launching KubeInit, directly using the
+ansible-playbook command from the project’s source code,
+or by running it inside a container.</p>
+<div class="section" id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>A fresh deployed server with enough RAM and disk space (120GB in RAM and 300GB in disk) and CentOS 8 (it should work also in Fedora/Debian/Ubuntu hosts).</p></li>
+<li><p>We assume that the hypervisor node is called nyctea (defined in the inventory).</p></li>
+<li><p>Have root passwordless access with certificates.</p></li>
+<li><p>Adjust the inventory file to suit your needs i.e. <a class="reference external" href="https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66">the worker nodes</a> you will need in your cluster.</p></li>
+</ul>
+</div>
+<div class="section" id="directly-executing-the-deployment-playbook">
+<h2>Directly executing the deployment playbook<a class="headerlink" href="#directly-executing-the-deployment-playbook" title="Permalink to this headline">¶</a></h2>
+<p>The following example command will deploy a multi-master OKD 4.5 cluster with 1 worker node
+in a single command and in approximately 30 minutes.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>All the commands must be executed from the project’s root directory.</p>
 </div>
-<div class="section" id="okd-4-5-multi-master-cluster-with-1-10-worker-nodes-and-kubevirt">
-<h2>OKD 4.5 multi-master cluster with 1-10 worker nodes and KubeVirt<a class="headerlink" href="#okd-4-5-multi-master-cluster-with-1-10-worker-nodes-and-kubevirt" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">ansible-playbook \</span>
-<span class="go">    -vvv \</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">git clone https://github.com/Kubeinit/kubeinit.git</span>
+<span class="go">cd kubeinit</span>
+<span class="go">ansible-playbook \</span>
 <span class="go">    --user root \</span>
-<span class="go">    -i ./hosts/okd/inventory \</span>
+<span class="go">    -v -i ./hosts/okd/inventory \</span>
 <span class="go">    --become \</span>
 <span class="go">    --become-user root \</span>
 <span class="go">    ./playbooks/okd.yml</span>
 </pre></div>
 </div>
+<p>After provisioning any of the scenarios, you should have your environment ready to go.
+To connect to the nodes from the hypervisor use the IP addresses from the inventory files.</p>
 </div>
-<div class="section" id="okd-4-5-multi-master-cluster-with-1-10-worker-nodes">
-<h2>OKD 4.5 multi-master cluster with 1-10 worker nodes<a class="headerlink" href="#okd-4-5-multi-master-cluster-with-1-10-worker-nodes" title="Permalink to this headline">¶</a></h2>
-<p>All the tags are added by default so if KubeVirt is not required
-execute:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">ansible-playbook \</span>
-<span class="go">    -vvv \</span>
-<span class="go">    --user root \</span>
-<span class="go">    -i ./hosts/okd/inventory \</span>
-<span class="go">    --become \</span>
-<span class="go">    --become-user root \</span>
-<span class="go">    --tags=provision_libvirt \</span>
-<span class="go">    ./playbooks/okd.yml</span>
-</pre></div>
+<div class="section" id="running-the-deployment-command-from-a-container">
+<h2>Running the deployment command from a container<a class="headerlink" href="#running-the-deployment-command-from-a-container" title="Permalink to this headline">¶</a></h2>
+<p>The whole process is explained in the <a class="reference external" href="https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html">HowTo’s</a>.
+The following commands build a container image with the project inside of it, and then
+launches the container executing the ansible-playbook command with all the
+standard ansible-playbook parameters.</p>
+<div class="section" id="running-from-the-git-repository">
+<h3>Running from the GIT repository<a class="headerlink" href="#running-from-the-git-repository" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="running-from-a-release">
+<h3>Running from a release<a class="headerlink" href="#running-from-a-release" title="Permalink to this headline">¶</a></h3>
 </div>
 </div>
 </div>
