@@ -48,6 +48,7 @@ Running from the GIT repository
 -------------------------------
 
 .. code-block:: console
+
     git clone https://github.com/Kubeinit/kubeinit.git
     cd kubeinit
     podman build -t kubeinit/kubeinit .
@@ -66,6 +67,7 @@ Running from a release
 ----------------------
 
 .. code-block:: console
+
     TAG=0.6.1
     podman run --rm -it \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
