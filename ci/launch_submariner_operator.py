@@ -29,6 +29,7 @@ def main():
     """Run the main method."""
     for branch in branches:
         for pr in repo.get_pulls(state='open', sort='created', base=branch.name):
+            labels = [item.name for item in pr.labels]
 
             sha = pr.head.sha
             committer_email = repo.get_commit(sha=sha).commit.committer.email
@@ -40,7 +41,7 @@ def main():
             #
             # Charmed Distribution of Kubernetes
             #
-            if ("feat: add image-override flag to subctl command" in pr.title):
+            if ("check-okd-rke" in labels):
                 distro = "multiple"
                 driver = "libvirt"
                 master = "1"
