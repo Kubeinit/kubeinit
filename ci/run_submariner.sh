@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 echo "Executing run_submariner.sh"
 
@@ -11,6 +10,7 @@ DRIVER="$5"
 MASTER="$6"
 WORKER="$7"
 SCENARIO="$8"
+PIPELINE_ID="$9"
 
 echo "The branch is $BRANCH_NAME"
 echo "The pull request is $PULL_REQUEST"
@@ -20,6 +20,15 @@ echo "The driver is $DRIVER"
 echo "The amount of master nodes is $MASTER"
 echo "The amount of worker nodes is $WORKER"
 echo "The scenario is $SCENARIO"
+
+# Install and configure ara
+python3 -m pip install "ara[server]"
+
+# This will nuke the ara database so in each run we have a clean env
+rm /root/.ara/server/ansible.sqlite
+
+
+export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
 
 # Clone the repo
 rm -rf tmp
@@ -148,3 +157,19 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         -e @scenario_variables.yml \
         ./playbooks/submariner.yml
 fi
+
+echo "Running ara-manage to store the results"
+ara-manage generate ./$PIPELINE_ID
+ls -ltah
+pwd
+chmod -R 755 ./$PIPELINE_ID
+
+curl -OL https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo_white.svg
+curl -OL https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/icon.png
+mv logo.svg ./$PIPELINE_ID/static/images/logo.svg
+mv icon.png ./$PIPELINE_ID/static/images/favicon.ico
+
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's/ARA Records Ansible/KubeInit job report/g' {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's/ara.readthedocs.io/docs.kubeinit.com/g' {} \;
+
+echo "Finishing the bash executor"
