@@ -2,25 +2,13 @@
 
 """Main CI job script."""
 
-import base64
 import os
 import subprocess
 import time
 
 from github import Github
-from github import InputGitTreeElement
 
-gh = Github(os.environ['GH_TOKEN'])
-
-vars_file_path = os.getenv('VARS_FILE', "")
-pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
-
-repo = gh.get_repo("kubeinit/kubeinit")
-branches = repo.get_branches()
-
-# Something linke:
-# url = "https://gitlab.com/kubeinit/kubeinit-ci/pipelines/"
-url = os.getenv('CI_PIPELINE_URL', "")
+from kubeinit_ci_utils import remove_label, upload_logs
 
 #
 # We only execute the e2e jobs for those PR having
@@ -30,6 +18,21 @@ url = os.getenv('CI_PIPELINE_URL', "")
 
 def main():
     """Run the main method."""
+    gh = Github(os.environ['GH_TOKEN'])
+    gh_token = os.environ['GH_TOKEN']
+
+    vars_file_path = os.getenv('VARS_FILE', "")
+    pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
+
+    repo = gh.get_repo("kubeinit/kubeinit")
+    branches = repo.get_branches()
+
+    output = 0
+    # Something linke:
+    # url = "https://gitlab.com/kubeinit/kubeinit-ci/pipelines/"
+    url = os.getenv('CI_PIPELINE_URL', "")
+    print("The job results will be published in runtime at: " + url)
+
     for branch in branches:
         for pr in repo.get_pulls(state='open', sort='created', base=branch.name):
             labels = [item.name for item in pr.labels]
@@ -53,7 +56,7 @@ def main():
                 worker = "1"
                 execute = True
                 scenario = "default"
-                remove_label("cdk-libvirt-3-master-1-worker-default", pr)
+                remove_label("cdk-libvirt-3-master-1-worker-default", pr, repo)
             elif ("cdk-libvirt-3-master-0-worker-default" in labels):
                 distro = "cdk"
                 driver = "libvirt"
@@ -61,7 +64,7 @@ def main():
                 worker = "0"
                 execute = True
                 scenario = "default"
-                remove_label("cdk-libvirt-3-master-0-worker-default", pr)
+                remove_label("cdk-libvirt-3-master-0-worker-default", pr, repo)
             elif ("cdk-libvirt-1-master-1-worker-default" in labels):
                 distro = "cdk"
                 driver = "libvirt"
@@ -69,7 +72,7 @@ def main():
                 worker = "1"
                 execute = True
                 scenario = "default"
-                remove_label("cdk-libvirt-1-master-1-worker-default", pr)
+                remove_label("cdk-libvirt-1-master-1-worker-default", pr, repo)
             elif ("cdk-libvirt-1-master-0-worker-default" in labels):
                 distro = "cdk"
                 driver = "libvirt"
@@ -77,7 +80,7 @@ def main():
                 worker = "0"
                 execute = True
                 scenario = "default"
-                remove_label("cdk-libvirt-1-master-0-worker-default", pr)
+                remove_label("cdk-libvirt-1-master-0-worker-default", pr, repo)
 
             #
             # Rancher Kubernetes Engine
@@ -89,7 +92,7 @@ def main():
                 worker = "1"
                 execute = True
                 scenario = "default"
-                remove_label("rke-libvirt-3-master-1-worker-default", pr)
+                remove_label("rke-libvirt-3-master-1-worker-default", pr, repo)
             elif ("rke-libvirt-3-master-0-worker-default" in labels):
                 distro = "rke"
                 driver = "libvirt"
@@ -97,7 +100,7 @@ def main():
                 worker = "0"
                 execute = True
                 scenario = "default"
-                remove_label("rke-libvirt-3-master-0-worker-default", pr)
+                remove_label("rke-libvirt-3-master-0-worker-default", pr, repo)
             elif ("rke-libvirt-1-master-1-worker-default" in labels):
                 distro = "rke"
                 driver = "libvirt"
@@ -105,7 +108,7 @@ def main():
                 worker = "1"
                 execute = True
                 scenario = "default"
-                remove_label("rke-libvirt-1-master-1-worker-default", pr)
+                remove_label("rke-libvirt-1-master-1-worker-default", pr, repo)
             elif ("rke-libvirt-1-master-0-worker-default" in labels):
                 distro = "rke"
                 driver = "libvirt"
@@ -113,7 +116,7 @@ def main():
                 worker = "0"
                 execute = True
                 scenario = "default"
-                remove_label("rke-libvirt-1-master-0-worker-default", pr)
+                remove_label("rke-libvirt-1-master-0-worker-default", pr, repo)
 
             #
             # Origin Kubernetes Distribution
@@ -125,7 +128,7 @@ def main():
                 worker = "0"
                 execute = True
                 scenario = "default"
-                remove_label("okd-libvirt-3-master-0-worker-default", pr)
+                remove_label("okd-libvirt-3-master-0-worker-default", pr, repo)
             elif ("okd-libvirt-3-master-1-worker-default" in labels):
                 distro = "okd"
                 driver = "libvirt"
@@ -133,7 +136,7 @@ def main():
                 worker = "1"
                 execute = True
                 scenario = "default"
-                remove_label("okd-libvirt-3-master-1-worker-default", pr)
+                remove_label("okd-libvirt-3-master-1-worker-default", pr, repo)
             elif ("okd-libvirt-1-master-0-worker-default" in labels):
                 distro = "okd"
                 driver = "libvirt"
@@ -141,7 +144,7 @@ def main():
                 worker = "0"
                 execute = True
                 scenario = "default"
-                remove_label("okd-libvirt-1-master-0-worker-default", pr)
+                remove_label("okd-libvirt-1-master-0-worker-default", pr, repo)
             elif ("okd-libvirt-1-master-1-worker-default" in labels):
                 distro = "okd"
                 driver = "libvirt"
@@ -149,7 +152,7 @@ def main():
                 worker = "1"
                 execute = True
                 scenario = "default"
-                remove_label("okd-libvirt-1-master-1-worker-default", pr)
+                remove_label("okd-libvirt-1-master-1-worker-default", pr, repo)
 
             #
             # Kubernetes
@@ -161,7 +164,7 @@ def main():
                 worker = "1"
                 execute = True
                 scenario = "default"
-                remove_label("k8s-libvirt-3-master-1-worker-default", pr)
+                remove_label("k8s-libvirt-3-master-1-worker-default", pr, repo)
             elif ("k8s-libvirt-3-master-0-worker-default" in labels):
                 distro = "k8s"
                 driver = "libvirt"
@@ -169,7 +172,7 @@ def main():
                 worker = "0"
                 execute = True
                 scenario = "default"
-                remove_label("k8s-libvirt-3-master-0-worker-default", pr)
+                remove_label("k8s-libvirt-3-master-0-worker-default", pr, repo)
             elif ("k8s-libvirt-1-master-1-worker-default" in labels):
                 distro = "k8s"
                 driver = "libvirt"
@@ -177,7 +180,7 @@ def main():
                 worker = "1"
                 execute = True
                 scenario = "default"
-                remove_label("k8s-libvirt-1-master-1-worker-default", pr)
+                remove_label("k8s-libvirt-1-master-1-worker-default", pr, repo)
             elif ("k8s-libvirt-1-master-0-worker-default" in labels):
                 distro = "k8s"
                 driver = "libvirt"
@@ -185,7 +188,7 @@ def main():
                 worker = "0"
                 execute = True
                 scenario = "default"
-                remove_label("k8s-libvirt-1-master-0-worker-default", pr)
+                remove_label("k8s-libvirt-1-master-0-worker-default", pr, repo)
 
             #
             # Misc jobs
@@ -197,7 +200,7 @@ def main():
                 worker = "1"
                 execute = True
                 scenario = "submariner"
-                remove_label("multiple-libvirt-3-master-1-worker-submariner", pr)
+                remove_label("multiple-libvirt-3-master-1-worker-submariner", pr, repo)
             elif ("multiple-libvirt-1-master-2-worker-submariner" in labels):
                 distro = "multiple"
                 driver = "libvirt"
@@ -205,7 +208,7 @@ def main():
                 worker = "2"
                 execute = True
                 scenario = "submariner"
-                remove_label("multiple-libvirt-1-master-2-worker-submariner", pr)
+                remove_label("multiple-libvirt-1-master-2-worker-submariner", pr, repo)
 
             if execute:
                 print("Let's run the e2e job, distro %s driver %s " % (distro, driver))
@@ -233,27 +236,38 @@ def main():
                 start_time = time.time()
                 try:
                     print("We call the downstream job configuring its parameters")
-                    output = subprocess.check_call("./ci/run.sh %s %s %s %s %s %s %s %s %s" % (str(branch.name),
-                                                                                               str(pr.number),
-                                                                                               str(vars_file_path),
-                                                                                               str(distro),
-                                                                                               str(driver),
-                                                                                               str(master),
-                                                                                               str(worker),
-                                                                                               str(scenario),
-                                                                                               str(pipeline_id)),
-                                                   shell=True)
-                    print("starting the uploader job")
-                    upload_logs(pipeline_id)
-                    print("finishing the uploader job")
-                except Exception:
+                    subprocess.check_call("./ci/run.sh %s %s %s %s %s %s %s %s" % (str(branch.name),
+                                                                                   str(pr.number),
+                                                                                   str(vars_file_path),
+                                                                                   str(distro),
+                                                                                   str(driver),
+                                                                                   str(master),
+                                                                                   str(worker),
+                                                                                   str(scenario)),
+                                          shell=True)
+                except Exception as e:
+                    print('An exception hapened executing Ansible')
+                    print(e)
                     output = 1
-                desc = ("Successful in %s minutes" % (round((time.time() - start_time) / 60, 2)))
+
+                try:
+                    print("Render ara data")
+                    subprocess.check_call("./ci/ara.sh %s" % (str(pipeline_id)), shell=True)
+                except Exception as e:
+                    print('An exception hapened rendering ara data')
+                    print(e)
+                    output = 1
+
+                print("starting the uploader job")
+                upload_logs(pipeline_id, gh_token)
+                print("finishing the uploader job")
 
                 if output == 0:
                     state = "success"
                 else:
                     state = "failure"
+
+                desc = ("Ended with %s in %s minutes" % (state, round((time.time() - start_time) / 60, 2)))
 
                 print(desc)
                 print(state)
@@ -272,93 +286,6 @@ def main():
                 print("No need to do anything")
             if execute:
                 exit()
-
-
-def remove_label(the_label, pr):
-    """Remove a label."""
-    labels = [label for label in repo.get_labels()]
-    if any(filter(lambda l: l.name == the_label, labels)):
-        r_label = repo.get_label(the_label)
-    else:
-        r_label = repo.create_label(the_label, "32CD32")
-    pr.remove_from_labels(r_label)
-
-
-def assign_label(the_label, pr):
-    """Assign a label."""
-    labels = [label for label in repo.get_labels()]
-    if any(filter(lambda l: l.name == the_label, labels)):
-        new_label = repo.get_label(the_label)
-    else:
-        new_label = repo.create_label(the_label, "32CD32")
-    pr.add_to_labels(new_label)
-
-
-def upload_logs(pipeline_id):
-    """Upload the CI results to GitHub."""
-    try:
-        print("----Uploading logs----")
-
-        print("Uploading CI results to the bot account")
-        repobot = gh.get_repo('kubeinit-bot/kubeinit-ci-results')
-
-        print("Path at terminal when executing this file")
-        print(os.getcwd() + "\n")
-
-        print("This file path, relative to os.getcwd()")
-        print(__file__ + "\n")
-
-        file_list = []
-        path_to_upload = os.path.join(os.getcwd(), 'tmp/kubeinit', pipeline_id)
-        print("Path to upload: " + path_to_upload)
-
-        for r, _d, f in os.walk(path_to_upload):
-            for file in f:
-                file_list.append(os.path.join(r, file))
-
-        print("CI results to be stored")
-        print(file_list)
-        commit_message = 'Log files for the job number: ' + pipeline_id
-
-        element_list = list()
-
-        prefix_path = os.getcwd() + '/tmp/kubeinit/'
-        print('The initial path: ' + prefix_path + ' will be removed')
-
-        for entry in file_list:
-            try:
-                with open(entry, 'rb') as input_file:
-                    print('Opening files for reading data')
-                    dataraw = input_file.read()
-                    print('Encoding as base64')
-                    data = base64.b64encode(dataraw)
-
-                print('Adding blobs')
-                if entry.endswith('.png') or entry.endswith('.jpg') or entry.endswith('.ttf') or entry.endswith('.woff') or entry.endswith('.woff2') or entry.endswith('.ico'):
-                    print('A binary file')
-                    # We add to the commit the literal image as a string in base64
-                    blob = repobot.create_git_blob(data.decode("utf-8"), "base64")
-                    tree_element = InputGitTreeElement(path=entry.replace(prefix_path, ''), mode='100644', type='blob', sha=blob.sha)
-                    element_list.append(tree_element)
-                else:
-                    print('A text file')
-                    blob = repobot.create_git_blob(data.decode("utf-8"), encoding="base64")
-                    blob = repobot.get_git_blob(sha=blob.sha)
-                    tree_element = InputGitTreeElement(path=entry.replace(prefix_path, ''), mode='100644', type='blob', content=base64.b64decode(blob.content).decode('utf-8'))
-                    element_list.append(tree_element)
-            except Exception as e:
-                print('An exception hapened adding the initial log files, some files could not be added')
-                print(e)
-        head_sha = repobot.get_branch('main').commit.sha
-        base_tree = repobot.get_git_tree(sha=head_sha)
-        tree = repobot.create_git_tree(element_list, base_tree)
-        parent = repobot.get_git_commit(sha=head_sha)
-        commit = repobot.create_git_commit(commit_message, tree, [parent])
-        master_refs = repobot.get_git_ref('heads/main')
-        master_refs.edit(sha=commit.sha)
-    except Exception as e:
-        print('An exception hapened files to GitHub')
-        print(e)
 
 
 if __name__ == "__main__":
