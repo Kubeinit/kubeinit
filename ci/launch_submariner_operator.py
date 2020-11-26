@@ -178,16 +178,18 @@ def upload_logs(pipeline_id):
                     data = base64.b64encode(dataraw)
 
                 print('Adding blobs')
-                if entry.endswith('.png') or entry.endswith('.jpg') or entry.endswith('.woff2') or entry.endswith('.ico'):
+                if entry.endswith('.png') or entry.endswith('.jpg') or entry.endswith('.ttf') or entry.endswith('.woff') or entry.endswith('.woff2') or entry.endswith('.ico'):
                     print('A binary file')
                     # We add to the commit the literal image as a string in base64
-                    blob = repobot.create_git_blob(data.decode("utf-8"), encoding="utf-8")
+                    blob = repobot.create_git_blob(data.decode("utf-8"), "base64")
+                    tree_element = InputGitTreeElement(path=entry.replace(prefix_path, ''), mode='100644', type='blob', sha=blob.sha)
+                    element_list.append(tree_element)
                 else:
                     print('A text file')
                     blob = repobot.create_git_blob(data.decode("utf-8"), encoding="base64")
-                blob = repobot.get_git_blob(sha=blob.sha)
-                tree_element = InputGitTreeElement(path=entry.replace(prefix_path, ''), mode='100644', type='blob', content=base64.b64decode(blob.content).decode('utf-8'))
-                element_list.append(tree_element)
+                    blob = repobot.get_git_blob(sha=blob.sha)
+                    tree_element = InputGitTreeElement(path=entry.replace(prefix_path, ''), mode='100644', type='blob', content=base64.b64decode(blob.content).decode('utf-8'))
+                    element_list.append(tree_element)
             except Exception as e:
                 print('An exception hapened adding the initial log files, some files could not be added')
                 print(e)
@@ -198,22 +200,6 @@ def upload_logs(pipeline_id):
         commit = repobot.create_git_commit(commit_message, tree, [parent])
         master_refs = repobot.get_git_ref('heads/main')
         master_refs.edit(sha=commit.sha)
-
-        try:
-            for entry in file_list:
-                with open(entry, 'rb') as input_file:
-                    data = input_file.read()
-                if entry.endswith('.png') or entry.endswith('.jpg') or entry.endswith('.woff2') or entry.endswith('.ico'):
-                    print('Opening again the file, the file to be opened is: ' + entry)
-                    try:
-                        old_file = repobot.get_contents(entry.replace(prefix_path, ''))
-                        commit = repobot.update_file(entry.replace(prefix_path, ''), 'Reconverting binary files for job number: ' + pipeline_id, data, old_file.sha)
-                    except Exception as e:
-                        print('Something happened fetching and updating the file')
-                        print(e)
-        except Exception as e:
-            print('An exception hapened updating the binary files, some files could not be added')
-            print(e)
     except Exception as e:
         print('An exception hapened files to GitHub')
         print(e)
