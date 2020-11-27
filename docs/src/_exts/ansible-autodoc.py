@@ -21,12 +21,15 @@ under the License.
 
 import imp
 import os
+import sys
 
 from docutils import core
 from docutils import nodes
 from docutils.parsers import rst
 from docutils.parsers.rst import Directive
 from docutils.writers.html4css1 import Writer
+
+import markdown
 
 from ruamel.yaml import YAML as RYAML
 
@@ -188,20 +191,23 @@ class AnsibleAutoPluginDirective(Directive):
             )
         else:
             literal = nodes.literal_block(text=data)
-        literal['language'] = 'yaml'
+        literal['language'] = language
+
         return literal
 
     @staticmethod
-    def _section_block(title, text=None):
+    def _section_block(title, text=None, raw_html=None):
         section = nodes.section(
             title,
             nodes.title(text=title),
             ids=[nodes.make_id('-'.join(title))],
         )
-        if text:
+        if text and not raw_html:
             section_body = nodes.field_body()
             section_body.append(nodes.paragraph(text=text))
             section.append(section_body)
+        if text and raw_html:
+            section.append(nodes.raw('', text, format='html'))
 
         return section
 
@@ -211,15 +217,30 @@ class AnsibleAutoPluginDirective(Directive):
             text=section_text
         )
         yaml_section.append(self._literal_block(data=to_yaml_data))
+
         return yaml_section
 
+    @staticmethod
+    def _get_readme_html(readme_file):
+        print(readme_file)
+        if os.path.exists(readme_file):
+            with open(readme_file) as f:
+                print("Reading the readme file")
+                readme_f = f.read()
+                return markdown.markdown(readme_f)
+        else:
+            print("A README.md is required in each role")
+            sys.exit("A readme file in markdown is required per role")
+
     def _run_role(self, role):
+        html = self._get_readme_html(os.path.join(role, 'README.md'))
+
         section = self._section_block(
             title='Role Documentation',
-            text='Welcome to the "{}" role documentation.'.format(
-                os.path.basename(role)
-            )
+            raw_html=True,
+            text=html
         )
+
         defaults_file = os.path.join(role, 'defaults', 'main.yml')
         if os.path.exists(defaults_file):
             with open(defaults_file) as f:
@@ -239,12 +260,13 @@ class AnsibleAutoPluginDirective(Directive):
                 vars_file = os.path.join(vars_path, v_file)
                 with open(vars_file) as f:
                     vars_values = DOCYAML.load(f.read())
-                section.append(
-                    self._yaml_section(
-                        to_yaml_data=vars_values,
-                        section_title='Role Variables: {}'.format(v_file)
+                if vars_values:
+                    section.append(
+                        self._yaml_section(
+                            to_yaml_data=vars_values,
+                            section_title='Role Variables: {}'.format(v_file)
+                        )
                     )
-                )
 
         test_list = nodes.field_list()
         test_section = self._section_block(
