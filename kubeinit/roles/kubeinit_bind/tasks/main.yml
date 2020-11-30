@@ -114,15 +114,14 @@
     mode: '0644'
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
+- name: "Bounce bind"
+  shell: |
+    systemctl daemon-reload
+  register: bind_bounce
+  changed_when: "bind_bounce.rc == 0"
+
 - name: Start and enable bind service
   service:
     name: "{{ kubeinit_bind_service_name }}"
     state: restarted
     enabled: yes
-
-- name: "Bounce bind"
-  shell: |
-    sleep 5
-    systemctl restart {{ kubeinit_bind_service_name }}
-  register: bind_bounce
-  changed_when: "bind_bounce.rc == 0"
