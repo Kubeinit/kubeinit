@@ -67,7 +67,7 @@ cat scenario_variables.yml
 # the case of 1 worker is already by default
 # We use the .*- expresion to comment the line
 # no matter the distro, i.e., okd-master or k8s-master
-if [[ "$DISTRO" == "multiple" ]]; then
+if [[ "$DISTRO" == "okd.rke" ]]; then
     if [[ "$MASTER" == "1" ]]; then
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/okd/inventory
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/rke/inventory

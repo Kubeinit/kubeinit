@@ -5,6 +5,7 @@
 import os
 import subprocess
 import time
+from datetime import datetime
 
 from github import Github
 
@@ -193,24 +194,27 @@ def main():
             #
             # Misc jobs
             #
-            elif ("multiple-libvirt-3-master-1-worker-submariner" in labels):
-                distro = "multiple"
+            elif ("okd.rke-libvirt-3-master-1-worker-submariner" in labels):
+                distro = "okd.rke"
                 driver = "libvirt"
                 master = "3"
                 worker = "1"
                 execute = True
                 scenario = "submariner"
-                remove_label("multiple-libvirt-3-master-1-worker-submariner", pr, repo)
-            elif ("multiple-libvirt-1-master-2-worker-submariner" in labels):
-                distro = "multiple"
+                remove_label("okd.rke-libvirt-3-master-1-worker-submariner", pr, repo)
+            elif ("okd.rke-libvirt-1-master-2-worker-submariner" in labels):
+                distro = "okd.rke"
                 driver = "libvirt"
                 master = "1"
                 worker = "2"
                 execute = True
                 scenario = "submariner"
-                remove_label("multiple-libvirt-1-master-2-worker-submariner", pr, repo)
+                remove_label("okd.rke-libvirt-1-master-2-worker-submariner", pr, repo)
 
             if execute:
+                now = datetime.now()
+                now.strftime("%m.%d.%Y.%H.%M.%S")
+                job_name = pipeline_id + "-" + distro + "-" + driver + "-" + master + "-" + worker + "-" + scenario + "-" + now.strftime("%Y.%m.%d.%H.%M.%S")
                 print("Let's run the e2e job, distro %s driver %s " % (distro, driver))
                 print("-------------")
                 print("-------------")
@@ -252,14 +256,14 @@ def main():
 
                 try:
                     print("Render ara data")
-                    subprocess.check_call("./ci/ara.sh %s" % (str(pipeline_id)), shell=True)
+                    subprocess.check_call("./ci/ara.sh %s" % (str(job_name) + "-" + str(output)), shell=True)
                 except Exception as e:
                     print('An exception hapened rendering ara data')
                     print(e)
                     output = 1
 
                 print("starting the uploader job")
-                upload_logs(pipeline_id, gh_token)
+                upload_logs(str(job_name) + "-" + str(output), gh_token)
                 print("finishing the uploader job")
 
                 if output == 0:
@@ -271,7 +275,7 @@ def main():
 
                 print(desc)
                 print(state)
-                dest_url = 'https://kubeinit-bot.github.io/kubeinit-ci-results/' + pipeline_id + '/'
+                dest_url = 'https://kubeinit-bot.github.io/kubeinit-ci-results/' + str(job_name) + "-" + str(output) + '/'
                 print("The destination URL is: " + dest_url)
                 # We update the status with the job result
                 repo.get_commit(sha=sha).create_status(state=state,
