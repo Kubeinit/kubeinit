@@ -276,6 +276,30 @@
   tags:
     - provision_libvirt
 
+- name: Download coreos initrd image
+  get_url:
+    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.initrd }}"
+    dest: /var/www/html/okd4/
+    owner: apache
+    group: apache
+    mode: 0775
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Download coreos rootfs image
+  get_url:
+    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.rootfs }}"
+    dest: /var/www/html/okd4/
+    owner: apache
+    group: apache
+    mode: 0775
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['okd_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
 - name: Download coreos raw image
   get_url:
     url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.raw }}"
@@ -331,36 +355,5 @@
   ignore_errors: yes
   register: autoload
   changed_when: "autoload.rc == 0"
-  tags:
-    - provision_libvirt
-
-#
-# Install docker in the service machine
-#
-# We need to support docker as submariner wont work with podman
-- name: "Install docker-ce in the OKD service machine"
-  shell: |
-    yum install -y yum-utils
-
-    yum remove -y docker \
-                  docker-client \
-                  docker-client-latest \
-                  docker-common \
-                  docker-latest \
-                  docker-latest-logrotate \
-                  docker-logrotate \
-                  docker-engine
-
-    yum-config-manager \
-        --add-repo \
-        https://download.docker.com/linux/centos/docker-ce.repo
-
-    yum install -y docker-ce docker-ce-cli containerd.io
-    systemctl start docker
-    systemctl enable docker
-  register: install_okd_service_dockerce
-  changed_when: "install_okd_service_dockerce.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
   tags:
     - provision_libvirt

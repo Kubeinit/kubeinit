@@ -46,10 +46,21 @@
     - provision_libvirt
 
 - name: Restart the resolvconf service
-  shell: |
-    service resolvconf restart
-    systemctl restart systemd-resolved
-  changed_when: false
+  service:
+    name: "resolvconf"
+    state: restarted
+    enabled: yes
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: Restart the ystemd-resolved service
+  service:
+    name: "systemd-resolved"
+    state: restarted
+    enabled: yes
   delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
