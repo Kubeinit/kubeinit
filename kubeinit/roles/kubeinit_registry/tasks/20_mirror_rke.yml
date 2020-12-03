@@ -3,6 +3,23 @@
   shell: |
     set -o pipefail
     set -e
+    mkdir -p /etc/containers/
+    cat << EOF > /etc/containers/policy.json
+    {
+        "default": [
+            {
+                "type": "insecureAcceptAnything"
+            }
+        ],
+        "transports":
+            {
+                "docker-daemon":
+                    {
+                        "": [{"type":"insecureAcceptAnything"}]
+                    }
+            }
+    }
+    EOF
     skopeo sync \
         --src docker \
         --dest docker docker.io/{{ item }} \
