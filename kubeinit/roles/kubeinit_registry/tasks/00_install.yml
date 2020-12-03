@@ -5,8 +5,9 @@
     set -o pipefail
     apt-get install software-properties-common -y
     . /etc/os-release
-    echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-    curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
+    # TODO:FIXME:Uncomment when the podman container module is fixed
+    # echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+    # curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
     sudo apt-get update -qq
   args:
     executable: /bin/bash
@@ -17,10 +18,12 @@
 - name: Enable CentOS 8 repositories
   shell: |
     set -o pipefail
-    dnf -y module disable container-tools
-    dnf -y install 'dnf-command(copr)'
-    dnf -y copr enable rhcontainerbot/container-selinux
-    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo
+    # TODO:FIXME:Remove the container tools and uncoment the other lines when the podman container module is fixed
+    dnf install -y @container-tools
+    # dnf -y module disable container-tools
+    # dnf -y install 'dnf-command(copr)'
+    # dnf -y copr enable rhcontainerbot/container-selinux
+    # curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo
   args:
     executable: /bin/bash
   register: enable_repos
@@ -31,6 +34,33 @@
   package:
     state: present
     name: "{{ kubeinit_registry_required_packages | default([]) }}"
+
+- name: Podman login to docker.io
+  shell: |
+    podman login docker.io \
+        --username {{ kubeinit_common_docker_username | default(omit) }} \
+        --password {{ kubeinit_common_docker_password | default(omit) }}
+  args:
+    executable: /bin/bash
+  register: podman_login
+  changed_when: "podman_login.rc == 0"
+  when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd'
+
+- name: Make sure the python bindings are installed
+  shell: |
+    set -o pipefail
+    pip3 install docker
+  args:
+    executable: /bin/bash
+  register: install_python_docker_bindings
+  changed_when: "install_python_docker_bindings.rc == 0"
+  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
+
+- name: Log into DockerHub
+  community.general.docker_login:
+    username: "{{ kubeinit_common_docker_username | default(omit) }}"
+    password: "{{ kubeinit_common_docker_password | default(omit) }}"
+  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: Create directory to hold the registry files
   file:
