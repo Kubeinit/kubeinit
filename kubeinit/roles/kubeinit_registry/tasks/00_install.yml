@@ -35,6 +35,12 @@
     state: present
     name: "{{ kubeinit_registry_required_packages | default([]) }}"
 
+- name: Install podman if required
+  package:
+    state: present
+    name: "podman"
+  when: kubeinit_registry_container_engine == 'podman'
+
 - name: Podman login to docker.io
   shell: |
     podman login docker.io \
@@ -44,7 +50,67 @@
     executable: /bin/bash
   register: podman_login
   changed_when: "podman_login.rc == 0"
-  when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd'
+  when: kubeinit_registry_container_engine == 'podman' and kubeinit_common_docker_username is defined and kubeinit_common_docker_password is defined
+
+- name: Install docker if required and distro is CentOS and we need docker in the registry
+  shell: |
+    yum install -y yum-utils
+    # Make sure podman is out
+    yum remove -y buildah podman cockpit-podman toolbox
+    yum remove -y docker \
+                  docker-client \
+                  docker-client-latest \
+                  docker-common \
+                  docker-latest \
+                  docker-latest-logrotate \
+                  docker-logrotate \
+                  docker-engine
+    yum-config-manager \
+        --add-repo \
+        https://download.docker.com/linux/centos/docker-ce.repo
+    yum install -y docker-ce docker-ce-cli containerd.io
+    systemctl start docker
+    systemctl enable docker
+  args:
+    executable: /bin/bash
+  register: docker_reg_install
+  changed_when: "docker_reg_install.rc == 0"
+  when: (kubeinit_registry_container_engine == 'docker') and (kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd')
+
+- name: Install docker if required and distro is Ubuntu and we need docker in the registry
+  shell: |
+    set -o pipefail
+    sudo apt-get remove docker docker-engine docker.io containerd runc
+    sudo apt-get update -y
+    sudo apt-get install -y \
+      apt-transport-https \
+      ca-certificates \
+      curl \
+      gnupg-agent \
+      software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+    #sudo add-apt-repository -y \
+    #   "deb [arch=arm64] https://download.docker.com/linux/ubuntu \
+    #   $(lsb_release -cs) \
+    #   stable"
+
+    # TODO:FIXME:Remove when the packages are available for groovy
+    sudo add-apt-repository -y \
+       "deb [arch=arm64] https://download.docker.com/linux/ubuntu \
+       bionic \
+       stable"
+
+    sudo apt-get update -y
+    sudo apt-get install docker-ce docker-ce-cli containerd.io -y
+
+    systemctl start docker
+    systemctl enable docker
+  args:
+    executable: /bin/bash
+  register: docker_reg_install
+  changed_when: "docker_reg_install.rc == 0"
+  when: (kubeinit_registry_container_engine == 'docker') and (kubeinit_inventory_cluster_distro == 'cdk' or kubeinit_inventory_cluster_distro == 'rke')
 
 - name: Make sure the python bindings are installed
   shell: |
@@ -54,13 +120,13 @@
     executable: /bin/bash
   register: install_python_docker_bindings
   changed_when: "install_python_docker_bindings.rc == 0"
-  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
+  when: kubeinit_registry_container_engine == 'docker'
 
 - name: Log into DockerHub
   community.general.docker_login:
     username: "{{ kubeinit_common_docker_username | default(omit) }}"
     password: "{{ kubeinit_common_docker_password | default(omit) }}"
-  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
+  when: kubeinit_registry_container_engine == 'docker' and kubeinit_common_docker_username is defined and kubeinit_common_docker_password is defined
 
 - name: Create directory to hold the registry files
   file:

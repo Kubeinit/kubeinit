@@ -14,34 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-#
-# Install docker-cli and run docker from a container
-# in the service machine
-#
-# We need to support docker as submariner wont work with podman
-- name: "Install docker-ce in the OKD service machine"
-  shell: |
-    yum install -y yum-utils
-    yum remove -y docker \
-                  docker-client \
-                  docker-client-latest \
-                  docker-common \
-                  docker-latest \
-                  docker-latest-logrotate \
-                  docker-logrotate \
-                  docker-engine
-    yum-config-manager \
-        --add-repo \
-        https://download.docker.com/linux/centos/docker-ce.repo
-    # We only use the docker-cli
-    yum install -y docker-ce-cli
-    podman run --privileged -p 12375:2375 -e DOCKER_TLS_CERTDIR="" -d docker:dind
-    DOCKER_HOST=tcp://localhost:12375 podman ps
-    DOCKER_HOST=tcp://localhost:12375 docker ps
-  register: install_okd_service_dockerce
-  changed_when: "install_okd_service_dockerce.rc == 0"
-  when: kubeinit_inventory_cluster_distro == "okd"
-
 - name: "Remove repo file"
   shell: |
     set -o pipefail
