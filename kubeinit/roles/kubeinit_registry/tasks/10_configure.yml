@@ -184,7 +184,7 @@
   become: true
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
-- name: Create container to serve the registry
+- name: Create a podman container to serve the registry
   containers.podman.podman_container:
     name: "{{ kubeinit_registry_pod_name }}"
     image: docker.io/library/registry:2
@@ -204,12 +204,47 @@
       REGISTRY_HTTP_TLS_CERTIFICATE: certs/domain.crt
       REGISTRY_HTTP_TLS_KEY: certs/domain.key
       REGISTRY_COMPATIBILITY_SCHEMA1_ENABLED: true
-  register: registry_container_info
+  register: registry_podman_container_info
+  when: kubeinit_registry_container_engine == 'podman'
 
-- name: Setting facts about the container that will run the registry
+- name: Create a docker container to serve the registry
+  community.general.docker_container:
+    name: "{{ kubeinit_registry_pod_name }}"
+    image: docker.io/library/registry:2
+    pid_mode: host
+    state: started
+    # state: stopped
+    ports:
+        - "{{ kubeinit_registry_port }}:{{ kubeinit_registry_port }}"
+    volumes:
+      - "{{ kubeinit_registry_directory_data }}:/var/lib/registry:z"
+      - "{{ kubeinit_registry_directory_auth }}:/auth:z"
+      - "{{ kubeinit_registry_directory_cert }}:/certs:z"
+    env:
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Registry
+      REGISTRY_HTTP_SECRET: ALongRandomSecretForRegistry
+      REGISTRY_AUTH_HTPASSWD_PATH: auth/htpasswd
+      REGISTRY_HTTP_TLS_CERTIFICATE: certs/domain.crt
+      REGISTRY_HTTP_TLS_KEY: certs/domain.key
+      REGISTRY_COMPATIBILITY_SCHEMA1_ENABLED: "true"
+  register: registry_docker_container_info
+  when: kubeinit_registry_container_engine == 'docker'
+
+- name: Setting Podman facts about the container that will run the registry
   set_fact:
-    container_registry_name: "{{ registry_container_info.container.Name }}"
-    container_registry_pidfile: "{{ registry_container_info.container.ConmonPidFile }}"
+    container_registry_name: "{{ registry_podman_container_info.container.Name }}"
+    container_registry_pidfile: "{{ registry_podman_container_info.container.ConmonPidFile }}"
+  when: kubeinit_registry_container_engine == 'podman'
+
+- debug:
+    var: registry_docker_container_info
+  when: kubeinit_registry_container_engine == 'docker'
+
+- name: Setting Docker facts about the container that will run the registry
+  set_fact:
+    container_registry_id: "{{ registry_docker_container_info.ansible_facts.docker_container.Id }}"
+  when: kubeinit_registry_container_engine == 'docker'
 
 - name: Ensure user specific systemd instance are persistent
   command: |
@@ -225,7 +260,7 @@
     group: "{{ ansible_user }}"
     mode: '0775'
 
-- name: Copy the systemd service file
+- name: Copy the podman systemd service file
   copy:
     content: |
       [Unit]
@@ -243,6 +278,25 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0644'
+  when: kubeinit_registry_container_engine == 'podman'
+
+#TODO:FIXME:This needs to be a systemctl service
+# - name: Copy the Docker systemd service file
+#   copy:
+#     content: |
+#       [Unit]
+#       Description=Docker container-registry.service
+#       [Service]
+#       Restart=on-failure
+#       ExecStop=/usr/bin/docker stop kubeinit-registry
+#       ExecStart=/usr/bin/docker start {{ container_registry_id }}
+#       [Install]
+#       WantedBy=default.target
+#     dest: "{{ ansible_user_dir }}/.config/systemd/user/container-registry.service"
+#     owner: "{{ ansible_user }}"
+#     group: "{{ ansible_user }}"
+#     mode: '0644'
+#   when: kubeinit_registry_container_engine == 'docker'
 
 - name: Reload systemd service
   systemd:
@@ -250,6 +304,7 @@
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+  when: kubeinit_registry_container_engine == 'podman'
 
 - name: Enable container-registry.service
   systemd:
@@ -258,6 +313,7 @@
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+  when: kubeinit_registry_container_engine == 'podman'
 
 - name: Start container-registry.service
   systemd:
@@ -266,6 +322,7 @@
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+  when: kubeinit_registry_container_engine == 'podman'
 
 - name: Read in the contents of domain.crt
   slurp:
