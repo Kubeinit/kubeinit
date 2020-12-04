@@ -14,6 +14,67 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Install root public from service node in worker nodes
+  shell: |
+   echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['eks_worker_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+# Push the certificates from the registry to the worker nodes if its enabled
+- name: Push the certificates from the registry to the worker nodes
+  shell: |
+    set -e
+    scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ item }}:/etc/pki/ca-trust/source/anchors/
+  register: install_all_certs_in_workers
+  changed_when: "install_all_certs_in_workers.rc == 0"
+  become: true
+  when: kubeinit_registry_enabled | bool
+  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
+  with_items: "{{ groups['eks_worker_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Insert the local registry auth details
+  shell: |
+    set -e
+
+    mkdir -p .docker
+    cat << EOF > .docker/config.json
+    {
+      "auths": {
+        "{{ kubeinit_registry_uri }}": {
+          "auth": "{{ disconnected_registry_up | b64encode }}",
+          "email": "{{ kubeinit_registry_email }}"
+        }
+      },
+      "HttpHeaders": {
+        "User-Agent": "Docker-Client/18.09.7 (linux)"
+      }
+    }
+    EOF
+  register: insert_worker_local_registry_auth
+  changed_when: "insert_worker_local_registry_auth.rc == 0"
+  become: true
+  when: kubeinit_registry_enabled | bool
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['eks_worker_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Update the CA certs files
+  command: update-ca-trust extract
+  register: update_master_ca_trust_files
+  changed_when: "update_master_ca_trust_files.rc == 0"
+  become: true
+  when: kubeinit_registry_enabled | bool
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['eks_worker_nodes'] }}"
+  tags:
+    - provision_libvirt
+
 - name: Copying token to a variables
   slurp:
     src: ~/eks_token
