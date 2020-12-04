@@ -112,6 +112,19 @@
   changed_when: "docker_reg_install.rc == 0"
   when: (kubeinit_registry_container_engine == 'docker') and (kubeinit_inventory_cluster_distro == 'cdk' or kubeinit_inventory_cluster_distro == 'rke')
 
+- name: Enable insecure registry in Docker
+  shell: |
+    # This is mandatory so the cluster nodes can fetch the
+    # images from the local (insecure) registry
+    sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
+    systemctl daemon-reload
+    systemctl restart docker
+  args:
+    executable: /bin/bash
+  register: enable_docker_insec
+  changed_when: "enable_docker_insec.rc == 0"
+  when: kubeinit_registry_container_engine == 'docker'
+
 - name: Make sure the python bindings are installed
   shell: |
     set -o pipefail
