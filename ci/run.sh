@@ -73,11 +73,13 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/rke/inventory
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/k8s/inventory
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/eks/inventory
 
         sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/okd/inventory
         sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/rke/inventory
         sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/k8s/inventory
         sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-master-03/#-master-02/g" ./hosts/eks/inventory
     fi
 
     if [[ "$WORKER" == "0" ]]; then
@@ -85,6 +87,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/rke/inventory
         sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/k8s/inventory
         sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/eks/inventory
     fi
 
     if [[ "$WORKER" == "2" ]]; then
@@ -92,6 +95,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/rke/inventory
         sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/k8s/inventory
         sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/cdk/inventory
+        sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/eks/inventory
     fi
 else
     if [[ "$MASTER" == "1" ]]; then
