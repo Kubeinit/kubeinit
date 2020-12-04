@@ -1,0 +1,78 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Copying token to a variables
+  slurp:
+    src: ~/eks_token
+  register: kubernetes_master_kubeadm_init_output
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['eks_master_nodes'][0] }}"
+  when: groups['eks_worker_nodes'] | length > 0
+  tags:
+    - provision_libvirt
+
+- debug:
+    msg: "{{ kubernetes_master_kubeadm_init_output.results[0].content | default('Empty file') | b64decode }}"
+  when: groups['eks_worker_nodes'] | length > 0
+  tags:
+    - provision_libvirt
+
+- name: Storing the master Generated token for future purpose.
+  copy:
+    content: "{{ kubernetes_master_kubeadm_init_output.results[0].content | default('Empty file') | b64decode }}"
+    dest: ~/eks_token
+    mode: '0644'
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['eks_worker_nodes'] }}"
+  when: groups['eks_worker_nodes'] | length > 0
+  tags:
+    - provision_libvirt
+
+- name: Modprobe ip forward
+  shell: |
+    modprobe br_netfilter
+    echo '1' > /proc/sys/net/ipv4/ip_forward
+    mkdir -p /proc/sys/net/bridge/
+    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+    sysctl -p
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['eks_worker_nodes'] }}"
+  when: groups['eks_worker_nodes'] | length > 0
+  tags:
+    - provision_libvirt
+
+- name: Joining worker nodes with kubernetes master
+  shell: |
+   kubeadm reset -f || true
+   cat ~/eks_token > out.sh
+   sh out.sh
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['eks_worker_nodes'] }}"
+  when: groups['eks_worker_nodes'] | length > 0
+  tags:
+    - provision_libvirt
+
+- name: Label node
+  shell: |
+   kubectl label node {{ item }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
+  changed_when: false
+  delegate_to: "{{ groups['eks_master_nodes'][0] }}"
+  with_items: "{{ groups['eks_worker_nodes'] }}"
+  when: groups['eks_worker_nodes'] | length > 0
+  tags:
+    - provision_libvirt

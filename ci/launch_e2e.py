@@ -192,6 +192,42 @@ def main():
                 remove_label("k8s-libvirt-1-master-0-worker-default", pr, repo)
 
             #
+            # EKS
+            #
+            elif ("eks-libvirt-3-master-1-worker-default" in labels):
+                distro = "eks"
+                driver = "libvirt"
+                master = "3"
+                worker = "1"
+                execute = True
+                scenario = "default"
+                remove_label("eks-libvirt-3-master-1-worker-default", pr, repo)
+            elif ("eks-libvirt-3-master-0-worker-default" in labels):
+                distro = "eks"
+                driver = "libvirt"
+                master = "3"
+                worker = "0"
+                execute = True
+                scenario = "default"
+                remove_label("eks-libvirt-3-master-0-worker-default", pr, repo)
+            elif ("eks-libvirt-1-master-1-worker-default" in labels):
+                distro = "eks"
+                driver = "libvirt"
+                master = "1"
+                worker = "1"
+                execute = True
+                scenario = "default"
+                remove_label("eks-libvirt-1-master-1-worker-default", pr, repo)
+            elif ("eks-libvirt-1-master-0-worker-default" in labels):
+                distro = "eks"
+                driver = "libvirt"
+                master = "1"
+                worker = "0"
+                execute = True
+                scenario = "default"
+                remove_label("eks-libvirt-1-master-0-worker-default", pr, repo)
+
+            #
             # Misc jobs
             #
             elif ("okd.rke-libvirt-3-master-1-worker-submariner" in labels):
