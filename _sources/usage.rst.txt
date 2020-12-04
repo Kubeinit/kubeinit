@@ -68,7 +68,8 @@ Running from a release
 
 .. code-block:: console
 
-    TAG=0.6.1
+    # Get the latest release tag
+    TAG=$(curl --silent "https://api.github.com/repos/kubeinit/kubeinit/releases/latest" | jq -r .tag_name)
     podman run --rm -it \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
         -v /etc/hosts:/etc/hosts \
