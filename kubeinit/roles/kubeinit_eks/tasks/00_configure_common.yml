@@ -55,9 +55,10 @@
 
 - name: install common requirements
   yum:
-    name: "{{ kubeinit_eks_service_dependencies }}"
+    name: "{{ kubeinit_eks_common_dependencies }}"
     state: present
     use_backend: dnf
+  delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
@@ -425,13 +426,12 @@
   package:
     name:
       - tc
-      - podman-docker
       - yum-utils
       - device-mapper-persistent-data
       - lvm2
-      - kubelet
-      - kubeadm
-      - kubectl
+      - "kubelet-{{ kubeinit_eks_kubernetes_version }}"
+      - "kubeadm-{{ kubeinit_eks_kubernetes_version }}"
+      - "kubectl-{{ kubeinit_eks_kubernetes_version }}"
     state: present
   delegate_to: "{{ item }}"
   with_items:

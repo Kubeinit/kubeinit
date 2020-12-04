@@ -6,7 +6,7 @@
 options {
     listen-on port 53 { 127.0.0.1; {{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host }}; {% if kubeinit_libvirt_external_service_interface_enabled | default(false) %}{{ kubeinit_libvirt_external_service_interface.ip }}; {% endif %}};
 
-    {% if kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' %}
+    {% if kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks' %}
     directory          "/var/named";
     dump-file          "/var/named/data/cache_dump.db";
     statistics-file    "/var/named/data/named_stats.txt";
@@ -47,7 +47,7 @@ options {
 /*   }; */
 /* }; */
 
-{% if kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' %}
+{% if kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks' %}
 include "/etc/named.root.key";
 {% elif kubeinit_inventory_cluster_distro == 'cdk' or kubeinit_inventory_cluster_distro == 'rke' %}
 include "/etc/bind/bind.keys";
