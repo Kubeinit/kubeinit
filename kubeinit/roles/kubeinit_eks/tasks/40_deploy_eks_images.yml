@@ -1,5 +1,5 @@
 ---
-# Copyright 2020 KubeInit.
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -14,10 +14,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-# All variables intended for modification should be placed in this file.
-
-# All variables within this role should have a prefix of "{{ role_name | replace('kubeinit-', '') | replace('-', '_') }}_"
-{{ role_name | replace('kubeinit-', '') | replace('-', '_') }}_debug: {% raw %}"{{ (ansible_verbosity | int) >= 2 | bool }}"{% endraw %}
-
-{{ role_name | replace('kubeinit-', '') | replace('-', '_') }}_hide_sensitive_logs: true
+- name: Deploy EKS manifests.
+  shell: |
+    kubectl apply -f https://distro.eks.amazonaws.com/crds/releases.distro.eks.amazonaws.com-v1alpha1.yaml
+    kubectl apply -f https://distro.eks.amazonaws.com/kubernetes-1-18/kubernetes-1-18-eks-1.yaml
+    kubectl get release kubernetes-1-18-eks-1
+    kubectl get release kubernetes-1-18-eks-1 -o yaml
+  changed_when: false
+  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
+  tags:
+    - provision_libvirt
