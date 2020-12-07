@@ -81,7 +81,8 @@ jobs:
           done
 
           for f in ./hosts/*; do
-              filename=$(basename $f)
+          filename=$(basename $f)
+          if [[ "$filename" != "common.yml" ]]; then
               echo "ansible-inventory-grapher -i ./hosts/$filename/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png"
               ansible-inventory-grapher -i hosts/$filename/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png
           cat << EOF >> ./docs/src/inventory_diagrams.rst
@@ -94,6 +95,7 @@ jobs:
             :alt: Alternative text
 
           EOF
+          fi
           done
 
           cat ./docs/src/playbook_diagrams.rst
