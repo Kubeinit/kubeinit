@@ -55,9 +55,10 @@
 
 - name: install common requirements
   yum:
-    name: "{{ kubeinit_k8s_service_dependencies }}"
+    name: "{{ kubeinit_k8s_common_dependencies }}"
     state: present
     use_backend: dnf
+  delegate_to: "{{ item }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:

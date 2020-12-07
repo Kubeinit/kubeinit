@@ -24,19 +24,60 @@
   tags:
     - provision_libvirt
 
-# #
-# # Configure local registry
-# #
 #
-# - name: Configure a local container image registry
-#   delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-#   # delegate_facts: true
-#   import_role:
-#     name: ../../roles/kubeinit_registry
-#     tasks_from: main
-#   when: kubeinit_registry_enabled|bool
-#   tags:
-#     - provision_libvirt
+# Configure local registry
+#
+
+- name: "Get the required container images"
+  shell: |
+    set -o pipefail
+    wget https://raw.githubusercontent.com/aws/eks-distro/main/development/pull-all.sh
+    cat pull-all.sh | grep 'docker pull' | cut -d' ' -f3 > ~/kubeinit_deployment_images.txt
+  args:
+    executable: /bin/bash
+  register: render_images_list
+  changed_when: "render_images_list.rc == 0"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['eks_service_nodes'] }}"
+  tags:
+    - provision_libvirt
+
+- name: Configure a local container image registry
+  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_registry
+    tasks_from: main
+  vars:
+    kubeinit_registry_container_engine: podman
+  when: kubeinit_registry_enabled|bool
+  tags:
+    - provision_libvirt
+
+- name: Add insecure registry
+  community.general.ini_file:
+    path: /etc/containers/registries.conf
+    section: registries.insecure
+    option: registries
+    value: ['{{ kubeinit_registry_uri }}']
+    mode: '0600'
+    backup: yes
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  when: kubeinit_registry_enabled | bool
+  tags:
+    - provision_libvirt
+
+- name: Reload cri-o
+  shell: |
+    systemctl reload crio
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
 
 #
 # Configure bind
@@ -92,7 +133,6 @@
   tags:
     - provision_libvirt
 
-
 - name: get root service machine public key
   command: cat /root/.ssh/id_rsa.pub
   register: public_key_service_content
@@ -102,9 +142,11 @@
   tags:
     - provision_libvirt
 
+# TODO:FIXME: it should be like public_key_service_content.results.stdout in all the
+# other roles, otherwise we are getting the stdout, error and other wrong data.
 - name: register the public key of the root service machine public key
   set_fact:
-    kubeinit_provision_service_public_key={{ public_key_service_content.results }}
+    kubeinit_provision_service_public_key={{ public_key_service_content.results[0].stdout }}
   tags:
     - provision_libvirt
 

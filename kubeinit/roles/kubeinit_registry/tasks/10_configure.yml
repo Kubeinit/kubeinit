@@ -144,7 +144,7 @@
     force: yes
     backup: yes
   become: true
-  when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd'
+  when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'eks'
 
 - name: Copy cert to pki directory
   copy:
@@ -175,7 +175,7 @@
   register: update_ca_trust_files
   changed_when: "update_ca_trust_files.rc == 0"
   become: true
-  when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd'
+  when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'eks'
 
 - name: Update the CA trust files
   command: update-ca-certificates
@@ -351,7 +351,7 @@
     set -o pipefail
     set -e
     curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/_catalog --stderr - | grep '\{"repositories":'
-    # curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/opeshift/tags/list
+    # curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/openshift/tags/list
   args:
     executable: /bin/bash
   register: check_registry
