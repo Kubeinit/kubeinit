@@ -5,10 +5,10 @@ LABEL quay.expires-after=30w
 
 COPY . .
 
-# Over rides SSH Hosts Checking
+# Overrides SSH Hosts Checking
 RUN set -x && \
     \
-    echo "==> Installing dependencier..."  && \
+    echo "==> Installing dependencies..."  && \
     apt-get update -y && apt-get install -y \
         openssh-client && \
     \
@@ -20,7 +20,8 @@ RUN set -x && \
     \
     echo "==> Adding Python runtime and deps..."  && \
     pip3 install \
-        --upgrade pip \
+        --upgrade \
+        pip \
         shyaml \
         ansible \
         netaddr && \
@@ -28,6 +29,7 @@ RUN set -x && \
     echo "==> Installing KubeInit..."  && \
     cd ./kubeinit && \
     rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit && \
+    ansible-galaxy collection install --force -r requirements.yml && \
     ansible-galaxy collection build -v --force --output-path releases/ && \
     ansible-galaxy collection install --force releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
 
