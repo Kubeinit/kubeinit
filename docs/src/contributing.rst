@@ -4,7 +4,7 @@ Contributing
 
 Communication
 ~~~~~~~~~~~~~
-* Join the `**kubeinit** Slack channel <http://https://kubernetes.slack.com/archives/C01FKK19T0B>`__.
+* Join the `kubeinit Slack channel <https://kubernetes.slack.com/archives/C01FKK19T0B>`__.
 
 Creating new roles automatically
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
