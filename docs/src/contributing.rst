@@ -4,7 +4,7 @@ Contributing
 
 Communication
 ~~~~~~~~~~~~~
-* IRC channel ``#kubeinit`` at FreeNode
+* Join the `**kubeinit** Slack channel <http://https://kubernetes.slack.com/archives/C01FKK19T0B>`__.
 
 Creating new roles automatically
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
