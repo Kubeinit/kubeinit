@@ -21,15 +21,16 @@ KubeInit calls additional Ansible collections that needs to be installed.
 If there are dependencies issues when executing the collection, install
 them by executing:
 
-.. note::  From the project's root directory.
-
 .. code-block:: console
 
+    git clone https://github.com/Kubeinit/kubeinit.git
+    cd kubeinit
     ansible-galaxy collection install --force -r kubeinit/requirements.yml
 
 An example of a possible dependency issue is the following:
 
 .. code-block:: console
+
     TASK [Configure the cluster service node] ***************************************************************************************************************
     ERROR! couldn't resolve module/action 'community.general.docker_login'. This often indicates a misspelling, missing collection, or incorrect module path.
 
@@ -41,8 +42,6 @@ Directly executing the deployment playbook
 
 The following example command will deploy a multi-master OKD 4.5 cluster with 1 worker node
 in a single command and in approximately 30 minutes.
-
-.. note::  All the commands must be executed from the project's root directory.
 
 .. code-block:: console
 
