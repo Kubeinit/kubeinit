@@ -14,6 +14,28 @@ Requirements
 * Have root passwordless access with certificates.
 * Adjust the inventory file to suit your needs i.e. `the worker nodes <https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66>`_ you will need in your cluster.
 
+Installing dependencies
+~~~~~~~~~~~~~~~~~~~~~~~
+
+KubeInit calls additional Ansible collections that needs to be installed.
+If there are dependencies issues when executing the collection, install
+them by executing:
+
+.. note::  From the project's root directory.
+
+.. code-block:: console
+
+    ansible-galaxy collection install --force -r kubeinit/requirements.yml
+
+An example of a possible dependency issue is the following:
+
+.. code-block:: console
+    TASK [Configure the cluster service node] ***************************************************************************************************************
+    ERROR! couldn't resolve module/action 'community.general.docker_login'. This often indicates a misspelling, missing collection, or incorrect module path.
+
+By default the KubeInit's container image installs these requirements, this should only affect
+those executing directly the collection from the source code.
+
 Directly executing the deployment playbook
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
