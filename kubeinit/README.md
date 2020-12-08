@@ -17,7 +17,7 @@
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=molecule"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/molecule/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=release"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/release/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=container_image"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/container_image/badge.svg?event=push"/> </a>
-    <a href="https://opensource.org/licenses/Apache-2.0"><img height="20px" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/> </a>
+    <a href="https://kubernetes.slack.com/archives/C01FKK19T0B"><img height="20px" src="https://img.shields.io/badge/chat-on%20slack-blue.svg?logo=slack&longCache=true&style=flat"/> </a>
 </p>
 
 # What is KubeInit?
