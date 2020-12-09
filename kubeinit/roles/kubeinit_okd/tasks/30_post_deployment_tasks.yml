@@ -99,6 +99,19 @@
   tags:
     - provision_libvirt
 
+#
+# Configure NFS
+#
+
+- name: Configure NFS
+  delegate_to: "{{ groups['okd_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_nfs
+    tasks_from: main
+  tags:
+    - provision_libvirt
+
 # This can take a lot of time until the cluster converges
 - name: Wait for installer to complete
   command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info

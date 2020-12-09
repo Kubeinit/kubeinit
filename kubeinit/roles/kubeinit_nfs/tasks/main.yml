@@ -126,3 +126,187 @@
   ignore_errors: yes
   tags:
     - provision_libvirt
+
+#
+# add nfs dynamic provisioning
+#
+- name: add security context constraint for nfs provisioner
+  shell: |
+    cat << EOF > ~/nfs-scc.yaml
+    apiVersion: security.openshift.io/v1
+    kind: SecurityContextConstraints
+    metadata:
+      name: nfs-provisioner
+    allowHostDirVolumePlugin: true
+    allowHostIPC: false
+    allowHostNetwork: false
+    allowHostPID: false
+    allowHostPorts: false
+    allowPrivilegedContainer: false
+    allowedCapabilities:
+    - DAC_READ_SEARCH
+    - SYS_RESOURCE
+    defaultAddCapabilities: null
+    fsGroup:
+      type: MustRunAs
+    priority: null
+    readOnlyRootFilesystem: false
+    requiredDropCapabilities:
+    - KILL
+    - MKNOD
+    - SYS_CHROOT
+    runAsUser:
+      type: RunAsAny
+    seLinuxContext:
+      type: MustRunAs
+    supplementalGroups:
+      type: RunAsAny
+    volumes:
+    - configMap
+    - downwardAPI
+    - emptyDir
+    - hostPath
+    - nfs
+    - persistentVolumeClaim
+    - secret
+    EOF
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    oc create -f ~/nfs-scc.yaml
+  tags:
+    - provision_libvirt
+
+- name: add nfs provisioning role
+  shell: |
+    cat << EOF > ~/nfs-rbac.yaml
+    kind: ServiceAccount
+    apiVersion: v1
+    metadata:
+      name: nfs-client-provisioner
+    ---
+    kind: ClusterRole
+    apiVersion: rbac.authorization.k8s.io/v1
+    metadata:
+      name: nfs-client-provisioner-runner
+    rules:
+      - apiGroups: [""]
+        resources: ["persistentvolumes"]
+        verbs: ["get", "list", "watch", "create", "delete"]
+      - apiGroups: [""]
+        resources: ["persistentvolumeclaims"]
+        verbs: ["get", "list", "watch", "update"]
+      - apiGroups: ["storage.k8s.io"]
+        resources: ["storageclasses"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: [""]
+        resources: ["events"]
+        verbs: ["create", "update", "patch"]
+    ---
+    kind: ClusterRoleBinding
+    apiVersion: rbac.authorization.k8s.io/v1
+    metadata:
+      name: run-nfs-client-provisioner
+    subjects:
+      - kind: ServiceAccount
+        name: nfs-client-provisioner
+        namespace: nfs-client-provisioning
+    roleRef:
+      kind: ClusterRole
+      name: nfs-client-provisioner-runner
+      apiGroup: rbac.authorization.k8s.io
+    ---
+    kind: Role
+    apiVersion: rbac.authorization.k8s.io/v1
+    metadata:
+      name: leader-locking-nfs-client-provisioner
+    rules:
+      - apiGroups: [""]
+        resources: ["endpoints"]
+        verbs: ["get", "list", "watch", "create", "update", "patch"]
+    ---
+    kind: RoleBinding
+    apiVersion: rbac.authorization.k8s.io/v1
+    metadata:
+      name: leader-locking-nfs-client-provisioner
+    subjects:
+      - kind: ServiceAccount
+        name: nfs-client-provisioner
+        # replace with namespace where provisioner is deployed
+        namespace: nfs-client-provisioning
+    roleRef:
+      kind: Role
+      name: leader-locking-nfs-client-provisioner
+      apiGroup: rbac.authorization.k8s.io
+    EOF
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    oc create -f ~/nfs-rbac.yaml
+  tags:
+    - provision_libvirt
+
+- name: add nfs client provisioner deployment
+  shell: |
+    cat << EOF > ~/nfs-client-prov-deployment.yaml
+    kind: Deployment
+    apiVersion: apps/v1
+    metadata:
+      name: nfs-client-provisioner
+    spec:
+      replicas: 1
+      strategy:
+        type: Recreate
+      selector:
+        matchLabels:
+          app: nfs-client-provisioner
+      template:
+        metadata:
+          labels:
+            app: nfs-client-provisioner
+        spec:
+          serviceAccountName: nfs-client-provisioner
+          containers:
+            - name: nfs-client-provisioner
+              image: quay.io/external_storage/nfs-client-provisioner:latest
+              volumeMounts:
+                - name: nfs-client-root
+                  mountPath: /persistentvolumes
+              env:
+                - name: PROVISIONER_NAME
+                  value: nfs-client-provisioner
+                - name: NFS_SERVER
+                  value: 10.0.0.100
+                - name: NFS_PATH
+                  value: /var/nfsshare
+          volumes:
+            - name: nfs-client-root
+              nfs:
+                server: 10.0.0.100
+                path: /var/nfsshare
+    EOF
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    oc create -f ~/nfs-client-prov-deployment.yaml
+  tags:
+    - provision_libvirt
+
+- name: add default nfs storage class
+  shell: |
+    cat << EOF > ~/nfs-storage-class.yaml
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: managed-nfs-storage
+      annotations:
+        storageclass.kubernetes.io/is-default-class: "true"
+    provisioner: nfs-client-provisioner
+    parameters:
+      archiveOnDelete: "false"
+    EOF
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    oc create -f ~/nfs-storage-class.yaml
+  tags:
+    - provision_libvirt
+
+- name: apply nfs security policy to nfs user
+  shell: |
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
+  tags:
+    - provision_libvirt
