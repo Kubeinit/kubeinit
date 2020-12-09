@@ -119,13 +119,6 @@
     # oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"pvc":{"claim":"image-registry-pvc"}}}}'
   register: configure_cluster_pv
   changed_when: "configure_cluster_pv.rc == 0"
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  ignore_errors: yes
-  tags:
-    - provision_libvirt
 
 #
 # add nfs dynamic provisioning
@@ -172,13 +165,11 @@
     EOF
     export KUBECONFIG=~/install_dir/auth/kubeconfig
     oc create -f ~/nfs-scc.yaml
-  register: nfs_security_context
-  changed_when: "nfs_security_context.rc == 0"
+  register: add_sec_context
+  changed_when: "add_sec_context.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
   args:
     executable: /bin/bash
-  tags:
-    - provision_libvirt
 
 - name: add nfs provisioning role
   shell: |
@@ -244,13 +235,11 @@
     EOF
     export KUBECONFIG=~/install_dir/auth/kubeconfig
     oc create -f ~/nfs-rbac.yaml
-  register: nfs_rbac
-  changed_when: "nfs_rbac.rc == 0"
+  register: add_provisioning_role
+  changed_when: "add_provisioning_role.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
   args:
     executable: /bin/bash
-  tags:
-    - provision_libvirt
 
 - name: add nfs client provisioner deployment
   shell: |
@@ -293,13 +282,11 @@
     EOF
     export KUBECONFIG=~/install_dir/auth/kubeconfig
     oc create -f ~/nfs-client-prov-deployment.yaml
-  register: nfs_provisioner_deployment
-  changed_when: "nfs_provisioner_deployment.rc == 0"
+  register: add_provisioning_client
+  changed_when: "add_provisioning_client.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
   args:
     executable: /bin/bash
-  tags:
-    - provision_libvirt
 
 - name: add default nfs storage class
   shell: |
@@ -316,22 +303,18 @@
     EOF
     export KUBECONFIG=~/install_dir/auth/kubeconfig
     oc create -f ~/nfs-storage-class.yaml
-  register: nfs_storage_class
-  changed_when: "nfs_storage_class.rc == 0"
+  register: add_storage_class
+  changed_when: "add_storage_class.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
   args:
     executable: /bin/bash
-  tags:
-    - provision_libvirt
 
 - name: apply nfs security policy to nfs user
   shell: |
     export KUBECONFIG=~/install_dir/auth/kubeconfig
     oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
-  register: nfs_apply_scc_policy
-  changed_when: "nfs_apply_scc_policy.rc == 0"
+  register: apply_nfs_sec
+  changed_when: "apply_nfs_sec.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
   args:
     executable: /bin/bash
-  tags:
-    - provision_libvirt
