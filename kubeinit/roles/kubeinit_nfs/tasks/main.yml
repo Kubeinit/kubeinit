@@ -96,21 +96,20 @@
         server: {{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}
     EOF
     cat << EOF > ~/registry_pvc.yaml
-      apiVersion: v1
-      kind: PersistentVolumeClaim
-      metadata:
-        name: image-registry-pvc
-      spec:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: image-registry-pvc
+    spec:
       volumeName: image-registry-pv
-        accessModes:
-          - ReadWriteMany
-        resources:
-          requests:
-            storage: 5Gi
-        storageClassName: nfs01registry
-        volumeMode: Filesystem
+      accessModes:
+        - ReadWriteMany
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: nfs01registry
+      volumeMode: Filesystem
     EOF
-    # export KUBECONFIG=~/install_dir/auth/kubeconfig
     # oc create -f ~/registry_pv.yaml
     # oc create -f ~/registry_pvc.yaml
     # We patch the imageregistry operator to use
@@ -118,10 +117,9 @@
     # oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"managementState":"Managed"}}'
     # oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"pvc":{"claim":"image-registry-pvc"}}}}'
 
-    # TODO:FIXME: Fails in the CI missing resources
-    # kubectl apply -f ~/registry_pv.yaml
-    # TODO:FIXME: Fails in the CI missing resources
-    # kubectl apply -f ~/registry_pv.yaml
+    export KUBECONFIG=~/.kube/config
+    kubectl apply -f ~/registry_pv.yaml
+    kubectl apply -f ~/registry_pvc.yaml
   register: configure_cluster_pv
   changed_when: "configure_cluster_pv.rc == 0"
   args:
@@ -132,7 +130,7 @@
 
 - name: add nfs provisioning role
   shell: |
-    cat << EOF > ~/nfs-rbac.yaml
+    cat << EOF > ~/nfs_rbac.yaml
     kind: ServiceAccount
     apiVersion: v1
     metadata:
@@ -192,9 +190,8 @@
       name: leader-locking-nfs-client-provisioner
       apiGroup: rbac.authorization.k8s.io
     EOF
-    export KUBECONFIG=~/install_dir/auth/kubeconfig
-    # TODO:FIXME: Fails in the CI missing resources
-    # kubectl apply -f ~/nfs-rbac.yaml
+    export KUBECONFIG=~/.kube/config
+    kubectl apply -f ~/nfs_rbac.yaml
   register: add_provisioning_role
   changed_when: "add_provisioning_role.rc == 0"
   args:
@@ -202,7 +199,7 @@
 
 - name: add nfs client provisioner deployment
   shell: |
-    cat << EOF > ~/nfs-client-prov-deployment.yaml
+    cat << EOF > ~/nfs_client_prov_deployment.yaml
     kind: Deployment
     apiVersion: apps/v1
     metadata:
@@ -239,9 +236,8 @@
                 server: {{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}
                 path: /var/nfsshare
     EOF
-    export KUBECONFIG=~/install_dir/auth/kubeconfig
-    # TODO:FIXME: Fails in the CI missing resources
-    # kubectl apply -f ~/nfs-client-prov-deployment.yaml
+    export KUBECONFIG=~/.kube/config
+    kubectl apply -f ~/nfs_client_prov_deployment.yaml
   register: add_provisioning_client
   changed_when: "add_provisioning_client.rc == 0"
   args:
@@ -249,7 +245,7 @@
 
 - name: add default nfs storage class
   shell: |
-    cat << EOF > ~/nfs-storage-class.yaml
+    cat << EOF > ~/nfs_storage_class.yaml
     apiVersion: storage.k8s.io/v1
     kind: StorageClass
     metadata:
@@ -260,9 +256,8 @@
     parameters:
       archiveOnDelete: "false"
     EOF
-    export KUBECONFIG=~/install_dir/auth/kubeconfig
-    # TODO:FIXME: Fails in the CI missing resources
-    # kubectl apply -f ~/nfs-storage-class.yaml
+    export KUBECONFIG=~/.kube/config
+    kubectl apply -f ~/nfs_storage_class.yaml
   register: add_storage_class
   changed_when: "add_storage_class.rc == 0"
   args:
@@ -270,7 +265,7 @@
 
 - name: add security context constraint for nfs provisioner
   shell: |
-    cat << EOF > ~/nfs-scc.yaml
+    cat << EOF > ~/nfs_scc.yaml
     apiVersion: security.openshift.io/v1
     kind: SecurityContextConstraints
     metadata:
@@ -308,9 +303,8 @@
     - persistentVolumeClaim
     - secret
     EOF
-    export KUBECONFIG=~/install_dir/auth/kubeconfig
-    # TODO:FIXME: Fails in the CI missing resources
-    # oc create -f ~/nfs-scc.yaml
+    export KUBECONFIG=~/.kube/config
+    kubectl apply -f ~/nfs_scc.yaml
   register: add_sec_context
   changed_when: "add_sec_context.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
@@ -319,9 +313,8 @@
 
 - name: apply nfs security policy to nfs user
   shell: |
-    export KUBECONFIG=~/install_dir/auth/kubeconfig
-    # TODO:FIXME: Fails in the CI missing resources
-    # oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
+    export KUBECONFIG=~/.kube/config
+    oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
   register: apply_nfs_sec
   changed_when: "apply_nfs_sec.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'

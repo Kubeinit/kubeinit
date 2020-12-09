@@ -14,19 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-#
-# Configure NFS
-#
-
-- name: Configure NFS
-  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_nfs
-    tasks_from: main
-  tags:
-    - provision_libvirt
-
 - name: Copying the kubeconfig to a variable
   slurp:
     src: ~/.kube/config
@@ -52,5 +39,18 @@
     dest: ~/.kube/config
     mode: '0644'
   delegate_to: "{{ groups['eks_service_nodes'][0] }}"
+  tags:
+    - provision_libvirt
+
+#
+# Configure NFS
+#
+
+- name: Configure NFS
+  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
+  # delegate_facts: true
+  import_role:
+    name: ../../roles/kubeinit_nfs
+    tasks_from: main
   tags:
     - provision_libvirt
