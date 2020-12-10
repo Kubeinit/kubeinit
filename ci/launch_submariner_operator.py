@@ -9,8 +9,7 @@ from datetime import datetime
 
 from github import Github
 
-from kubeinit_ci_utils import upload_logs
-# from kubeinit_ci_utils import remove_label, upload_logs
+from kubeinit_ci_utils import remove_label, upload_logs
 
 #
 # We only execute the submariner job for a specific PR
@@ -19,8 +18,8 @@ from kubeinit_ci_utils import upload_logs
 
 def main():
     """Run the main method."""
-    gh = Github(os.environ['GH_TOKEN'])
-    gh_token = os.environ['GH_TOKEN']
+    gh = Github(os.environ['GH_SUBMARINER_TOKEN'])
+    gh_token = os.environ['GH_SUBMARINER_TOKEN']
 
     vars_file_path = os.getenv('VARS_FILE', "")
     pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
@@ -45,9 +44,6 @@ def main():
             execute = False
             scenario = "default"
 
-            #
-            # Charmed Distribution of Kubernetes
-            #
             if ("check-okd-rke" in labels):
                 distro = "okd.rke"
                 driver = "libvirt"
@@ -55,7 +51,7 @@ def main():
                 worker = "2"
                 execute = True
                 scenario = "submariner"
-                # remove_label("check-okd-rke", pr)
+                remove_label("check-okd-rke", pr, repo)
 
             if execute:
                 now = datetime.now()
@@ -72,14 +68,14 @@ def main():
                 # We update the status to show that we are executing the e2e test
                 print("Current status")
                 print(repo.get_commit(sha=sha).get_statuses())
-                # repo.get_commit(sha=sha).create_status(state="pending",
-                #                                        target_url=url + str(pipeline_id),
-                #                                        description="Running...",
-                #                                        context="%s-%s-%s-master-%s-worker-%s" % (distro,
-                #                                                                                  driver,
-                #                                                                                  master,
-                #                                                                                  worker,
-                #                                                                                  scenario))
+                repo.get_commit(sha=sha).create_status(state="pending",
+                                                       target_url=url + str(pipeline_id),
+                                                       description="Running...",
+                                                       context="%s-%s-%s-master-%s-worker-%s" % (distro,
+                                                                                                 driver,
+                                                                                                 master,
+                                                                                                 worker,
+                                                                                                 scenario))
                 print("The pipeline ID is: " + str(pipeline_id))
                 print("The clouds.yml path is: " + str(vars_file_path))
                 # We trigger the e2e job
@@ -124,14 +120,14 @@ def main():
                 dest_url = 'https://kubeinit-bot.github.io/kubeinit-ci-results/' + str(job_name) + "-" + str(output) + '/'
                 print("The destination URL is: " + dest_url)
                 # We update the status with the job result
-                # repo.get_commit(sha=sha).create_status(state=state,
-                #                                        target_url=dest_url,
-                #                                        description=desc,
-                #                                        context="%s-%s-%s-master-%s-worker-%s" % (distro,
-                #                                                                                  driver,
-                #                                                                                  master,
-                #                                                                                  worker,
-                #                                                                                  scenario))
+                repo.get_commit(sha=sha).create_status(state=state,
+                                                       target_url=dest_url,
+                                                       description=desc,
+                                                       context="%s-%s-%s-master-%s-worker-%s" % (distro,
+                                                                                                 driver,
+                                                                                                 master,
+                                                                                                 worker,
+                                                                                                 scenario))
             else:
                 print("No need to do anything")
             if execute:
