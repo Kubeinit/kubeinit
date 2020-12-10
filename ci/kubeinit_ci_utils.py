@@ -85,3 +85,13 @@ def remove_label(the_label, pr, repo):
     else:
         r_label = repo.create_label(the_label, "32CD32")
     pr.remove_from_labels(r_label)
+
+
+def add_label(the_label, pr, repo):
+    """Assign a label."""
+    labels = [label for label in repo.get_labels()]
+    if any(filter(lambda l: l.name == the_label, labels)):
+        new_label = repo.get_label(the_label)
+    else:
+        new_label = repo.create_label(the_label, "32CD32")
+    pr.add_to_labels(new_label)
