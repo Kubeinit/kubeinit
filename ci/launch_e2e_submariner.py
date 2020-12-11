@@ -105,7 +105,7 @@ def main():
                     output = 1
 
                 print("starting the uploader job")
-                upload_logs(str(job_name) + "-" + str(output), gh_token)
+                upload_error = upload_logs(str(job_name) + "-" + str(output), gh_token)
                 print("finishing the uploader job")
 
                 if output == 0:
@@ -117,7 +117,12 @@ def main():
 
                 print(desc)
                 print(state)
-                dest_url = 'https://kubeinit-bot.github.io/kubeinit-ci-results/' + str(job_name) + "-" + str(output) + '/'
+
+                if upload_error == 1:
+                    dest_url = url + str(pipeline_id)
+                else:
+                    dest_url = 'https://kubeinit-bot.github.io/kubeinit-ci-results/' + str(job_name) + "-" + str(output) + '/index.html'
+
                 print("The destination URL is: " + dest_url)
                 # We update the status with the job result
                 repo.get_commit(sha=sha).create_status(state=state,

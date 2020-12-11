@@ -276,14 +276,14 @@ def main():
                 start_time = time.time()
                 try:
                     print("We call the downstream job configuring its parameters")
-                    subprocess.check_call("./ci/run.sh %s %s %s %s %s %s %s %s" % (str(branch.name),
-                                                                                   str(pr.number),
-                                                                                   str(vars_file_path),
-                                                                                   str(distro),
-                                                                                   str(driver),
-                                                                                   str(master),
-                                                                                   str(worker),
-                                                                                   str(scenario)),
+                    subprocess.check_call("./ci/run_kubeinit.sh %s %s %s %s %s %s %s %s" % (str(branch.name),
+                                                                                            str(pr.number),
+                                                                                            str(vars_file_path),
+                                                                                            str(distro),
+                                                                                            str(driver),
+                                                                                            str(master),
+                                                                                            str(worker),
+                                                                                            str(scenario)),
                                           shell=True)
                 except Exception as e:
                     print('An exception hapened executing Ansible')
@@ -299,7 +299,7 @@ def main():
                     output = 1
 
                 print("starting the uploader job")
-                upload_logs(str(job_name) + "-" + str(output), gh_token)
+                upload_error = upload_logs(str(job_name) + "-" + str(output), gh_token)
                 print("finishing the uploader job")
 
                 if output == 0:
@@ -311,7 +311,12 @@ def main():
 
                 print(desc)
                 print(state)
-                dest_url = 'https://kubeinit-bot.github.io/kubeinit-ci-results/' + str(job_name) + "-" + str(output) + '/'
+
+                if upload_error == 1:
+                    dest_url = url + str(pipeline_id)
+                else:
+                    dest_url = 'https://kubeinit-bot.github.io/kubeinit-ci-results/' + str(job_name) + "-" + str(output) + '/index.html'
+
                 print("The destination URL is: " + dest_url)
                 # We update the status with the job result
                 repo.get_commit(sha=sha).create_status(state=state,

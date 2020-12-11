@@ -1,10 +1,20 @@
 ---
+run-periodic-jobs:
+  image: fedora
+  tags:
+    - kubeinit-ci-bot
+  script:
+    - python3 ./ci/launch_e2e_periodic.py
+  only:
+    variables:
+      - $SCOPE == "periodic"
+
 run-kubeinit-jobs:
   image: fedora
   tags:
     - kubeinit-ci-bot
   script:
-    - python3 ./ci/launch_e2e.py
+    - python3 ./ci/launch_e2e_kubeinit.py
   only:
     variables:
       - $SCOPE == "kubeinit"
@@ -14,7 +24,7 @@ run-submariner-jobs:
   tags:
     - kubeinit-ci-bot
   script:
-    - python3 ./ci/launch_submariner_operator.py
+    - python3 ./ci/launch_e2e_submariner.py
   only:
     variables:
       - $SCOPE == "submariner"
