@@ -9,6 +9,8 @@ echo "The pipelne_id is $PIPELINE_ID"
 
 echo "Running ara-manage to store the results"
 ara-manage generate ./$PIPELINE_ID
+touch ~/badge_status.svg
+cp ~/badge_status.svg ./$PIPELINE_ID/
 ls -ltah
 pwd
 chmod -R 755 ./$PIPELINE_ID

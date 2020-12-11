@@ -20,6 +20,26 @@
     <a href="https://kubernetes.slack.com/archives/C01FKK19T0B"><img height="20px" src="https://img.shields.io/badge/chat-on%20slack-blue.svg?logo=slack&longCache=true&style=flat"/> </a>
 </p>
 
+## Periodic jobs
+
+<p style="text-align: center" align="center">
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-k8s-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-k8s-libvirt-3-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-k8s-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-k8s-libvirt-1-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-k8s-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-k8s-libvirt-1-0-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-eks-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-eks-libvirt-3-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-eks-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-eks-libvirt-1-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-eks-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-eks-libvirt-1-0-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-cdk-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-cdk-libvirt-3-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-cdk-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-cdk-libvirt-1-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-cdk-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-cdk-libvirt-1-0-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-okd-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-okd-libvirt-3-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-okd-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-okd-libvirt-1-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-okd-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-okd-libvirt-1-0-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-rke-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-rke-libvirt-3-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-rke-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-rke-libvirt-1-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-rke-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-rke-libvirt-1-0-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+</p>
+
 # What is KubeInit?
 
 KubeInit provides Ansible playbooks and roles for the deployment and configuration of multiple Kubernetes distributions.

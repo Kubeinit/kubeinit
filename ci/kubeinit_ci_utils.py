@@ -11,6 +11,8 @@ from github import InputGitTreeElement
 
 def upload_logs(pipeline_id, gh_token):
     """Upload the CI results to GitHub."""
+    return_code = 0
+
     try:
         gh = Github(gh_token)
         print("----Uploading logs----")
@@ -65,6 +67,7 @@ def upload_logs(pipeline_id, gh_token):
             except Exception as e:
                 print('An exception hapened adding the initial log files, some files could not be added')
                 print(e)
+                return_code = 1
         head_sha = repobot.get_branch('main').commit.sha
         base_tree = repobot.get_git_tree(sha=head_sha)
         tree = repobot.create_git_tree(element_list, base_tree)
@@ -75,6 +78,8 @@ def upload_logs(pipeline_id, gh_token):
     except Exception as e:
         print('An exception hapened files to GitHub')
         print(e)
+        return_code = 1
+    return return_code
 
 
 def remove_label(the_label, pr, repo):
