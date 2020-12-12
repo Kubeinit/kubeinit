@@ -23,7 +23,9 @@ echo "The amount of worker nodes is $WORKER"
 echo "The scenario is $SCENARIO"
 
 # Install and configure ara
-python3 -m pip install "ara[server]"
+# There are problems with multithread ara, we keep the last
+# single thread version
+python3 -m pip install --upgrade "ara[server]"==1.5.1
 
 # This will nuke the ara database so in each run we have a clean env
 rm /root/.ara/server/ansible.sqlite
@@ -118,6 +120,11 @@ for i in $(virsh -q list | awk '{ print $2 }'); do
     virsh destroy $i;
     virsh undefine $i --remove-all-storage;
 done;
+for i in $(virsh -q net-list | awk '{ print $1 }'); do
+    virsh net-destroy $i;
+    virsh net-undefine $i;
+done;
+
 
 ansible-playbook \
     --user root \
