@@ -217,7 +217,7 @@ def main():
             print("The pipeline ID is: " + str(pipeline_id))
             print("The clouds.yml path is: " + str(vars_file_path))
             # We trigger the e2e job
-            badge_code = badge(left_text=str(distro) + "-" + str(master) + "-" + str(worker), right_text='pass', right_color='green')
+            badge_code = badge(left_text=str(distro) + "-" + str(master) + "-" + str(worker), right_text='OK', right_color='green')
             try:
                 print("We call the downstream job configuring its parameters")
                 subprocess.check_call("./ci/run_periodic.sh %s %s %s %s %s %s %s %s" % (str("--"),
@@ -232,7 +232,7 @@ def main():
             except Exception as e:
                 print('An exception hapened executing Ansible')
                 print(e)
-                badge_code = badge(left_text=str(distro) + "-" + str(master) + "-" + str(worker), right_text='fails', right_color='red')
+                badge_code = badge(left_text=str(distro) + "-" + str(master) + "-" + str(worker), right_text='NOK', right_color='red')
 
             with open("/root/badge_status.svg", "w+") as text_file:
                 text_file.write(badge_code)
