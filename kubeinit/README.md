@@ -42,37 +42,24 @@
 
 # What is KubeInit?
 
-KubeInit provides Ansible playbooks and roles for the deployment and configuration of multiple Kubernetes distributions.
+KubeInit provides Ansible playbooks and roles for the deployment
+and configuration of multiple Kubernetes distributions.
+KubeInit's mission is to have a fully automated way to deploy in
+a single command a curated list of prescribed architectures.
 
-# Mission
-
-KubeInit's mission is to have a fully automated way to deploy in a single command a curated list of
-prescribed architectures based on the following principles **(G.I.V.E.)**.
-
-**G**uide new and experienced users and contributors to deploy quickly and easily
-Kubernetes clusters based on a set of prescribed architectures.
-
-**I**ncentivate new users and contributors to overcoming the learning curve to
-successfully deploy complex Kubernetes scenarios.
-
-**V**erify automatically that the defined prescribed architectures work seamlessly.
-
-**E**ngage with the upstream community for giving and receiving feedback,
-and cross-pollination to spark and amplify creativity, serendipity, and interdisciplinary friction.
-
-# Documentation
+## Documentation
 
 KubeInit's documentation is hosted in [this same repository](https://docs.kubeinit.com).
 
-# KubeInit supported scenarios
+## KubeInit supported scenarios
 
-**K8s distribution:** OKD
+**K8s distribution:** OKD (testing K8S, RKE, EKS, RKE)
 
 **Driver:** Libvirt
 
 **OS:** CentOS/Fedora, Debian/Ubuntu
 
-# Requirements
+## Requirements
 
 * A fresh deployed server with enough RAM and disk space (120GB in RAM and 300GB in disk) and CentOS 8 (it should work also in Fedora/Debian/Ubuntu hosts).
 * We assume that the hypervisor node is called nyctea (defined in the inventory).
@@ -93,6 +80,8 @@ in a single command and in approximately 30 minutes.
 ```bash
 git clone https://github.com/Kubeinit/kubeinit.git
 cd kubeinit
+# Install Ansible collection requirements
+ansible-galaxy collection install --force -r kubeinit/requirements.yml
 ansible-playbook \
     --user root \
     -v -i ./hosts/okd/inventory \
