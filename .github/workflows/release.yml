@@ -38,6 +38,9 @@ jobs:
           sudo python3 -m pip install --upgrade virtualenv
           sudo python3 -m pip install --upgrade setuptools
           sudo python3 -m pip install -r ./test-requirements.txt
+          sudo python3 -m pip install tox shyaml
+          sudo python3 -m pip install twine
+
       - name: Create collection build and publish
         run: |
           chmod +x ./tools/release.sh
@@ -46,6 +49,17 @@ jobs:
                QUAY_KEY=${{ secrets.QUAY_KEY }} \
                GALAXY_KEY=${{ secrets.GALAXY_KEY }} \
                ./tools/release.sh
+      - name: Create pypi package and publish
+        run: |
+          ./tools/pypi_publish.sh -k ${{ secrets.PYPI_TOKEN }}
+      - name: Install latest Kubeinit agent version build locally if we published a new version
+        run: |
+          cd ./agent
+          if [ -d "./dist" ]
+          then
+              python3 -m pip install --force dist/*
+              kubeinit -v
+          fi
 
   release_docs:
     needs: release_sw
