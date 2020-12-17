@@ -1,0 +1,67 @@
+{% extends "base-site.html" %}
+
+{% block title %} Pods {% endblock %}
+
+{% block content %}
+
+    <div class="container-fluid">
+        <div class="fade-in">
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="card">
+                <div class="card-header">List cluster's pods</div>
+                <div class="card-body">
+                  <table class="table table-responsive-sm table-bordered table-striped table-sm dataTable" id="pystol-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>status</th>
+                        <th>Ip</th>
+                        <th>Namespaces</th>
+                        <th>Host</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for data in state_pods %}
+                      <tr>
+                        <td>{{data.name}}</td>
+                        <td>
+                          {% if 'Running' in data.phase %}
+                            <span class="badge badge-success">Running</span>
+                          {% else %}
+                            <span class="badge badge-danger">Danger</span>
+                          {% endif %}
+                        </td>
+                        <td>{{data.pod_ip}}</td>
+                        <td>{{data.namespace}}</td>
+                        <td>{{data.host_ip}}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <!-- /.col-->
+          </div>
+          <!-- /.row-->
+        </div>
+    </div>
+
+{% endblock content %}
+
+
+{% block javascripts %}
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+    <script type="text/JavaScript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
+    <script type="text/JavaScript" src="https://cdn.datatables.net/1.10.18/js/dataTables.bootstrap4.min.js"></script>
+
+    <script>
+      $(document).ready(function() {
+        $("#pystol-table").dataTable();
+      });
+    </script>
+{% endblock javascripts %}
