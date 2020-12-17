@@ -1,0 +1,109 @@
+<i data-fa-symbol="fa-info" class="fas fa-info fa-fw"></i>
+<i data-fa-symbol="fa-window-restore" class="fas fa-window-restore fa-fw"></i>
+<i data-fa-symbol="fa-server" class="fas fa-server fa-fw"></i>
+<i data-fa-symbol="fa-boxes" class="fas fa-boxes fa-fw"></i>
+<i data-fa-symbol="fa-project-diagram" class="fas fa-project-diagram fa-fw"></i>
+<i data-fa-symbol="fa-swatchbook" class="fas fa-swatchbook fa-fw"></i>
+<i data-fa-symbol="fa-running" class="fas fa-running fa-fw"></i>
+<i data-fa-symbol="fa-check-square" class="fas fa-check-square fa-fw"></i>
+<i data-fa-symbol="fa-rocket" class="fas fa-rocket fa-fw"></i>
+<i data-fa-symbol="fa-cogs" class="fas fa-cogs fa-fw"></i>
+<i data-fa-symbol="fa-question" class="fas fa-question fa-fw"></i>
+<i data-fa-symbol="fa-sign-out-alt" class="fas fa-sign-out-alt fa-fw"></i>
+
+    <div class="c-sidebar c-sidebar-dark c-sidebar-fixed c-sidebar-lg-show" id="sidebar">
+            <div class="c-sidebar-brand"><img class="c-sidebar-brand-full" src="/static/assets/brand/pystol_full.svg" width="118" height="46" alt="CoreUI Logo"><img class="c-sidebar-brand-minimized" src="/static/assets/brand/pystol_compact.svg" width="118" height="46" alt="CoreUI Logo"></div>
+            <ul class="c-sidebar-nav">
+
+              <li class="c-sidebar-nav-title">Cluster status</li>
+
+              {% for element in render_menu()[0] %}
+              <li class="c-sidebar-nav-item">
+                <a class="c-sidebar-nav-link" href={{ url_for(element.endpoint) }}>
+                  <svg class="c-sidebar-nav-icon">
+                    <use xlink:href="#{{ element.icon }}"></use>
+                  </svg> {{ element.name }}
+                </a>
+              </li>
+              {% endfor %}
+
+              <li class="c-sidebar-nav-title">Pystol actions</li>
+
+              {% for element in render_menu()[1] %}
+              <li class="c-sidebar-nav-item">
+                <a class="c-sidebar-nav-link" href={{ url_for(element.endpoint) }}>
+                  <svg class="c-sidebar-nav-icon">
+                    <use xlink:href="#{{ element.icon }}"></use>
+                  </svg> {{ element.name }}
+                </a>
+              </li>
+              {% endfor %}
+
+              <li class="c-sidebar-nav-item px-3 c-d-compact-none c-d-minimized-none mt-auto">
+                <div class="text-uppercase mb-1">
+                  <small>
+                    {% if cluster_name_configured |length %}
+                      {% if cluster_name_configured  | replace('[', '')| replace(']', '') == "Not found" %}
+                        <span class="badge badge-danger">Not connected</span>
+                      {% else %}
+                        <span class="badge badge-success">Connected to {{cluster_name_configured  | replace('[', '')| replace(']', '')}}</span>
+                      {% endif %}
+                     {% else %}
+                       <span class="badge badge-danger">Not connected</span>
+                     {% endif %}
+                   </small>
+                </div>
+              </li>
+              <li class="c-sidebar-nav-item px-3 c-d-compact-none c-d-minimized-none">
+                  <div class="text-uppercase mb-1"><small><b>Pods Usage</b></small></div>
+                  <div class="progress progress-xs">
+                  <div class="progress-bar bg-info" role="progressbar" style="width: {{ compute_allocated_resources.pods.percentage }}%" aria-valuenow="{{ compute_allocated_resources.pods.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                  {% set pods_allocated = compute_allocated_resources.pods.allocated.magnitude | int %}
+                  {% set pods_allocatable = compute_allocated_resources.pods.allocatable.magnitude | int %}
+                  {% set pods_unit = compute_allocated_resources.pods.allocatable.units %}
+                  </div><small class="text-muted">{{ pods_allocated }}/{{ pods_allocatable }} {{ pods_unit }}</small>
+              </li>
+
+              <li class="c-sidebar-nav-item px-3 c-d-compact-none c-d-minimized-none">
+                  <div class="text-uppercase mb-1"><small><b>CPU usage</b></small></div>
+                  <div class="progress progress-xs">
+                  <div class="progress-bar bg-success" role="progressbar" style="width: {{ compute_allocated_resources.cpu.percentage }}%" aria-valuenow="{{ compute_allocated_resources.cpu.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                  {% set cpu_allocated = compute_allocated_resources.cpu.allocated.magnitude | int %}
+                  {% set cpu_allocatable = compute_allocated_resources.cpu.allocatable.magnitude | int %}
+                  {% set cpu_unit = compute_allocated_resources.cpu.allocatable.units %}
+                  </div><small class="text-muted">{{ cpu_allocated }}/{{ cpu_allocatable }} {{ cpu_unit }}</small>
+              </li>
+
+              <li class="c-sidebar-nav-item px-3 c-d-compact-none c-d-minimized-none">
+                  <div class="text-uppercase mb-1"><small><b>Memory Usage</b></small></div>
+                  <div class="progress progress-xs">
+                  <div class="progress-bar bg-warning" role="progressbar" style="width: {{ compute_allocated_resources.mem.percentage }}%" aria-valuenow="{{ compute_allocated_resources.mem.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                  {% set mem_allocated = compute_allocated_resources.mem.allocated.magnitude | int %}
+                  {% set mem_allocatable = compute_allocated_resources.mem.allocatable.magnitude | int %}
+                  {% set mem_unit = compute_allocated_resources.mem.allocatable.units %}
+                  </div><small class="text-muted">{{ mem_allocated }}/{{ mem_allocatable }} {{ mem_unit}}</small>
+              </li>
+
+              <li class="c-sidebar-nav-item px-3 mb-3 c-d-compact-none c-d-minimized-none">
+                  <div class="text-uppercase mb-1"><small><b>Filesystem</b></small></div>
+                  <div class="progress progress-xs">
+                  <div class="progress-bar bg-danger" role="progressbar" style="width: {{ compute_allocated_resources.storage.percentage }}%" aria-valuenow="{{ compute_allocated_resources.storage.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                  {% set storage_allocated = compute_allocated_resources.storage.allocated.magnitude | int %}
+                  {% set storage_allocatable = compute_allocated_resources.storage.allocatable.magnitude | int %}
+                  {% set storage_unit = compute_allocated_resources.storage.allocatable.units %}
+                  </div><small class="text-muted">{{ storage_allocated }}/{{ storage_allocatable }} {{ storage_unit}}</small>
+              </li>
+
+              {% for element in render_menu()[2] %}
+              <li class="c-sidebar-nav-item">
+                <a class="c-sidebar-nav-link" href={{ url_for(element.endpoint) }}>
+                  <svg class="c-sidebar-nav-icon">
+                    <use xlink:href="#{{ element.icon }}"></use>
+                  </svg> {{ element.name }}
+                </a>
+              </li>
+              {% endfor %}
+
+            </ul>
+            <button class="c-sidebar-minimizer c-class-toggler" type="button" data-target="_parent" data-class="c-sidebar-minimized"></button>
+          </div>
