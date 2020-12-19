@@ -17,6 +17,7 @@ under the License.
 """
 
 import app
+from app import version as kubeinit_ui_version
 from app.base import blueprint
 from app.base.k8sclient import (cluster_name_configured,
                                 state_namespaces,
@@ -36,11 +37,8 @@ from google.cloud import firestore
 
 from pystol.lister import list_actions, show_actions
 
-try:
-    from pystol import __version__
-    KUBEINIT_VERSION = __version__
-except ImportError:
-    KUBEINIT_VERSION = "Not installed"
+KUBEINIT_VERSION = kubeinit_ui_version.__version__
+
 #
 # Begin authentication
 #

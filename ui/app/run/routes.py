@@ -21,6 +21,7 @@ under the License.
 import json
 
 import app
+from app import version as kubeinit_ui_version
 from app.base.allocated import compute_allocated_resources
 # from app.base.hexa import hexagons_data
 from app.base.k8sclient import (cluster_name_configured)
@@ -43,11 +44,8 @@ from pystol.operator import insert_pystol_object
 #                         login_user,
 #                         logout_user)
 
-try:
-    from pystol import __version__
-    KUBEINIT_VERSION = __version__
-except ImportError:
-    KUBEINIT_VERSION = "Not installed"
+KUBEINIT_VERSION = kubeinit_ui_version.__version__
+
 #
 # Begin authentication
 #
