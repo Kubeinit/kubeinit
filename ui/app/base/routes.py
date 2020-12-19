@@ -38,9 +38,9 @@ from pystol.lister import list_actions, show_actions
 
 try:
     from pystol import __version__
-    PYSTOL_VERSION = __version__
+    KUBEINIT_VERSION = __version__
 except ImportError:
-    PYSTOL_VERSION = "Not installed"
+    KUBEINIT_VERSION = "Not installed"
 #
 # Begin authentication
 #

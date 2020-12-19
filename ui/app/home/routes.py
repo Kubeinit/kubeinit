@@ -44,9 +44,9 @@ from jinja2 import TemplateNotFound
 
 try:
     from pystol import __version__
-    PYSTOL_VERSION = __version__
+    KUBEINIT_VERSION = __version__
 except ImportError:
-    PYSTOL_VERSION = "Not installed"
+    KUBEINIT_VERSION = "Not installed"
 #
 # Begin authentication
 #

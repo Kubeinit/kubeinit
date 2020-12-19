@@ -45,9 +45,9 @@ from pystol.operator import insert_pystol_object
 
 try:
     from pystol import __version__
-    PYSTOL_VERSION = __version__
+    KUBEINIT_VERSION = __version__
 except ImportError:
-    PYSTOL_VERSION = "Not installed"
+    KUBEINIT_VERSION = "Not installed"
 #
 # Begin authentication
 #
@@ -179,7 +179,7 @@ def run():
                                    api_client=api_client),
                                cluster_name_configured=cluster_name_configured(
                                    api_client=api_client),
-                               pystol_version=PYSTOL_VERSION,)
+                               kubeinit_version=KUBEINIT_VERSION,)
 
     except TemplateNotFound:
         return render_template('page-404.html'), 404
