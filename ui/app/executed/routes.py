@@ -20,6 +20,7 @@ under the License.
 # import os
 
 import app
+from app import version as kubeinit_ui_version
 from app.base.allocated import compute_allocated_resources
 # from app.base.hexa import hexagons_data
 from app.base.k8sclient import (cluster_name_configured)
@@ -41,11 +42,8 @@ from jinja2 import TemplateNotFound
 
 from pystol.lister import list_actions
 
-try:
-    from pystol import __version__
-    KUBEINIT_VERSION = __version__
-except ImportError:
-    KUBEINIT_VERSION = "Not installed"
+KUBEINIT_VERSION = kubeinit_ui_version.__version__
+
 #
 # Begin authentication
 #

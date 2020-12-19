@@ -20,6 +20,7 @@ under the License.
 # import os
 
 import app
+from app import version as kubeinit_ui_version
 from app.available import blueprint
 from app.base.allocated import compute_allocated_resources
 # from app.base.hexa import hexagons_data
@@ -41,12 +42,8 @@ from pystol.lister import show_actions
 #                          login_user,
 #                          logout_user)
 
+KUBEINIT_VERSION = kubeinit_ui_version.__version__
 
-try:
-    from pystol import __version__
-    KUBEINIT_VERSION = __version__
-except ImportError:
-    KUBEINIT_VERSION = "Not installed"
 #
 # Begin authentication
 #
