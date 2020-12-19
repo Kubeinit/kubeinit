@@ -48,7 +48,7 @@ def state_cluster(api_client=None):
     load_kubernetes_config()
     api = kubernetes.client.CustomObjectsApi(api_client=api_client)
 
-    group = "pystol.org"
+    group = "kubeinit.com"
     version = "v1alpha1"
     namespace = "pystol"
     plural = "pystolactions"
