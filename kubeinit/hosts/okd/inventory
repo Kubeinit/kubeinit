@@ -82,35 +82,47 @@ root_device=/dev/vda
 #
 # Hosts definitions
 #
+
+# The cluster's guest machines can be distributed across
+# mutiple hosts. By default they will be deployed in the first
+# Hypervisor
+
 [hypervisor_nodes]
 hypervisor-01 ansible_host=nyctea ansible_ssh_common_args='-o StrictHostKeyChecking="no"'
+# hypervisor-02 ansible_host=tyto ansible_ssh_common_args='-o StrictHostKeyChecking="no"'
+# hypervisor-03 ansible_host=strix ansible_ssh_common_args='-o StrictHostKeyChecking="no"'
+# hypervisor-04 ansible_host=otus ansible_ssh_common_args='-o StrictHostKeyChecking="no"'
+
+# Master, worker, service, and bootstrap nodes can be configured as virtual
+# machines or using the already provisioned baremetal machines for the deployment.
 
 # Only use an odd number configuration, this means
 # enabling only 1, 3, or 5 master nodes at a time.
+
 [okd_master_nodes]
-okd-master-01 ansible_host=10.0.0.1 mac=52:54:00:34:84:26
-okd-master-02 ansible_host=10.0.0.2 mac=52:54:00:53:75:61
-okd-master-03 ansible_host=10.0.0.3 mac=52:54:00:96:67:20
-# okd-master-04 ansible_host=10.0.0.4 mac=52:54:00:60:38:79
-# okd-master-05 ansible_host=10.0.0.5 mac=52:54:00:62:48:94
+okd-master-01 ansible_host=10.0.0.1 mac=52:54:00:34:84:26 target=hypervisor-01 type=virtual
+okd-master-02 ansible_host=10.0.0.2 mac=52:54:00:53:75:61 target=hypervisor-01 type=virtual
+okd-master-03 ansible_host=10.0.0.3 mac=52:54:00:96:67:20 target=hypervisor-01 type=virtual
+# okd-master-04 ansible_host=10.0.0.4 mac=52:54:00:60:38:79 target=hypervisor-01 type=virtual
+# okd-master-05 ansible_host=10.0.0.5 mac=52:54:00:62:48:94 target=hypervisor-01 type=virtual
 
 # From .6 to .99 worker nodes
 [okd_worker_nodes]
-okd-worker-01 ansible_host=10.0.0.6 mac=52:54:00:10:64:16
-# okd-worker-02 ansible_host=10.0.0.7 mac=52:54:00:33:75:35
-# okd-worker-03 ansible_host=10.0.0.8 mac=52:54:00:51:64:75
-# okd-worker-04 ansible_host=10.0.0.9 mac=52:54:00:58:69:54
-# okd-worker-05 ansible_host=10.0.0.10 mac=52:54:00:95:95:18
-# okd-worker-06 ansible_host=10.0.0.11 mac=52:54:00:21:20:36
-# okd-worker-07 ansible_host=10.0.0.12 mac=52:54:00:25:72:66
-# okd-worker-08 ansible_host=10.0.0.13 mac=52:54:00:44:47:31
-# okd-worker-09 ansible_host=10.0.0.14 mac=52:54:00:57:89:20
-# okd-worker-10 ansible_host=10.0.0.15 mac=52:54:00:38:87:78
+okd-worker-01 ansible_host=10.0.0.6 mac=52:54:00:10:64:16 target=hypervisor-01 type=virtual
+# okd-worker-02 ansible_host=10.0.0.7 mac=52:54:00:33:75:35 target=hypervisor-01 type=virtual
+# okd-worker-03 ansible_host=10.0.0.8 mac=52:54:00:51:64:75 target=hypervisor-01 type=virtual
+# okd-worker-04 ansible_host=10.0.0.9 mac=52:54:00:58:69:54 target=hypervisor-01 type=virtual
+# okd-worker-05 ansible_host=10.0.0.10 mac=52:54:00:95:95:18 target=hypervisor-01 type=virtual
+# okd-worker-06 ansible_host=10.0.0.11 mac=52:54:00:21:20:36 target=hypervisor-01 type=virtual
+# okd-worker-07 ansible_host=10.0.0.12 mac=52:54:00:25:72:66 target=hypervisor-01 type=virtual
+# okd-worker-08 ansible_host=10.0.0.13 mac=52:54:00:44:47:31 target=hypervisor-01 type=virtual
+# okd-worker-09 ansible_host=10.0.0.14 mac=52:54:00:57:89:20 target=hypervisor-01 type=virtual
+# okd-worker-10 ansible_host=10.0.0.15 mac=52:54:00:38:87:78 target=hypervisor-01 type=virtual
 
 # From .100 to .109 service nodes
 [okd_service_nodes]
-okd-service-01 ansible_host=10.0.0.100 mac=52:54:00:47:94:58
+okd-service-01 ansible_host=10.0.0.100 mac=52:54:00:47:94:58 target=hypervisor-01 type=virtual
 
 # From .200 to .209 bootstrap nodes
 [okd_bootstrap_nodes]
-okd-bootstrap-01 ansible_host=10.0.0.200 mac=52:54:00:30:69:71
+okd-bootstrap-01 ansible_host=10.0.0.200 mac=52:54:00:30:69:71 target=hypervisor-01 type=virtual

@@ -24,23 +24,86 @@
     set -o pipefail
     df -BG --output=avail {{ kubeinit_validations_libvirt_path }} | grep -v Avail
   register: kubeinit_validations_libvirt_free_space
+  with_items:
+    - "{{ groups['hypervisor_nodes'] | list }}"
+  delegate_to: "{{ item }}"
   changed_when: "kubeinit_validations_libvirt_free_space.rc == 0"
   tags:
     - provision_libvirt
 
-- name: Get total inventory disk usage
+- debug:
+    var: kubeinit_validations_libvirt_free_space
+  tags:
+    - provision_libvirt
+
+- name: Define the hypervisors disk free space dictionary
   set_fact:
-    kubeinit_validations_libvirt_disk_usage: "{{ kubeinit_validations_libvirt_disk_usage|default(0)|int + hostvars[item].disk[:-1]|int }}"
+    kubeinit_validations_hypervisors_free_space: "{{ kubeinit_validations_hypervisors_free_space|default([]) | combine( {item.item: item.stdout[:-1]|int} ) }}"
+  with_items: "{{ kubeinit_validations_libvirt_free_space.results }}"
+
+- debug:
+    var: kubeinit_validations_hypervisors_free_space
+  tags:
+    - provision_libvirt
+
+- name: Get the total inventory disk usage
+  set_fact:
+    kubeinit_validations_libvirt_disk_usage: "{{ kubeinit_validations_libvirt_disk_usage|default({})| combine( {item: {'id': item, 'disk': hostvars[item].disk[:-1]|int, 'target': hostvars[item].target} } ) }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- debug:
+    var: kubeinit_validations_libvirt_disk_usage
+  tags:
+    - provision_libvirt
+
+- name: Set combined disk requirement per hypervisor
+  set_fact:
+    kubeinit_validations_libvirt_combined_disk_usage: >-
+      {{ kubeinit_validations_libvirt_combined_disk_usage | default({})
+        | combine({item.value.target: []
+        + [{
+            'disk': item.value.disk,
+            'id': item.value.id
+          }]
+        + kubeinit_validations_libvirt_combined_disk_usage[item.value.target] | default([]) })
+      }}
+  with_dict: "{{ kubeinit_validations_libvirt_disk_usage }}"
+  tags:
+    - provision_libvirt
+
+- debug:
+    var: kubeinit_validations_libvirt_combined_disk_usage
+  tags:
+    - provision_libvirt
+
+- name: Set the summarized usage per hypervisor
+  set_fact:
+    kubeinit_validations_libvirt_summarized_usage: "{{ kubeinit_validations_libvirt_summarized_usage|default([]) | combine( {item: my_attribute} ) }}"
+  vars:
+    my_attribute: "{{ kubeinit_validations_libvirt_combined_disk_usage[item] | map(attribute='disk') | list | sum }}"
+  with_items: "{{ kubeinit_validations_libvirt_combined_disk_usage.keys() | list }}"
+  tags:
+    - provision_libvirt
+
+- debug:
+    var: kubeinit_validations_libvirt_summarized_usage
+  tags:
+    - provision_libvirt
+
+- debug:
+    var: item
+  with_dict: "{{ kubeinit_validations_hypervisors_free_space }}"
   tags:
     - provision_libvirt
 
 - name: Make sure there is enough free space
   assert:
     that:
-      - kubeinit_validations_libvirt_free_space.stdout[:-1]|int > kubeinit_validations_libvirt_disk_usage|float * 1.1
-    msg: "It seems there is not enough disk space (Required: {{ kubeinit_validations_libvirt_disk_usage|float * 1.1 }} Total: {{ kubeinit_validations_libvirt_free_space.stdout[:-1]|int }})"
-
+      - item.value|int > kubeinit_validations_libvirt_summarized_usage[item.key]|float * 1.1
+    msg: "It seems there is not enough disk space (Required: {{ kubeinit_validations_libvirt_summarized_usage }} Available: {{ kubeinit_validations_hypervisors_free_space }})"
+  with_dict: "{{ kubeinit_validations_hypervisors_free_space }}"
   tags:
     - provision_libvirt
