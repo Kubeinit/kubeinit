@@ -69,31 +69,42 @@ root_device=/dev/vda1
 #
 # Hosts definitions
 #
+
+# The cluster's guest machines can be distributed across
+# mutiple hosts. By default they will be deployed in the first
+# Hypervisor
+
 [hypervisor_nodes]
 hypervisor-01 ansible_host=nyctea ansible_ssh_common_args='-o StrictHostKeyChecking="no"'
+# hypervisor-02 ansible_host=tyto   ansible_ssh_common_args='-o StrictHostKeyChecking="no"'
+# hypervisor-03 ansible_host=strix  ansible_ssh_common_args='-o StrictHostKeyChecking="no"'
+# hypervisor-04 ansible_host=otus   ansible_ssh_common_args='-o StrictHostKeyChecking="no"'
+
+# Master, worker, service, and bootstrap nodes can be configured as virtual
+# machines or using the already provisioned baremetal machines for the deployment.
 
 # Only use an odd number configuration, this means
 # enabling only 1, 3, or 5 master nodes at a time.
 [cdk_master_nodes]
-cdk-master-01 ansible_host=10.0.0.1 mac=52:54:00:19:68:12
-cdk-master-02 ansible_host=10.0.0.2 mac=52:54:00:22:90:26
-cdk-master-03 ansible_host=10.0.0.3 mac=52:54:00:52:59:88
-# cdk-master-04 ansible_host=10.0.0.4 mac=52:54:00:13:64:65
-# cdk-master-05 ansible_host=10.0.0.5 mac=52:54:00:80:79:61
+cdk-master-01 ansible_host=10.0.0.1 mac=52:54:00:19:68:12 target=hypervisor-01 type=virtual
+cdk-master-02 ansible_host=10.0.0.2 mac=52:54:00:22:90:26 target=hypervisor-01 type=virtual
+cdk-master-03 ansible_host=10.0.0.3 mac=52:54:00:52:59:88 target=hypervisor-01 type=virtual
+# cdk-master-04 ansible_host=10.0.0.4 mac=52:54:00:13:64:65 target=hypervisor-01 type=virtual
+# cdk-master-05 ansible_host=10.0.0.5 mac=52:54:00:80:79:61 target=hypervisor-01 type=virtual
 
 # From .6 to .99 worker nodes
 [cdk_worker_nodes]
-cdk-worker-01 ansible_host=10.0.0.6 mac=52:54:00:37:41:83
-# cdk-worker-02 ansible_host=10.0.0.7 mac=52:54:00:43:79:83
-# cdk-worker-03 ansible_host=10.0.0.8 mac=52:54:00:18:96:86
-# cdk-worker-04 ansible_host=10.0.0.9 mac=52:54:00:26:41:25
-# cdk-worker-05 ansible_host=10.0.0.10 mac=52:54:00:35:13:55
-# cdk-worker-06 ansible_host=10.0.0.11 mac=52:54:00:54:12:64
-# cdk-worker-07 ansible_host=10.0.0.12 mac=52:54:00:43:64:67
-# cdk-worker-08 ansible_host=10.0.0.13 mac=52:54:00:27:70:68
-# cdk-worker-09 ansible_host=10.0.0.14 mac=52:54:00:55:85:11
-# cdk-worker-10 ansible_host=10.0.0.15 mac=52:54:00:35:96:37
+cdk-worker-01 ansible_host=10.0.0.6 mac=52:54:00:37:41:83 target=hypervisor-01 type=virtual
+# cdk-worker-02 ansible_host=10.0.0.7 mac=52:54:00:43:79:83 target=hypervisor-01 type=virtual
+# cdk-worker-03 ansible_host=10.0.0.8 mac=52:54:00:18:96:86 target=hypervisor-01 type=virtual
+# cdk-worker-04 ansible_host=10.0.0.9 mac=52:54:00:26:41:25 target=hypervisor-01 type=virtual
+# cdk-worker-05 ansible_host=10.0.0.10 mac=52:54:00:35:13:55 target=hypervisor-01 type=virtual
+# cdk-worker-06 ansible_host=10.0.0.11 mac=52:54:00:54:12:64 target=hypervisor-01 type=virtual
+# cdk-worker-07 ansible_host=10.0.0.12 mac=52:54:00:43:64:67 target=hypervisor-01 type=virtual
+# cdk-worker-08 ansible_host=10.0.0.13 mac=52:54:00:27:70:68 target=hypervisor-01 type=virtual
+# cdk-worker-09 ansible_host=10.0.0.14 mac=52:54:00:55:85:11 target=hypervisor-01 type=virtual
+# cdk-worker-10 ansible_host=10.0.0.15 mac=52:54:00:35:96:37 target=hypervisor-01 type=virtual
 
 # From .100 to .109 service nodes
 [cdk_service_nodes]
-cdk-service-01 ansible_host=10.0.0.100 mac=52:54:00:24:72:47
+cdk-service-01 ansible_host=10.0.0.100 mac=52:54:00:24:72:47 target=hypervisor-01 type=virtual

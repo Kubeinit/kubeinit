@@ -14,8 +14,54 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Main deployment playbook for OKD
+- name: Prerequisites for deploying OKD in a multinode environment
   hosts: hypervisor_nodes
+  vars:
+    custom_var: asdf
+  pre_tasks:
+    - name: Check if Ansible meets version requirements.
+      vars:
+        kubeinit_ansible_min_version: 2.9
+      assert:
+        that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
+        msg: >
+          "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
+  tasks:
+    - name: Create a public key in the hypervisor hosts
+      shell: |
+        set -o pipefail
+        ssh-keygen -q -b 2048 -t rsa -N "" -C "creating SSH" -f ~/.ssh/id_rsa
+        creates="~/.ssh/id_rsa"
+      args:
+        executable: /bin/bash
+      register: render_publickey
+      changed_when: "render_publickey.rc == 0"
+    - name: Fetch the keyfile from each node
+      fetch:
+        src: "~/.ssh/id_rsa.pub"
+        dest: "buffer/{{ inventory_hostname }}-id_rsa.pub"
+        flat: yes
+    - name: Add the keys to authorized_keys
+      authorized_key:
+        user: root
+        state: present
+        key: "{{ lookup('file','buffer/' + item + '-id_rsa.pub') }}"
+      with_items:
+        - "{{ groups['hypervisor_nodes'] }}"
+    - name: Update the /etc/hosts file with node name
+      become: yes
+      become_user: root
+      lineinfile:
+        path: "/etc/hosts"
+        regexp: ".*\t{{ hostvars[item]['inventory_hostname'] }}\t{{ hostvars[item]['ansible_hostname'] }}\t{{ hostvars[item]['ansible_host'] }}"
+        line: "{{ hostvars[item]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}\t{{ hostvars[item]['inventory_hostname'] }}\t{{ hostvars[item]['ansible_hostname'] }}\t{{ hostvars[item]['ansible_host'] }}"
+        state: present
+        backup: yes
+      register: etchostsupdate
+      with_items: "{{ groups['hypervisor_nodes'] }}"
+
+- name: Main deployment playbook for OKD
+  hosts: hypervisor_nodes[0]
   vars:
     custom_var: asdf
   pre_tasks:
