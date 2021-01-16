@@ -14,90 +14,78 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-# #
-# # Configure local registry
-# #
-#
-# - name: Configure a local container image registry
-#   delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-#   # delegate_facts: true
-#   import_role:
-#     name: ../../roles/kubeinit_registry
-#     tasks_from: main
-#   when: kubeinit_registry_enabled|bool
-#   tags:
-#     - provision_libvirt
+- name: Configure the service node
+  block:
+    # #
+    # # Configure local registry
+    # #
+    #
+    # - name: Configure a local container image registry
+    #   delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
+    #   # delegate_facts: true
+    #   import_role:
+    #     name: ../../roles/kubeinit_registry
+    #     tasks_from: main
+    #   when: kubeinit_registry_enabled|bool
+    #   tags:
+    #     - provision_libvirt
 
-#
-# Configure bind
-#
+    #
+    # Configure bind
+    #
 
-- name: Configure Bind
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_bind
-    tasks_from: main
-  tags:
-    - provision_libvirt
-#
-# Configure HAproxy
-#
+    - name: Configure Bind
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_bind
+        tasks_from: main
 
-- name: Configure HAProxy
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_haproxy
-    tasks_from: main
-  tags:
-    - provision_libvirt
+    #
+    # Configure HAproxy
+    #
 
-#
-# Configure httpd
-#
+    - name: Configure HAProxy
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_haproxy
+        tasks_from: main
 
-- name: Configure Apache
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_apache
-    tasks_from: main
-  tags:
-    - provision_libvirt
+    #
+    # Configure httpd
+    #
 
-#
-# Include the install configuration
-#
+    - name: Configure Apache
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_apache
+        tasks_from: main
 
-- name: "Render root keys in the service node"
-  shell: |
-    set -o pipefail
-    cd
-    mkdir -p ~/.ssh
-    rm -f ~/.ssh/id_rsa && echo -e 'y\n' | ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
-    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-    ssh -oStrictHostKeyChecking=no 127.0.0.1 uptime
-  args:
-    executable: /bin/bash
-  register: render_service_keys
-  changed_when: "render_service_keys.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['cdk_service_nodes'] }}"
-  tags:
-    - provision_libvirt
+    #
+    # Include the install configuration
+    #
 
-- name: get root service machine public key
-  command: cat /root/.ssh/id_rsa.pub
-  register: public_key_service_content
-  changed_when: "public_key_service_content.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['cdk_service_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: "Render root keys in the service node"
+      shell: |
+        set -o pipefail
+        cd
+        mkdir -p ~/.ssh
+        rm -f ~/.ssh/id_rsa && echo -e 'y\n' | ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
+        cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+        ssh -oStrictHostKeyChecking=no 127.0.0.1 uptime
+      args:
+        executable: /bin/bash
+      register: render_service_keys
+      changed_when: "render_service_keys.rc == 0"
 
-- name: register the public key of the root service machine public key
-  set_fact:
-    kubeinit_provision_service_public_key={{ public_key_service_content.results[0].stdout }}
+    - name: get root service machine public key
+      command: cat /root/.ssh/id_rsa.pub
+      register: public_key_service_content
+      changed_when: "public_key_service_content.rc == 0"
+
+    - name: register the public key of the root service machine public key
+      set_fact:
+        kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

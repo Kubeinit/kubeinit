@@ -14,154 +14,116 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Render the cluster template
-  template:
-    src: "cloud.yml.j2"
-    dest: "~/cloud.yml"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['cdk_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+- name: Deploy CDK
+  block:
+    - name: Render the cluster template
+      template:
+        src: "cloud.yml.j2"
+        dest: "~/cloud.yml"
+        mode: '0644'
 
-- name: Render the bundle template
-  template:
-    src: "bundle.yml.j2"
-    dest: "~/bundle.yml"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['cdk_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Render the bundle template
+      template:
+        src: "bundle.yml.j2"
+        dest: "~/bundle.yml"
+        mode: '0644'
 
-- name: "Install the CDK controller"
-  shell: |
-    ssh-keyscan {{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }}
-    sleep 2
-    ssh-keyscan {{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }} >> ~/.ssh/known_hosts
-    cd
-    snap install juju --classic
-    juju add-cloud --local {{ kubeinit_inventory_cluster_name }} -f cloud.yml
-    echo "bootstrapping juju..."
-    juju bootstrap --no-gui \
-    --bootstrap-series=groovy \
-    --debug manual/root@{{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
-    juju controllers
-    juju status --format=yaml
-  register: install_cdk
-  changed_when: "install_cdk.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['cdk_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: "Install the CDK controller"
+      shell: |
+        ssh-keyscan {{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }}
+        sleep 2
+        ssh-keyscan {{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }} >> ~/.ssh/known_hosts
+        cd
+        snap install juju --classic
+        juju add-cloud --local {{ kubeinit_inventory_cluster_name }} -f cloud.yml
+        echo "bootstrapping juju..."
+        juju bootstrap --no-gui \
+        --bootstrap-series=groovy \
+        --debug manual/root@{{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
+        juju controllers
+        juju status --format=yaml
+      register: install_cdk
+      changed_when: "install_cdk.rc == 0"
 
-- name: "Add machines"
-  shell: |
-    ssh-keyscan {{ hostvars[item].ansible_host }}
-    sleep 2
-    ssh-keyscan {{ hostvars[item].ansible_host }} >> ~/.ssh/known_hosts
-    juju add-machine --debug ssh:root@{{ hostvars[item].ansible_host }} > juju-add-machine-{{ item }}.log 2>&1
-  register: add_cdk_machines
-  changed_when: "add_cdk_machines.rc == 0"
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: "Add machines"
+      shell: |
+        ssh-keyscan {{ hostvars[item].ansible_host }}
+        sleep 2
+        ssh-keyscan {{ hostvars[item].ansible_host }} >> ~/.ssh/known_hosts
+        juju add-machine --debug ssh:root@{{ hostvars[item].ansible_host }} > juju-add-machine-{{ item }}.log 2>&1
+      register: add_cdk_machines
+      changed_when: "add_cdk_machines.rc == 0"
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
 
-- name: "verify that all cluster nodes are started"
-  shell: |
-    set -o pipefail
-    juju machines | grep started
-  args:
-    executable: /bin/bash
-  register: cmd_res
-  changed_when: "cmd_res.rc == 0"
-  retries: 60
-  delay: 60
-  # We should have all the master and worker nodes started
-  until: cmd_res.stdout_lines | list | count == ( groups['cdk_master_nodes'] | count + groups['cdk_worker_nodes'] | count )
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: "verify that all cluster nodes are started"
+      shell: |
+        set -o pipefail
+        juju machines | grep started
+      args:
+        executable: /bin/bash
+      register: cmd_res
+      changed_when: "cmd_res.rc == 0"
+      retries: 60
+      delay: 60
+      # We should have all the master and worker nodes started
+      until: cmd_res.stdout_lines | list | count == ( groups['cdk_master_nodes'] | count + groups['cdk_worker_nodes'] | count )
 
-- name: "Deploy CDK"
-  shell: |
-    juju deploy ./bundle.yml --map-machines=existing{% for item in (groups['cdk_master_nodes'] + groups['cdk_worker_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
-  register: install_cdk
-  changed_when: "install_cdk.rc == 0"
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: "Deploy CDK"
+      shell: |
+        juju deploy ./bundle.yml --map-machines=existing{% for item in (groups['cdk_master_nodes'] + groups['cdk_worker_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
+      register: install_cdk
+      changed_when: "install_cdk.rc == 0"
 
-- name: "Get cluster status"
-  shell: |
-    juju status
-  register: status_cdk
-  changed_when: "status_cdk.rc == 0"
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: "Get cluster status"
+      shell: |
+        juju status
+      register: status_cdk
+      changed_when: "status_cdk.rc == 0"
 
-- name: "verify that the etcd cluster is up and healthy"
-  shell: |
-    set -o pipefail
-    juju status | grep etcd | grep Healthy
-  args:
-    executable: /bin/bash
-  register: etcd_res
-  changed_when: "etcd_res.rc == 0"
-  retries: 60
-  delay: 60
-  # We should have all the master and worker nodes started
-  until: etcd_res.stdout_lines | list | count == ( groups['cdk_master_nodes'] | count )
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: "verify that the etcd cluster is up and healthy"
+      shell: |
+        set -o pipefail
+        juju status | grep etcd | grep Healthy
+      args:
+        executable: /bin/bash
+      register: etcd_res
+      changed_when: "etcd_res.rc == 0"
+      retries: 60
+      delay: 60
+      # We should have all the master and worker nodes started
+      until: etcd_res.stdout_lines | list | count == ( groups['cdk_master_nodes'] | count )
 
-- name: Create kube directory
-  file:
-    path: ~/.kube
-    state: directory
-    mode: '0777'
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Create kube directory
+      file:
+        path: ~/.kube
+        state: directory
+        mode: '0777'
 
-- name: Make sure the kubeconfig file exists in the master node
-  stat:
-    path: ~/.kube/config
-  register: kconf_result
-  retries: 60
-  delay: 60
-  until: kconf_result.stat.exists
-  delegate_to: "{{ groups['cdk_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Make sure the kubeconfig file exists in the master node
+      stat:
+        path: ~/.kube/config
+      register: kconf_result
+      retries: 60
+      delay: 60
+      until: kconf_result.stat.exists
 
-- name: Copying the kubeconfig to a variable
-  slurp:
-    src: ~/.kube/config
-  register: kubeinit_cdk_cluster_kubeconfig
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['cdk_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Copying the kubeconfig to a variable
+      slurp:
+        src: ~/.kube/config
+      register: kubeinit_cdk_cluster_kubeconfig
 
-- name: Storing the master kubeconfig to the services machine.
-  copy:
-    content: "{{ kubeinit_cdk_cluster_kubeconfig.results[0].content | default('Empty file') | b64decode }}"
-    dest: ~/.kube/config
-    mode: '0644'
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Storing the master kubeconfig to the services machine.
+      copy:
+        content: "{{ kubeinit_cdk_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
+        dest: ~/.kube/config
+        mode: '0644'
 
-- name: Autoload kubeconfig
-  shell: |
-    echo "export KUBECONFIG=~/.kube/config" >> ~/.bashrc
-  delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-  register: autoload
-  changed_when: "autoload.rc == 0"
+    - name: Autoload kubeconfig
+      shell: |
+        echo "export KUBECONFIG=~/.kube/config" >> ~/.bashrc
+      register: autoload
+      changed_when: "autoload.rc == 0"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

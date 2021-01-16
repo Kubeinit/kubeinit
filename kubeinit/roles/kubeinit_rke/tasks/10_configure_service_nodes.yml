@@ -18,143 +18,110 @@
 # Configure local registry
 #
 
-- name: Render the cluster template
-  template:
-    src: "cluster.yml.j2"
-    dest: "~/cluster.yml"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['rke_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+- name: Configure the service node
+  block:
+    - name: Render the cluster template
+      template:
+        src: "cluster.yml.j2"
+        dest: "~/cluster.yml"
+        mode: '0644'
 
-- name: Download rancher
-  get_url:
-    url: "https://github.com/rancher/rke/releases/download/{{ kubeinit_rke_registry_release_tag }}/rke_linux-amd64"
-    dest: ~/
-    mode: '0755'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['rke_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Download rancher
+      get_url:
+        url: "https://github.com/rancher/rke/releases/download/{{ kubeinit_rke_registry_release_tag }}/rke_linux-amd64"
+        dest: ~/
+        mode: '0755'
 
-- name: "Adjust installer"
-  shell: |
-    mv ~/rke_linux-amd64 ~/rke
-    chmod +x rke
-  register: adjust_installer
-  changed_when: "adjust_installer.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['rke_service_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: "Adjust installer"
+      shell: |
+        mv ~/rke_linux-amd64 ~/rke
+        chmod +x rke
+      register: adjust_installer
+      changed_when: "adjust_installer.rc == 0"
 
-- name: "Render the required container images"
-  shell: |
-    set -o pipefail
-    ~/rke config --system-images | grep -v 'INFO' | grep -v 'level=info' > ~/kubeinit_deployment_images.txt
-  args:
-    executable: /bin/bash
-  register: render_images_list
-  changed_when: "render_images_list.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['rke_service_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: "Render the required container images"
+      shell: |
+        set -o pipefail
+        ~/rke config --system-images | grep -v 'INFO' | grep -v 'level=info' > ~/kubeinit_deployment_images.txt
+      args:
+        executable: /bin/bash
+      register: render_images_list
+      changed_when: "render_images_list.rc == 0"
 
-- name: Configure a local container image registry
-  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_registry
-    tasks_from: main
-  when: kubeinit_registry_enabled|bool
-  tags:
-    - provision_libvirt
+    - name: Configure a local container image registry
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_registry
+        tasks_from: main
+      when: kubeinit_registry_enabled|bool
 
-- name: Enable insecure registry in Docker
-  shell: |
-    # This is mandatory so the cluster nodes can fetch the
-    # images from the local (insecure) registry
-    sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
-    systemctl daemon-reload
-    systemctl restart docker
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
-  when: kubeinit_registry_enabled|bool
-  tags:
-    - provision_libvirt
-#
-# Configure bind
-#
+    - name: Enable insecure registry in Docker
+      shell: |
+        # This is mandatory so the cluster nodes can fetch the
+        # images from the local (insecure) registry
+        sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
+        systemctl daemon-reload
+        systemctl restart docker
+      changed_when: false
+      delegate_to: "{{ item }}"
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
+      when: kubeinit_registry_enabled|bool
 
-- name: Configure Bind
-  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_bind
-    tasks_from: main
-  tags:
-    - provision_libvirt
+    #
+    # Configure bind
+    #
 
-#
-# Configure HAproxy
-#
+    - name: Configure Bind
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_bind
+        tasks_from: main
 
-- name: Configure HAProxy
-  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_haproxy
-    tasks_from: main
-  tags:
-    - provision_libvirt
+    #
+    # Configure HAproxy
+    #
 
-#
-# Configure httpd
-#
+    - name: Configure HAProxy
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_haproxy
+        tasks_from: main
 
-- name: Configure Apache
-  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_apache
-    tasks_from: main
-  tags:
-    - provision_libvirt
+    #
+    # Configure httpd
+    #
 
-#
-# Include the install configuration
-#
+    - name: Configure Apache
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_apache
+        tasks_from: main
 
-- name: "Render root keys in the service node"
-  shell: |
-    set -o pipefail
-    cd
-    mkdir -p ~/.ssh
-    rm -f ~/.ssh/id_rsa && echo -e 'y\n' | ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
-  args:
-    executable: /bin/bash
-  register: render_service_keys
-  changed_when: "render_service_keys.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['rke_service_nodes'] }}"
-  tags:
-    - provision_libvirt
+    #
+    # Include the install configuration
+    #
 
-- name: get root service machine public key
-  command: cat /root/.ssh/id_rsa.pub
-  register: public_key_service_content
-  changed_when: "public_key_service_content.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['rke_service_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: "Render root keys in the service node"
+      shell: |
+        set -o pipefail
+        cd
+        mkdir -p ~/.ssh
+        rm -f ~/.ssh/id_rsa && echo -e 'y\n' | ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
+      args:
+        executable: /bin/bash
+      register: render_service_keys
+      changed_when: "render_service_keys.rc == 0"
 
-- name: register the public key of the root service machine public key
-  set_fact:
-    kubeinit_provision_service_public_key={{ public_key_service_content.results[0].stdout }}
+    - name: get root service machine public key
+      command: cat /root/.ssh/id_rsa.pub
+      register: public_key_service_content
+      changed_when: "public_key_service_content.rc == 0"
+
+    - name: register the public key of the root service machine public key
+      set_fact:
+        kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

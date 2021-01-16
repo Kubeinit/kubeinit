@@ -14,140 +14,114 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: get root host public key
-  command: cat /root/.ssh/id_rsa.pub
-  register: public_key_content
-  changed_when: "public_key_content.rc == 0"
-  tags:
-    - provision_libvirt
+- name: Deploy an Ubuntu based guest
+  block:
+    - name: get root host public key
+      command: cat /root/.ssh/id_rsa.pub
+      register: public_key_content
+      changed_when: "public_key_content.rc == 0"
 
-- name: register the public key of the root user from the host
-  set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
-  tags:
-    - provision_libvirt
+    - name: register the public key of the root user from the host
+      set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
 
-- name: Create the interfaces template for networking details
-  template:
-    src: "../../roles/kubeinit_libvirt/templates/00-installer-ubuntu-netconfig.yaml.j2"
-    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/00-installer-ubuntu-netconfig.yaml"
-    mode: "0644"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Create the interfaces template for networking details
+      template:
+        src: "../../roles/kubeinit_libvirt/templates/00-installer-ubuntu-netconfig.yaml.j2"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/00-installer-ubuntu-netconfig.yaml"
+        mode: "0644"
 
-- name: Create the hosts template
-  template:
-    src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
-    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/hosts.debian.tmpl"
-    mode: "0644"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Create the hosts template
+      template:
+        src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.debian.tmpl"
+        mode: "0644"
 
-- name: Create the main config file for cloud-init
-  template:
-    src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
-    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg"
-    mode: "0644"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Create the main config file for cloud-init
+      template:
+        src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg"
+        mode: "0644"
 
-- name: Create the datasource cloud-init file
-  template:
-    src: "../../roles/kubeinit_libvirt/templates/90-cloudinit-dpkg.cfg.j2"
-    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/90_dpkg.cfg"
-    mode: "0644"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Create the datasource cloud-init file
+      template:
+        src: "../../roles/kubeinit_libvirt/templates/90-cloudinit-dpkg.cfg.j2"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/90_dpkg.cfg"
+        mode: "0644"
 
-- name: Remove old disk images
-  file:
-    path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-    state: absent
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Remove old disk images
+      file:
+        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2"
+        state: absent
 
-- name: Grow the partitions
-  shell: |
-    qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.ubuntu.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2'
-    qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2 +{{ hostvars[item].disk }}
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  register: grow_img
-  changed_when: "grow_img.rc == 0"
-  tags:
-    - provision_libvirt
+    - name: Grow the partitions
+      shell: |
+        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.ubuntu.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2'
+        qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
+      register: grow_img
+      changed_when: "grow_img.rc == 0"
 
-- name: "Inject {{ kubeinit_libvirt_cloud_user }} virt-customize assets"
-  shell: |
-    virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2 \
-      --run-command 'useradd -s /bin/bash -u 1000 -p "$(openssl passwd -1 {{ kubeinit_libvirt_vms_default_password }})" {{ kubeinit_libvirt_cloud_user }}' \
-      --run-command 'echo "{{ kubeinit_libvirt_cloud_user }} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/{{ kubeinit_libvirt_cloud_user }}' \
-      --run-command 'mkdir -p {{ kubeinit_libvirt_source_keystore_dir }}' \
-      --run-command "sed -i 's/PermitRootLogin no/PermitRootLogin yes/g' /etc/ssh/sshd_config" \
-      --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
-      --run-command "dpkg-reconfigure openssh-server" \
-      --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
-      --ssh-inject root:file:/root/.ssh/id_rsa.pub \
-      --ssh-inject root:file:/root/.ssh/authorized_keys \
-      --hostname {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} \
-      --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/00-installer-ubuntu-netconfig.yaml:/etc/netplan \
-      --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/hosts.debian.tmpl:/etc/cloud/templates \
-      --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/90_dpkg.cfg:/etc/cloud/cloud.cfg.d \
-      --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/cloud.cfg:/etc/cloud
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  register: virt_inject
-  changed_when: "virt_inject.rc == 0"
-  tags:
-    - provision_libvirt
+    - name: "Inject {{ kubeinit_libvirt_cloud_user }} virt-customize assets"
+      shell: |
+        virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 \
+          --run-command 'useradd -s /bin/bash -u 1000 -p "$(openssl passwd -1 {{ kubeinit_libvirt_vms_default_password }})" {{ kubeinit_libvirt_cloud_user }}' \
+          --run-command 'echo "{{ kubeinit_libvirt_cloud_user }} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/{{ kubeinit_libvirt_cloud_user }}' \
+          --run-command 'mkdir -p {{ kubeinit_libvirt_source_keystore_dir }}' \
+          --run-command "sed -i 's/PermitRootLogin no/PermitRootLogin yes/g' /etc/ssh/sshd_config" \
+          --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
+          --run-command "dpkg-reconfigure openssh-server" \
+          --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
+          --ssh-inject root:file:/root/.ssh/id_rsa.pub \
+          --ssh-inject root:file:/root/.ssh/authorized_keys \
+          --hostname {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} \
+          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/00-installer-ubuntu-netconfig.yaml:/etc/netplan \
+          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.debian.tmpl:/etc/cloud/templates \
+          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/90_dpkg.cfg:/etc/cloud/cloud.cfg.d \
+          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg:/etc/cloud
+      register: virt_inject
+      changed_when: "virt_inject.rc == 0"
 
-- name: "Create VM definition for the service nodes"
-  shell: |
-    virt-install \
-        --connect qemu:///system \
-        --name={{ item }} \
-        --memory memory={{ hostvars[item].ram // 1024 }} \
-        --cpuset=auto \
-        --vcpus={{ hostvars[item].vcpus }},maxvcpus={{ hostvars[item].maxvcpus }} \
-        --os-type=linux \
-        --os-variant=ubuntu18.04 \
-        --autostart \
-        {% for net in kubeinit_libvirt_cluster_nets %}
-          {% if net.enabled %}
-              --network network={{ net.name }}{% if net.main %},mac={{ hostvars[item].mac }}{% endif %},model=virtio \
-          {% endif %}
-        {% endfor %}
-        {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in item %}
-              --network bridge={{ kubeinit_libvirt_external_service_interface.attached }},mac={{ kubeinit_libvirt_external_service_interface.mac }},model=virtio \
-        {% endif %}
-        --graphics none \
-        --noautoconsole \
-        --import \
-        --disk {{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2,format=qcow2,bus=virtio
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  register: virt_install
-  changed_when: "virt_install.rc == 0"
-  tags:
-    - provision_libvirt
+    - name: "Create VM definition for the service nodes"
+      shell: |
+        virt-install \
+            --connect qemu:///system \
+            --name={{ kubeinit_deployment_node_name }} \
+            --memory memory={{ hostvars[kubeinit_deployment_node_name].ram // 1024 }} \
+            --cpuset=auto \
+            --vcpus={{ hostvars[kubeinit_deployment_node_name].vcpus }},maxvcpus={{ hostvars[kubeinit_deployment_node_name].maxvcpus }} \
+            --os-type=linux \
+            --os-variant=ubuntu18.04 \
+            --autostart \
+            {% for net in kubeinit_libvirt_cluster_nets %}
+              {% if net.enabled %}
+                  --network network={{ net.name }}{% if net.main %},mac={{ hostvars[kubeinit_deployment_node_name].mac }}{% endif %},model=virtio \
+              {% endif %}
+            {% endfor %}
+            {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in kubeinit_deployment_node_name %}
+                  --network bridge={{ kubeinit_libvirt_external_service_interface.attached }},mac={{ kubeinit_libvirt_external_service_interface.mac }},model=virtio \
+            {% endif %}
+            --graphics none \
+            --noautoconsole \
+            --import \
+            --disk {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2,format=qcow2,bus=virtio
+      register: virt_install
+      changed_when: "virt_install.rc == 0"
 
-- name: wait for the guests to boot
-  wait_for:
-    port: 22
-    host: "{{ hostvars[item].ansible_host }}"
-    search_regex: OpenSSH
-    delay: 10
-    timeout: 600
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+    - name: wait for the guests to boot
+      wait_for:
+        port: 22
+        host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 600
+
+    - name: Write the new instance host keys to the hypervisor known hosts
+      shell: |
+        set -o pipefail
+        ssh-keyscan -H {{ hostvars[kubeinit_deployment_node_name].ansible_host }} >> ~/.ssh/known_hosts
+        # We can not resolve  by name from the hypervisors
+        # ssh-keyscan -H {{ kubeinit_deployment_node_name }} >> ~/.ssh/known_hosts
+        # ssh-keyscan -H {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_domain }} >> ~/.ssh/known_hosts
+
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
   tags:
     - provision_libvirt

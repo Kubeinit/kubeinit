@@ -17,116 +17,75 @@
 #
 # Initial config
 #
-- name: Force apt-get update
-  shell: |
-    apt-get update
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
 
-- name: update packages
-  package:
-    name: "*"
-    state: latest
-  delegate_to: "{{ item }}"
-  register: update_packages
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+- name: Configure common requirements in guests
+  block:
+    - name: Force apt-get update
+      shell: |
+        apt-get update
+      changed_when: false
 
-# TODO:FIXME: cloud-init is taking too much time in configure the nodes, it is
-# trying to get other datasource_list than local so it needs to timeout every time
-- name: Enable cloud init
-  shell: |
-    systemctl enable cloud-init
-    systemctl start cloud-init
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: update packages
+      package:
+        name: "*"
+        state: latest
+      register: update_packages
 
-- name: Reboot immediately after the package update
-  shell: "sleep 5 && reboot"
-  async: 1
-  poll: 0
-  when: update_packages is changed
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    # TODO:FIXME: cloud-init is taking too much time in configure the nodes, it is
+    # trying to get other datasource_list than local so it needs to timeout every time
+    - name: Enable cloud init
+      shell: |
+        systemctl enable cloud-init
+        systemctl start cloud-init
+      changed_when: false
 
-- name: Wait for the reboot to complete if there was a change.
-  wait_for:
-    port: 22
-    host: "{{ hostvars[item].ansible_host }}"
-    search_regex: OpenSSH
-    delay: 10
-    timeout: 7200
-  when: update_packages is changed
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Reboot immediately after the package update
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+      when: update_packages is changed
 
-- name: install common requirements
-  package:
-    name: "{{ kubeinit_rke_common_dependencies }}"
-    state: present
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Wait for the reboot to complete if there was a change.
+      wait_for:
+        port: 22
+        host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 7200
+      when: update_packages is changed
+      delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
-- name: Resize root partition
-  shell: |
-    echo 'Reclaim space for root partition'
-    growpart /dev/vda 1
-    resize2fs /dev/vda1
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: install common requirements
+      package:
+        name: "{{ kubeinit_rke_common_dependencies }}"
+        state: present
 
-- name: Install Docker
-  shell: |
-    apt-get update -y
-    apt-get remove docker docker-engine docker.io -y
-    apt-get install docker.io -y
-    docker --version
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Resize root partition
+      shell: |
+        echo 'Reclaim space for root partition'
+        growpart /dev/vda 1
+        resize2fs /dev/vda1
+      changed_when: false
 
-- name: Start and enable docker service
-  service:
-    name: docker
-    state: started
-    enabled: yes
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Install Docker
+      shell: |
+        apt-get update -y
+        apt-get remove docker docker-engine docker.io -y
+        apt-get install docker.io -y
+        docker --version
+      changed_when: false
 
-- name: Install kubectl
-  shell: |
-    snap install kubectl --classic
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+    - name: Start and enable docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Install kubectl
+      shell: |
+        snap install kubectl --classic
+      changed_when: false
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

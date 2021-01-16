@@ -14,206 +14,162 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "verify that all the csr are loaded and aproved for the deployed nodes"
-  shell: |
-    set -o pipefail
-    export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-    oc get csr -ojson | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve >/dev/null 2>&1; \
-    oc get csr | grep Approved
-  args:
-    executable: /bin/bash
-  register: cmd_res
-  changed_when: "cmd_res.rc == 0"
-  retries: 60
-  delay: 60
-  # Per each node we have 2 certs one per kubelet-serving and another per kube-apiserver-client-kubelet
-  until: cmd_res.stdout_lines | list | count == ( groups['okd_master_nodes'] | count + groups['okd_worker_nodes'] | count ) * 2
-  # Delegated to be executed in the service node but
-  # After the master nodes are deployed
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  tags:
-    - provision_libvirt
+- name: Configure the post deployment tasks
+  block:
+    - name: "verify that all the csr are loaded and aproved for the deployed nodes"
+      shell: |
+        set -o pipefail
+        export KUBECONFIG=~/install_dir/auth/kubeconfig; \
+        oc get csr -ojson | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve >/dev/null 2>&1; \
+        oc get csr | grep Approved
+      args:
+        executable: /bin/bash
+      register: cmd_res
+      changed_when: "cmd_res.rc == 0"
+      retries: 60
+      delay: 60
+      # Per each node we have 2 certs one per kubelet-serving and another per kube-apiserver-client-kubelet
+      until: cmd_res.stdout_lines | list | count == ( groups['okd_master_nodes'] | count + groups['okd_worker_nodes'] | count ) * 2
 
-- name: "wait until all nodes are ready"
-  shell: |
-    set -o pipefail
-    export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-    oc get nodes | grep " Ready"
-  args:
-    executable: /bin/bash
-  register: cmd_res
-  changed_when: "cmd_res.rc == 0"
-  retries: 60
-  delay: 60
-  until: cmd_res.stdout_lines | list | count == ( (groups['okd_master_nodes'] | count) + (groups['okd_worker_nodes'] | count) )
-  # Delegated to be executed in the service node but
-  # After the master nodes are deployed
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  tags:
-    - provision_libvirt
+    - name: "wait until all nodes are ready"
+      shell: |
+        set -o pipefail
+        export KUBECONFIG=~/install_dir/auth/kubeconfig; \
+        oc get nodes | grep " Ready"
+      args:
+        executable: /bin/bash
+      register: cmd_res
+      changed_when: "cmd_res.rc == 0"
+      retries: 60
+      delay: 60
+      until: cmd_res.stdout_lines | list | count == ( (groups['okd_master_nodes'] | count) + (groups['okd_worker_nodes'] | count) )
 
-- name: "use single node cluster"
-  shell: |
-    set -o pipefail
-    export KUBECONFIG=~/install_dir/auth/kubeconfig
-    oc get nodes
+    - name: "use single node cluster"
+      shell: |
+        set -o pipefail
+        export KUBECONFIG=~/install_dir/auth/kubeconfig
+        oc get nodes
 
-    oc patch clusterversion/version --type='merge' -p "$(cat <<- EOF
-    spec:
-      overrides:
-        - group: apps/v1
-          kind: Deployment
-          name: etcd-quorum-guard
-          namespace: openshift-machine-config-operator
-          unmanaged: true
-    EOF
-    )"
-    oc scale --replicas=1 deployment/etcd-quorum-guard -n openshift-machine-config-operator || true
-    oc scale --replicas=1 ingresscontroller/default -n openshift-ingress-operator || true
-    oc scale --replicas=1 deployment.apps/console -n openshift-console || true
-    oc scale --replicas=1 deployment.apps/downloads -n openshift-console || true
-    oc scale --replicas=1 deployment.apps/oauth-openshift -n openshift-authentication || true
-    oc scale --replicas=1 deployment.apps/packageserver -n openshift-operator-lifecycle-manager || true
-    # Optional
-    oc scale --replicas=1 deployment.apps/prometheus-adapter -n openshift-monitoring || true
-    oc scale --replicas=1 deployment.apps/thanos-querier -n openshift-monitoring || true
-    oc scale --replicas=1 statefulset.apps/prometheus-k8s -n openshift-monitoring || true
-    oc scale --replicas=1 statefulset.apps/alertmanager-main -n openshift-monitoring || true
+        oc patch clusterversion/version --type='merge' -p "$(cat <<- EOF
+        spec:
+          overrides:
+            - group: apps/v1
+              kind: Deployment
+              name: etcd-quorum-guard
+              namespace: openshift-machine-config-operator
+              unmanaged: true
+        EOF
+        )"
+        oc scale --replicas=1 deployment/etcd-quorum-guard -n openshift-machine-config-operator || true
+        oc scale --replicas=1 ingresscontroller/default -n openshift-ingress-operator || true
+        oc scale --replicas=1 deployment.apps/console -n openshift-console || true
+        oc scale --replicas=1 deployment.apps/downloads -n openshift-console || true
+        oc scale --replicas=1 deployment.apps/oauth-openshift -n openshift-authentication || true
+        oc scale --replicas=1 deployment.apps/packageserver -n openshift-operator-lifecycle-manager || true
+        # Optional
+        oc scale --replicas=1 deployment.apps/prometheus-adapter -n openshift-monitoring || true
+        oc scale --replicas=1 deployment.apps/thanos-querier -n openshift-monitoring || true
+        oc scale --replicas=1 statefulset.apps/prometheus-k8s -n openshift-monitoring || true
+        oc scale --replicas=1 statefulset.apps/alertmanager-main -n openshift-monitoring || true
 
-    oc patch etcd cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableEtcd": true}}}' --type=merge
-    oc patch authentications.operator.openshift.io cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableOAuthServer": true}}}' --type=merge
+        oc patch etcd cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableEtcd": true}}}' --type=merge
+        oc patch authentications.operator.openshift.io cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableOAuthServer": true}}}' --type=merge
 
-  args:
-    executable: /bin/bash
-  register: single_node_cluster
-  changed_when: "single_node_cluster.rc == 0"
-  when: (groups['okd_master_nodes'] | count) == 1
-  # Delegated to be executed in the service node but
-  # After the master nodes are deployed
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  tags:
-    - provision_libvirt
+      args:
+        executable: /bin/bash
+      register: single_node_cluster
+      changed_when: "single_node_cluster.rc == 0"
+      when: (groups['okd_master_nodes'] | count) == 1
 
-# This can take a lot of time until the cluster converges
-- name: Wait for installer to complete
-  command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info
-  register: result
-  retries: 5
-  delay: 20
-  until: result.rc == 0
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  changed_when: "result.rc == 0"
-  tags:
-    - provision_libvirt
+    # This can take a lot of time until the cluster converges
+    - name: Wait for installer to complete
+      command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info
+      register: result
+      retries: 5
+      delay: 20
+      until: result.rc == 0
+      changed_when: "result.rc == 0"
 
-- name: "remove bootstrap node from haproxy"
-  shell: |
-    sed -i '/bootstrap/s/^/#/' /etc/haproxy/haproxy.cfg
-    systemctl reload haproxy
-  register: remove_bootstrap_from_cluster
-  changed_when: "remove_bootstrap_from_cluster.rc == 0"
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  ignore_errors: yes
-  tags:
-    - provision_libvirt
+    - name: "remove bootstrap node from haproxy"
+      shell: |
+        sed -i '/bootstrap/s/^/#/' /etc/haproxy/haproxy.cfg
+        systemctl reload haproxy
+      register: remove_bootstrap_from_cluster
+      changed_when: "remove_bootstrap_from_cluster.rc == 0"
+      ignore_errors: yes
 
-- name: Destroy bootstrap node VM
-  virt:
-    name: "{{ item }}"
-    command: destroy
-  with_items: "{{ groups['okd_bootstrap_nodes'] }}"
-  ignore_errors: true
-  tags:
-    - provision_libvirt
+    # To run in the hypervisor where
+    # the bootstrap machine is deployed
+    - name: Destroy bootstrap node VM
+      virt:
+        name: "{{ item }}"
+        command: destroy
+      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
+      ignore_errors: true
+      delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
 
-- name: Undefine bootstrap node VM
-  virt:
-    name: "{{ item }}"
-    command: undefine
-  with_items: "{{ groups['okd_bootstrap_nodes'] }}"
-  ignore_errors: true
-  tags:
-    - provision_libvirt
+    # To run in the hypervisor where
+    # the bootstrap machine is deployed
+    - name: Undefine bootstrap node VM
+      virt:
+        name: "{{ item }}"
+        command: undefine
+      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
+      ignore_errors: true
+      delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
 
-- name: Remove bootstrap node VM storage
-  file:
-    state: absent
-    path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-  with_items: "{{ groups['okd_bootstrap_nodes'] }}"
-  tags:
-    - provision_libvirt
+    # To run in the hypervisor where
+    # the bootstrap machine is deployed
+    - name: Remove bootstrap node VM storage
+      file:
+        state: absent
+        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
+      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
+      delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
 
-- name: get some final cluster information
-  shell: |
-    set -o pipefail
-    set -e
-    echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
-    export KUBECONFIG=~/install_dir/auth/kubeconfig
-    oc get nodes
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  ignore_errors: yes
-  register: final_output_info
-  changed_when: "final_output_info.rc == 0"
-  tags:
-    - provision_libvirt
+    - name: get some final cluster information
+      shell: |
+        set -o pipefail
+        set -e
+        echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
+        export KUBECONFIG=~/install_dir/auth/kubeconfig
+        oc get nodes
+      ignore_errors: yes
+      register: final_output_info
+      changed_when: "final_output_info.rc == 0"
 
-- name: Copy the kubeconfig
-  shell: |
-    cp ~/install_dir/auth/kubeconfig ~/.kube/config
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  register: copy_kubeconfig
-  changed_when: "copy_kubeconfig.rc == 0"
-  tags:
-    - provision_libvirt
+    - name: Copy the kubeconfig
+      shell: |
+        cp ~/install_dir/auth/kubeconfig ~/.kube/config
+      register: copy_kubeconfig
+      changed_when: "copy_kubeconfig.rc == 0"
 
-#
-# Configure NFS
-#
+    #
+    # Configure NFS
+    #
 
-- name: Configure NFS
+    - name: Configure NFS
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_nfs
+        tasks_from: main
+
+    - name: Display final debug info
+      debug:
+        var: final_output_info
+
+    - name: Print some final data
+      vars:
+        msg: |
+          Get the kubeadmin password from the services machine
+            cat ~/install_dir/auth/kubeadmin-password
+          The OpenShift UI endpoint is:
+            console-openshift-console.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
+      debug:
+        msg: "{{ msg.split('\n') }}"
+
+  # From the hypervisor we delegate the execution to
+  # the service machine
   delegate_to: "{{ groups['okd_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_nfs
-    tasks_from: main
-  tags:
-    - provision_libvirt
-
-- name: Display final debug info
-  debug:
-    var: final_output_info
-  tags:
-    - provision_libvirt
-
-- name: Print some final data
-  vars:
-    msg: |
-      Get the kubeadmin password from the services machine
-        cat ~/install_dir/auth/kubeadmin-password
-      The OpenShift UI endpoint is:
-        console-openshift-console.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
-  debug:
-    msg: "{{ msg.split('\n') }}"
   tags:
     - provision_libvirt

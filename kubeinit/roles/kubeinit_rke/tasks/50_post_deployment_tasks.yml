@@ -14,68 +14,36 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Remove resolv file
-  file:
-    path: /etc/resolv.conf
-    state: absent
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+- name: Configure the post deployment tasks
+  block:
+    - name: Remove resolv file
+      file:
+        path: /etc/resolv.conf
+        state: absent
 
-- name: Create a symbolic link to the resolv.conf file
-  file:
-    src: /etc/resolvconf/resolv.conf.d/head
-    dest: /etc/resolv.conf
-    state: link
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Create a symbolic link to the resolv.conf file
+      file:
+        src: /etc/resolvconf/resolv.conf.d/head
+        dest: /etc/resolv.conf
+        state: link
 
-- name: Add info to the resolv.conf
-  shell: |
-    echo "nameserver {{ kubeinit_inventory_network_gateway }}" > /etc/resolv.conf
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Add info to the resolv.conf
+      shell: |
+        echo "nameserver {{ kubeinit_inventory_network_gateway }}" > /etc/resolv.conf
+      changed_when: false
 
-- name: Restart the resolvconf service
-  service:
-    name: "resolvconf"
-    state: restarted
-    enabled: yes
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Restart the resolvconf service
+      service:
+        name: "resolvconf"
+        state: restarted
+        enabled: yes
 
-- name: Restart the systemd-resolved service
-  service:
-    name: "systemd-resolved"
-    state: restarted
-    enabled: yes
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Restart the systemd-resolved service
+      service:
+        name: "systemd-resolved"
+        state: restarted
+        enabled: yes
 
-#
-# Configure NFS
-#
-
-- name: Configure NFS
-  delegate_to: "{{ groups['rke_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_nfs
-    tasks_from: main
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

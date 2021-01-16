@@ -14,346 +14,243 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: update packages
-  yum:
-    name: "*"
-    state: latest
-    use_backend: dnf
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'][0] }}"
-  register: update_packages
-  tags:
-    - provision_libvirt
+- name: Configure the service node
+  block:
+    - name: update packages
+      yum:
+        name: "*"
+        state: latest
+        use_backend: dnf
+      register: update_packages
 
-- name: Reboot immediately after the package update
-  shell: "sleep 5 && reboot"
-  async: 1
-  poll: 0
-  when: update_packages is changed
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Reboot immediately after the package update
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+      when: update_packages is changed
 
-- name: Wait for the reboot to complete if there was a change.
-  wait_for:
-    port: 22
-    host: "{{ hostvars[item].ansible_host }}"
-    search_regex: OpenSSH
-    delay: 10
-    timeout: 7200
-  when: update_packages is changed
-  with_items: "{{ groups['okd_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Wait for the reboot to complete if there was a change.
+      wait_for:
+        port: 22
+        host: "{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}"
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 7200
+      when: update_packages is changed
+      delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
 
-- name: install services requirements
-  yum:
-    name: "{{ kubeinit_okd_service_dependencies }}"
-    state: present
-    use_backend: dnf
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: install services requirements
+      yum:
+        name: "{{ kubeinit_okd_service_dependencies }}"
+        state: present
+        use_backend: dnf
 
-- name: Resize root partition
-  shell: |
-    echo 'Reclaim space for root partition'
-    growpart /dev/vda 1
-    xfs_growfs /dev/vda1
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: Resize root partition
+      shell: |
+        echo 'Reclaim space for root partition'
+        growpart /dev/vda 1
+        xfs_growfs /dev/vda1
+      changed_when: false
 
-- name: Create directory for apache
-  file:
-    path: /var/www/html/okd4
-    state: directory
-    owner: apache
-    group: apache
-    mode: 0775
-    recurse: yes
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: Create directory for apache
+      file:
+        path: /var/www/html/okd4
+        state: directory
+        owner: apache
+        group: apache
+        mode: 0775
+        recurse: yes
 
-#
-# Configure bind
-#
+    #
+    # Configure bind
+    #
 
-- name: Configure Bind
+    - name: Configure Bind
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_bind
+        tasks_from: main
+    #
+    # Configure HAproxy
+    #
+
+    - name: Configure HAProxy
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_haproxy
+        tasks_from: main
+
+    #
+    # Configure httpd
+    #
+
+    - name: Configure Apache
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_apache
+        tasks_from: main
+
+    #
+    # Include the install configuration
+    #
+
+    - name: "Render root keys in the service node"
+      shell: |
+        cd
+        mkdir ~/.ssh
+        ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
+      register: render_service_keys
+      changed_when: "render_service_keys.rc == 0"
+
+    - name: get root service machine public key
+      command: cat /root/.ssh/id_rsa.pub
+      register: public_key_service_content
+      changed_when: "public_key_service_content.rc == 0"
+
+    - name: register the public key of the root service machine public key
+      set_fact:
+        kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
+
+    - name: Download okd installer
+      get_url:
+        url: "{{ kubeinit_okd_dependencies.installer }}"
+        dest: ~/
+
+    - name: Download okd client
+      get_url:
+        url: "{{ kubeinit_okd_dependencies.client }}"
+        dest: ~/
+
+    - name: "Install okd client and installer"
+      shell: |
+        set -o pipefail
+        cd
+        rm -rf install_dir
+        mkdir install_dir
+        for f in *.tar.gz; do tar -xvf "$f"; done
+        mv kubectl oc openshift-install /usr/local/bin/
+        oc version
+        openshift-install version
+      args:
+        executable: /bin/bash
+      register: install_client_and_installer
+      changed_when: "install_client_and_installer.rc == 0"
+
+    #
+    # Configure local registry
+    #
+
+    - name: "Render the required container images"
+      shell: |
+        set -o pipefail
+        URL=$( curl -s "https://api.github.com/repos/openshift/okd/releases/tags/{{ kubeinit_okd_registry_release_tag }}" \
+           | jq -r '.assets[] | select(.name=="release.txt") | .browser_download_url' )
+
+        curl -LO "$URL"
+
+        cat release.txt | grep quay | grep -v "Pull From" | tr -s ' ' | cut -d ' ' -f 3 > ~/kubeinit_deployment_images.txt
+      args:
+        executable: /bin/bash
+      register: render_images_list
+      changed_when: "render_images_list.rc == 0"
+
+    - name: Configure a local container image registry
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_registry
+        tasks_from: main
+      when: kubeinit_registry_enabled|bool
+
+    - name: Render the cluster template
+      template:
+        src: "install-config.yaml.j2"
+        dest: "~/install_dir/install-config.yaml"
+        mode: '0644'
+
+    - name: "Backup the install config file"
+      shell: |
+        cp ~/install_dir/install-config.yaml ~/install-config.yaml
+      register: backup_install_config
+      changed_when: "backup_install_config.rc == 0"
+
+    - name: "Render the bootstrap details"
+      shell: |
+        openshift-install create manifests --dir=install_dir/
+      register: render_bootstrap_details
+      changed_when: "render_bootstrap_details.rc == 0"
+
+    - name: "Disable master schedulable"
+      shell: |
+        set -o pipefail
+        cd
+        # Be aware of this option, explain the consequences in:
+        # https://www.anstack.com/blog/2020/08/16/a-review-of-the-machineconfig-operator.html
+        sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
+      register: disable_masters_sched
+      changed_when: "disable_masters_sched.rc == 0"
+      when: groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length > 0
+
+    - name: "Render ignition files"
+      shell: |
+        openshift-install create ignition-configs --dir=install_dir/
+        cp -R install_dir/* /var/www/html/okd4/
+      register: render_ignition_files
+      changed_when: "render_ignition_files.rc == 0"
+
+    - name: Download coreos initrd image
+      get_url:
+        url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.initrd }}"
+        dest: /var/www/html/okd4/
+        owner: apache
+        group: apache
+        mode: 0775
+
+    - name: Download coreos rootfs image
+      get_url:
+        url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.rootfs }}"
+        dest: /var/www/html/okd4/
+        owner: apache
+        group: apache
+        mode: 0775
+
+    - name: Download coreos raw image
+      get_url:
+        url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.raw }}"
+        dest: /var/www/html/okd4/
+        owner: apache
+        group: apache
+        mode: 0775
+
+    - name: Download coreos sig image
+      get_url:
+        url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.sig }}"
+        dest: /var/www/html/okd4/
+        owner: apache
+        group: apache
+        mode: 0775
+
+    - name: "Apply permissions to the apache folder"
+      shell: |
+        sudo chown -R apache: /var/www/html/
+        sudo chmod -R 755 /var/www/html/
+      register: apply_apache_permissions
+      changed_when: "apply_apache_permissions.rc == 0"
+
+    - name: Create kube directory
+      file:
+        path: ~/.kube
+        state: directory
+        mode: '0644'
+
+    - name: Autoload kubeconfig
+      shell: |
+        echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
+      ignore_errors: yes
+      register: autoload
+      changed_when: "autoload.rc == 0"
+
+  # From the hypervisor we delegate the execution to
+  # the service machine
   delegate_to: "{{ groups['okd_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_bind
-    tasks_from: main
-  tags:
-    - provision_libvirt
-#
-# Configure HAproxy
-#
-
-- name: Configure HAProxy
-  delegate_to: "{{ groups['okd_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_haproxy
-    tasks_from: main
-  tags:
-    - provision_libvirt
-
-#
-# Configure httpd
-#
-
-- name: Configure Apache
-  delegate_to: "{{ groups['okd_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_apache
-    tasks_from: main
-  tags:
-    - provision_libvirt
-
-#
-# Include the install configuration
-#
-
-- name: "Render root keys in the service node"
-  shell: |
-    cd
-    mkdir ~/.ssh
-    ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
-  register: render_service_keys
-  changed_when: "render_service_keys.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-
-- name: get root service machine public key
-  command: cat /root/.ssh/id_rsa.pub
-  register: public_key_service_content
-  changed_when: "public_key_service_content.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: register the public key of the root service machine public key
-  set_fact:
-    kubeinit_provision_service_public_key={{ public_key_service_content.results }}
-  tags:
-    - provision_libvirt
-
-- name: Download okd installer
-  get_url:
-    url: "{{ kubeinit_okd_dependencies.installer }}"
-    dest: ~/
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Download okd client
-  get_url:
-    url: "{{ kubeinit_okd_dependencies.client }}"
-    dest: ~/
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: "Install okd client and installer"
-  shell: |
-    set -o pipefail
-    cd
-    rm -rf install_dir
-    mkdir install_dir
-    for f in *.tar.gz; do tar -xvf "$f"; done
-    mv kubectl oc openshift-install /usr/local/bin/
-    oc version
-    openshift-install version
-  args:
-    executable: /bin/bash
-  register: install_client_and_installer
-  changed_when: "install_client_and_installer.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-#
-# Configure local registry
-#
-
-- name: "Render the required container images"
-  shell: |
-    set -o pipefail
-    URL=$( curl -s "https://api.github.com/repos/openshift/okd/releases/tags/{{ kubeinit_okd_registry_release_tag }}" \
-       | jq -r '.assets[] | select(.name=="release.txt") | .browser_download_url' )
-
-    curl -LO "$URL"
-
-    cat release.txt | grep quay | grep -v "Pull From" | tr -s ' ' | cut -d ' ' -f 3 > ~/kubeinit_deployment_images.txt
-  args:
-    executable: /bin/bash
-  register: render_images_list
-  changed_when: "render_images_list.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Configure a local container image registry
-  delegate_to: "{{ groups['okd_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_registry
-    tasks_from: main
-  when: kubeinit_registry_enabled|bool
-  tags:
-    - provision_libvirt
-
-- name: Render the cluster template
-  template:
-    src: "install-config.yaml.j2"
-    dest: "~/install_dir/install-config.yaml"
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: "Backup the install config file"
-  shell: |
-    cp ~/install_dir/install-config.yaml ~/install-config.yaml
-  register: backup_install_config
-  changed_when: "backup_install_config.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: "Render the bootstrap details"
-  shell: |
-    openshift-install create manifests --dir=install_dir/
-  register: render_bootstrap_details
-  changed_when: "render_bootstrap_details.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: "Disable master schedulable"
-  shell: |
-    set -o pipefail
-    cd
-    # Be aware of this option, explain the consequences in:
-    # https://www.anstack.com/blog/2020/08/16/a-review-of-the-machineconfig-operator.html
-    sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
-  register: disable_masters_sched
-  changed_when: "disable_masters_sched.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  when: groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length > 0
-  tags:
-    - provision_libvirt
-
-- name: "Render ignition files"
-  shell: |
-    openshift-install create ignition-configs --dir=install_dir/
-    cp -R install_dir/* /var/www/html/okd4/
-  register: render_ignition_files
-  changed_when: "render_ignition_files.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Download coreos initrd image
-  get_url:
-    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.initrd }}"
-    dest: /var/www/html/okd4/
-    owner: apache
-    group: apache
-    mode: 0775
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Download coreos rootfs image
-  get_url:
-    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.rootfs }}"
-    dest: /var/www/html/okd4/
-    owner: apache
-    group: apache
-    mode: 0775
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Download coreos raw image
-  get_url:
-    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.raw }}"
-    dest: /var/www/html/okd4/
-    owner: apache
-    group: apache
-    mode: 0775
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Download coreos sig image
-  get_url:
-    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.sig }}"
-    dest: /var/www/html/okd4/
-    owner: apache
-    group: apache
-    mode: 0775
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: "Apply permissions to the apache folder"
-  shell: |
-    sudo chown -R apache: /var/www/html/
-    sudo chmod -R 755 /var/www/html/
-  register: apply_apache_permissions
-  changed_when: "apply_apache_permissions.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Create kube directory
-  file:
-    path: ~/.kube
-    state: directory
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Autoload kubeconfig
-  shell: |
-    echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  ignore_errors: yes
-  register: autoload
-  changed_when: "autoload.rc == 0"
   tags:
     - provision_libvirt

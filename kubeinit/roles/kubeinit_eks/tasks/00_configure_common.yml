@@ -18,434 +18,273 @@
 # Initial config
 #
 
-- name: update packages
-  yum:
-    name: "*"
-    state: latest
-    use_backend: dnf
-  register: update_packages
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+- name: Configure common requirements in guests
+  block:
+    - name: update packages
+      yum:
+        name: "*"
+        state: latest
+        use_backend: dnf
+      register: update_packages
 
-- name: Reboot immediately after the package update
-  shell: "sleep 5 && reboot"
-  async: 1
-  poll: 0
-  when: update_packages is changed
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Reboot immediately after the package update
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+      when: update_packages is changed
 
-- name: Wait for the reboot to complete if there was a change.
-  wait_for:
-    port: 22
-    host: "{{ hostvars[item].ansible_host }}"
-    search_regex: OpenSSH
-    delay: 10
-    timeout: 7200
-  when: update_packages is changed
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Wait for the reboot to complete if there was a change.
+      wait_for:
+        port: 22
+        host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 7200
+      when: update_packages is changed
+      delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
-- name: install common requirements
-  yum:
-    name: "{{ kubeinit_eks_common_dependencies }}"
-    state: present
-    use_backend: dnf
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: install common requirements
+      yum:
+        name: "{{ kubeinit_eks_common_dependencies }}"
+        state: present
+        use_backend: dnf
 
-- name: Add the local DNS server as a local resolver
-  lineinfile:
-    path: /etc/resolv.conf
-    line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Add the local DNS server as a local resolver
+      lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
 
-- name: Resize root partition
-  shell: |
-    echo 'Reclaim space for root partition'
-    growpart /dev/vda 1
-    xfs_growfs /dev/vda1
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Resize root partition
+      shell: |
+        echo 'Reclaim space for root partition'
+        growpart /dev/vda 1
+        xfs_growfs /dev/vda1
+      changed_when: false
 
-- name: Enable kernel modules and IP forward
-  shell: |
-    modprobe br_netfilter
-    echo br_netfilter > /etc/modules-load.d/br_netfilter.conf
-    modprobe overlay
-    echo overlay > /etc/modules-load.d/overlay.conf
-    echo '1' > /proc/sys/net/ipv4/ip_forward
-    mkdir -p /proc/sys/net/bridge/
-    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
-    sysctl -p
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Enable kernel modules and IP forward
+      shell: |
+        modprobe br_netfilter
+        echo br_netfilter > /etc/modules-load.d/br_netfilter.conf
+        modprobe overlay
+        echo overlay > /etc/modules-load.d/overlay.conf
+        echo '1' > /proc/sys/net/ipv4/ip_forward
+        mkdir -p /proc/sys/net/bridge/
+        echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+        sysctl -p
+      changed_when: false
 
-- name: Disable SELinux
-  selinux:
-    state: disabled
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Disable SELinux
+      selinux:
+        state: disabled
 
-#
-# Configuring repositories
-#
+    #
+    # Configuring repositories
+    #
 
-#
-# cri-o repos
-#
+    #
+    # cri-o repos
+    #
 
-- name: Remove repo before adding it
-  file:
-    path: /etc/yum.repos.d/crio.repo
-    state: absent
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Remove repo before adding it
+      file:
+        path: /etc/yum.repos.d/crio.repo
+        state: absent
 
-- name: Creating a repository file for cri-o
-  file:
-    path: /etc/yum.repos.d/crio.repo
-    state: touch
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Creating a repository file for cri-o
+      file:
+        path: /etc/yum.repos.d/crio.repo
+        state: touch
+        mode: '0644'
 
-- name: Adding repository details in the cri-o repo file.
-  blockinfile:
-    path: /etc/yum.repos.d/crio.repo
-    block: |
-      [devel_kubic_libcontainers_stable]
-      name=Stable Releases of Upstream github.com/containers packages (CentOS_8)
-      type=rpm-md
-      baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/
-      gpgcheck=1
-      gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/repodata/repomd.xml.key
-      enabled=1
-      [devel_kubic_libcontainers_stable_cri-o_1.18]
-      name=Last release available in 1.18 branch (CentOS_8)
-      type=rpm-md
-      baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.18/CentOS_8/
-      gpgcheck=1
-      gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.18/CentOS_8/repodata/repomd.xml.key
-      enabled=1
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Adding repository details in the cri-o repo file.
+      blockinfile:
+        path: /etc/yum.repos.d/crio.repo
+        block: |
+          [devel_kubic_libcontainers_stable]
+          name=Stable Releases of Upstream github.com/containers packages (CentOS_8)
+          type=rpm-md
+          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/
+          gpgcheck=1
+          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/repodata/repomd.xml.key
+          enabled=1
+          [devel_kubic_libcontainers_stable_cri-o_1.18]
+          name=Last release available in 1.18 branch (CentOS_8)
+          type=rpm-md
+          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.18/CentOS_8/
+          gpgcheck=1
+          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.18/CentOS_8/repodata/repomd.xml.key
+          enabled=1
 
-#
-# eks repos
-#
+    #
+    # eks repos
+    #
 
-- name: Remove repo before adding it
-  file:
-    path: /etc/yum.repos.d/kubernetes.repo
-    state: absent
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Remove repo before adding it
+      file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: absent
 
-- name: Creating a repository file for Kubernetes
-  file:
-    path: /etc/yum.repos.d/kubernetes.repo
-    state: touch
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Creating a repository file for Kubernetes
+      file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: touch
+        mode: '0644'
 
-- name: Adding repository details in Kubernetes repo file.
-  blockinfile:
-    path: /etc/yum.repos.d/kubernetes.repo
-    block: |
-     [kubernetes]
-     name=Kubernetes
-     baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
-     enabled=1
-     gpgcheck=1
-     repo_gpgcheck=1
-     gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
-            https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Adding repository details in Kubernetes repo file.
+      blockinfile:
+        path: /etc/yum.repos.d/kubernetes.repo
+        block: |
+         [kubernetes]
+         name=Kubernetes
+         baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+         enabled=1
+         gpgcheck=1
+         repo_gpgcheck=1
+         gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+                https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 
-# - name: Upgrade all packages
-#   yum:
-#     name: '*'
-#     state: latest
-#   delegate_to: "{{ item }}"
-#   with_items:
-#     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-#   tags:
-#     - provision_libvirt
+    # - name: Upgrade all packages
+    #   yum:
+    #     name: '*'
+    #     state: latest
 
-#
-# cri-o config
-#
+    #
+    # cri-o config
+    #
 
-# The three steps beforeshould provide the correct repo to install cri-o
-- name: install the latest version of cri-o
-  yum:
-    name: cri-o
-    state: present
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    # The three steps beforeshould provide the correct repo to install cri-o
+    - name: install the latest version of cri-o
+      yum:
+        name: cri-o
+        state: present
 
-- name: Creating cri-o sysctl file
-  file:
-    path: /etc/sysctl.d/99-kubernetes-cri.conf
-    state: touch
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Creating cri-o sysctl file
+      file:
+        path: /etc/sysctl.d/99-kubernetes-cri.conf
+        state: touch
+        mode: '0644'
 
-- name: Configure cri-o ipv4_forward
-  blockinfile:
-    path: /etc/sysctl.d/99-kubernetes-cri.conf
-    block: |
-     net.bridge.bridge-nf-call-iptables  = 1
-     net.ipv4.ip_forward                 = 1
-     net.bridge.bridge-nf-call-ip6tables = 1
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Configure cri-o ipv4_forward
+      blockinfile:
+        path: /etc/sysctl.d/99-kubernetes-cri.conf
+        block: |
+         net.bridge.bridge-nf-call-iptables  = 1
+         net.ipv4.ip_forward                 = 1
+         net.bridge.bridge-nf-call-ip6tables = 1
 
-- name: Load system new sysctl parameters
-  command: sysctl -p/etc/sysctl.d/99-kubernetes-cri.conf
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Load system new sysctl parameters
+      command: sysctl -p/etc/sysctl.d/99-kubernetes-cri.conf
+      changed_when: false
 
-- name: Update cri-o config systemd to cgroupfs
-  command: sed -i 's#group_manager = "systemd"#group_manager = "cgroupfs"#g' /etc/crio/crio.conf
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Update cri-o config systemd to cgroupfs
+      command: sed -i 's#group_manager = "systemd"#group_manager = "cgroupfs"#g' /etc/crio/crio.conf
+      changed_when: false
 
-- name: Update cri-o config overlay to overlay2
-  command: sed -i 's/[#|^]storage_driver = .*/storage_driver = "overlay2"/g' /etc/crio/crio.conf
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Update cri-o config overlay to overlay2
+      command: sed -i 's/[#|^]storage_driver = .*/storage_driver = "overlay2"/g' /etc/crio/crio.conf
+      changed_when: false
 
-- name: Update cri-o config storage option to overlay2
-  command: sed -i 's/[#|^]storage_option = .*/storage_option = [ "overlay2.override_kernel_check=1" ]/g' /etc/crio/crio.conf
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Update cri-o config storage option to overlay2
+      command: sed -i 's/[#|^]storage_option = .*/storage_option = [ "overlay2.override_kernel_check=1" ]/g' /etc/crio/crio.conf
+      changed_when: false
 
-- name: Create new net.d folder
-  file:
-    path: /etc/crio/net.d
-    state: directory
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Create new net.d folder
+      file:
+        path: /etc/crio/net.d
+        state: directory
+        mode: '0644'
 
-- name: Update cri-o config network dir to crio folder
-  command: sed -i 's?[#|^]network_dir = .*?network_dir = "/etc/crio/net.d/"?g' /etc/crio/crio.conf
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Update cri-o config network dir to crio folder
+      command: sed -i 's?[#|^]network_dir = .*?network_dir = "/etc/crio/net.d/"?g' /etc/crio/crio.conf
+      changed_when: false
 
-- name: Update cri-o config conmon to the correct path
-  command: sed 's|/usr/libexec/crio/conmon|/usr/bin/conmon|' -i /etc/crio/crio.conf
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Update cri-o config conmon to the correct path
+      command: sed 's|/usr/libexec/crio/conmon|/usr/bin/conmon|' -i /etc/crio/crio.conf
+      changed_when: false
 
-- name: Creating kubelet default file
-  file:
-    path: /etc/default/kubelet
-    state: touch
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Creating kubelet default file
+      file:
+        path: /etc/default/kubelet
+        state: touch
+        mode: '0644'
 
-- name: Configure kubelet defaults
-  blockinfile:
-    path: /etc/default/kubelet
-    block: |
-      KUBELET_EXTRA_ARGS=--runtime-cgroups=/systemd/system.slice --kubelet-cgroups=/systemd/system.slice --feature-gates="AllAlpha=false,RunAsGroup=true" --container-runtime=remote --cgroup-driver=cgroupfs --container-runtime-endpoint='unix:///var/run/crio/crio.sock' --runtime-request-timeout=5m
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Configure kubelet defaults
+      blockinfile:
+        path: /etc/default/kubelet
+        block: |
+          KUBELET_EXTRA_ARGS=--runtime-cgroups=/systemd/system.slice --kubelet-cgroups=/systemd/system.slice --feature-gates="AllAlpha=false,RunAsGroup=true" --container-runtime=remote --cgroup-driver=cgroupfs --container-runtime-endpoint='unix:///var/run/crio/crio.sock' --runtime-request-timeout=5m
 
-- name: Systemd reload
-  command: systemctl daemon-reload
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Systemd reload
+      command: systemctl daemon-reload
+      changed_when: false
 
-- name: Creating cri-o bridge
-  # From: https://github.com/cri-o/cri-o/blob/master/contrib/cni/10-crio-bridge.conf
-  file:
-    path: /etc/crio/net.d/10-crio-bridge.conf
-    state: touch
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Creating cri-o bridge
+      # From: https://github.com/cri-o/cri-o/blob/master/contrib/cni/10-crio-bridge.conf
+      file:
+        path: /etc/crio/net.d/10-crio-bridge.conf
+        state: touch
+        mode: '0644'
 
-- name: Configure cri-o bridge
-  blockinfile:
-    path: /etc/crio/net.d/10-crio-bridge.conf
-    block: |
-     {
-         "cniVersion": "0.3.1",
-         "name": "crio-bridge",
-         "type": "bridge",
-         "bridge": "cni0",
-         "isGateway": true,
-         "ipMasq": true,
-         "hairpinMode": true,
-         "ipam": {
-             "type": "host-local",
-             "routes": [
-                 { "dst": "0.0.0.0/0" },
-                 { "dst": "1100:200::1/24" }
-             ],
-             "ranges": [
-                 [{ "subnet": "10.244.0.0/16" }],
-                 [{ "subnet": "1100:200::/24" }]
-             ]
+    - name: Configure cri-o bridge
+      blockinfile:
+        path: /etc/crio/net.d/10-crio-bridge.conf
+        block: |
+         {
+             "cniVersion": "0.3.1",
+             "name": "crio-bridge",
+             "type": "bridge",
+             "bridge": "cni0",
+             "isGateway": true,
+             "ipMasq": true,
+             "hairpinMode": true,
+             "ipam": {
+                 "type": "host-local",
+                 "routes": [
+                     { "dst": "0.0.0.0/0" },
+                     { "dst": "1100:200::1/24" }
+                 ],
+                 "ranges": [
+                     [{ "subnet": "10.244.0.0/16" }],
+                     [{ "subnet": "1100:200::/24" }]
+                 ]
+             }
          }
-     }
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
 
-- name: Create hooks folder
-  file:
-    path: /usr/share/containers/oci/hooks.d
-    state: directory
-    mode: '0777'
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Create hooks folder
+      file:
+        path: /usr/share/containers/oci/hooks.d
+        state: directory
+        mode: '0777'
 
-- name: Enable/start/status cri-o
-  shell: |
-    systemctl enable crio
-    systemctl start crio
-    systemctl status crio
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: Enable/start/status cri-o
+      shell: |
+        systemctl enable crio
+        systemctl start crio
+        systemctl status crio
+      changed_when: false
 
-#
-# Kubernetes config
-#
+    #
+    # Kubernetes config
+    #
 
-- name: install requirements
-  package:
-    name:
-      - tc
-      - yum-utils
-      - device-mapper-persistent-data
-      - lvm2
-      - "kubelet-{{ kubeinit_eks_kubernetes_version }}"
-      - "kubeadm-{{ kubeinit_eks_kubernetes_version }}"
-      - "kubectl-{{ kubeinit_eks_kubernetes_version }}"
-    state: present
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: install requirements
+      package:
+        name:
+          - tc
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+          - "kubelet-{{ kubeinit_eks_kubernetes_version }}"
+          - "kubeadm-{{ kubeinit_eks_kubernetes_version }}"
+          - "kubectl-{{ kubeinit_eks_kubernetes_version }}"
+        state: present
 
-- name: enable kubelet
-  systemd:
-    state: restarted
-    name: kubelet
-    enabled: yes
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+    - name: enable kubelet
+      systemd:
+        state: restarted
+        name: kubelet
+        enabled: yes
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt
