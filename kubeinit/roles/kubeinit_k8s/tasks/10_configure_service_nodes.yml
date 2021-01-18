@@ -14,108 +14,83 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: install services requirements
-  yum:
-    name: "{{ kubeinit_k8s_service_dependencies }}"
-    state: present
-    use_backend: dnf
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_service_nodes'] }}"
+- name: Configure the service node
+  block:
+    - name: install services requirements
+      yum:
+        name: "{{ kubeinit_k8s_service_dependencies }}"
+        state: present
+        use_backend: dnf
+
+    # #
+    # # Configure local registry
+    # #
+    #
+    # - name: Configure a local container image registry
+    #   # delegate_facts: true
+    #   import_role:
+    #     name: ../../roles/kubeinit_registry
+    #     tasks_from: main
+    #   when: kubeinit_registry_enabled|bool
+
+    #
+    # Configure bind
+    #
+
+    - name: Configure Bind
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_bind
+        tasks_from: main
+
+    #
+    # Configure HAproxy
+    #
+
+    - name: Configure HAProxy
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_haproxy
+        tasks_from: main
+
+    #
+    # Configure httpd
+    #
+
+    - name: Configure Apache
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_apache
+        tasks_from: main
+
+    #
+    # Include the install configuration
+    #
+
+    - name: "Render root keys in the service node"
+      shell: |
+        cd
+        mkdir ~/.ssh
+        ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
+      register: render_service_keys
+      changed_when: "render_service_keys.rc == 0"
+
+    - name: get root service machine public key
+      command: cat /root/.ssh/id_rsa.pub
+      register: public_key_service_content
+      changed_when: "public_key_service_content.rc == 0"
+
+    - name: register the public key of the root service machine public key
+      set_fact:
+        kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
+
+    #- name: Autoload kubeconfig
+    #  shell: |
+    #    echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
+    #  ignore_errors: yes
+    #  register: autoload
+    #  changed_when: "autoload.rc == 0"
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt
-
-# #
-# # Configure local registry
-# #
-#
-# - name: Configure a local container image registry
-#   delegate_to: "{{ groups['k8s_service_nodes'][0] }}"
-#   # delegate_facts: true
-#   import_role:
-#     name: ../../roles/kubeinit_registry
-#     tasks_from: main
-#   when: kubeinit_registry_enabled|bool
-#   tags:
-#     - provision_libvirt
-
-#
-# Configure bind
-#
-
-- name: Configure Bind
-  delegate_to: "{{ groups['k8s_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_bind
-    tasks_from: main
-  tags:
-    - provision_libvirt
-#
-# Configure HAproxy
-#
-
-- name: Configure HAProxy
-  delegate_to: "{{ groups['k8s_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_haproxy
-    tasks_from: main
-  tags:
-    - provision_libvirt
-
-#
-# Configure httpd
-#
-
-- name: Configure Apache
-  delegate_to: "{{ groups['k8s_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_apache
-    tasks_from: main
-  tags:
-    - provision_libvirt
-
-#
-# Include the install configuration
-#
-
-- name: "Render root keys in the service node"
-  shell: |
-    cd
-    mkdir ~/.ssh
-    ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
-  register: render_service_keys
-  changed_when: "render_service_keys.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: get root service machine public key
-  command: cat /root/.ssh/id_rsa.pub
-  register: public_key_service_content
-  changed_when: "public_key_service_content.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: register the public key of the root service machine public key
-  set_fact:
-    kubeinit_provision_service_public_key={{ public_key_service_content.results }}
-  tags:
-    - provision_libvirt
-
-#- name: Autoload kubeconfig
-#  shell: |
-#    echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
-#  delegate_to: "{{ cluster_node }}"
-#  with_items: "{{ groups['k8s_service_nodes'] }}"
-#  loop_control:
-#    loop_var: cluster_node
-#  ignore_errors: yes
-#  register: autoload
-#  changed_when: "autoload.rc == 0"
-#  tags:
-#    - provision_libvirt

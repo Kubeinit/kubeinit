@@ -26,6 +26,13 @@
    name: "../../roles/kubeinit_libvirt"
    tasks_from: main.yml
    public: yes
+  # We prepare all the available hypervisors
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   tags: provision_libvirt
 
 - name: Deploy the cluster nodes
@@ -33,6 +40,12 @@
     name: "../../roles/kubeinit_libvirt"
     tasks_from: 10_k8s_deploy_nodes.yml
     public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   tags: provision_libvirt
 
 - name: Configure the cluster common config
@@ -40,6 +53,12 @@
     name: "../../roles/kubeinit_k8s"
     tasks_from: 00_configure_common.yml
     public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   tags: provision_libvirt
 
 - name: Configure the cluster service node
@@ -47,6 +66,13 @@
     name: "../../roles/kubeinit_k8s"
     tasks_from: 10_configure_service_nodes.yml
     public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: service
   tags: provision_libvirt
 
 - name: Configure the cluster master nodes
@@ -54,6 +80,13 @@
     name: "../../roles/kubeinit_k8s"
     tasks_from: 20_configure_master_nodes.yml
     public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: master
   tags: provision_libvirt
 
 - name: Configure the cluster worker nodes
@@ -61,6 +94,13 @@
     name: "../../roles/kubeinit_k8s"
     tasks_from: 30_configure_worker_nodes.yml
     public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: worker
   tags: provision_libvirt
 
 - name: Finish post deployment tasks
@@ -68,4 +108,11 @@
     name: "../../roles/kubeinit_k8s"
     tasks_from: 40_post_deployment_tasks.yml
     public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: service
   tags: provision_libvirt

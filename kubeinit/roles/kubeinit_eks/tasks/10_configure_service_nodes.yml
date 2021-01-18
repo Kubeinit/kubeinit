@@ -14,151 +14,130 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: install services requirements
-  yum:
-    name: "{{ kubeinit_eks_service_dependencies }}"
-    state: present
-    use_backend: dnf
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_service_nodes'] }}"
+- name: Configure the service node
+  block:
+    - name: install services requirements
+      yum:
+        name: "{{ kubeinit_eks_service_dependencies }}"
+        state: present
+        use_backend: dnf
+
+    #
+    # Configure local registry
+    #
+
+    - name: "Get the required container images"
+      shell: |
+        set -o pipefail
+        wget https://raw.githubusercontent.com/aws/eks-distro/main/development/pull-all.sh
+        cat pull-all.sh | grep 'docker pull' | cut -d' ' -f3 > ~/kubeinit_deployment_images.txt
+      args:
+        executable: /bin/bash
+      register: render_images_list
+      changed_when: "render_images_list.rc == 0"
+
+    - name: Configure a local container image registry
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_registry
+        tasks_from: main
+      vars:
+        kubeinit_registry_container_engine: podman
+      when: kubeinit_registry_enabled|bool
+
+    - name: Add insecure registry
+      community.general.ini_file:
+        path: /etc/containers/registries.conf
+        section: registries.insecure
+        option: registries
+        value: ['{{ kubeinit_registry_uri }}']
+        mode: '0600'
+        backup: yes
+      delegate_to: "{{ item }}"
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      when: kubeinit_registry_enabled | bool
+      tags:
+        - provision_libvirt
+
+    - name: Reload cri-o
+      shell: |
+        systemctl reload crio
+      changed_when: false
+      delegate_to: "{{ item }}"
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      tags:
+        - provision_libvirt
+
+    #
+    # Configure bind
+    #
+
+    - name: Configure Bind
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_bind
+        tasks_from: main
+
+    #
+    # Configure HAproxy
+    #
+
+    - name: Configure HAProxy
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_haproxy
+        tasks_from: main
+
+    #
+    # Configure httpd
+    #
+
+    - name: Configure Apache
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_apache
+        tasks_from: main
+
+    #
+    # Include the install configuration
+    #
+
+    - name: "Render root keys in the service node"
+      shell: |
+        cd
+        mkdir ~/.ssh
+        ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
+      register: render_service_keys
+      changed_when: "render_service_keys.rc == 0"
+
+    - name: get root service machine public key
+      command: cat /root/.ssh/id_rsa.pub
+      register: public_key_service_content
+      changed_when: "public_key_service_content.rc == 0"
+
+    # TODO:FIXME: it should be like public_key_service_content.results.stdout in all the
+    # other roles, otherwise we are getting the stdout, error and other wrong data.
+    - name: register the public key of the root service machine public key
+      set_fact:
+        kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
+      tags:
+        - provision_libvirt
+
+    #- name: Autoload kubeconfig
+    #  shell: |
+    #    echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
+    #  delegate_to: "{{ cluster_node }}"
+    #  with_items: "{{ groups['eks_service_nodes'] }}"
+    #  loop_control:
+    #    loop_var: cluster_node
+    #  ignore_errors: yes
+    #  register: autoload
+    #  changed_when: "autoload.rc == 0"
+    #  tags:
+    #    - provision_libvirt
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt
-
-#
-# Configure local registry
-#
-
-- name: "Get the required container images"
-  shell: |
-    set -o pipefail
-    wget https://raw.githubusercontent.com/aws/eks-distro/main/development/pull-all.sh
-    cat pull-all.sh | grep 'docker pull' | cut -d' ' -f3 > ~/kubeinit_deployment_images.txt
-  args:
-    executable: /bin/bash
-  register: render_images_list
-  changed_when: "render_images_list.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: Configure a local container image registry
-  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_registry
-    tasks_from: main
-  vars:
-    kubeinit_registry_container_engine: podman
-  when: kubeinit_registry_enabled|bool
-  tags:
-    - provision_libvirt
-
-- name: Add insecure registry
-  community.general.ini_file:
-    path: /etc/containers/registries.conf
-    section: registries.insecure
-    option: registries
-    value: ['{{ kubeinit_registry_uri }}']
-    mode: '0600'
-    backup: yes
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  when: kubeinit_registry_enabled | bool
-  tags:
-    - provision_libvirt
-
-- name: Reload cri-o
-  shell: |
-    systemctl reload crio
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
-
-#
-# Configure bind
-#
-
-- name: Configure Bind
-  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_bind
-    tasks_from: main
-  tags:
-    - provision_libvirt
-#
-# Configure HAproxy
-#
-
-- name: Configure HAProxy
-  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_haproxy
-    tasks_from: main
-  tags:
-    - provision_libvirt
-
-#
-# Configure httpd
-#
-
-- name: Configure Apache
-  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_apache
-    tasks_from: main
-  tags:
-    - provision_libvirt
-
-#
-# Include the install configuration
-#
-
-- name: "Render root keys in the service node"
-  shell: |
-    cd
-    mkdir ~/.ssh
-    ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
-  register: render_service_keys
-  changed_when: "render_service_keys.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-- name: get root service machine public key
-  command: cat /root/.ssh/id_rsa.pub
-  register: public_key_service_content
-  changed_when: "public_key_service_content.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_service_nodes'] }}"
-  tags:
-    - provision_libvirt
-
-# TODO:FIXME: it should be like public_key_service_content.results.stdout in all the
-# other roles, otherwise we are getting the stdout, error and other wrong data.
-- name: register the public key of the root service machine public key
-  set_fact:
-    kubeinit_provision_service_public_key={{ public_key_service_content.results[0].stdout }}
-  tags:
-    - provision_libvirt
-
-#- name: Autoload kubeconfig
-#  shell: |
-#    echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
-#  delegate_to: "{{ cluster_node }}"
-#  with_items: "{{ groups['eks_service_nodes'] }}"
-#  loop_control:
-#    loop_var: cluster_node
-#  ignore_errors: yes
-#  register: autoload
-#  changed_when: "autoload.rc == 0"
-#  tags:
-#    - provision_libvirt

@@ -14,43 +14,37 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Copying the kubeconfig to a variable
-  slurp:
-    src: ~/.kube/config
-  register: kubeinit_eks_cluster_kubeconfig
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+- name: Configure the post deployment tasks
+  block:
+    - name: Copying the kubeconfig to a variable
+      slurp:
+        src: ~/.kube/config
+      register: kubeinit_eks_cluster_kubeconfig
+      # We fetch the kubeconfig from the first master node
+      delegate_to: "{{ groups['eks_master_nodes'][0] }}"
 
-- name: Create kube directory
-  file:
-    path: ~/.kube
-    state: directory
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Create kube directory
+      file:
+        path: ~/.kube
+        state: directory
+        mode: '0644'
 
-- name: Storing the master kubeconfig to the services machine.
-  copy:
-    content: "{{ kubeinit_eks_cluster_kubeconfig.results[0].content | default('Empty file') | b64decode }}"
-    dest: ~/.kube/config
-    mode: '0644'
-  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Storing the master kubeconfig to the services machine.
+      copy:
+        content: "{{ kubeinit_eks_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
+        dest: ~/.kube/config
+        mode: '0644'
 
-#
-# Configure NFS
-#
+    #
+    # Configure NFS
+    #
 
-- name: Configure NFS
-  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-  # delegate_facts: true
-  import_role:
-    name: ../../roles/kubeinit_nfs
-    tasks_from: main
+    - name: Configure NFS
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_nfs
+        tasks_from: main
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

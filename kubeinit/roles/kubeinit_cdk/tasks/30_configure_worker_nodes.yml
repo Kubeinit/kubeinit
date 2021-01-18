@@ -14,11 +14,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Install root public from service node in masters
-  shell: |
-   echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['cdk_worker_nodes'] }}"
+- name: Configure the worker nodes
+  block:
+    - name: Install root public from service node in masters
+      shell: |
+       echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
+      changed_when: false
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

@@ -14,261 +14,208 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Install root public from service node in master nodes
-  shell: |
-   echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'] }}"
-  tags:
-    - provision_libvirt
+- name: Configure the master nodes
+  block:
+    - name: Install root public from service node in master nodes
+      shell: |
+       echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
+      changed_when: false
 
-# Push the certificates from the registry to the master nodes if its enabled
-- name: Push the certificates from the registry to the master nodes
-  shell: |
-    set -e
-    scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ item }}:/etc/pki/ca-trust/source/anchors/
-  register: install_all_certs_in_masters
-  changed_when: "install_all_certs_in_masters.rc == 0"
-  become: true
-  when: kubeinit_registry_enabled | bool
-  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-  with_items: "{{ groups['eks_master_nodes'] }}"
-  tags:
-    - provision_libvirt
+    # Push the certificates from the registry to the master nodes if its enabled
+    - name: Push the certificates from the registry (service node) to the master nodes
+      shell: |
+        set -e
+        scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ kubeinit_deployment_node_name }}:/etc/pki/ca-trust/source/anchors/
+      register: install_all_certs_in_masters
+      changed_when: "install_all_certs_in_masters.rc == 0"
+      become: true
+      when: kubeinit_registry_enabled | bool
+      delegate_to: "{{ groups['eks_service_nodes'][0] }}"
 
-- name: Insert the local registry auth details
-  shell: |
-    set -e
+    - name: Insert the local registry auth details
+      shell: |
+        set -e
 
-    mkdir -p .docker
-    cat << EOF > .docker/config.json
-    {
-      "auths": {
-        "{{ kubeinit_registry_uri }}": {
-          "auth": "{{ disconnected_registry_up | b64encode }}",
-          "email": "{{ kubeinit_registry_email }}"
+        mkdir -p .docker
+        cat << EOF > .docker/config.json
+        {
+          "auths": {
+            "{{ kubeinit_registry_uri }}": {
+              "auth": "{{ disconnected_registry_up | b64encode }}",
+              "email": "{{ kubeinit_registry_email }}"
+            }
+          },
+          "HttpHeaders": {
+            "User-Agent": "Docker-Client/18.09.7 (linux)"
+          }
         }
-      },
-      "HttpHeaders": {
-        "User-Agent": "Docker-Client/18.09.7 (linux)"
-      }
-    }
-    EOF
-  register: insert_master_local_registry_auth
-  changed_when: "insert_master_local_registry_auth.rc == 0"
-  become: true
-  when: kubeinit_registry_enabled | bool
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'] }}"
-  tags:
-    - provision_libvirt
+        EOF
+      register: insert_master_local_registry_auth
+      changed_when: "insert_master_local_registry_auth.rc == 0"
+      become: true
+      when: kubeinit_registry_enabled | bool
 
-- name: Update the CA certs files
-  command: update-ca-trust extract
-  register: update_master_ca_trust_files
-  changed_when: "update_master_ca_trust_files.rc == 0"
-  become: true
-  when: kubeinit_registry_enabled | bool
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: Update the CA certs files
+      command: update-ca-trust extract
+      register: update_master_ca_trust_files
+      changed_when: "update_master_ca_trust_files.rc == 0"
+      become: true
+      when: kubeinit_registry_enabled | bool
 
-##
-## Setup the first master node
-##
+    ##
+    ## Setup the first master node
+    ##
 
-- name: get etcd tag
-  shell: |
-    set -o pipefail
-    curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/etcd/tags/list --stderr - | grep '"name":"etcd"' | jq .tags[0]
-  register: eks_etcd_tag
-  changed_when: "eks_etcd_tag.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: get etcd tag
+      shell: |
+        set -o pipefail
+        curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/etcd/tags/list --stderr - | grep '"name":"etcd"' | jq .tags[0]
+      register: eks_etcd_tag
+      changed_when: "eks_etcd_tag.rc == 0"
+      when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-- name: register the eks etcd service deployment tag
-  set_fact:
-    kubeinit_eks_etcd_tag={{ eks_etcd_tag.results[0].stdout }}
-  tags:
-    - provision_libvirt
+    - name: register the eks etcd service deployment tag
+      set_fact:
+        kubeinit_eks_etcd_tag={{ eks_etcd_tag.stdout }}
+      when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-- name: Clean kubeadm and initializing Kubernetes cluster
-  shell: |
-    set -o pipefail
-    kubeadm reset -f || true
+    - name: Clean kubeadm and initializing Kubernetes cluster
+      shell: |
+        set -o pipefail
+        kubeadm reset -f || true
 
-    kubeadm config images list
-    kubeadm config images list --image-repository {{ kubeinit_registry_uri }}
-    kubeadm config images list --kubernetes-version latest
-    # kubeadm config images pull --image-repository {{ kubeinit_registry_uri }}
+        kubeadm config images list
+        kubeadm config images list --image-repository {{ kubeinit_registry_uri }}
+        kubeadm config images list --kubernetes-version latest
+        # kubeadm config images pull --image-repository {{ kubeinit_registry_uri }}
 
-    cat << EOF > ~/config.yml
-    apiVersion: kubeadm.k8s.io/v1beta1
-    kind: ClusterConfiguration
-    etcd:
-      local:
-        imageRepository: "{{ kubeinit_registry_uri }}"
-        imageTag: {{ kubeinit_eks_etcd_tag }}
-    # certificatesDir: "/etc/pki/ca-trust/source/anchors"
-    controlPlaneEndpoint: "api.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}:6443"
-    kubernetesVersion: "v{{ kubeinit_eks_kubernetes_version }}"
-    networking:
-      serviceSubnet: "{{ kubeinit_eks_service_network_cidr }}"
-      podSubnet: "{{ kubeinit_eks_pod_network_cidr }}"
-    EOF
+        cat << EOF > ~/config.yml
+        apiVersion: kubeadm.k8s.io/v1beta1
+        kind: ClusterConfiguration
+        etcd:
+          local:
+            imageRepository: "{{ kubeinit_registry_uri }}"
+            imageTag: {{ kubeinit_eks_etcd_tag }}
+        # certificatesDir: "/etc/pki/ca-trust/source/anchors"
+        controlPlaneEndpoint: "api.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}:6443"
+        kubernetesVersion: "v{{ kubeinit_eks_kubernetes_version }}"
+        networking:
+          serviceSubnet: "{{ kubeinit_eks_service_network_cidr }}"
+          podSubnet: "{{ kubeinit_eks_pod_network_cidr }}"
+        EOF
 
-    cd
-    kubeadm init  --upload-certs  --config=config.yml
+        cd
+        kubeadm init  --upload-certs  --config=config.yml
 
-    #kubeadm init \
-    #    --image-repository {{ kubeinit_registry_uri }} \
-    #    --kubernetes-version {{ kubeinit_eks_kubernetes_version }} \
-    #    --control-plane-endpoint "api.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}:6443" \
-    #    --upload-certs \
-    #    --pod-network-cidr={{ kubeinit_eks_pod_network_cidr }}
-  register: eks_master_kubeadm_master_init_output
-  changed_when: "eks_master_kubeadm_master_init_output.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+        #kubeadm init \
+        #    --image-repository {{ kubeinit_registry_uri }} \
+        #    --kubernetes-version {{ kubeinit_eks_kubernetes_version }} \
+        #    --control-plane-endpoint "api.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}:6443" \
+        #    --upload-certs \
+        #    --pod-network-cidr={{ kubeinit_eks_pod_network_cidr }}
+      register: eks_master_kubeadm_master_init_output
+      changed_when: "eks_master_kubeadm_master_init_output.rc == 0"
+      when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-- debug: var=eks_master_kubeadm_master_init_output
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - debug: var=eks_master_kubeadm_master_init_output
 
-- name: Get the master join key
-  set_fact:
-    eks_master_kubeadm_init_master_join_key: "{{ item }}"
-  when: "'--control-plane --certificate-key' in item"
-  with_items:
-  - "{{ eks_master_kubeadm_master_init_output.results[0].stdout_lines }}"
-  delegate_to: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Get the master join key
+      set_fact:
+        eks_master_kubeadm_init_master_join_key: "{{ item }}"
+      when: >
+        groups['eks_master_nodes'][0] in kubeinit_deployment_node_name and
+        '--control-plane --certificate-key' in item
+      with_items:
+      - "{{ eks_master_kubeadm_master_init_output.stdout_lines }}"
 
-- debug: var=eks_master_kubeadm_init_master_join_key
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - debug: var=eks_master_kubeadm_init_master_join_key
 
-# This task will copy the join key across all the master nodes
-- name: Storing the master join key to add the other master nodes.
-  copy:
-    content: "{{ eks_master_kubeadm_init_master_join_key }}"
-    dest: ~/eks_master_join_key
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'] }}"
-  when: groups['eks_master_nodes'] | length > 1
-  tags:
-    - provision_libvirt
+    # This task will copy the join key across all the master nodes
+    - name: Storing the master join key to add the other master nodes.
+      copy:
+        content: "{{ eks_master_kubeadm_init_master_join_key }}"
+        dest: ~/eks_master_join_key
+        mode: '0644'
+      when: groups['eks_master_nodes'] | length > 1
 
-- name: Create kube directory
-  file:
-    path: ~/.kube
-    state: directory
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Create kube directory
+      file:
+        path: ~/.kube
+        state: directory
+        mode: '0644'
+      when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-- name: Copying required files
-  shell: |
-   sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
-   sudo chown $(id -u):$(id -g) ~/.kube/config
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Copying required files
+      shell: |
+       sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
+       sudo chown $(id -u):$(id -g) ~/.kube/config
+      changed_when: false
+      when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-- name: Get the join command
-  shell: |
-    #TODO:FIXME: Check warnings in the output
-    kubeadm token create --print-join-command
-  register: eks_master_kubeadm_init_output
-  changed_when: "eks_master_kubeadm_init_output.rc == 0"
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - name: Get the join command
+      shell: |
+        #TODO:FIXME: Check warnings in the output
+        kubeadm token create --print-join-command
+      register: eks_master_kubeadm_init_output_aux
+      changed_when: "eks_master_kubeadm_init_output_aux.rc == 0"
+      when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-# This needs to be stored in all the master nodes
-- name: Storing the join cluster command token.
-  copy:
-    content: "{{ eks_master_kubeadm_init_output.results[0].stdout }}"
-    dest: ~/eks_token
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: register the join command for other nodes
+      set_fact:
+        eks_master_kubeadm_init_output={{ eks_master_kubeadm_init_output_aux.stdout }}
+      when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-- name: Install Network Add-on
-  command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  tags:
-    - provision_libvirt
+    - debug: var=eks_master_kubeadm_init_output
 
-##
-## Execute to configure all the other master nodes
-##
+    # This needs to be stored in all the master nodes
+    - name: Storing the join cluster command token.
+      copy:
+        content: "{{ eks_master_kubeadm_init_output }}"
+        dest: ~/eks_token
+        mode: '0644'
+      when: groups['eks_master_nodes'] | length > 1
 
-- name: Modprobe ip forward
-  shell: |
-    modprobe br_netfilter
-    echo '1' > /proc/sys/net/ipv4/ip_forward
-    mkdir -p /proc/sys/net/bridge/
-    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
-    sysctl -p
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][1:] }}"
-  when: groups['eks_master_nodes'] | length > 1
-  tags:
-    - provision_libvirt
+    - name: Install Network Add-on
+      command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      changed_when: false
+      when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-- name: Joining aditional master nodes using the PK
-  shell: |
-   kubeadm reset -f || true
-   sed "s/$/{{ eks_master_kubeadm_init_master_join_key }}/g" eks_token > ~/eks_master_join_command.sh
-   sh eks_master_join_command.sh
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][1:] }}"
-  when: groups['eks_master_nodes'] | length > 1
-  tags:
-    - provision_libvirt
+    ##
+    ## Execute to configure all the other master nodes
+    ##
 
-- name: Create kube directory
-  file:
-    path: ~/.kube
-    state: directory
-    mode: '0777'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][1:] }}"
-  when: groups['eks_master_nodes'] | length > 1
-  tags:
-    - provision_libvirt
+    - name: Modprobe ip forward
+      shell: |
+        modprobe br_netfilter
+        echo '1' > /proc/sys/net/ipv4/ip_forward
+        mkdir -p /proc/sys/net/bridge/
+        echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+        sysctl -p
+      changed_when: false
+      when: groups['eks_master_nodes'] | length > 1 and groups['eks_master_nodes'][0] not in kubeinit_deployment_node_name
 
-- name: Copying required files
-  shell: |
-   sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
-   sudo chown $(id -u):$(id -g) ~/.kube/config
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][1:] }}"
-  when: groups['eks_master_nodes'] | length > 1
+    - name: Joining aditional master nodes using the PK
+      shell: |
+       kubeadm reset -f || true
+       sed "s/$/{{ eks_master_kubeadm_init_master_join_key }}/g" eks_token > ~/eks_master_join_command.sh
+       sh eks_master_join_command.sh
+      changed_when: false
+      when: groups['eks_master_nodes'] | length > 1 and groups['eks_master_nodes'][0] not in kubeinit_deployment_node_name
+
+    - name: Create kube directory
+      file:
+        path: ~/.kube
+        state: directory
+        mode: '0777'
+      when: groups['eks_master_nodes'] | length > 1 and groups['eks_master_nodes'][0] not in kubeinit_deployment_node_name
+
+    - name: Copying required files
+      shell: |
+       sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
+       sudo chown $(id -u):$(id -g) ~/.kube/config
+      changed_when: false
+      when: groups['eks_master_nodes'] | length > 1 and groups['eks_master_nodes'][0] not in kubeinit_deployment_node_name
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

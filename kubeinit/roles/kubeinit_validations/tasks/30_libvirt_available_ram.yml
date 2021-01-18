@@ -24,22 +24,87 @@
     set -o pipefail
     free --kilo  | grep ^Mem | tr -s ' ' | cut -d ' ' -f 2
   register: kubeinit_validations_libvirt_total_ram
+  with_items:
+    - "{{ groups['hypervisor_nodes'] | list }}"
+  delegate_to: "{{ item }}"
   changed_when: "kubeinit_validations_libvirt_total_ram.rc == 0"
   tags:
     - provision_libvirt
 
-- name: Get total required RAM
+- debug:
+    var: kubeinit_validations_libvirt_total_ram
+  tags:
+    - provision_libvirt
+
+- name: Define the hypervisors ram free space dictionary
   set_fact:
-    kubeinit_validations_libvirt_required_ram: "{{ kubeinit_validations_libvirt_required_ram|default(0)|int + hostvars[item].ram|int }}"
+    kubeinit_validations_hypervisors_free_ram: "{{ kubeinit_validations_hypervisors_free_ram|default([]) | combine( {item.item: item.stdout|int} ) }}"
+  with_items: "{{ kubeinit_validations_libvirt_total_ram.results }}"
+
+- debug:
+    var: kubeinit_validations_libvirt_total_ram
+  tags:
+    - provision_libvirt
+
+
+- name: Get the total inventory ram usage
+  set_fact:
+    kubeinit_validations_libvirt_ram_usage: "{{ kubeinit_validations_libvirt_ram_usage|default({})| combine( {item: {'id': item, 'ram': hostvars[item].ram|int, 'target': hostvars[item].target} } ) }}"
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
   tags:
     - provision_libvirt
 
-- name: Make sure there is enough free RAM
+- debug:
+    var: kubeinit_validations_libvirt_ram_usage
+  tags:
+    - provision_libvirt
+
+- name: Set combined ram requirement per hypervisor
+  set_fact:
+    kubeinit_validations_libvirt_combined_ram_usage: >-
+      {{ kubeinit_validations_libvirt_combined_ram_usage | default({})
+        | combine({item.value.target: []
+        + [{
+            'ram': item.value.ram,
+            'id': item.value.id
+          }]
+        + kubeinit_validations_libvirt_combined_ram_usage[item.value.target] | default([]) })
+      }}
+  with_dict: "{{ kubeinit_validations_libvirt_ram_usage }}"
+  tags:
+    - provision_libvirt
+
+- debug:
+    var: kubeinit_validations_libvirt_combined_ram_usage
+  tags:
+    - provision_libvirt
+
+- name: Set the summarized ram usage per hypervisor
+  set_fact:
+    kubeinit_validations_libvirt_summarized_ram_usage: "{{ kubeinit_validations_libvirt_summarized_ram_usage|default([]) | combine( {item: my_attribute} ) }}"
+  vars:
+    my_attribute: "{{ kubeinit_validations_libvirt_combined_ram_usage[item] | map(attribute='ram') | list | sum }}"
+  with_items: "{{ kubeinit_validations_libvirt_combined_ram_usage.keys() | list }}"
+  tags:
+    - provision_libvirt
+
+- debug:
+    var: kubeinit_validations_libvirt_summarized_ram_usage
+  tags:
+    - provision_libvirt
+
+- debug:
+    var: item
+  with_dict: "{{ kubeinit_validations_hypervisors_free_ram }}"
+  tags:
+    - provision_libvirt
+
+- name: Make sure there is enough free space
   assert:
     that:
-      - kubeinit_validations_libvirt_total_ram.stdout|int > kubeinit_validations_libvirt_required_ram|float * 1.1
-    msg: "It seems there is not enough RAM (Required: {{ kubeinit_validations_libvirt_required_ram|float * 1.1 }} Total: {{ kubeinit_validations_libvirt_total_ram.stdout|int }})"
+      - item.value|int > kubeinit_validations_libvirt_summarized_ram_usage[item.key]|float * 1.1
+    msg: "It seems there is not enough ram space (Required: {{ kubeinit_validations_libvirt_summarized_ram_usage }} Available: {{ kubeinit_validations_hypervisors_free_ram }})"
+  with_dict: "{{ kubeinit_validations_hypervisors_free_ram }}"
   tags:
     - provision_libvirt

@@ -17,522 +17,426 @@
 ##
 ## Hypervisor installing dependencies and rebooting.
 ##
-
-- name: "check if bridge is created"
-  shell: |
-    set -o pipefail
-    nmcli con show | grep {{ kubeinit_libvirt_external_service_interface.attached }}
-  register: bridge_status
-  ignore_errors: yes
-  when: kubeinit_libvirt_external_service_interface_enabled
-  tags:
-    - provision_libvirt
-
-- name: Fail if bridge is not created but included
-  fail:
-    msg: |
-      The bridge {{ kubeinit_libvirt_external_service_interface.attached }} to provide external
-      connectivity is not created. This is a requirement that needs to be
-      created before running the playbook.
-      Run `nmcli con show` and check it is created correctly.
-  when: kubeinit_libvirt_external_service_interface_enabled and bridge_status.stdout_lines | list | count == 0
-  tags:
-    - provision_libvirt
-
-- name: Fails if OS is not supported
-  fail:
-    msg: The hypervisor machine needs to be CentOS/RHEL
-  when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora' or ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
-  tags:
-    - provision_libvirt
-
-- name: Fails if CentOS 7 hypervisor
-  fail:
-    msg: |
-      CentOS 7 is not supported as CentOS 8 guests are used.
-      Refer to: https://access.redhat.com/solutions/4073061
-      This issue is caused by the forward compatibility of xfs
-      file system between CentOS 7 and CentOS 8.
-      Xfs file system in CentOS 8 uses reflink and sparse files,
-      but CentOS 7 kernel does not understand them and refuses to mount it.
-  when: (ansible_distribution == 'CentOS' and ansible_distribution_major_version == "7")
-  tags:
-    - provision_libvirt
-
-- name: Check if Intel virtualization is supported
-  shell: |
-    set -e
-    grep vmx /proc/cpuinfo
-  ignore_errors: yes
-  register: intel_proccesor
-  changed_when: "intel_proccesor.rc == 0"
-  tags:
-    - provision_libvirt
-
-- name: Check if AMD virtualization is supported
-  shell: |
-    set -e
-    grep svm /proc/cpuinfo
-  ignore_errors: yes
-  register: amd_proccesor
-  changed_when: "amd_proccesor.rc == 0"
-  tags:
-    - provision_libvirt
-
-- name: Fail in case no Intel or AMD virtualization support is not detected.
-  fail:
-    msg: "The system doesn't seem to have Intel nor AMD virtualization support."
-  when: intel_proccesor.rc != 0 and amd_proccesor.rc != 0
-  tags:
-    - provision_libvirt
-
-- name: Set fact for Intel virtualization
-  set_fact:
-    nested_virtualization_module_name: "kvm_intel"
-  when: intel_proccesor.rc == 0
-  tags:
-    - provision_libvirt
-
-- name: Set fact for AMD virtualization
-  set_fact:
-    nested_virtualization_module_name: "kvm_amd"
-  when: amd_proccesor.rc == 0
-  tags:
-    - provision_libvirt
-
-- name: Set fact for nested virtualization test path
-  set_fact:
-    nested_virtualization_test_path: "/sys/module/{{ nested_virtualization_module_name }}/parameters/nested"
-  tags:
-    - provision_libvirt
-
-- name: "Ensure {{ nested_virtualization_module_name }} module is available and loaded"
-  modprobe:
-    name: "{{ nested_virtualization_module_name }}"
-    state: present
-  tags:
-    - provision_libvirt
-
-- name: Test status of nested virtualization
-  shell: |
-    set -e
-    cat {{ nested_virtualization_test_path }}
-  register: actual_status
-  changed_when: "actual_status.rc == 0"
-  tags:
-    - provision_libvirt
-
-- name: "Persist configuration in /etc/modprobe.d/kvm.conf"
-  lineinfile:
-    path: "/etc/modprobe.d/kvm.conf"
-    regexp: "^options {{ nested_virtualization_module_name }}.*$"
-    line: "options {{ nested_virtualization_module_name }} nested=1"
-    create: yes
-    mode: '0644'
-  tags:
-    - provision_libvirt
-
-- name: "Load {{ nested_virtualization_module_name }} module"
-  modprobe:
-    name: "{{ nested_virtualization_module_name }}"
-    state: present
-  tags:
-    - provision_libvirt
-
-- name: check if /root/.ssh/known_hosts exists
-  stat:
-    path: /root/.ssh/known_hosts
-  register: known_hosts_file
-  tags:
-    - provision_libvirt
-
-# - name: Disable netfilter
-#   shell: |
-#     modprobe br_netfilter
-#     echo "br_netfilter" > /etc/modules-load.d/br_netfilter.conf
-#     sudo tee -a /etc/sysctl.conf <<EOF
-#     net.bridge.bridge-nf-call-ip6tables = 0
-#     net.bridge.bridge-nf-call-iptables = 0
-#     net.bridge.bridge-nf-call-arptables = 0
-#     EOF
-#     sysctl -p /etc/sysctl.conf
-#   changed_when: false
-#   tags:
-#     - provision_libvirt
-
-- name: Reset ssh keys in hypervisor
-  shell: |
-    ssh-keygen -R  {{ item }}
-    ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
-    ssh-keygen -R  {{ hostvars[item].ansible_host }}
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  when: known_hosts_file.stat.exists | bool
-  changed_when: false
-  tags:
-    - provision_libvirt
-
-- name: reset local ssh keys
-  become: no
-  delegate_to: localhost
-  shell: |
-    ssh-keygen -R  {{ item }}
-    ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
-    ssh-keygen -R  {{ hostvars[item].ansible_host }}
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  changed_when: false
-  tags:
-    - provision_libvirt
-
-- name: Disable SELinux
-  selinux:
-    state: disabled
-  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
-  tags:
-    - provision_libvirt
-
-- name: install CentOS based requirements
-  package:
-    name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
-    state: present
-  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
-  register: installed_packages_centos
-  tags:
-    - provision_libvirt
-
-- name: enable firewalld services
+- name: Set up an Hypervisors
   block:
-    - name: Enable Services (firewalld)
-      service:
-        name: "firewalld"
-        state: started
-        enabled: yes
-    - name: Enable HTTP for firewalld
-      firewalld:
-        service: http
-        permanent: yes
-        state: enabled
-        immediate: yes
-    - name: Enable HTTPS for firewalld
-      firewalld:
-        service: https
-        permanent: yes
-        state: enabled
-        immediate: yes
-    - name: Enable DNS for firewalld
-      firewalld:
-        service: dns
-        permanent: yes
-        state: enabled
-        immediate: yes
-  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
-  tags:
-    - provision_libvirt
+    - name: "check if bridge is created"
+      shell: |
+        set -o pipefail
+        nmcli con show | grep {{ kubeinit_libvirt_external_service_interface.attached }}
+      register: bridge_status
+      ignore_errors: yes
+      when: kubeinit_libvirt_external_service_interface_enabled
 
-- name: install Debian based requirements
-  package:
-    name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
-    state: present
-  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
-  register: installed_packages_debian
-  tags:
-    - provision_libvirt
+    - name: Fail if bridge is not created but included
+      fail:
+        msg: |
+          The bridge {{ kubeinit_libvirt_external_service_interface.attached }} to provide external
+          connectivity is not created. This is a requirement that needs to be
+          created before running the playbook.
+          Run `nmcli con show` and check it is created correctly.
+      when: kubeinit_libvirt_external_service_interface_enabled and bridge_status.stdout_lines | list | count == 0
 
-- name: upgrade all packages
-  package:
-    name: '*'
-    state: latest
-  register: upgraded_packages
-  tags:
-    - provision_libvirt
+    - name: Fails if OS is not supported
+      fail:
+        msg: The hypervisor machine needs to be CentOS/RHEL
+      when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora' or ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
-- name: Restart if required
-  set_fact:
-     kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
-  tags:
-    - provision_libvirt
+    - name: Fails if CentOS 7 hypervisor
+      fail:
+        msg: |
+          CentOS 7 is not supported as CentOS 8 guests are used.
+          Refer to: https://access.redhat.com/solutions/4073061
+          This issue is caused by the forward compatibility of xfs
+          file system between CentOS 7 and CentOS 8.
+          Xfs file system in CentOS 8 uses reflink and sparse files,
+          but CentOS 7 kernel does not understand them and refuses to mount it.
+      when: (ansible_distribution == 'CentOS' and ansible_distribution_major_version == "7")
 
-- name: Reboot host and wait for it to restart
-  reboot:
-    msg: "Reboot initiated by a package upgrade"
-    connect_timeout: 5
-    reboot_timeout: 600
-    pre_reboot_delay: 0
-    post_reboot_delay: 30
-    test_command: whoami
-  when: kubeinit_libvirt_restart | bool
-  tags:
-    - provision_libvirt
+    - name: Check if Intel virtualization is supported
+      shell: |
+        set -e
+        grep vmx /proc/cpuinfo
+      ignore_errors: yes
+      register: intel_proccesor
+      changed_when: "intel_proccesor.rc == 0"
 
-- name: Set qemu user depending on the operative system
-  set_fact:
-    kubeinit_qemu_user: "{{ 'qemu' if (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
-  tags:
-    - provision_libvirt
+    - name: Check if AMD virtualization is supported
+      shell: |
+        set -e
+        grep svm /proc/cpuinfo
+      ignore_errors: yes
+      register: amd_proccesor
+      changed_when: "amd_proccesor.rc == 0"
 
-- name: download qcow2 images
-  get_url:
-    validate_certs: False
-    use_proxy: True
-    url: "{{ item.value.uri }}{{ item.value.image }}"
-    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item.value.image }}"
-    force: no
-    mode: '0666'
-    owner: "{{ kubeinit_qemu_user }}"
-  with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
-  when: "item.value.image"
-  tags:
-    - provision_libvirt
+    - name: Fail in case no Intel or AMD virtualization support is not detected.
+      fail:
+        msg: "The system doesn't seem to have Intel nor AMD virtualization support."
+      when: intel_proccesor.rc != 0 and amd_proccesor.rc != 0
 
-- name: download kernel images
-  get_url:
-    validate_certs: False
-    use_proxy: True
-    url: "{{ item.value.uri }}{{ item.value.kernel }}"
-    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item.value.kernel }}"
-    force: no
-    mode: '0666'
-    owner: "{{ kubeinit_qemu_user }}"
-  with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
-  when: "item.value.kernel"
-  tags:
-    - provision_libvirt
+    - name: Set fact for Intel virtualization
+      set_fact:
+        nested_virtualization_module_name: "kvm_intel"
+      when: intel_proccesor.rc == 0
 
-- name: download initrd images
-  get_url:
-    validate_certs: False
-    use_proxy: True
-    url: "{{ item.value.uri }}{{ item.value.initrd }}"
-    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item.value.initrd }}"
-    force: no
-    mode: '0666'
-    owner: "{{ kubeinit_qemu_user }}"
-  with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
-  when: "item.value.initrd"
-  tags:
-    - provision_libvirt
+    - name: Set fact for AMD virtualization
+      set_fact:
+        nested_virtualization_module_name: "kvm_amd"
+      when: amd_proccesor.rc == 0
 
-- name: create the treeinfo directory
-  shell: |
-    cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
-    [general]
-    arch = x86_64
-    family = Fedora CoreOS
-    platforms = x86_64
-    version = 32
-    [images-x86_64]
-    initrd = {{ kubeinit_libvirt_source_images.coreos.initrd }}
-    kernel = {{ kubeinit_libvirt_source_images.coreos.kernel }}
-    EOF
-  register: treeinfo
-  changed_when: "treeinfo.rc == 0"
-  tags:
-    - provision_libvirt
+    - name: Set fact for nested virtualization test path
+      set_fact:
+        nested_virtualization_test_path: "/sys/module/{{ nested_virtualization_module_name }}/parameters/nested"
 
-- name: "Make sure we have a '{{ kubeinit_libvirt_cloud_user }}' group"
-  group:
-    name: "{{ kubeinit_libvirt_cloud_user }}"
-    state: present
-  tags:
-    - provision_libvirt
+    - name: "Ensure {{ nested_virtualization_module_name }} module is available and loaded"
+      modprobe:
+        name: "{{ nested_virtualization_module_name }}"
+        state: present
 
-- name: "Allow '{{ kubeinit_libvirt_cloud_user }}' group to have passwordless sudo"
-  lineinfile:
-    dest: /etc/sudoers
-    state: present
-    regexp: "^%{{ kubeinit_libvirt_cloud_user }}"
-    line: "%{{ kubeinit_libvirt_cloud_user }} ALL=(ALL) NOPASSWD: ALL"
-    validate: 'visudo -cf %s'
-    mode: '0644'
-  tags:
-    - provision_libvirt
+    - name: Test status of nested virtualization
+      shell: |
+        set -e
+        cat {{ nested_virtualization_test_path }}
+      register: actual_status
+      changed_when: "actual_status.rc == 0"
 
-- name: "Add sudoers users to {{ kubeinit_libvirt_cloud_user }} group"
-  user: "name={{ kubeinit_libvirt_cloud_user }} groups={{ kubeinit_libvirt_cloud_user }} append=yes state=present createhome=yes"
-  tags:
-    - provision_libvirt
+    - name: "Persist configuration in /etc/modprobe.d/kvm.conf"
+      lineinfile:
+        path: "/etc/modprobe.d/kvm.conf"
+        regexp: "^options {{ nested_virtualization_module_name }}.*$"
+        line: "options {{ nested_virtualization_module_name }} nested=1"
+        create: yes
+        mode: '0644'
 
-- name: Add Users to libvirt
-  action: user name="{{ item }}" groups="kvm,libvirt" append=yes
-  with_items:
-    - "{{ kubeinit_libvirt_cloud_user }}"
-    - root
-  tags:
-    - provision_libvirt
+    - name: "Load {{ nested_virtualization_module_name }} module"
+      modprobe:
+        name: "{{ nested_virtualization_module_name }}"
+        state: present
 
-- name: Create ssh folder
-  file:
-    path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/"
-    state: directory
-    mode: '0600'
-  tags:
-    - provision_libvirt
+    - name: check if /root/.ssh/known_hosts exists
+      stat:
+        path: /root/.ssh/known_hosts
+      register: known_hosts_file
 
-- name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
-  openssh_keypair:
-    path: "/root/.ssh/id_rsa"
-    owner: root
-    group: root
-  tags:
-    - provision_libvirt
+    # - name: Disable netfilter
+    #   shell: |
+    #     modprobe br_netfilter
+    #     echo "br_netfilter" > /etc/modules-load.d/br_netfilter.conf
+    #     sudo tee -a /etc/sysctl.conf <<EOF
+    #     net.bridge.bridge-nf-call-ip6tables = 0
+    #     net.bridge.bridge-nf-call-iptables = 0
+    #     net.bridge.bridge-nf-call-arptables = 0
+    #     EOF
+    #     sysctl -p /etc/sysctl.conf
+    #   changed_when: false
+    #   tags:
+    #     - provision_libvirt
 
-- name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
-  openssh_keypair:
-    path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa"
-    owner: "{{ kubeinit_libvirt_cloud_user }}"
-    group: "{{ kubeinit_libvirt_cloud_user }}"
-  tags:
-    - provision_libvirt
+    - name: Reset ssh keys in hypervisor
+      shell: |
+        ssh-keygen -R  {{ item }}
+        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
+        ssh-keygen -R  {{ hostvars[item].ansible_host }}
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      when: known_hosts_file.stat.exists | bool
+      changed_when: false
 
-- name: Fix owner of the generated pub key
-  file:
-    path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa.pub"
-    owner: "{{ kubeinit_libvirt_cloud_user }}"
-    group: "{{ kubeinit_libvirt_cloud_user }}"
-    mode: '0600'
-  tags:
-    - provision_libvirt
+    - name: reset local ssh keys
+      become: no
+      delegate_to: localhost
+      shell: |
+        ssh-keygen -R  {{ item }}
+        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
+        ssh-keygen -R  {{ hostvars[item].ansible_host }}
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      changed_when: false
 
-- name: Insert the default libvirt uri in user's home
-  lineinfile:
-    path: "/home/{{ kubeinit_libvirt_cloud_user }}/.bashrc"
-    line: export LIBVIRT_DEFAULT_URI=qemu:///system
-    mode: '0644'
-  tags:
-    - provision_libvirt
+    - name: Disable SELinux
+      selinux:
+        state: disabled
+      when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
-##
-## Destroy all VMs and networks
-##
+    - name: install CentOS based requirements
+      package:
+        name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
+        state: present
+      when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
+      register: installed_packages_centos
 
-- name: Destroy vms
-  virt:
-    name: "{{ item }}"
-    command: destroy
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  ignore_errors: true
-  tags:
-    - provision_libvirt
+    - name: enable firewalld services
+      block:
+        - name: Enable Services (firewalld)
+          service:
+            name: "firewalld"
+            state: started
+            enabled: yes
+        - name: Enable HTTP for firewalld
+          firewalld:
+            service: http
+            permanent: yes
+            state: enabled
+            immediate: yes
+        - name: Enable HTTPS for firewalld
+          firewalld:
+            service: https
+            permanent: yes
+            state: enabled
+            immediate: yes
+        - name: Enable DNS for firewalld
+          firewalld:
+            service: dns
+            permanent: yes
+            state: enabled
+            immediate: yes
+      when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
-- name: Undefine vms
-  virt:
-    name: "{{ item }}"
-    command: undefine
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  ignore_errors: true
-  tags:
-    - provision_libvirt
+    - name: install Debian based requirements
+      package:
+        name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
+        state: present
+      when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+      register: installed_packages_debian
 
-- name: Remove VMs storage
-  file:
-    state: absent
-    path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: upgrade all packages
+      package:
+        name: '*'
+        state: latest
+      register: upgraded_packages
 
-- name: Destroy deployment networks
-  virt_net:
-    command: destroy
-    name: "{{ item.name }}"
-  with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-  ignore_errors: true
-  when: kubeinit_libvirt_destroy_nets|bool
-  tags:
-    - provision_libvirt
+    - name: Restart if required
+      set_fact:
+         kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
 
-- name: Undefine deployment networks
-  virt_net:
-    command: undefine
-    name: "{{ item.name }}"
-  with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-  ignore_errors: true
-  when: kubeinit_libvirt_destroy_nets|bool
-  tags:
-    - provision_libvirt
+    - name: Reboot host and wait for it to restart
+      reboot:
+        msg: "Reboot initiated by a package upgrade"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        test_command: whoami
+      when: kubeinit_libvirt_restart | bool
 
-- name: Destroy default network
-  virt_net:
-    command: destroy
-    name: "default"
-  ignore_errors: true
-  tags:
-    - provision_libvirt
+    - name: Set qemu user depending on the operative system
+      set_fact:
+        kubeinit_qemu_user: "{{ 'qemu' if (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
 
-- name: Undefine default network
-  virt_net:
-    command: undefine
-    name: "default"
-  ignore_errors: true
-  tags:
-    - provision_libvirt
+    - name: download qcow2 images
+      get_url:
+        validate_certs: False
+        use_proxy: True
+        url: "{{ item.value.uri }}{{ item.value.image }}"
+        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item.value.image }}"
+        force: no
+        mode: '0666'
+        owner: "{{ kubeinit_qemu_user }}"
+      with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
+      when: "item.value.image"
 
-##
-## Config folders for guests details
-##
+    - name: download kernel images
+      get_url:
+        validate_certs: False
+        use_proxy: True
+        url: "{{ item.value.uri }}{{ item.value.kernel }}"
+        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item.value.kernel }}"
+        force: no
+        mode: '0666'
+        owner: "{{ kubeinit_qemu_user }}"
+      with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
+      when: "item.value.kernel"
 
-- name: Clean directories for config files per node
-  file:
-    state: absent
-    path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: download initrd images
+      get_url:
+        validate_certs: False
+        use_proxy: True
+        url: "{{ item.value.uri }}{{ item.value.initrd }}"
+        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item.value.initrd }}"
+        force: no
+        mode: '0666'
+        owner: "{{ kubeinit_qemu_user }}"
+      with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
+      when: "item.value.initrd"
 
-- name: Create directories for config files per node
-  file:
-    path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}"
-    state: directory
-    mode: 0775
-    recurse: yes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  tags:
-    - provision_libvirt
+    - name: create the treeinfo directory
+      shell: |
+        cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
+        [general]
+        arch = x86_64
+        family = Fedora CoreOS
+        platforms = x86_64
+        version = 32
+        [images-x86_64]
+        initrd = {{ kubeinit_libvirt_source_images.coreos.initrd }}
+        kernel = {{ kubeinit_libvirt_source_images.coreos.kernel }}
+        EOF
+      register: treeinfo
+      changed_when: "treeinfo.rc == 0"
 
-##
-## Define common resources, networks
-##
+    - name: "Make sure we have a '{{ kubeinit_libvirt_cloud_user }}' group"
+      group:
+        name: "{{ kubeinit_libvirt_cloud_user }}"
+        state: present
 
-- name: render KubeInit networks for debugging
-  template:
-    src: "{{ item.template }}"
-    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item.template | regex_replace('.j2$', '') }}"
-    mode: '0644'
-  with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-  when: item.enabled
-  tags:
-    - provision_libvirt
+    - name: "Allow '{{ kubeinit_libvirt_cloud_user }}' group to have passwordless sudo"
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: "^%{{ kubeinit_libvirt_cloud_user }}"
+        line: "%{{ kubeinit_libvirt_cloud_user }} ALL=(ALL) NOPASSWD: ALL"
+        validate: 'visudo -cf %s'
+        mode: '0644'
 
-- name: define KubeInit networks
-  virt_net:
-    command: define
-    name: "{{ item.name }}"
-    xml: '{{ lookup("template", item.template) }}'
-  with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-  when: item.enabled and kubeinit_libvirt_destroy_nets|bool
-  tags:
-    - provision_libvirt
+    - name: "Add sudoers users to {{ kubeinit_libvirt_cloud_user }} group"
+      user: "name={{ kubeinit_libvirt_cloud_user }} groups={{ kubeinit_libvirt_cloud_user }} append=yes state=present createhome=yes"
 
-- name: Activate KubeInit networks
-  virt_net:
-    state: active
-    name: "{{ item.name }}"
-  with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-  when: item.enabled and kubeinit_libvirt_destroy_nets|bool
-  tags:
-    - provision_libvirt
+    - name: Add Users to libvirt
+      action: user name="{{ item }}" groups="kvm,libvirt" append=yes
+      with_items:
+        - "{{ kubeinit_libvirt_cloud_user }}"
+        - root
 
-- name: Autostart KubeInit networks
-  virt_net:
-    autostart: yes
-    name: "{{ item.name }}"
-  with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-  when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+    - name: Create ssh folder
+      file:
+        path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/"
+        state: directory
+        mode: '0600'
+
+    - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
+      openssh_keypair:
+        path: "/root/.ssh/id_rsa"
+        owner: root
+        group: root
+
+    - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
+      openssh_keypair:
+        path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa"
+        owner: "{{ kubeinit_libvirt_cloud_user }}"
+        group: "{{ kubeinit_libvirt_cloud_user }}"
+
+    - name: Fix owner of the generated pub key
+      file:
+        path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa.pub"
+        owner: "{{ kubeinit_libvirt_cloud_user }}"
+        group: "{{ kubeinit_libvirt_cloud_user }}"
+        mode: '0600'
+
+    - name: Insert the default libvirt uri in user's home
+      lineinfile:
+        path: "/home/{{ kubeinit_libvirt_cloud_user }}/.bashrc"
+        line: export LIBVIRT_DEFAULT_URI=qemu:///system
+        mode: '0644'
+
+    ##
+    ## Destroy all VMs and networks
+    ##
+
+    - name: Destroy vms
+      virt:
+        name: "{{ item }}"
+        command: destroy
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      ignore_errors: true
+
+    - name: Undefine vms
+      virt:
+        name: "{{ item }}"
+        command: undefine
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      ignore_errors: true
+
+    - name: Remove VMs storage
+      file:
+        state: absent
+        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+
+    - name: Destroy deployment networks
+      virt_net:
+        command: destroy
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      ignore_errors: true
+      when: kubeinit_libvirt_destroy_nets|bool
+
+    - name: Undefine deployment networks
+      virt_net:
+        command: undefine
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      ignore_errors: true
+      when: kubeinit_libvirt_destroy_nets|bool
+
+    - name: Destroy default network
+      virt_net:
+        command: destroy
+        name: "default"
+      ignore_errors: true
+
+    - name: Undefine default network
+      virt_net:
+        command: undefine
+        name: "default"
+      ignore_errors: true
+
+    ##
+    ## Config folders for guests details
+    ##
+
+    - name: Clean directories for config files per node
+      file:
+        state: absent
+        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/"
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+
+    - name: Create directories for config files per node
+      file:
+        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}"
+        state: directory
+        mode: 0775
+        recurse: yes
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+
+    ##
+    ## Define common resources, networks
+    ##
+
+    - name: render KubeInit networks for debugging
+      template:
+        src: "{{ item.template }}"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item.template | regex_replace('.j2$', '') }}"
+        mode: '0644'
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      when: item.enabled
+
+    - name: define KubeInit networks
+      virt_net:
+        command: define
+        name: "{{ item.name }}"
+        xml: '{{ lookup("template", item.template) }}'
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+
+    - name: Activate KubeInit networks
+      virt_net:
+        state: active
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+
+    - name: Autostart KubeInit networks
+      virt_net:
+        autostart: yes
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+
+  # In this case the node will be an hypervisor
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

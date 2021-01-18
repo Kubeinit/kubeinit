@@ -14,65 +14,41 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Copying token to a variables
-  slurp:
-    src: ~/k8s_token
-  register: kubernetes_master_kubeadm_init_output
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_master_nodes'][0] }}"
-  when: groups['k8s_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
+- name: Configure the worker nodes
+  block:
+    - name: Storing the join cluster command token.
+      copy:
+        content: "{{ k8s_master_kubeadm_init_output }}"
+        dest: ~/k8s_token
+        mode: '0644'
+      when: groups['k8s_worker_nodes'] | length > 0
 
-- debug:
-    msg: "{{ kubernetes_master_kubeadm_init_output.results[0].content | default('Empty file') | b64decode }}"
-  when: groups['k8s_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
+    - name: Modprobe ip forward
+      shell: |
+        modprobe br_netfilter
+        echo '1' > /proc/sys/net/ipv4/ip_forward
+        mkdir -p /proc/sys/net/bridge/
+        echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+        sysctl -p
+      changed_when: false
+      when: groups['k8s_worker_nodes'] | length > 0
 
-- name: Storing the master Generated token for future purpose.
-  copy:
-    content: "{{ kubernetes_master_kubeadm_init_output.results[0].content | default('Empty file') | b64decode }}"
-    dest: ~/k8s_token
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_worker_nodes'] }}"
-  when: groups['k8s_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
+    - name: Joining worker nodes with kubernetes master
+      shell: |
+       kubeadm reset -f || true
+       cat ~/k8s_token > out.sh
+       sh out.sh
+      changed_when: false
+      when: groups['k8s_worker_nodes'] | length > 0
 
-- name: Modprobe ip forward
-  shell: |
-    modprobe br_netfilter
-    echo '1' > /proc/sys/net/ipv4/ip_forward
-    mkdir -p /proc/sys/net/bridge/
-    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
-    sysctl -p
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_worker_nodes'] }}"
-  when: groups['k8s_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
+    - name: Label node
+      shell: |
+       kubectl label node {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
+      changed_when: false
+      when: groups['k8s_worker_nodes'] | length > 0
+      # The kubeconfig file is in the master nodes otherwise we can not relabel
+      delegate_to: "{{ groups['k8s_master_nodes'][0] }}"
 
-- name: Joining worker nodes with kubernetes master
-  shell: |
-   kubeadm reset -f || true
-   cat ~/k8s_token > out.sh
-   sh out.sh
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['k8s_worker_nodes'] }}"
-  when: groups['k8s_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
-
-- name: Label node
-  shell: |
-   kubectl label node {{ item }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
-  changed_when: false
-  delegate_to: "{{ groups['k8s_master_nodes'][0] }}"
-  with_items: "{{ groups['k8s_worker_nodes'] }}"
-  when: groups['k8s_worker_nodes'] | length > 0
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

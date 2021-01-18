@@ -14,15 +14,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Deploy the EKS images
+- name: Configure the services post deployment tasks
   block:
-    - name: Deploy EKS manifests.
-      shell: |
-        kubectl apply -f https://distro.eks.amazonaws.com/crds/releases.distro.eks.amazonaws.com-v1alpha1.yaml
-        kubectl apply -f https://distro.eks.amazonaws.com/kubernetes-1-18/kubernetes-1-18-eks-1.yaml
-        kubectl get release kubernetes-1-18-eks-1
-        kubectl get release kubernetes-1-18-eks-1 -o yaml
-      changed_when: false
+    #
+    # Configure NFS
+    #
+
+    - name: Configure NFS
+      # delegate_facts: true
+      import_role:
+        name: ../../roles/kubeinit_nfs
+        tasks_from: main
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:

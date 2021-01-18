@@ -14,126 +14,87 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Install root public from service node in worker nodes
-  shell: |
-   echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_worker_nodes'] }}"
-  tags:
-    - provision_libvirt
+- name: Configure the worker nodes
+  block:
+    - name: Storing the join cluster command token.
+      copy:
+        content: "{{ eks_master_kubeadm_init_output }}"
+        dest: ~/eks_token
+        mode: '0644'
+      when: groups['eks_master_nodes'] | length > 1
 
-# Push the certificates from the registry to the worker nodes if its enabled
-- name: Push the certificates from the registry to the worker nodes
-  shell: |
-    set -e
-    scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ item }}:/etc/pki/ca-trust/source/anchors/
-  register: install_all_certs_in_workers
-  changed_when: "install_all_certs_in_workers.rc == 0"
-  become: true
-  when: kubeinit_registry_enabled | bool
-  delegate_to: "{{ groups['eks_service_nodes'][0] }}"
-  with_items: "{{ groups['eks_worker_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: Install root public from service node in worker nodes
+      shell: |
+       echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
+      changed_when: false
 
-- name: Insert the local registry auth details
-  shell: |
-    set -e
+    # Push the certificates from the registry to the worker nodes if its enabled
+    - name: Push the certificates from the registry to the worker nodes
+      shell: |
+        set -e
+        scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ kubeinit_deployment_node_name }}:/etc/pki/ca-trust/source/anchors/
+      register: install_all_certs_in_workers
+      changed_when: "install_all_certs_in_workers.rc == 0"
+      become: true
+      when: kubeinit_registry_enabled | bool
+      delegate_to: "{{ groups['eks_service_nodes'][0] }}"
 
-    mkdir -p .docker
-    cat << EOF > .docker/config.json
-    {
-      "auths": {
-        "{{ kubeinit_registry_uri }}": {
-          "auth": "{{ disconnected_registry_up | b64encode }}",
-          "email": "{{ kubeinit_registry_email }}"
+    - name: Insert the local registry auth details
+      shell: |
+        set -e
+
+        mkdir -p .docker
+        cat << EOF > .docker/config.json
+        {
+          "auths": {
+            "{{ kubeinit_registry_uri }}": {
+              "auth": "{{ disconnected_registry_up | b64encode }}",
+              "email": "{{ kubeinit_registry_email }}"
+            }
+          },
+          "HttpHeaders": {
+            "User-Agent": "Docker-Client/18.09.7 (linux)"
+          }
         }
-      },
-      "HttpHeaders": {
-        "User-Agent": "Docker-Client/18.09.7 (linux)"
-      }
-    }
-    EOF
-  register: insert_worker_local_registry_auth
-  changed_when: "insert_worker_local_registry_auth.rc == 0"
-  become: true
-  when: kubeinit_registry_enabled | bool
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_worker_nodes'] }}"
-  tags:
-    - provision_libvirt
+        EOF
+      register: insert_worker_local_registry_auth
+      changed_when: "insert_worker_local_registry_auth.rc == 0"
+      become: true
+      when: kubeinit_registry_enabled | bool
 
-- name: Update the CA certs files
-  command: update-ca-trust extract
-  register: update_master_ca_trust_files
-  changed_when: "update_master_ca_trust_files.rc == 0"
-  become: true
-  when: kubeinit_registry_enabled | bool
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_worker_nodes'] }}"
-  tags:
-    - provision_libvirt
+    - name: Update the CA certs files
+      command: update-ca-trust extract
+      register: update_master_ca_trust_files
+      changed_when: "update_master_ca_trust_files.rc == 0"
+      become: true
+      when: kubeinit_registry_enabled | bool
 
-- name: Copying token to a variables
-  slurp:
-    src: ~/eks_token
-  register: kubernetes_master_kubeadm_init_output
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_master_nodes'][0] }}"
-  when: groups['eks_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
+    - name: Modprobe ip forward
+      shell: |
+        modprobe br_netfilter
+        echo '1' > /proc/sys/net/ipv4/ip_forward
+        mkdir -p /proc/sys/net/bridge/
+        echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+        sysctl -p
+      changed_when: false
+      when: groups['eks_worker_nodes'] | length > 0
 
-- debug:
-    msg: "{{ kubernetes_master_kubeadm_init_output.results[0].content | default('Empty file') | b64decode }}"
-  when: groups['eks_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
+    - name: Joining worker nodes with kubernetes master
+      shell: |
+       kubeadm reset -f || true
+       cat ~/eks_token > out.sh
+       sh out.sh
+      changed_when: false
+      when: groups['eks_worker_nodes'] | length > 0
 
-- name: Storing the master Generated token for future purpose.
-  copy:
-    content: "{{ kubernetes_master_kubeadm_init_output.results[0].content | default('Empty file') | b64decode }}"
-    dest: ~/eks_token
-    mode: '0644'
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_worker_nodes'] }}"
-  when: groups['eks_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
+    - name: Label node
+      shell: |
+       kubectl label node {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
+      changed_when: false
+      when: groups['eks_worker_nodes'] | length > 0
+      # The kubeconfig file is in the master nodes otherwise we can not relabel
+      delegate_to: "{{ groups['eks_master_nodes'][0] }}"
 
-- name: Modprobe ip forward
-  shell: |
-    modprobe br_netfilter
-    echo '1' > /proc/sys/net/ipv4/ip_forward
-    mkdir -p /proc/sys/net/bridge/
-    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
-    sysctl -p
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_worker_nodes'] }}"
-  when: groups['eks_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
-
-- name: Joining worker nodes with kubernetes master
-  shell: |
-   kubeadm reset -f || true
-   cat ~/eks_token > out.sh
-   sh out.sh
-  changed_when: false
-  delegate_to: "{{ item }}"
-  with_items: "{{ groups['eks_worker_nodes'] }}"
-  when: groups['eks_worker_nodes'] | length > 0
-  tags:
-    - provision_libvirt
-
-- name: Label node
-  shell: |
-   kubectl label node {{ item }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
-  changed_when: false
-  delegate_to: "{{ groups['eks_master_nodes'][0] }}"
-  with_items: "{{ groups['eks_worker_nodes'] }}"
-  when: groups['eks_worker_nodes'] | length > 0
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

@@ -19,7 +19,7 @@
 # Make sure the mount path of libvirt has enough space in the hypervisor
 #
 
-- name: Get libvirt directory free space
+- name: Get libvirt hypervisors directory free space
   shell: |
     set -o pipefail
     df -BG --output=avail {{ kubeinit_validations_libvirt_path }} | grep -v Avail
@@ -38,11 +38,11 @@
 
 - name: Define the hypervisors disk free space dictionary
   set_fact:
-    kubeinit_validations_hypervisors_free_space: "{{ kubeinit_validations_hypervisors_free_space|default([]) | combine( {item.item: item.stdout[:-1]|int} ) }}"
+    kubeinit_validations_hypervisors_free_disk_space: "{{ kubeinit_validations_hypervisors_free_disk_space|default([]) | combine( {item.item: item.stdout[:-1]|int} ) }}"
   with_items: "{{ kubeinit_validations_libvirt_free_space.results }}"
 
 - debug:
-    var: kubeinit_validations_hypervisors_free_space
+    var: kubeinit_validations_hypervisors_free_disk_space
   tags:
     - provision_libvirt
 
@@ -79,9 +79,9 @@
   tags:
     - provision_libvirt
 
-- name: Set the summarized usage per hypervisor
+- name: Set the summarized disk usage per hypervisor
   set_fact:
-    kubeinit_validations_libvirt_summarized_usage: "{{ kubeinit_validations_libvirt_summarized_usage|default([]) | combine( {item: my_attribute} ) }}"
+    kubeinit_validations_libvirt_summarized_disk_usage: "{{ kubeinit_validations_libvirt_summarized_disk_usage|default([]) | combine( {item: my_attribute} ) }}"
   vars:
     my_attribute: "{{ kubeinit_validations_libvirt_combined_disk_usage[item] | map(attribute='disk') | list | sum }}"
   with_items: "{{ kubeinit_validations_libvirt_combined_disk_usage.keys() | list }}"
@@ -89,21 +89,21 @@
     - provision_libvirt
 
 - debug:
-    var: kubeinit_validations_libvirt_summarized_usage
+    var: kubeinit_validations_libvirt_summarized_disk_usage
   tags:
     - provision_libvirt
 
 - debug:
     var: item
-  with_dict: "{{ kubeinit_validations_hypervisors_free_space }}"
+  with_dict: "{{ kubeinit_validations_hypervisors_free_disk_space }}"
   tags:
     - provision_libvirt
 
 - name: Make sure there is enough free space
   assert:
     that:
-      - item.value|int > kubeinit_validations_libvirt_summarized_usage[item.key]|float * 1.1
-    msg: "It seems there is not enough disk space (Required: {{ kubeinit_validations_libvirt_summarized_usage }} Available: {{ kubeinit_validations_hypervisors_free_space }})"
-  with_dict: "{{ kubeinit_validations_hypervisors_free_space }}"
+      - item.value|int > kubeinit_validations_libvirt_summarized_disk_usage[item.key]|float * 1.1
+    msg: "It seems there is not enough disk space (Required: {{ kubeinit_validations_libvirt_summarized_disk_usage }} Available: {{ kubeinit_validations_hypervisors_free_disk_space }})"
+  with_dict: "{{ kubeinit_validations_hypervisors_free_disk_space }}"
   tags:
     - provision_libvirt
