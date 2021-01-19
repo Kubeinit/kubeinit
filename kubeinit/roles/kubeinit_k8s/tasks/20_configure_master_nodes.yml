@@ -35,7 +35,9 @@
     - name: Get the master join key
       set_fact:
         k8s_master_kubeadm_init_master_join_key: "{{ item }}"
-      when: "'--control-plane --certificate-key' in item"
+      when: >
+        groups['k8s_master_nodes'][0] in kubeinit_deployment_node_name and
+        '--control-plane --certificate-key' in item
       with_items:
       - "{{ k8s_master_kubeadm_master_init_output.stdout_lines }}"
 

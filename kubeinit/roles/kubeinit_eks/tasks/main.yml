@@ -48,23 +48,10 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   tags: provision_libvirt
 
-- name: Configure the cluster common config
-  include_role:
-    name: "../../roles/kubeinit_eks"
-    tasks_from: 00_configure_common.yml
-    public: yes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  tags: provision_libvirt
-
 - name: Configure the cluster service node
   include_role:
     name: "../../roles/kubeinit_eks"
-    tasks_from: 10_configure_service_nodes.yml
+    tasks_from: 00_configure_service_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
@@ -73,6 +60,19 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: service
+  tags: provision_libvirt
+
+- name: Configure the cluster common config
+  include_role:
+    name: "../../roles/kubeinit_eks"
+    tasks_from: 10_configure_common.yml
+    public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   tags: provision_libvirt
 
 - name: Configure the cluster master nodes
