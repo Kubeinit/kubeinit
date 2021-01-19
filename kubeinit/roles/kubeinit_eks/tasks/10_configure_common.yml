@@ -256,6 +256,16 @@
         state: directory
         mode: '0777'
 
+    - name: Add insecure registry
+      community.general.ini_file:
+        path: /etc/containers/registries.conf
+        section: registries.insecure
+        option: registries
+        value: ['{{ kubeinit_registry_uri }}']
+        mode: '0600'
+        backup: yes
+      when: kubeinit_registry_enabled | bool
+
     - name: Enable/start/status cri-o
       shell: |
         systemctl enable crio

@@ -72,7 +72,6 @@
         state: present
         use_backend: dnf
 
-
     #
     # Kubernetes config
     #
@@ -111,31 +110,6 @@
       vars:
         kubeinit_registry_container_engine: podman
       when: kubeinit_registry_enabled|bool
-
-    - name: Add insecure registry
-      community.general.ini_file:
-        path: /etc/containers/registries.conf
-        section: registries.insecure
-        option: registries
-        value: ['{{ kubeinit_registry_uri }}']
-        mode: '0600'
-        backup: yes
-      delegate_to: "{{ item }}"
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-      when: kubeinit_registry_enabled | bool
-      tags:
-        - provision_libvirt
-
-    - name: Reload cri-o
-      shell: |
-        systemctl reload crio
-      changed_when: false
-      delegate_to: "{{ item }}"
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
-      tags:
-        - provision_libvirt
 
     #
     # Configure bind
@@ -189,8 +163,6 @@
     - name: register the public key of the root service machine public key
       set_fact:
         kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
-      tags:
-        - provision_libvirt
 
     #- name: Autoload kubeconfig
     #  shell: |
@@ -202,8 +174,6 @@
     #  ignore_errors: yes
     #  register: autoload
     #  changed_when: "autoload.rc == 0"
-    #  tags:
-    #    - provision_libvirt
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
