@@ -87,14 +87,6 @@
       changed_when: false
       when: groups['eks_worker_nodes'] | length > 0
 
-    - name: Label node
-      shell: |
-       kubectl label node {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
-      changed_when: false
-      when: groups['eks_worker_nodes'] | length > 0
-      # The kubeconfig file is in the master nodes otherwise we can not relabel
-      delegate_to: "{{ groups['eks_master_nodes'][0] }}"
-
   delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
     - provision_libvirt

@@ -22,7 +22,8 @@
 - name: Get libvirt hypervisors directory free space
   shell: |
     set -o pipefail
-    df -BG --output=avail {{ kubeinit_validations_libvirt_path }} | grep -v Avail
+    df -BG --output=avail {{ kubeinit_validations_libvirt_path }} | grep -v Avail 2> /dev/null || \
+    df -BG --output=avail {{ kubeinit_validations_libvirt_path_fallback }} | grep -v Avail 2> /dev/null
   register: kubeinit_validations_libvirt_free_space
   with_items:
     - "{{ groups['hypervisor_nodes'] | list }}"

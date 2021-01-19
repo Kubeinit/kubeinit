@@ -204,6 +204,12 @@
         state: latest
       register: upgraded_packages
 
+    - name: enable and start libvirtd
+      ansible.builtin.service:
+        name: libvirtd
+        enabled: yes
+        state: started
+
     - name: Restart if required
       set_fact:
          kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
