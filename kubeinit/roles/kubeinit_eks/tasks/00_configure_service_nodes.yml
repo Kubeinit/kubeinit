@@ -16,6 +16,73 @@
 
 - name: Configure the service node
   block:
+    #
+    # eks repos
+    #
+    - name: Remove repo before adding it
+      file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: absent
+
+    - name: Creating a repository file for Kubernetes
+      file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: touch
+        mode: '0644'
+
+    - name: Adding repository details in Kubernetes repo file.
+      blockinfile:
+        path: /etc/yum.repos.d/kubernetes.repo
+        block: |
+         [kubernetes]
+         name=Kubernetes
+         baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+         enabled=1
+         gpgcheck=1
+         repo_gpgcheck=1
+         gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+                https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+    - name: update packages
+      yum:
+        name: "*"
+        state: latest
+        use_backend: dnf
+      register: update_packages
+
+    - name: Reboot immediately after the package update
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+      when: update_packages is changed
+
+    - name: Wait for the reboot to complete if there was a change.
+      wait_for:
+        port: 22
+        host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 7200
+      when: update_packages is changed
+      delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+
+    - name: install common requirements
+      yum:
+        name: "{{ kubeinit_eks_common_dependencies }}"
+        state: present
+        use_backend: dnf
+
+
+    #
+    # Kubernetes config
+    #
+
+    - name: install requirements for bubectl
+      package:
+        name:
+          - "kubectl-{{ kubeinit_eks_kubernetes_version }}"
+        state: present
+
     - name: install services requirements
       yum:
         name: "{{ kubeinit_eks_service_dependencies }}"
@@ -57,18 +124,6 @@
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
       when: kubeinit_registry_enabled | bool
-      tags:
-        - provision_libvirt
-
-    - name: Reload cri-o
-      shell: |
-        systemctl reload crio
-      changed_when: false
-      delegate_to: "{{ item }}"
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-      tags:
-        - provision_libvirt
 
     #
     # Configure bind
