@@ -1,0 +1,83 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+##
+## OVN setup in the Hypervisors.
+##
+- name: Set up Hypervisors with OVN
+  block:
+
+    - name: Destroy deployment networks
+      virt_net:
+        command: destroy
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      ignore_errors: true
+      when: kubeinit_libvirt_destroy_nets|bool
+
+    - name: Undefine deployment networks
+      virt_net:
+        command: undefine
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      ignore_errors: true
+      when: kubeinit_libvirt_destroy_nets|bool
+
+    - name: Destroy default network
+      virt_net:
+        command: destroy
+        name: "default"
+      ignore_errors: true
+
+    - name: Undefine default network
+      virt_net:
+        command: undefine
+        name: "default"
+      ignore_errors: true
+
+    ##
+    ## Define common resources, networks
+    ##
+
+    - name: render KubeInit networks for debugging
+      template:
+        src: "{{ item.template }}"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item.template | regex_replace('.j2$', '') }}"
+        mode: '0644'
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      when: item.enabled
+
+    - name: define KubeInit networks
+      virt_net:
+        command: define
+        name: "{{ item.name }}"
+        xml: '{{ lookup("template", item.template) }}'
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+
+    - name: Activate KubeInit networks
+      virt_net:
+        state: active
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+
+    - name: Autostart KubeInit networks
+      virt_net:
+        autostart: yes
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      when: item.enabled and kubeinit_libvirt_destroy_nets|bool

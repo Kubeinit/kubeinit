@@ -334,14 +334,7 @@
         mode: '0644'
 
     ##
-    ## Configure OVN in all the HVs
-    ##
-
-    - name: include the OVN tasks
-      include: 00_ovn_setup.yml
-
-    ##
-    ## Destroy all VMs and networks
+    ## Destroy all VMs
     ##
 
     - name: Destroy vms
@@ -367,34 +360,6 @@
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
 
-    - name: Destroy deployment networks
-      virt_net:
-        command: destroy
-        name: "{{ item.name }}"
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      ignore_errors: true
-      when: kubeinit_libvirt_destroy_nets|bool
-
-    - name: Undefine deployment networks
-      virt_net:
-        command: undefine
-        name: "{{ item.name }}"
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      ignore_errors: true
-      when: kubeinit_libvirt_destroy_nets|bool
-
-    - name: Destroy default network
-      virt_net:
-        command: destroy
-        name: "default"
-      ignore_errors: true
-
-    - name: Undefine default network
-      virt_net:
-        command: undefine
-        name: "default"
-      ignore_errors: true
-
     ##
     ## Config folders for guests details
     ##
@@ -416,38 +381,16 @@
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
 
     ##
-    ## Define common resources, networks
+    ## Configure OVN o a linux bridge in all the HVs
     ##
 
-    - name: render KubeInit networks for debugging
-      template:
-        src: "{{ item.template }}"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item.template | regex_replace('.j2$', '') }}"
-        mode: '0644'
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item.enabled
+    - name: include the OVN tasks
+      include: 00_ovn_setup.yml
+      when: kubeinit_libvirt_ovn_enabled
 
-    - name: define KubeInit networks
-      virt_net:
-        command: define
-        name: "{{ item.name }}"
-        xml: '{{ lookup("template", item.template) }}'
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
-
-    - name: Activate KubeInit networks
-      virt_net:
-        state: active
-        name: "{{ item.name }}"
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
-
-    - name: Autostart KubeInit networks
-      virt_net:
-        autostart: yes
-        name: "{{ item.name }}"
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+    - name: include the linux bridge tasks
+      include: 00_linux_bridge_setup.yml
+      when: not kubeinit_libvirt_ovn_enabled
 
   # In this case the node will be an hypervisor
   delegate_to: "{{ kubeinit_deployment_node_name }}"
