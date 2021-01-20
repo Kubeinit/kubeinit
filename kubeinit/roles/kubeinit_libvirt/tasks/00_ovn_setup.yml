@@ -1,0 +1,167 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+##
+## OVN setup in the Hypervisors.
+##
+- name: Set up Hypervisors with OVN
+  block:
+
+    #
+    # We install all OVN requirements in the first hypervisor
+    #
+    - name: Install OVN packages in CentOS/RHEL (Master Hypervisor)
+      shell: |
+        # http://mirror.centos.org/centos/8/nfv/x86_64/openvswitch-2/Packages/o/
+        dnf install -y centos-release-nfv-openvswitch
+        yum install -y openvswitch2.13 ovn2.13 ovn2.13-central ovn2.13-host
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name and
+        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat')
+      changed_when: false
+
+    - name: Install OVN packages in Fedora (Master Hypervisor)
+      shell: |
+        yum install -y openvswitch ovn ovn-central ovn-host
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name and
+        (ansible_distribution == 'Fedora')
+      changed_when: false
+
+    - name: Install OVN packages in Ubuntu/Debian (Master Hypervisor)
+      shell: |
+        apt-get install -y openvswitch-common \
+                           openvswitch-switch \
+                           ovn-common \
+                           ovn-host \
+                           ovn-central
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name and
+        (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+      changed_when: false
+
+    #
+    # We DO NOT install ovn-central (OVN requirement) in the other hypervisors
+    #
+    - name: Install OVN packages in CentOS/RHEL (Master Hypervisor)
+      shell: |
+        # http://mirror.centos.org/centos/8/nfv/x86_64/openvswitch-2/Packages/o/
+        dnf install -y centos-release-nfv-openvswitch
+        yum install -y openvswitch2.13 ovn2.13 ovn2.13-host
+      when: >
+        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
+        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat')
+      changed_when: false
+
+    - name: Install OVN packages in Fedora (Master Hypervisor)
+      shell: |
+        yum install -y openvswitch ovn ovn-host
+      when: >
+        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
+        (ansible_distribution == 'Fedora')
+      changed_when: false
+
+    - name: Install OVN packages in Ubuntu/Debian (Master Hypervisor)
+      shell: |
+        apt-get install -y openvswitch-common \
+                           openvswitch-switch \
+                           ovn-common \
+                           ovn-host
+      when: >
+        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
+        (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+      changed_when: false
+
+    - name: refresh firewalld services list
+      shell: |
+        firewall-cmd --reload
+      when: >
+        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
+
+    - name: Enable OVN central in firewalld
+      firewalld:
+        service: ovn-central-firewall-service
+        permanent: yes
+        state: enabled
+        immediate: yes
+      when: >
+        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora') and
+        kubeinit_deployment_node_name in groups['hypervisor_nodes'][0]
+
+    - name: Enable OVN controller in firewalld
+      firewalld:
+        service: ovn-host-firewall-service
+        permanent: yes
+        state: enabled
+        immediate: yes
+      when: >
+        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
+
+    - name: enable and start OVN services in the first hypervisor
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      with_items:
+        - openvswitch
+        - ovn-northd
+        - ovn-controller
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    - name: enable and start OVN services in the rest of the hypervisors
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      with_items:
+        - openvswitch
+        - ovn-controller
+      when: >
+        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:]
+
+    - name: configure OVN in the first Hypervisor
+      shell: |
+        CENTRAL_IP={{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
+        LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
+        ENCAP_TYPE=geneve
+        sudo ovs-vsctl set Open_vSwitch . \
+            external_ids:ovn-remote="tcp:$CENTRAL_IP:6642" \
+            external_ids:ovn-nb="tcp:$CENTRAL_IP:6641" \
+            external_ids:ovn-encap-ip=$LOCAL_IP \
+            external_ids:ovn-encap-type="$ENCAP_TYPE"
+
+        # Below two commands only for master. For SSL, other steps are required.
+        sudo ovn-nbctl set-connection ptcp:6641
+        sudo ovn-sbctl set-connection ptcp:6642
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    - name: configure OVN in the rest of the Hypervisors
+      shell: |
+        CENTRAL_IP={{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
+        LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
+        ENCAP_TYPE=geneve
+        sudo ovs-vsctl set Open_vSwitch . \
+            external_ids:ovn-remote="tcp:$CENTRAL_IP:6642" \
+            external_ids:ovn-nb="tcp:$CENTRAL_IP:6641" \
+            external_ids:ovn-encap-ip=$LOCAL_IP \
+            external_ids:ovn-encap-type="$ENCAP_TYPE"
+      when: >
+        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:]
+
+    # When the deployment finishes, it shuold be possible to see the available chassis by running:
+    # ovn-sbctl show
