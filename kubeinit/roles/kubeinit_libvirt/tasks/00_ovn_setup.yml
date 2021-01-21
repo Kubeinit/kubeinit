@@ -56,25 +56,27 @@
     #
     # We DO NOT install ovn-central (OVN requirement) in the other hypervisors
     #
-    - name: Install OVN packages in CentOS/RHEL (Master Hypervisor)
+    - name: Install OVN packages in CentOS/RHEL (Slave Hypervisor)
       shell: |
         # http://mirror.centos.org/centos/8/nfv/x86_64/openvswitch-2/Packages/o/
         dnf install -y centos-release-nfv-openvswitch
         yum install -y openvswitch2.13 ovn2.13 ovn2.13-host
       when: >
         kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
-        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat')
+        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and
+        groups['hypervisor_nodes'] | length > 1
       changed_when: false
 
-    - name: Install OVN packages in Fedora (Master Hypervisor)
+    - name: Install OVN packages in Fedora (Slave Hypervisor)
       shell: |
         yum install -y openvswitch ovn ovn-host
       when: >
         kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
-        (ansible_distribution == 'Fedora')
+        (ansible_distribution == 'Fedora') and
+        groups['hypervisor_nodes'] | length > 1
       changed_when: false
 
-    - name: Install OVN packages in Ubuntu/Debian (Master Hypervisor)
+    - name: Install OVN packages in Ubuntu/Debian (Slave Hypervisor)
       shell: |
         apt-get install -y openvswitch-common \
                            openvswitch-switch \
@@ -82,7 +84,8 @@
                            ovn-host
       when: >
         kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
-        (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+        (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and
+        groups['hypervisor_nodes'] | length > 1
       changed_when: false
 
     - name: refresh firewalld services list
@@ -131,7 +134,8 @@
         - openvswitch
         - ovn-controller
       when: >
-        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:]
+        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
+        groups['hypervisor_nodes'] | length > 1
 
     - name: configure OVN in the first Hypervisor
       shell: |
@@ -142,7 +146,8 @@
             external_ids:ovn-remote="tcp:$CENTRAL_IP:6642" \
             external_ids:ovn-nb="tcp:$CENTRAL_IP:6641" \
             external_ids:ovn-encap-ip=$LOCAL_IP \
-            external_ids:ovn-encap-type="$ENCAP_TYPE"
+            external_ids:ovn-encap-type="$ENCAP_TYPE" \
+            external_ids:system-id="{{ kubeinit_deployment_node_name }}"
 
         # Below two commands only for master. For SSL, other steps are required.
         sudo ovn-nbctl set-connection ptcp:6641
@@ -159,9 +164,36 @@
             external_ids:ovn-remote="tcp:$CENTRAL_IP:6642" \
             external_ids:ovn-nb="tcp:$CENTRAL_IP:6641" \
             external_ids:ovn-encap-ip=$LOCAL_IP \
-            external_ids:ovn-encap-type="$ENCAP_TYPE"
+            external_ids:ovn-encap-type="$ENCAP_TYPE" \
+            external_ids:system-id="{{ kubeinit_deployment_node_name }}"
       when: >
-        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:]
+        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
+        groups['hypervisor_nodes'] | length > 1
 
-    # When the deployment finishes, it shuold be possible to see the available chassis by running:
+    - name: create the initial network
+      shell: |
+        echo "Show chassis information"
+        CLUSTER_NET=onv-kubeinit
+        echo "Create the network"
+        ovn-nbctl ls-add $CLUSTER_NET
+      # Make this idempotent
+      ignore_errors: True
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    - name: create the initial network
+      shell: |
+        echo "Create ports"
+        CLUSTER_NET=onv-kubeinit
+        ovn-nbctl lsp-add $CLUSTER_NET {{ item }}
+        ovn-nbctl lsp-set-addresses {{ item }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
+      # Make this idempotent
+      ignore_errors: True
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    # When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
+    # ovn-nbctl show
     # ovn-sbctl show
