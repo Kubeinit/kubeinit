@@ -22,13 +22,14 @@
     - name: Check if Ansible meets version requirements.
       vars:
         kubeinit_ansible_min_version: 2.9
-      assert:
+      ansible.builtin.assert:
         that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
+
   tasks:
     - name: Create a public key in the hypervisor hosts
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         ssh-keygen -q -b 2048 -t rsa -N "" -C "creating SSH" -f ~/.ssh/id_rsa
         creates="~/.ssh/id_rsa"
@@ -37,12 +38,12 @@
       register: render_publickey
       changed_when: "render_publickey.rc == 0"
     - name: Fetch the keyfile from each node
-      fetch:
+      ansible.builtin.fetch:
         src: "~/.ssh/id_rsa.pub"
         dest: "buffer/{{ inventory_hostname }}-id_rsa.pub"
         flat: yes
     - name: Add the keys to authorized_keys
-      authorized_key:
+      ansible.posix.authorized_key:
         user: root
         state: present
         key: "{{ lookup('file','buffer/' + item + '-id_rsa.pub') }}"
@@ -51,7 +52,7 @@
     - name: Update the /etc/hosts file with node name
       become: yes
       become_user: root
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: "/etc/hosts"
         regexp: ".*\t{{ hostvars[item]['inventory_hostname'] }}\t{{ hostvars[item]['ansible_hostname'] }}\t{{ hostvars[item]['ansible_host'] }}"
         line: "{{ hostvars[item]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}\t{{ hostvars[item]['inventory_hostname'] }}\t{{ hostvars[item]['ansible_hostname'] }}\t{{ hostvars[item]['ansible_host'] }}"
@@ -64,17 +65,9 @@
   hosts: hypervisor_nodes[0]
   vars:
     custom_var: asdf
-  pre_tasks:
-    - name: Check if Ansible meets version requirements.
-      vars:
-        kubeinit_ansible_min_version: 2.9
-      assert:
-        that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
-        msg: >
-          "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
   tasks:
     - name: deploy eks
-      include_role:
+      ansible.builtin.include_role:
         name: "../roles/kubeinit_eks"
       tags:
         - provision_libvirt
