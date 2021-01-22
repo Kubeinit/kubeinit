@@ -141,17 +141,17 @@
       shell: |
         CENTRAL_IP={{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
         LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
-        ENCAP_TYPE=geneve
+        ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
         sudo ovs-vsctl set Open_vSwitch . \
-            external_ids:ovn-remote="tcp:$CENTRAL_IP:6642" \
-            external_ids:ovn-nb="tcp:$CENTRAL_IP:6641" \
+            external_ids:ovn-remote="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_southbound_port }}" \
+            external_ids:ovn-nb="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_northbound_port }}" \
             external_ids:ovn-encap-ip=$LOCAL_IP \
             external_ids:ovn-encap-type="$ENCAP_TYPE" \
             external_ids:system-id="{{ kubeinit_deployment_node_name }}"
 
         # Below two commands only for master. For SSL, other steps are required.
-        sudo ovn-nbctl set-connection ptcp:6641
-        sudo ovn-sbctl set-connection ptcp:6642
+        sudo ovn-nbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_northbound_port }}
+        sudo ovn-sbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_southbound_port }}
       when: >
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
@@ -159,10 +159,10 @@
       shell: |
         CENTRAL_IP={{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
         LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
-        ENCAP_TYPE=geneve
+        ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
         sudo ovs-vsctl set Open_vSwitch . \
-            external_ids:ovn-remote="tcp:$CENTRAL_IP:6642" \
-            external_ids:ovn-nb="tcp:$CENTRAL_IP:6641" \
+            external_ids:ovn-remote="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_southbound_port }}" \
+            external_ids:ovn-nb="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_northbound_port }}" \
             external_ids:ovn-encap-ip=$LOCAL_IP \
             external_ids:ovn-encap-type="$ENCAP_TYPE" \
             external_ids:system-id="{{ kubeinit_deployment_node_name }}"
@@ -170,22 +170,22 @@
         kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
         groups['hypervisor_nodes'] | length > 1
 
-    - name: create the initial network
+    - name: remove the cluster network if exists
       shell: |
-        echo "Show chassis information"
-        CLUSTER_NET=onv-kubeinit
-        echo "Create the network"
-        ovn-nbctl ls-add $CLUSTER_NET
-      # Make this idempotent
+        ovn-nbctl ls-del {{ kubeinit_libvirt_ovn_network }}
       ignore_errors: True
       when: >
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
-    - name: create the initial network
+    - name: create the cluster network
       shell: |
-        echo "Create ports"
-        CLUSTER_NET=onv-kubeinit
-        ovn-nbctl lsp-add $CLUSTER_NET {{ item }}
+        ovn-nbctl ls-add {{ kubeinit_libvirt_ovn_network }}
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    - name: create the nodes ports
+      shell: |
+        ovn-nbctl lsp-add {{ kubeinit_libvirt_ovn_network }} {{ item }}
         ovn-nbctl lsp-set-addresses {{ item }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
       # Make this idempotent
       ignore_errors: True
