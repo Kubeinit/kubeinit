@@ -22,18 +22,15 @@
     - name: Check if Ansible meets version requirements.
       vars:
         kubeinit_ansible_min_version: 2.9
-      assert:
+      ansible.builtin.assert:
         that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
-  tasks:
-    # We deploy applications to the service node.
-    - debug:
-        msg: "{{ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first }}"
 
+  tasks:
     - name: Deploy submariner
       delegate_to: "{{ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first }}"
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_submariner
         tasks_from: main
