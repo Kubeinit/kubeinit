@@ -17,14 +17,14 @@
 - name: Configure the worker nodes
   block:
     - name: Storing the join cluster command token.
-      copy:
+      ansible.builtin.copy:
         content: "{{ k8s_master_kubeadm_init_output }}"
         dest: ~/k8s_token
         mode: '0644'
       when: groups['k8s_worker_nodes'] | length > 0
 
     - name: Modprobe ip forward
-      shell: |
+      ansible.builtin.shell: |
         modprobe br_netfilter
         echo '1' > /proc/sys/net/ipv4/ip_forward
         mkdir -p /proc/sys/net/bridge/
@@ -34,7 +34,7 @@
       when: groups['k8s_worker_nodes'] | length > 0
 
     - name: Joining worker nodes with kubernetes master
-      shell: |
+      ansible.builtin.shell: |
        kubeadm reset -f || true
        cat ~/k8s_token > out.sh
        sh out.sh
@@ -42,7 +42,7 @@
       when: groups['k8s_worker_nodes'] | length > 0
 
     - name: Label node
-      shell: |
+      ansible.builtin.shell: |
        kubectl label node {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
       changed_when: false
       when: groups['k8s_worker_nodes'] | length > 0

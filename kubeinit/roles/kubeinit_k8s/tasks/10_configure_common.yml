@@ -21,20 +21,20 @@
 - name: Configure common requirements in guests
   block:
     - name: update packages
-      yum:
+      ansible.builtin.yum:
         name: "*"
         state: latest
         use_backend: dnf
       register: update_packages
 
     - name: Reboot immediately after the package update
-      shell: "sleep 5 && reboot"
+      ansible.builtin.shell: "sleep 5 && reboot"
       async: 1
       poll: 0
       when: update_packages is changed
 
     - name: Wait for the reboot to complete if there was a change.
-      wait_for:
+      ansible.builtin.wait_for:
         port: 22
         host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
         search_regex: OpenSSH
@@ -44,25 +44,25 @@
       delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
     - name: install common requirements
-      yum:
+      ansible.builtin.yum:
         name: "{{ kubeinit_k8s_common_dependencies }}"
         state: present
         use_backend: dnf
 
     - name: Add the local DNS server as a local resolver
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/resolv.conf
         line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
 
     - name: Resize root partition
-      shell: |
+      ansible.builtin.shell: |
         echo 'Reclaim space for root partition'
         growpart /dev/vda 1
         xfs_growfs /dev/vda1
       changed_when: false
 
     - name: Enable kernel modules and IP forward
-      shell: |
+      ansible.builtin.shell: |
         modprobe br_netfilter
         echo br_netfilter > /etc/modules-load.d/br_netfilter.conf
         modprobe overlay
@@ -74,7 +74,7 @@
       changed_when: false
 
     - name: Disable SELinux
-      selinux:
+      ansible.posix.selinux:
         state: disabled
 
     #
@@ -86,18 +86,18 @@
     #
 
     - name: Remove repo before adding it
-      file:
+      ansible.builtin.file:
         path: /etc/yum.repos.d/crio.repo
         state: absent
 
     - name: Creating a repository file for cri-o
-      file:
+      ansible.builtin.file:
         path: /etc/yum.repos.d/crio.repo
         state: touch
         mode: '0644'
 
     - name: Adding repository details in the cri-o repo file.
-      blockinfile:
+      ansible.builtin.blockinfile:
         path: /etc/yum.repos.d/crio.repo
         block: |
           [devel_kubic_libcontainers_stable]
@@ -120,18 +120,18 @@
     #
 
     - name: Remove repo before adding it
-      file:
+      ansible.builtin.file:
         path: /etc/yum.repos.d/kubernetes.repo
         state: absent
 
     - name: Creating a repository file for Kubernetes
-      file:
+      ansible.builtin.file:
         path: /etc/yum.repos.d/kubernetes.repo
         state: touch
         mode: '0644'
 
     - name: Adding repository details in Kubernetes repo file.
-      blockinfile:
+      ansible.builtin.blockinfile:
         path: /etc/yum.repos.d/kubernetes.repo
         block: |
          [kubernetes]
@@ -149,18 +149,18 @@
 
     # The three steps beforeshould provide the correct repo to install cri-o
     - name: install the latest version of cri-o
-      yum:
+      ansible.builtin.yum:
         name: cri-o
         state: present
 
     - name: Creating cri-o sysctl file
-      file:
+      ansible.builtin.file:
         path: /etc/sysctl.d/99-kubernetes-cri.conf
         state: touch
         mode: '0644'
 
     - name: Configure cri-o ipv4_forward
-      blockinfile:
+      ansible.builtin.blockinfile:
         path: /etc/sysctl.d/99-kubernetes-cri.conf
         block: |
          net.bridge.bridge-nf-call-iptables  = 1
@@ -168,60 +168,60 @@
          net.bridge.bridge-nf-call-ip6tables = 1
 
     - name: Load system new sysctl parameters
-      command: sysctl -p/etc/sysctl.d/99-kubernetes-cri.conf
+      ansible.builtin.command: sysctl -p/etc/sysctl.d/99-kubernetes-cri.conf
       changed_when: false
 
     - name: Update cri-o config systemd to cgroupfs
-      command: sed -i 's#group_manager = "systemd"#group_manager = "cgroupfs"#g' /etc/crio/crio.conf
+      ansible.builtin.command: sed -i 's#group_manager = "systemd"#group_manager = "cgroupfs"#g' /etc/crio/crio.conf
       changed_when: false
 
     - name: Update cri-o config overlay to overlay2
-      command: sed -i 's/[#|^]storage_driver = .*/storage_driver = "overlay2"/g' /etc/crio/crio.conf
+      ansible.builtin.command: sed -i 's/[#|^]storage_driver = .*/storage_driver = "overlay2"/g' /etc/crio/crio.conf
       changed_when: false
 
     - name: Update cri-o config storage option to overlay2
-      command: sed -i 's/[#|^]storage_option = .*/storage_option = [ "overlay2.override_kernel_check=1" ]/g' /etc/crio/crio.conf
+      ansible.builtin.command: sed -i 's/[#|^]storage_option = .*/storage_option = [ "overlay2.override_kernel_check=1" ]/g' /etc/crio/crio.conf
       changed_when: false
 
     - name: Create new net.d folder
-      file:
+      ansible.builtin.file:
         path: /etc/crio/net.d
         state: directory
         mode: '0644'
 
     - name: Update cri-o config network dir to crio folder
-      command: sed -i 's?[#|^]network_dir = .*?network_dir = "/etc/crio/net.d/"?g' /etc/crio/crio.conf
+      ansible.builtin.command: sed -i 's?[#|^]network_dir = .*?network_dir = "/etc/crio/net.d/"?g' /etc/crio/crio.conf
       changed_when: false
 
     - name: Update cri-o config conmon to the correct path
-      command: sed 's|/usr/libexec/crio/conmon|/usr/bin/conmon|' -i /etc/crio/crio.conf
+      ansible.builtin.command: sed 's|/usr/libexec/crio/conmon|/usr/bin/conmon|' -i /etc/crio/crio.conf
       changed_when: false
 
     - name: Creating kubelet default file
-      file:
+      ansible.builtin.file:
         path: /etc/default/kubelet
         state: touch
         mode: '0644'
 
     - name: Configure kubelet defaults
-      blockinfile:
+      ansible.builtin.blockinfile:
         path: /etc/default/kubelet
         block: |
           KUBELET_EXTRA_ARGS=--runtime-cgroups=/systemd/system.slice --kubelet-cgroups=/systemd/system.slice --feature-gates="AllAlpha=false,RunAsGroup=true" --container-runtime=remote --cgroup-driver=cgroupfs --container-runtime-endpoint='unix:///var/run/crio/crio.sock' --runtime-request-timeout=5m
 
     - name: Systemd reload
-      command: systemctl daemon-reload
+      ansible.builtin.command: systemctl daemon-reload
       changed_when: false
 
     - name: Creating cri-o bridge
       # From: https://github.com/cri-o/cri-o/blob/master/contrib/cni/10-crio-bridge.conf
-      file:
+      ansible.builtin.file:
         path: /etc/crio/net.d/10-crio-bridge.conf
         state: touch
         mode: '0644'
 
     - name: Configure cri-o bridge
-      blockinfile:
+      ansible.builtin.blockinfile:
         path: /etc/crio/net.d/10-crio-bridge.conf
         block: |
          {
@@ -246,13 +246,13 @@
          }
 
     - name: Create hooks folder
-      file:
+      ansible.builtin.file:
         path: /usr/share/containers/oci/hooks.d
         state: directory
         mode: '0777'
 
     - name: Enable/start/status cri-o
-      shell: |
+      ansible.builtin.shell: |
         systemctl enable crio
         systemctl start crio
         systemctl status crio
@@ -263,7 +263,7 @@
     #
 
     - name: install requirements
-      package:
+      ansible.builtin.package:
         name:
           - tc
           - podman-docker
@@ -276,7 +276,7 @@
         state: present
 
     - name: enable kubelet
-      systemd:
+      ansible.builtin.systemd:
         state: restarted
         name: kubelet
         enabled: yes

@@ -17,27 +17,27 @@
 - name: Configure the RKE deployment
   block:
     - name: "Install RKE"
-      shell: |
+      ansible.builtin.shell: |
         ~/rke --version
         ~/rke up
       register: install_rke
       changed_when: "install_rke.rc == 0"
 
     - name: Autoload kubeconfig
-      shell: |
+      ansible.builtin.shell: |
         echo "export KUBECONFIG=~/kube_config_cluster.yml" >> ~/.bashrc
       ignore_errors: yes
       register: autoload
       changed_when: "autoload.rc == 0"
 
     - name: Create kube directory
-      file:
+      ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0644'
 
     - name: Copy the kubeconfig
-      shell: |
+      ansible.builtin.shell: |
         cp ~/kube_config_cluster.yml ~/.kube/config
       register: copy_kubeconfig
       changed_when: "copy_kubeconfig.rc == 0"

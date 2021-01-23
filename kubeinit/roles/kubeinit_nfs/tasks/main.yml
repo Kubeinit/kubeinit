@@ -19,7 +19,7 @@
 
 # found within the "vars/" path. If no OS files are found the task will skip.
 - name: Gather variables for each operating system
-  include_vars: "{{ item }}"
+  ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
     - skip: true
       files:
@@ -33,13 +33,13 @@
     - always
 
 - name: Install NFS packages
-  package:
+  ansible.builtin.package:
     name: "{{ kubeinit_nfs_packages }}"
     state: present
 
 
 - name: "configure NFS shares of CentOS based guests"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     systemctl enable nfs-server rpcbind
     systemctl start nfs-server rpcbind
@@ -56,7 +56,7 @@
     executable: /bin/bash
 
 - name: "configure NFS shares of Ubuntu based guests"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     mkdir -p /var/nfsshare
     chmod -R 777 /var/nfsshare
@@ -74,7 +74,7 @@
 # Configure PV
 #
 - name: "Add some example PV and claims"
-  shell: |
+  ansible.builtin.shell: |
     # We create the folder for the PV in our NFS share
     # mkdir -p /var/nfsshare/registry
     # chmod -R 777 /var/nfsshare/registry
@@ -129,7 +129,7 @@
 #
 
 - name: add nfs provisioning role
-  shell: |
+  ansible.builtin.shell: |
     cat << EOF > ~/nfs_rbac.yaml
     kind: ServiceAccount
     apiVersion: v1
@@ -198,7 +198,7 @@
     executable: /bin/bash
 
 - name: add nfs client provisioner deployment
-  shell: |
+  ansible.builtin.shell: |
     cat << EOF > ~/nfs_client_prov_deployment.yaml
     kind: Deployment
     apiVersion: apps/v1
@@ -244,7 +244,7 @@
     executable: /bin/bash
 
 - name: add default nfs storage class
-  shell: |
+  ansible.builtin.shell: |
     cat << EOF > ~/nfs_storage_class.yaml
     apiVersion: storage.k8s.io/v1
     kind: StorageClass
@@ -264,7 +264,7 @@
     executable: /bin/bash
 
 - name: add security context constraint for nfs provisioner
-  shell: |
+  ansible.builtin.shell: |
     cat << EOF > ~/nfs_scc.yaml
     apiVersion: security.openshift.io/v1
     kind: SecurityContextConstraints
@@ -312,7 +312,7 @@
     executable: /bin/bash
 
 - name: apply nfs security policy to nfs user
-  shell: |
+  ansible.builtin.shell: |
     export KUBECONFIG=~/.kube/config
     oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
   register: apply_nfs_sec

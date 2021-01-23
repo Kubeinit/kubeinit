@@ -19,7 +19,7 @@
 
 # found within the "vars/" path. If no OS files are found the task will skip.
 - name: Gather variables for each operating system
-  include_vars: "{{ item }}"
+  ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
     - skip: true
       files:
@@ -33,19 +33,19 @@
     - always
 
 - name: Install Apache
-  package:
+  ansible.builtin.package:
     name: "{{ kubeinit_apache_packages }}"
     state: present
 
 - name: Use 8080 port in service node
-  replace:
+  ansible.builtin.replace:
     path: "{{ kubeinit_apache_config_file_ports }}"
     regexp: 'Listen 80'
     replace: 'Listen 8080'
     mode: '0644'
 
 - name: Start and enable httpd service
-  service:
+  ansible.builtin.service:
     name: "{{ kubeinit_apache_service_name }}"
     state: restarted
     enabled: yes

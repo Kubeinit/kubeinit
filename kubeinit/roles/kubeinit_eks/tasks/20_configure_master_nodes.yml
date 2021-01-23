@@ -17,13 +17,13 @@
 - name: Configure the master nodes
   block:
     - name: Install root public from service node in master nodes
-      shell: |
+      ansible.builtin.shell: |
        echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
       changed_when: false
 
     # Push the certificates from the registry to the master nodes if its enabled
     - name: Push the certificates from the registry (service node) to the master nodes
-      shell: |
+      ansible.builtin.shell: |
         set -e
         scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ kubeinit_deployment_node_name }}:/etc/pki/ca-trust/source/anchors/
       register: install_all_certs_in_masters
@@ -33,7 +33,7 @@
       delegate_to: "{{ groups['eks_service_nodes'][0] }}"
 
     - name: Insert the local registry auth details
-      shell: |
+      ansible.builtin.shell: |
         set -e
 
         mkdir -p .docker
@@ -56,7 +56,7 @@
       when: kubeinit_registry_enabled | bool
 
     - name: Update the CA certs files
-      command: update-ca-trust extract
+      ansible.builtin.command: update-ca-trust extract
       register: update_master_ca_trust_files
       changed_when: "update_master_ca_trust_files.rc == 0"
       become: true
@@ -67,7 +67,7 @@
     ##
 
     - name: get etcd tag
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/etcd/tags/list --stderr - | grep '"name":"etcd"' | jq .tags[0]
       register: eks_etcd_tag
@@ -75,12 +75,12 @@
       when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: register the eks etcd service deployment tag
-      set_fact:
+      ansible.builtin.set_fact:
         kubeinit_eks_etcd_tag={{ eks_etcd_tag.stdout }}
       when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: Clean kubeadm and initializing Kubernetes cluster
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         kubeadm reset -f || true
 
@@ -117,10 +117,11 @@
       changed_when: "eks_master_kubeadm_master_init_output.rc == 0"
       when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-    - debug: var=eks_master_kubeadm_master_init_output
+    - name: debug
+      ansible.builtin.debug: var=eks_master_kubeadm_master_init_output
 
     - name: Get the master join key
-      set_fact:
+      ansible.builtin.set_fact:
         eks_master_kubeadm_init_master_join_key: "{{ item }}"
       when: >
         groups['eks_master_nodes'][0] in kubeinit_deployment_node_name and
@@ -128,32 +129,33 @@
       with_items:
       - "{{ eks_master_kubeadm_master_init_output.stdout_lines }}"
 
-    - debug: var=eks_master_kubeadm_init_master_join_key
+    - name: debug
+      ansible.builtin.debug: var=eks_master_kubeadm_init_master_join_key
 
     # This task will copy the join key across all the master nodes
     - name: Storing the master join key to add the other master nodes.
-      copy:
+      ansible.builtin.copy:
         content: "{{ eks_master_kubeadm_init_master_join_key }}"
         dest: ~/eks_master_join_key
         mode: '0644'
       when: groups['eks_master_nodes'] | length > 1
 
     - name: Create kube directory
-      file:
+      ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0644'
       when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: Copying required files
-      shell: |
+      ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
       changed_when: false
       when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: Get the join command
-      shell: |
+      ansible.builtin.shell: |
         #TODO:FIXME: Check warnings in the output
         kubeadm token create --print-join-command
       register: eks_master_kubeadm_init_output_aux
@@ -161,22 +163,23 @@
       when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: register the join command for other nodes
-      set_fact:
+      ansible.builtin.set_fact:
         eks_master_kubeadm_init_output={{ eks_master_kubeadm_init_output_aux.stdout }}
       when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
-    - debug: var=eks_master_kubeadm_init_output
+    - name: debug
+      ansible.builtin.debug: var=eks_master_kubeadm_init_output
 
     # This needs to be stored in all the master nodes
     - name: Storing the join cluster command token.
-      copy:
+      ansible.builtin.copy:
         content: "{{ eks_master_kubeadm_init_output }}"
         dest: ~/eks_token
         mode: '0644'
       when: groups['eks_master_nodes'] | length > 1
 
     - name: Install Network Add-on
-      command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
       changed_when: false
       when: groups['eks_master_nodes'][0] in kubeinit_deployment_node_name
 
@@ -185,7 +188,7 @@
     ##
 
     - name: Modprobe ip forward
-      shell: |
+      ansible.builtin.shell: |
         modprobe br_netfilter
         echo '1' > /proc/sys/net/ipv4/ip_forward
         mkdir -p /proc/sys/net/bridge/
@@ -195,7 +198,7 @@
       when: groups['eks_master_nodes'] | length > 1 and groups['eks_master_nodes'][0] not in kubeinit_deployment_node_name
 
     - name: Joining aditional master nodes using the PK
-      shell: |
+      ansible.builtin.shell: |
        kubeadm reset -f || true
        sed "s/$/{{ eks_master_kubeadm_init_master_join_key }}/g" eks_token > ~/eks_master_join_command.sh
        sh eks_master_join_command.sh
@@ -203,14 +206,14 @@
       when: groups['eks_master_nodes'] | length > 1 and groups['eks_master_nodes'][0] not in kubeinit_deployment_node_name
 
     - name: Create kube directory
-      file:
+      ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0777'
       when: groups['eks_master_nodes'] | length > 1 and groups['eks_master_nodes'][0] not in kubeinit_deployment_node_name
 
     - name: Copying required files
-      shell: |
+      ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
       changed_when: false

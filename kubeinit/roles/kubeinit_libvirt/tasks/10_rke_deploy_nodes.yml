@@ -17,51 +17,51 @@
 - name: Deploy an Ubuntu based guest
   block:
     - name: get root host public key
-      command: cat /root/.ssh/id_rsa.pub
+      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
       register: public_key_content
       changed_when: "public_key_content.rc == 0"
 
     - name: register the public key of the root user from the host
-      set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
+      ansible.builtin.set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
 
     - name: Create the interfaces template for networking details
-      template:
+      ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/00-installer-ubuntu-netconfig.yaml.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/00-installer-ubuntu-netconfig.yaml"
         mode: "0644"
 
     - name: Create the hosts template
-      template:
+      ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.debian.tmpl"
         mode: "0644"
 
     - name: Create the main config file for cloud-init
-      template:
+      ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg"
         mode: "0644"
 
     - name: Create the datasource cloud-init file
-      template:
+      ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/90-cloudinit-dpkg.cfg.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/90_dpkg.cfg"
         mode: "0644"
 
     - name: Remove old disk images
-      file:
+      ansible.builtin.file:
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2"
         state: absent
 
     - name: Grow the partitions
-      shell: |
+      ansible.builtin.shell: |
         qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.ubuntu.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2'
         qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
       register: grow_img
       changed_when: "grow_img.rc == 0"
 
     - name: "Inject {{ kubeinit_libvirt_cloud_user }} virt-customize assets"
-      shell: |
+      ansible.builtin.shell: |
         virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 \
           --run-command 'useradd -s /bin/bash -u 1000 -p "$(openssl passwd -1 {{ kubeinit_libvirt_vms_default_password }})" {{ kubeinit_libvirt_cloud_user }}' \
           --run-command 'echo "{{ kubeinit_libvirt_cloud_user }} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/{{ kubeinit_libvirt_cloud_user }}' \
@@ -81,7 +81,7 @@
       changed_when: "virt_inject.rc == 0"
 
     - name: "Create VM definition for the service nodes"
-      shell: |
+      ansible.builtin.shell: |
         virt-install \
             --connect qemu:///system \
             --name={{ kubeinit_deployment_node_name }} \
@@ -107,7 +107,7 @@
       changed_when: "virt_install.rc == 0"
 
     - name: wait for the guests to boot
-      wait_for:
+      ansible.builtin.wait_for:
         port: 22
         host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
         search_regex: OpenSSH
@@ -115,7 +115,7 @@
         timeout: 600
 
     - name: Write the new instance host keys to the hypervisor known hosts
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         ssh-keyscan -H {{ hostvars[kubeinit_deployment_node_name].ansible_host }} >> ~/.ssh/known_hosts
         # We can not resolve  by name from the hypervisors

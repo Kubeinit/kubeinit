@@ -21,18 +21,18 @@
     #
 
     - name: Remove repo before adding it
-      file:
+      ansible.builtin.file:
         path: /etc/yum.repos.d/kubernetes.repo
         state: absent
 
     - name: Creating a repository file for Kubernetes
-      file:
+      ansible.builtin.file:
         path: /etc/yum.repos.d/kubernetes.repo
         state: touch
         mode: '0644'
 
     - name: Adding repository details in Kubernetes repo file.
-      blockinfile:
+      ansible.builtin.blockinfile:
         path: /etc/yum.repos.d/kubernetes.repo
         block: |
          [kubernetes]
@@ -45,20 +45,20 @@
                 https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 
     - name: update packages
-      yum:
+      ansible.builtin.yum:
         name: "*"
         state: latest
         use_backend: dnf
       register: update_packages
 
     - name: Reboot immediately after the package update
-      shell: "sleep 5 && reboot"
+      ansible.builtin.shell: "sleep 5 && reboot"
       async: 1
       poll: 0
       when: update_packages is changed
 
     - name: Wait for the reboot to complete if there was a change.
-      wait_for:
+      ansible.builtin.wait_for:
         port: 22
         host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
         search_regex: OpenSSH
@@ -68,13 +68,13 @@
       delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
     - name: install services requirements
-      yum:
+      ansible.builtin.yum:
         name: "{{ kubeinit_k8s_service_dependencies }}"
         state: present
         use_backend: dnf
 
     - name: install common requirements
-      yum:
+      ansible.builtin.yum:
         name: "{{ kubeinit_k8s_common_dependencies }}"
         state: present
         use_backend: dnf
@@ -85,7 +85,7 @@
     #
     # - name: Configure a local container image registry
     #   # delegate_facts: true
-    #   import_role:
+    #   ansible.builtin.import_role:
     #     name: ../../roles/kubeinit_registry
     #     tasks_from: main
     #   when: kubeinit_registry_enabled|bool
@@ -96,7 +96,7 @@
 
     - name: Configure Bind
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_bind
         tasks_from: main
 
@@ -106,7 +106,7 @@
 
     - name: Configure HAProxy
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_haproxy
         tasks_from: main
 
@@ -116,7 +116,7 @@
 
     - name: Configure Apache
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_apache
         tasks_from: main
 
@@ -125,7 +125,7 @@
     #
 
     - name: "Render root keys in the service node"
-      shell: |
+      ansible.builtin.shell: |
         cd
         mkdir ~/.ssh
         ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
@@ -133,16 +133,16 @@
       changed_when: "render_service_keys.rc == 0"
 
     - name: get root service machine public key
-      command: cat /root/.ssh/id_rsa.pub
+      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
       register: public_key_service_content
       changed_when: "public_key_service_content.rc == 0"
 
     - name: register the public key of the root service machine public key
-      set_fact:
+      ansible.builtin.set_fact:
         kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
 
     #- name: Autoload kubeconfig
-    #  shell: |
+    #  ansible.builtin.shell: |
     #    echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
     #  ignore_errors: yes
     #  register: autoload

@@ -17,20 +17,20 @@
 - name: Configure the service node
   block:
     - name: update packages
-      yum:
+      ansible.builtin.yum:
         name: "*"
         state: latest
         use_backend: dnf
       register: update_packages
 
     - name: Reboot immediately after the package update
-      shell: "sleep 5 && reboot"
+      ansible.builtin.shell: "sleep 5 && reboot"
       async: 1
       poll: 0
       when: update_packages is changed
 
     - name: Wait for the reboot to complete if there was a change.
-      wait_for:
+      ansible.builtin.wait_for:
         port: 22
         host: "{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}"
         search_regex: OpenSSH
@@ -40,20 +40,20 @@
       delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
 
     - name: install services requirements
-      yum:
+      ansible.builtin.yum:
         name: "{{ kubeinit_okd_service_dependencies }}"
         state: present
         use_backend: dnf
 
     - name: Resize root partition
-      shell: |
+      ansible.builtin.shell: |
         echo 'Reclaim space for root partition'
         growpart /dev/vda 1
         xfs_growfs /dev/vda1
       changed_when: false
 
     - name: Create directory for apache
-      file:
+      ansible.builtin.file:
         path: /var/www/html/okd4
         state: directory
         owner: apache
@@ -67,7 +67,7 @@
 
     - name: Configure Bind
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_bind
         tasks_from: main
     #
@@ -76,7 +76,7 @@
 
     - name: Configure HAProxy
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_haproxy
         tasks_from: main
 
@@ -86,7 +86,7 @@
 
     - name: Configure Apache
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_apache
         tasks_from: main
 
@@ -95,7 +95,7 @@
     #
 
     - name: "Render root keys in the service node"
-      shell: |
+      ansible.builtin.shell: |
         cd
         mkdir ~/.ssh
         ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
@@ -103,26 +103,26 @@
       changed_when: "render_service_keys.rc == 0"
 
     - name: get root service machine public key
-      command: cat /root/.ssh/id_rsa.pub
+      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
       register: public_key_service_content
       changed_when: "public_key_service_content.rc == 0"
 
     - name: register the public key of the root service machine public key
-      set_fact:
+      ansible.builtin.set_fact:
         kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
 
     - name: Download okd installer
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ kubeinit_okd_dependencies.installer }}"
         dest: ~/
 
     - name: Download okd client
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ kubeinit_okd_dependencies.client }}"
         dest: ~/
 
     - name: "Install okd client and installer"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         cd
         rm -rf install_dir
@@ -141,7 +141,7 @@
     #
 
     - name: "Render the required container images"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         URL=$( curl -s "https://api.github.com/repos/openshift/okd/releases/tags/{{ kubeinit_okd_registry_release_tag }}" \
            | jq -r '.assets[] | select(.name=="release.txt") | .browser_download_url' )
@@ -156,31 +156,31 @@
 
     - name: Configure a local container image registry
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_registry
         tasks_from: main
       when: kubeinit_registry_enabled|bool
 
     - name: Render the cluster template
-      template:
+      ansible.builtin.template:
         src: "install-config.yaml.j2"
         dest: "~/install_dir/install-config.yaml"
         mode: '0644'
 
     - name: "Backup the install config file"
-      shell: |
+      ansible.builtin.shell: |
         cp ~/install_dir/install-config.yaml ~/install-config.yaml
       register: backup_install_config
       changed_when: "backup_install_config.rc == 0"
 
     - name: "Render the bootstrap details"
-      shell: |
+      ansible.builtin.shell: |
         openshift-install create manifests --dir=install_dir/
       register: render_bootstrap_details
       changed_when: "render_bootstrap_details.rc == 0"
 
     - name: "Disable master schedulable"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         cd
         # Be aware of this option, explain the consequences in:
@@ -191,14 +191,14 @@
       when: groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length > 0
 
     - name: "Render ignition files"
-      shell: |
+      ansible.builtin.shell: |
         openshift-install create ignition-configs --dir=install_dir/
         cp -R install_dir/* /var/www/html/okd4/
       register: render_ignition_files
       changed_when: "render_ignition_files.rc == 0"
 
     - name: Download coreos initrd image
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.initrd }}"
         dest: /var/www/html/okd4/
         owner: apache
@@ -206,7 +206,7 @@
         mode: 0775
 
     - name: Download coreos rootfs image
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.rootfs }}"
         dest: /var/www/html/okd4/
         owner: apache
@@ -214,7 +214,7 @@
         mode: 0775
 
     - name: Download coreos raw image
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.raw }}"
         dest: /var/www/html/okd4/
         owner: apache
@@ -222,7 +222,7 @@
         mode: 0775
 
     - name: Download coreos sig image
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.sig }}"
         dest: /var/www/html/okd4/
         owner: apache
@@ -230,20 +230,20 @@
         mode: 0775
 
     - name: "Apply permissions to the apache folder"
-      shell: |
+      ansible.builtin.shell: |
         sudo chown -R apache: /var/www/html/
         sudo chmod -R 755 /var/www/html/
       register: apply_apache_permissions
       changed_when: "apply_apache_permissions.rc == 0"
 
     - name: Create kube directory
-      file:
+      ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0644'
 
     - name: Autoload kubeconfig
-      shell: |
+      ansible.builtin.shell: |
         echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
       ignore_errors: yes
       register: autoload

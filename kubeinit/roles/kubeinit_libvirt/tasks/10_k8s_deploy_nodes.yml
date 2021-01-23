@@ -17,45 +17,45 @@
 - name: Deploy a CentOS based guest
   block:
     - name: get root host public key
-      command: cat /root/.ssh/id_rsa.pub
+      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
       register: public_key_content
       changed_when: "public_key_content.rc == 0"
 
     - name: register the public key of the root user from the host
-      set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
+      ansible.builtin.set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
 
     - name: Create the network interface template for networking details
-      template:
+      ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/ifcfg-eth0.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth0"
         mode: "0644"
 
     - name: Create the network interface template for the external interface if enabled
-      template:
+      ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/ifcfg-eth1.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth1"
         mode: "0644"
       when: kubeinit_libvirt_external_service_interface_enabled
 
     - name: Create the hosts template
-      template:
+      ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.redhat.tmpl"
         mode: "0644"
 
     - name: Create the network cloudinit templates for networking details
-      template:
+      ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg"
         mode: "0644"
 
     - name: Remove old disk images
-      file:
+      ansible.builtin.file:
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2"
         state: absent
 
     - name: Grow the partitions
-      shell: |
+      ansible.builtin.shell: |
         qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2'
         qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
       register: grow_img
@@ -63,7 +63,7 @@
 
     # This will inject the VM configuration in the case of a CentOS machine
     - name: "Inject {{ kubeinit_libvirt_cloud_user }} virt-customize assets"
-      shell: |
+      ansible.builtin.shell: |
         virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 \
           --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
           --run-command 'id -u {{ kubeinit_libvirt_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_libvirt_cloud_user }}' \
@@ -83,7 +83,7 @@
       changed_when: "virt_inject.rc == 0"
 
     - name: "Create VM definition for the service nodes"
-      shell: |
+      ansible.builtin.shell: |
         virt-install \
             --connect qemu:///system \
             --name={{ kubeinit_deployment_node_name }} \
@@ -109,7 +109,7 @@
       changed_when: "virt_install.rc == 0"
 
     - name: wait for the host to boot
-      wait_for:
+      ansible.builtin.wait_for:
         port: 22
         host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
         search_regex: OpenSSH
@@ -117,7 +117,7 @@
         timeout: 600
 
     - name: Write the new instance host keys to the hypervisor known hosts
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         ssh-keyscan -H {{ hostvars[kubeinit_deployment_node_name].ansible_host }} >> ~/.ssh/known_hosts
         # We can not resolve  by name from the hypervisors

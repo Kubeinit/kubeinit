@@ -17,19 +17,19 @@
 - name: Deploy CDK
   block:
     - name: Render the cluster template
-      template:
+      ansible.builtin.template:
         src: "cloud.yml.j2"
         dest: "~/cloud.yml"
         mode: '0644'
 
     - name: Render the bundle template
-      template:
+      ansible.builtin.template:
         src: "bundle.yml.j2"
         dest: "~/bundle.yml"
         mode: '0644'
 
     - name: "Install the CDK controller"
-      shell: |
+      ansible.builtin.shell: |
         ssh-keyscan {{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }}
         sleep 2
         ssh-keyscan {{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }} >> ~/.ssh/known_hosts
@@ -46,7 +46,7 @@
       changed_when: "install_cdk.rc == 0"
 
     - name: "Add machines"
-      shell: |
+      ansible.builtin.shell: |
         ssh-keyscan {{ hostvars[item].ansible_host }}
         sleep 2
         ssh-keyscan {{ hostvars[item].ansible_host }} >> ~/.ssh/known_hosts
@@ -57,7 +57,7 @@
         - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
 
     - name: "verify that all cluster nodes are started"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         juju machines | grep started
       args:
@@ -70,19 +70,19 @@
       until: cmd_res.stdout_lines | list | count == ( groups['cdk_master_nodes'] | count + groups['cdk_worker_nodes'] | count )
 
     - name: "Deploy CDK"
-      shell: |
+      ansible.builtin.shell: |
         juju deploy ./bundle.yml --map-machines=existing{% for item in (groups['cdk_master_nodes'] + groups['cdk_worker_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
       register: install_cdk
       changed_when: "install_cdk.rc == 0"
 
     - name: "Get cluster status"
-      shell: |
+      ansible.builtin.shell: |
         juju status
       register: status_cdk
       changed_when: "status_cdk.rc == 0"
 
     - name: "verify that the etcd cluster is up and healthy"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         juju status | grep etcd | grep Healthy
       args:
@@ -95,13 +95,13 @@
       until: etcd_res.stdout_lines | list | count == ( groups['cdk_master_nodes'] | count )
 
     - name: Create kube directory
-      file:
+      ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0777'
 
     - name: Make sure the kubeconfig file exists in the master node
-      stat:
+      ansible.builtin.stat:
         path: ~/.kube/config
       register: kconf_result
       retries: 60
@@ -109,18 +109,18 @@
       until: kconf_result.stat.exists
 
     - name: Copying the kubeconfig to a variable
-      slurp:
+      ansible.builtin.slurp:
         src: ~/.kube/config
       register: kubeinit_cdk_cluster_kubeconfig
 
     - name: Storing the master kubeconfig to the services machine.
-      copy:
+      ansible.builtin.copy:
         content: "{{ kubeinit_cdk_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
         dest: ~/.kube/config
         mode: '0644'
 
     - name: Autoload kubeconfig
-      shell: |
+      ansible.builtin.shell: |
         echo "export KUBECONFIG=~/.kube/config" >> ~/.bashrc
       register: autoload
       changed_when: "autoload.rc == 0"
