@@ -15,7 +15,7 @@
 # under the License.
 
 - name: "Remove repo file"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     set -e
     rm -rf submariner-operator
@@ -26,7 +26,7 @@
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: Get submariner-operator repository content
-  git:
+  ansible.builtin.git:
     repo: https://github.com/submariner-io/submariner-operator
     dest: ~/submariner-operator
     force: yes
@@ -34,7 +34,7 @@
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: "Get the PR ID"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     set -e
     echo "{{ kubeinit_submariner_test_pr_url }}" | rev | cut -d'/' -f 1 | rev
@@ -45,11 +45,11 @@
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: configure a variable with the PR ID
-  set_fact:
+  ansible.builtin.set_fact:
     kubeinit_submariner_test_pr_id: '{{ get_repo_pr_id.stdout }}'
 
 - name: "Get submariner code based on a PR or from master"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     set -e
     echo "Getting repo from: {{ kubeinit_submariner_test_pr_url }}"
@@ -74,7 +74,7 @@
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: "Clean previous images"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     set -e
 
@@ -87,34 +87,34 @@
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: "Make clean"
-  make:
+  community.general.make:
     chdir: ~/submariner-operator
     target: clean
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: "Make the subctl binary"
-  make:
+  community.general.make:
     chdir: ~/submariner-operator
     target: bin/subctl
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 # We need this in both cluster and there are 2 different registries (1 per cluster)
 - name: "Make build"
-  make:
+  community.general.make:
     chdir: ~/submariner-operator
     target: build
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 # We need this in both cluster and there are 2 different registries (1 per cluster)
 - name: "Make images"
-  make:
+  community.general.make:
     chdir: ~/submariner-operator
     target: images
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 # We need this in both cluster and there are 2 different registries (1 per cluster)
 - name: "Push the image to the local registry"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     set -e
     LOCAL_REGISTRY=$(cat ~/registry-auths.json | jq .auths | jq -r 'keys[]')
@@ -129,7 +129,7 @@
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: "Make the subctl binary available"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     set -e
 
@@ -143,37 +143,37 @@
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: Check if ~/.profile exists
-  stat:
+  ansible.builtin.stat:
     path: ~/.profile
   register: profile_exists
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: Append subctl path to profile
-  lineinfile:
+  ansible.builtin.lineinfile:
     line: export PATH=$PATH:~/.local/bin
     dest: ~/.profile
   when: profile_exists.stat.exists and (kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool)
 
 - name: Check if ~/.bash_profile exists
-  stat:
+  ansible.builtin.stat:
     path: ~/.bash_profile
   register: bash_profile_exists
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: Append subctl path to bash_profile
-  lineinfile:
+  ansible.builtin.lineinfile:
     line: export PATH=$PATH:~/.local/bin
     dest: ~/.bash_profile
   when: bash_profile_exists.stat.exists and (kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool)
 
 - name: Check if ~/.bashrc exists
-  stat:
+  ansible.builtin.stat:
     path: ~/.bashrc
   register: bashrc_exists
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: Append subctl path to bashrc
-  lineinfile:
+  ansible.builtin.lineinfile:
     line: export PATH=$PATH:~/.local/bin
     dest: ~/.bashrc
   when: bashrc_exists.stat.exists and (kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool)

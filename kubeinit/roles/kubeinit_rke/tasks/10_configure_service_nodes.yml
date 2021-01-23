@@ -21,26 +21,26 @@
 - name: Configure the service node
   block:
     - name: Render the cluster template
-      template:
+      ansible.builtin.template:
         src: "cluster.yml.j2"
         dest: "~/cluster.yml"
         mode: '0644'
 
     - name: Download rancher
-      get_url:
+      ansible.builtin.get_url:
         url: "https://github.com/rancher/rke/releases/download/{{ kubeinit_rke_registry_release_tag }}/rke_linux-amd64"
         dest: ~/
         mode: '0755'
 
     - name: "Adjust installer"
-      shell: |
+      ansible.builtin.shell: |
         mv ~/rke_linux-amd64 ~/rke
         chmod +x rke
       register: adjust_installer
       changed_when: "adjust_installer.rc == 0"
 
     - name: "Render the required container images"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         ~/rke config --system-images | grep -v 'INFO' | grep -v 'level=info' > ~/kubeinit_deployment_images.txt
       args:
@@ -50,13 +50,13 @@
 
     - name: Configure a local container image registry
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_registry
         tasks_from: main
       when: kubeinit_registry_enabled|bool
 
     - name: Enable insecure registry in Docker
-      shell: |
+      ansible.builtin.shell: |
         # This is mandatory so the cluster nodes can fetch the
         # images from the local (insecure) registry
         sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
@@ -74,7 +74,7 @@
 
     - name: Configure Bind
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_bind
         tasks_from: main
 
@@ -84,7 +84,7 @@
 
     - name: Configure HAProxy
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_haproxy
         tasks_from: main
 
@@ -94,7 +94,7 @@
 
     - name: Configure Apache
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_apache
         tasks_from: main
 
@@ -103,7 +103,7 @@
     #
 
     - name: "Render root keys in the service node"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         cd
         mkdir -p ~/.ssh
@@ -114,12 +114,12 @@
       changed_when: "render_service_keys.rc == 0"
 
     - name: get root service machine public key
-      command: cat /root/.ssh/id_rsa.pub
+      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
       register: public_key_service_content
       changed_when: "public_key_service_content.rc == 0"
 
     - name: register the public key of the root service machine public key
-      set_fact:
+      ansible.builtin.set_fact:
         kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"

@@ -19,7 +19,7 @@
 
 # found within the "vars/" path. If no OS files are found the task will skip.
 - name: Gather variables for each operating system
-  include_vars: "{{ item }}"
+  ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
     - skip: true
       files:
@@ -33,23 +33,23 @@
     - always
 
 - name: Install local registry
-  include: 00_install.yml
+  ansible.builtin.include: 00_install.yml
 
 - name: Configure local registry
-  include: 10_configure_okd.yml
+  ansible.builtin.include: 10_configure_okd.yml
   when: kubeinit_inventory_cluster_distro == 'okd'
 
 - name: Configure local registry
-  include: 10_configure.yml
+  ansible.builtin.include: 10_configure.yml
 
 - name: Mirror local registry
-  include: 20_mirror_eks.yml
+  ansible.builtin.include: 20_mirror_eks.yml
   when: kubeinit_inventory_cluster_distro == 'eks'
 
 - name: Mirror local registry
-  include: 20_mirror_okd.yml
+  ansible.builtin.include: 20_mirror_okd.yml
   when: kubeinit_inventory_cluster_distro == 'okd'
 
 - name: Mirror local registry
-  include: 20_mirror_rke.yml
+  ansible.builtin.include: 20_mirror_rke.yml
   when: kubeinit_inventory_cluster_distro == 'rke'

@@ -20,7 +20,7 @@
 - name: Set up an Hypervisors
   block:
     - name: "check if bridge is created"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         nmcli con show | grep {{ kubeinit_libvirt_external_service_interface.attached }}
       register: bridge_status
@@ -28,7 +28,7 @@
       when: kubeinit_libvirt_external_service_interface_enabled
 
     - name: Fail if bridge is not created but included
-      fail:
+      ansible.builtin.fail:
         msg: |
           The bridge {{ kubeinit_libvirt_external_service_interface.attached }} to provide external
           connectivity is not created. This is a requirement that needs to be
@@ -37,12 +37,12 @@
       when: kubeinit_libvirt_external_service_interface_enabled and bridge_status.stdout_lines | list | count == 0
 
     - name: Fails if OS is not supported
-      fail:
+      ansible.builtin.fail:
         msg: The hypervisor machine needs to be CentOS/RHEL
       when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora' or ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
     - name: Fails if CentOS 7 hypervisor
-      fail:
+      ansible.builtin.fail:
         msg: |
           CentOS 7 is not supported as CentOS 8 guests are used.
           Refer to: https://access.redhat.com/solutions/4073061
@@ -53,7 +53,7 @@
       when: (ansible_distribution == 'CentOS' and ansible_distribution_major_version == "7")
 
     - name: Check if Intel virtualization is supported
-      shell: |
+      ansible.builtin.shell: |
         set -e
         grep vmx /proc/cpuinfo
       ignore_errors: yes
@@ -61,7 +61,7 @@
       changed_when: "intel_proccesor.rc == 0"
 
     - name: Check if AMD virtualization is supported
-      shell: |
+      ansible.builtin.shell: |
         set -e
         grep svm /proc/cpuinfo
       ignore_errors: yes
@@ -69,38 +69,38 @@
       changed_when: "amd_proccesor.rc == 0"
 
     - name: Fail in case no Intel or AMD virtualization support is not detected.
-      fail:
+      ansible.builtin.fail:
         msg: "The system doesn't seem to have Intel nor AMD virtualization support."
       when: intel_proccesor.rc != 0 and amd_proccesor.rc != 0
 
     - name: Set fact for Intel virtualization
-      set_fact:
+      ansible.builtin.set_fact:
         nested_virtualization_module_name: "kvm_intel"
       when: intel_proccesor.rc == 0
 
     - name: Set fact for AMD virtualization
-      set_fact:
+      ansible.builtin.set_fact:
         nested_virtualization_module_name: "kvm_amd"
       when: amd_proccesor.rc == 0
 
     - name: Set fact for nested virtualization test path
-      set_fact:
+      ansible.builtin.set_fact:
         nested_virtualization_test_path: "/sys/module/{{ nested_virtualization_module_name }}/parameters/nested"
 
     - name: "Ensure {{ nested_virtualization_module_name }} module is available and loaded"
-      modprobe:
+      community.general.modprobe:
         name: "{{ nested_virtualization_module_name }}"
         state: present
 
     - name: Test status of nested virtualization
-      shell: |
+      ansible.builtin.shell: |
         set -e
         cat {{ nested_virtualization_test_path }}
       register: actual_status
       changed_when: "actual_status.rc == 0"
 
     - name: "Persist configuration in /etc/modprobe.d/kvm.conf"
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: "/etc/modprobe.d/kvm.conf"
         regexp: "^options {{ nested_virtualization_module_name }}.*$"
         line: "options {{ nested_virtualization_module_name }} nested=1"
@@ -108,17 +108,17 @@
         mode: '0644'
 
     - name: "Load {{ nested_virtualization_module_name }} module"
-      modprobe:
+      community.general.modprobe:
         name: "{{ nested_virtualization_module_name }}"
         state: present
 
     - name: check if /root/.ssh/known_hosts exists
-      stat:
+      ansible.builtin.stat:
         path: /root/.ssh/known_hosts
       register: known_hosts_file
 
     # - name: Disable netfilter
-    #   shell: |
+    #   ansible.builtin.shell: |
     #     modprobe br_netfilter
     #     echo "br_netfilter" > /etc/modules-load.d/br_netfilter.conf
     #     sudo tee -a /etc/sysctl.conf <<EOF
@@ -132,7 +132,7 @@
     #     - provision_libvirt
 
     - name: Reset ssh keys in hypervisor
-      shell: |
+      ansible.builtin.shell: |
         ssh-keygen -R  {{ item }}
         ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
         ssh-keygen -R  {{ hostvars[item].ansible_host }}
@@ -144,7 +144,7 @@
     - name: reset local ssh keys
       become: no
       delegate_to: localhost
-      shell: |
+      ansible.builtin.shell: |
         ssh-keygen -R  {{ item }}
         ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
         ssh-keygen -R  {{ hostvars[item].ansible_host }}
@@ -153,12 +153,12 @@
       changed_when: false
 
     - name: Disable SELinux
-      selinux:
+      ansible.posix.selinux:
         state: disabled
       when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
     - name: install CentOS based requirements
-      package:
+      ansible.builtin.package:
         name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
         state: present
       when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
@@ -167,24 +167,24 @@
     - name: enable firewalld services
       block:
         - name: Enable Services (firewalld)
-          service:
+          ansible.builtin.service:
             name: "firewalld"
             state: started
             enabled: yes
         - name: Enable HTTP for firewalld
-          firewalld:
+          ansible.posix.firewalld:
             service: http
             permanent: yes
             state: enabled
             immediate: yes
         - name: Enable HTTPS for firewalld
-          firewalld:
+          ansible.posix.firewalld:
             service: https
             permanent: yes
             state: enabled
             immediate: yes
         - name: Enable DNS for firewalld
-          firewalld:
+          ansible.posix.firewalld:
             service: dns
             permanent: yes
             state: enabled
@@ -192,14 +192,14 @@
       when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
     - name: install Debian based requirements
-      package:
+      ansible.builtin.package:
         name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
         state: present
       when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
       register: installed_packages_debian
 
     - name: upgrade all packages
-      package:
+      ansible.builtin.package:
         name: '*'
         state: latest
       register: upgraded_packages
@@ -211,11 +211,11 @@
         state: started
 
     - name: Restart if required
-      set_fact:
+      ansible.builtin.set_fact:
          kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
 
     - name: Reboot host and wait for it to restart
-      reboot:
+      ansible.builtin.reboot:
         msg: "Reboot initiated by a package upgrade"
         connect_timeout: 5
         reboot_timeout: 600
@@ -225,11 +225,11 @@
       when: kubeinit_libvirt_restart | bool
 
     - name: Set qemu user depending on the operative system
-      set_fact:
+      ansible.builtin.set_fact:
         kubeinit_qemu_user: "{{ 'qemu' if (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
 
     - name: download qcow2 images
-      get_url:
+      ansible.builtin.get_url:
         validate_certs: False
         use_proxy: True
         url: "{{ item.value.uri }}{{ item.value.image }}"
@@ -241,7 +241,7 @@
       when: "item.value.image"
 
     - name: download kernel images
-      get_url:
+      ansible.builtin.get_url:
         validate_certs: False
         use_proxy: True
         url: "{{ item.value.uri }}{{ item.value.kernel }}"
@@ -253,7 +253,7 @@
       when: "item.value.kernel"
 
     - name: download initrd images
-      get_url:
+      ansible.builtin.get_url:
         validate_certs: False
         use_proxy: True
         url: "{{ item.value.uri }}{{ item.value.initrd }}"
@@ -265,7 +265,7 @@
       when: "item.value.initrd"
 
     - name: create the treeinfo directory
-      shell: |
+      ansible.builtin.shell: |
         cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
         [general]
         arch = x86_64
@@ -280,12 +280,12 @@
       changed_when: "treeinfo.rc == 0"
 
     - name: "Make sure we have a '{{ kubeinit_libvirt_cloud_user }}' group"
-      group:
+      ansible.builtin.group:
         name: "{{ kubeinit_libvirt_cloud_user }}"
         state: present
 
     - name: "Allow '{{ kubeinit_libvirt_cloud_user }}' group to have passwordless sudo"
-      lineinfile:
+      ansible.builtin.lineinfile:
         dest: /etc/sudoers
         state: present
         regexp: "^%{{ kubeinit_libvirt_cloud_user }}"
@@ -294,7 +294,7 @@
         mode: '0644'
 
     - name: "Add sudoers users to {{ kubeinit_libvirt_cloud_user }} group"
-      user: "name={{ kubeinit_libvirt_cloud_user }} groups={{ kubeinit_libvirt_cloud_user }} append=yes state=present createhome=yes"
+      ansible.builtin.user: "name={{ kubeinit_libvirt_cloud_user }} groups={{ kubeinit_libvirt_cloud_user }} append=yes state=present createhome=yes"
 
     - name: Add Users to libvirt
       action: user name="{{ item }}" groups="kvm,libvirt" append=yes
@@ -303,32 +303,32 @@
         - root
 
     - name: Create ssh folder
-      file:
+      ansible.builtin.file:
         path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/"
         state: directory
         mode: '0600'
 
     - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
-      openssh_keypair:
+      community.crypto.openssh_keypair:
         path: "/root/.ssh/id_rsa"
         owner: root
         group: root
 
     - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
-      openssh_keypair:
+      community.crypto.openssh_keypair:
         path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa"
         owner: "{{ kubeinit_libvirt_cloud_user }}"
         group: "{{ kubeinit_libvirt_cloud_user }}"
 
     - name: Fix owner of the generated pub key
-      file:
+      ansible.builtin.file:
         path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa.pub"
         owner: "{{ kubeinit_libvirt_cloud_user }}"
         group: "{{ kubeinit_libvirt_cloud_user }}"
         mode: '0600'
 
     - name: Insert the default libvirt uri in user's home
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: "/home/{{ kubeinit_libvirt_cloud_user }}/.bashrc"
         line: export LIBVIRT_DEFAULT_URI=qemu:///system
         mode: '0644'
@@ -338,7 +338,7 @@
     ##
 
     - name: Destroy vms
-      virt:
+      community.libvirt.virt:
         name: "{{ item }}"
         command: destroy
       with_items:
@@ -346,7 +346,7 @@
       ignore_errors: true
 
     - name: Undefine vms
-      virt:
+      community.libvirt.virt:
         name: "{{ item }}"
         command: undefine
       with_items:
@@ -354,7 +354,7 @@
       ignore_errors: true
 
     - name: Remove VMs storage
-      file:
+      ansible.builtin.file:
         state: absent
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
       with_items:
@@ -365,14 +365,14 @@
     ##
 
     - name: Clean directories for config files per node
-      file:
+      ansible.builtin.file:
         state: absent
         path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/"
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
 
     - name: Create directories for config files per node
-      file:
+      ansible.builtin.file:
         path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}"
         state: directory
         mode: 0775
@@ -385,11 +385,11 @@
     ##
 
     - name: include the OVN tasks
-      include: 00_ovn_setup.yml
+      ansible.builtin.include: 00_ovn_setup.yml
       when: kubeinit_libvirt_ovn_enabled
 
     - name: include the linux bridge tasks
-      include: 00_linux_bridge_setup.yml
+      ansible.builtin.include: 00_linux_bridge_setup.yml
       when: not kubeinit_libvirt_ovn_enabled
 
   # In this case the node will be an hypervisor

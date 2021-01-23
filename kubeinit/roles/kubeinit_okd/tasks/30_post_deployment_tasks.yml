@@ -17,7 +17,7 @@
 - name: Configure the post deployment tasks
   block:
     - name: "verify that all the csr are loaded and aproved for the deployed nodes"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         export KUBECONFIG=~/install_dir/auth/kubeconfig; \
         oc get csr -ojson | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve >/dev/null 2>&1; \
@@ -32,7 +32,7 @@
       until: cmd_res.stdout_lines | list | count == ( groups['okd_master_nodes'] | count + groups['okd_worker_nodes'] | count ) * 2
 
     - name: "wait until all nodes are ready"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         export KUBECONFIG=~/install_dir/auth/kubeconfig; \
         oc get nodes | grep " Ready"
@@ -45,7 +45,7 @@
       until: cmd_res.stdout_lines | list | count == ( (groups['okd_master_nodes'] | count) + (groups['okd_worker_nodes'] | count) )
 
     - name: "use single node cluster"
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         export KUBECONFIG=~/install_dir/auth/kubeconfig
         oc get nodes
@@ -83,7 +83,7 @@
 
     # This can take a lot of time until the cluster converges
     - name: Wait for installer to complete
-      command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info
+      ansible.builtin.command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info
       register: result
       retries: 5
       delay: 20
@@ -91,7 +91,7 @@
       changed_when: "result.rc == 0"
 
     - name: "remove bootstrap node from haproxy"
-      shell: |
+      ansible.builtin.shell: |
         sed -i '/bootstrap/s/^/#/' /etc/haproxy/haproxy.cfg
         systemctl reload haproxy
       register: remove_bootstrap_from_cluster
@@ -101,7 +101,7 @@
     # To run in the hypervisor where
     # the bootstrap machine is deployed
     - name: Destroy bootstrap node VM
-      virt:
+      community.libvirt.virt:
         name: "{{ item }}"
         command: destroy
       with_items: "{{ groups['okd_bootstrap_nodes'] }}"
@@ -111,7 +111,7 @@
     # To run in the hypervisor where
     # the bootstrap machine is deployed
     - name: Undefine bootstrap node VM
-      virt:
+      community.libvirt.virt:
         name: "{{ item }}"
         command: undefine
       with_items: "{{ groups['okd_bootstrap_nodes'] }}"
@@ -121,14 +121,14 @@
     # To run in the hypervisor where
     # the bootstrap machine is deployed
     - name: Remove bootstrap node VM storage
-      file:
+      ansible.builtin.file:
         state: absent
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
       with_items: "{{ groups['okd_bootstrap_nodes'] }}"
       delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
 
     - name: get some final cluster information
-      shell: |
+      ansible.builtin.shell: |
         set -o pipefail
         set -e
         echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
@@ -139,7 +139,7 @@
       changed_when: "final_output_info.rc == 0"
 
     - name: Copy the kubeconfig
-      shell: |
+      ansible.builtin.shell: |
         cp ~/install_dir/auth/kubeconfig ~/.kube/config
       register: copy_kubeconfig
       changed_when: "copy_kubeconfig.rc == 0"
@@ -150,12 +150,12 @@
 
     - name: Configure NFS
       # delegate_facts: true
-      import_role:
+      ansible.builtin.import_role:
         name: ../../roles/kubeinit_nfs
         tasks_from: main
 
     - name: Display final debug info
-      debug:
+      ansible.builtin.debug:
         var: final_output_info
 
     - name: Print some final data
@@ -165,7 +165,7 @@
             cat ~/install_dir/auth/kubeadmin-password
           The OpenShift UI endpoint is:
             console-openshift-console.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
-      debug:
+      ansible.builtin.debug:
         msg: "{{ msg.split('\n') }}"
 
   # From the hypervisor we delegate the execution to

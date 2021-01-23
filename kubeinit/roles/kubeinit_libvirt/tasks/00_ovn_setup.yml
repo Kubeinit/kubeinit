@@ -24,7 +24,7 @@
     # We install all OVN requirements in the first hypervisor
     #
     - name: Install OVN packages in CentOS/RHEL (Master Hypervisor)
-      shell: |
+      ansible.builtin.shell: |
         # http://mirror.centos.org/centos/8/nfv/x86_64/openvswitch-2/Packages/o/
         dnf install -y centos-release-nfv-openvswitch
         yum install -y openvswitch2.13 ovn2.13 ovn2.13-central ovn2.13-host
@@ -34,7 +34,7 @@
       changed_when: false
 
     - name: Install OVN packages in Fedora (Master Hypervisor)
-      shell: |
+      ansible.builtin.shell: |
         yum install -y openvswitch ovn ovn-central ovn-host
       when: >
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name and
@@ -42,7 +42,7 @@
       changed_when: false
 
     - name: Install OVN packages in Ubuntu/Debian (Master Hypervisor)
-      shell: |
+      ansible.builtin.shell: |
         apt-get install -y openvswitch-common \
                            openvswitch-switch \
                            ovn-common \
@@ -57,7 +57,7 @@
     # We DO NOT install ovn-central (OVN requirement) in the other hypervisors
     #
     - name: Install OVN packages in CentOS/RHEL (Slave Hypervisor)
-      shell: |
+      ansible.builtin.shell: |
         # http://mirror.centos.org/centos/8/nfv/x86_64/openvswitch-2/Packages/o/
         dnf install -y centos-release-nfv-openvswitch
         yum install -y openvswitch2.13 ovn2.13 ovn2.13-host
@@ -68,7 +68,7 @@
       changed_when: false
 
     - name: Install OVN packages in Fedora (Slave Hypervisor)
-      shell: |
+      ansible.builtin.shell: |
         yum install -y openvswitch ovn ovn-host
       when: >
         kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
@@ -77,7 +77,7 @@
       changed_when: false
 
     - name: Install OVN packages in Ubuntu/Debian (Slave Hypervisor)
-      shell: |
+      ansible.builtin.shell: |
         apt-get install -y openvswitch-common \
                            openvswitch-switch \
                            ovn-common \
@@ -89,13 +89,13 @@
       changed_when: false
 
     - name: refresh firewalld services list
-      shell: |
+      ansible.builtin.shell: |
         firewall-cmd --reload
       when: >
         (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
     - name: Enable OVN central in firewalld
-      firewalld:
+      ansible.posix.firewalld:
         service: ovn-central-firewall-service
         permanent: yes
         state: enabled
@@ -105,7 +105,7 @@
         kubeinit_deployment_node_name in groups['hypervisor_nodes'][0]
 
     - name: Enable OVN controller in firewalld
-      firewalld:
+      ansible.posix.firewalld:
         service: ovn-host-firewall-service
         permanent: yes
         state: enabled
@@ -114,7 +114,7 @@
         (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
     - name: enable and start OVN services in the first hypervisor
-      service:
+      ansible.builtin.service:
         name: "{{ item }}"
         state: started
         enabled: yes
@@ -126,7 +126,7 @@
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
     - name: enable and start OVN services in the rest of the hypervisors
-      service:
+      ansible.builtin.service:
         name: "{{ item }}"
         state: started
         enabled: yes
@@ -138,7 +138,7 @@
         groups['hypervisor_nodes'] | length > 1
 
     - name: configure OVN in the first Hypervisor
-      shell: |
+      ansible.builtin.shell: |
         CENTRAL_IP={{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
         LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
         ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
@@ -156,7 +156,7 @@
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
     - name: configure OVN in the rest of the Hypervisors
-      shell: |
+      ansible.builtin.shell: |
         CENTRAL_IP={{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
         LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
         ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
@@ -171,20 +171,20 @@
         groups['hypervisor_nodes'] | length > 1
 
     - name: remove the cluster network if exists
-      shell: |
+      ansible.builtin.shell: |
         ovn-nbctl ls-del {{ kubeinit_libvirt_ovn_network }}
       ignore_errors: True
       when: >
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
     - name: create the cluster network
-      shell: |
+      ansible.builtin.shell: |
         ovn-nbctl ls-add {{ kubeinit_libvirt_ovn_network }}
       when: >
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
     - name: create the nodes ports
-      shell: |
+      ansible.builtin.shell: |
         ovn-nbctl lsp-add {{ kubeinit_libvirt_ovn_network }} {{ item }}
         ovn-nbctl lsp-set-addresses {{ item }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
       # Make this idempotent

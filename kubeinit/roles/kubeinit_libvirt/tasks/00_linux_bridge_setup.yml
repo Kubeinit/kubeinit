@@ -21,7 +21,7 @@
   block:
 
     - name: Destroy deployment networks
-      virt_net:
+      community.libvirt.virt_net:
         command: destroy
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
@@ -29,7 +29,7 @@
       when: kubeinit_libvirt_destroy_nets|bool
 
     - name: Undefine deployment networks
-      virt_net:
+      community.libvirt.virt_net:
         command: undefine
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
@@ -37,13 +37,13 @@
       when: kubeinit_libvirt_destroy_nets|bool
 
     - name: Destroy default network
-      virt_net:
+      community.libvirt.virt_net:
         command: destroy
         name: "default"
       ignore_errors: true
 
     - name: Undefine default network
-      virt_net:
+      community.libvirt.virt_net:
         command: undefine
         name: "default"
       ignore_errors: true
@@ -53,7 +53,7 @@
     ##
 
     - name: render KubeInit networks for debugging
-      template:
+      ansible.builtin.template:
         src: "{{ item.template }}"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item.template | regex_replace('.j2$', '') }}"
         mode: '0644'
@@ -61,7 +61,7 @@
       when: item.enabled
 
     - name: define KubeInit networks
-      virt_net:
+      community.libvirt.virt_net:
         command: define
         name: "{{ item.name }}"
         xml: '{{ lookup("template", item.template) }}'
@@ -69,14 +69,14 @@
       when: item.enabled and kubeinit_libvirt_destroy_nets|bool
 
     - name: Activate KubeInit networks
-      virt_net:
+      community.libvirt.virt_net:
         state: active
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
       when: item.enabled and kubeinit_libvirt_destroy_nets|bool
 
     - name: Autostart KubeInit networks
-      virt_net:
+      community.libvirt.virt_net:
         autostart: yes
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"

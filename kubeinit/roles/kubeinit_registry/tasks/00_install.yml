@@ -1,7 +1,7 @@
 ---
 
 - name: Enable Ubuntu repositories
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     apt-get install software-properties-common -y
     . /etc/os-release
@@ -16,7 +16,7 @@
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: Enable CentOS 8 repositories
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     # TODO:FIXME:Remove the container tools and uncoment the other lines when the podman container module is fixed
     dnf install -y @container-tools
@@ -31,18 +31,18 @@
   when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'eks'
 
 - name: Make sure needed packages are installed
-  package:
+  ansible.builtin.package:
     state: present
     name: "{{ kubeinit_registry_required_packages | default([]) }}"
 
 - name: Install podman if required
-  package:
+  ansible.builtin.package:
     state: present
     name: "podman"
   when: kubeinit_registry_container_engine == 'podman'
 
 - name: Podman login to docker.io
-  shell: |
+  ansible.builtin.shell: |
     podman login docker.io \
       --username {{ kubeinit_common_docker_username }} \
       --password {{ kubeinit_common_docker_password }}
@@ -58,7 +58,7 @@
     kubeinit_common_docker_password
 
 - name: Install docker if required and distro is CentOS and we need docker in the registry
-  shell: |
+  ansible.builtin.shell: |
     yum install -y yum-utils
     # Make sure podman is out
     yum remove -y buildah podman cockpit-podman toolbox
@@ -83,7 +83,7 @@
   when: (kubeinit_registry_container_engine == 'docker') and (kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks' or kubeinit_inventory_cluster_distro == 'okd')
 
 - name: Install docker if required and distro is Ubuntu and we need docker in the registry
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     sudo apt-get remove docker docker-engine docker.io containerd runc
     sudo apt-get update -y
@@ -118,7 +118,7 @@
   when: (kubeinit_registry_container_engine == 'docker') and (kubeinit_inventory_cluster_distro == 'cdk' or kubeinit_inventory_cluster_distro == 'rke')
 
 - name: Enable insecure registry in Docker
-  shell: |
+  ansible.builtin.shell: |
     # This is mandatory so the cluster nodes can fetch the
     # images from the local (insecure) registry
     sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
@@ -131,7 +131,7 @@
   when: kubeinit_registry_container_engine == 'docker'
 
 - name: Make sure the python bindings are installed
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     pip3 install docker
   args:
@@ -152,7 +152,7 @@
     kubeinit_common_docker_password
 
 - name: Create directory to hold the registry files
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"

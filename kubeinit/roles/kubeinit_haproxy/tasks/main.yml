@@ -19,7 +19,7 @@
 
 # found within the "vars/" path. If no OS files are found the task will skip.
 - name: Gather variables for each operating system
-  include_vars: "{{ item }}"
+  ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
     - skip: true
       files:
@@ -33,19 +33,19 @@
     - always
 
 - name: Install HAProxy
-  package:
+  ansible.builtin.package:
     name:
       - haproxy
     state: present
 
 - name: Create HAProxy config file
-  template:
+  ansible.builtin.template:
     src: "haproxy.cfg.j2"
     dest: "/etc/haproxy/haproxy.cfg"
     mode: '0644'
 
 # - name: "allow access to the cluster"
-#   shell: |
+#   ansible.builtin.shell: |
 #     setsebool -P haproxy_connect_any 1
 #     setsebool -P httpd_read_user_content 1
 #   register: allow_haproxy_connect
@@ -54,4 +54,4 @@
 # If there is a problem with haproxy start it manually with:
 # haproxy -db -f /etc/haproxy/haproxy.cfg
 - name: Start and enable haproxy service
-  service: name=haproxy state=restarted enabled=yes
+  ansible.builtin.service: name=haproxy state=restarted enabled=yes

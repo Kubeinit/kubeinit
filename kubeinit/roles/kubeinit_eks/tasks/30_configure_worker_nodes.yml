@@ -17,20 +17,20 @@
 - name: Configure the worker nodes
   block:
     - name: Storing the join cluster command token.
-      copy:
+      ansible.builtin.copy:
         content: "{{ eks_master_kubeadm_init_output }}"
         dest: ~/eks_token
         mode: '0644'
       when: groups['eks_worker_nodes'] | length > 0
 
     - name: Install root public from service node in worker nodes
-      shell: |
+      ansible.builtin.shell: |
        echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
       changed_when: false
 
     # Push the certificates from the registry to the worker nodes if its enabled
     - name: Push the certificates from the registry to the worker nodes
-      shell: |
+      ansible.builtin.shell: |
         set -e
         scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ kubeinit_deployment_node_name }}:/etc/pki/ca-trust/source/anchors/
       register: install_all_certs_in_workers
@@ -40,7 +40,7 @@
       delegate_to: "{{ groups['eks_service_nodes'][0] }}"
 
     - name: Insert the local registry auth details
-      shell: |
+      ansible.builtin.shell: |
         set -e
 
         mkdir -p .docker
@@ -63,14 +63,14 @@
       when: kubeinit_registry_enabled | bool
 
     - name: Update the CA certs files
-      command: update-ca-trust extract
+      ansible.builtin.command: update-ca-trust extract
       register: update_master_ca_trust_files
       changed_when: "update_master_ca_trust_files.rc == 0"
       become: true
       when: kubeinit_registry_enabled | bool
 
     - name: Modprobe ip forward
-      shell: |
+      ansible.builtin.shell: |
         modprobe br_netfilter
         echo '1' > /proc/sys/net/ipv4/ip_forward
         mkdir -p /proc/sys/net/bridge/
@@ -80,7 +80,7 @@
       when: groups['eks_worker_nodes'] | length > 0
 
     - name: Joining worker nodes with kubernetes master
-      shell: |
+      ansible.builtin.shell: |
        kubeadm reset -f || true
        cat ~/eks_token > out.sh
        sh out.sh

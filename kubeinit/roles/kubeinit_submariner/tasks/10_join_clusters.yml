@@ -15,7 +15,7 @@
 # under the License.
 
 - name: Render the iptables persist template
-  template:
+  ansible.builtin.template:
     src: "iptables_hypervisor_nat_config.j2"
     dest: "~/iptables_hypervisor_nat_config"
     mode: '0644'
@@ -26,7 +26,7 @@
   # TODO:FIXME: These rules must be persisted
   # TODO:FIXME: Maybe we can remove any REJECT rule from the iptables
   # TODO:FIXME: Hardwired IPs
-  shell: |
+  ansible.builtin.shell: |
     set -e
     iptables-restore /root/iptables_hypervisor_nat_config
   args:
@@ -37,7 +37,7 @@
   when: kubeinit_submariner_is_broker|bool
 
 - name: "Configure broker cluster"
-  shell: |
+  ansible.builtin.shell: |
     set -e
     export PATH=$PATH:~/.local/bin
 
@@ -50,7 +50,7 @@
   when: kubeinit_submariner_is_broker|bool
 
 - name: Copy the broker-info.subm to the hypervisor
-  shell: |
+  ansible.builtin.shell: |
     set -e
     scp -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}:/root/broker-info.subm /root/broker-info.subm
   args:
@@ -61,7 +61,7 @@
   when: kubeinit_submariner_is_broker|bool
 
 - name: Copy the kubeconfig to the hypervisor
-  shell: |
+  ansible.builtin.shell: |
     set -e
     scp -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}:~/.kube/config /root/kubeconfig_{{ kubeinit_inventory_cluster_distro }}
   args:
@@ -72,7 +72,7 @@
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: Copying the broker-info.subm and kubeconfig to the destination cluster
-  shell: |
+  ansible.builtin.shell: |
     set -e
     scp -oStrictHostKeyChecking=no ./broker-info.subm root@{{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}:/root/
     scp -oStrictHostKeyChecking=no /root/kubeconfig_* root@{{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}:/root/
@@ -84,7 +84,7 @@
   when: kubeinit_submariner_is_secondary|bool
 
 - name: "Join cluster to the broker"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     set -e
 
@@ -98,7 +98,7 @@
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
 
 - name: Tag worker node
-  shell: |
+  ansible.builtin.shell: |
     KUBECONFIG=~/.kube/config kubectl label node {{ item }} submariner.io/gateway=true --overwrite
   args:
     executable: /bin/bash

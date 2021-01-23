@@ -19,7 +19,7 @@
 
 # found within the "vars/" path. If no OS files are found the task will skip.
 - name: Gather variables for each operating system
-  include_vars: "{{ item }}"
+  ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
     - skip: true
       files:
@@ -37,69 +37,69 @@
 #
 
 - name: Install Bind
-  package:
+  ansible.builtin.package:
     name: "{{ kubeinit_bind_packages }}"
     state: present
 
 - name: Create named.conf
-  template:
+  ansible.builtin.template:
     src: "named.conf.j2"
     dest: "/etc/named.conf"
     mode: '0644'
   when: kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks'
 
 - name: Create named.conf
-  template:
+  ansible.builtin.template:
     src: "named.conf.j2"
     dest: "/etc/bind/named.conf"
     mode: '0644'
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: Create named.conf.local
-  template:
+  ansible.builtin.template:
     src: "named.conf.local.j2"
     dest: "/etc/{{ kubeinit_bind_config_folder }}/named.conf.local"
     mode: '0644'
 
 - name: Create BIND zones directoy
-  file:
+  ansible.builtin.file:
     path: /etc/{{ kubeinit_bind_config_folder }}/zones
     state: directory
     mode: '0777'
 
 - name: Create BIND zones directoy
-  file:
+  ansible.builtin.file:
     path: /etc/{{ kubeinit_bind_config_folder }}/zones/internals
     state: directory
     mode: '0777'
 
 - name: Create BIND zones directoy
-  file:
+  ansible.builtin.file:
     path: /etc/{{ kubeinit_bind_config_folder }}/zones/externals
     state: directory
     mode: '0777'
 
 - name: Create BIND db internal subnet
-  template:
+  ansible.builtin.template:
     src: "internals_db.j2"
     dest: "/etc/{{ kubeinit_bind_config_folder }}/zones/internals/db.{{ kubeinit_inventory_network_net }}"
     mode: '0644'
 
 - name: Create BIND db internal zone
-  template:
+  ansible.builtin.template:
     src: "internals_db.local.j2"
     dest: "/etc/{{ kubeinit_bind_config_folder }}/zones/internals/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
     mode: '0644'
 
 - name: Create BIND db external zone
-  template:
+  ansible.builtin.template:
     src: "externals_db.local.j2"
     dest: "/etc/{{ kubeinit_bind_config_folder }}/zones/externals/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
     mode: '0644'
   when: kubeinit_libvirt_external_service_interface_enabled
 
 - name: Disable IPv6 support in named
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/sysconfig/named
     line: 'OPTIONS="-4"'
     regexp: "^OPTIONS"
@@ -107,7 +107,7 @@
   when: kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks'
 
 - name: "Disable IPv6 in bind9"
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /lib/systemd/system/named.service
     line: 'ExecStart=/usr/sbin/named -f -4 $OPTIONS'
     regexp: 'ExecStart=/usr/sbin/named -f \$OPTIONS'
@@ -115,13 +115,13 @@
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: "Bounce bind"
-  shell: |
+  ansible.builtin.shell: |
     systemctl daemon-reload
   register: bind_bounce
   changed_when: "bind_bounce.rc == 0"
 
 - name: Start and enable bind service
-  service:
+  ansible.builtin.service:
     name: "{{ kubeinit_bind_service_name }}"
     state: restarted
     enabled: yes

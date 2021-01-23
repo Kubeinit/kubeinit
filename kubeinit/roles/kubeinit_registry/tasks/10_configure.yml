@@ -1,6 +1,6 @@
 ---
 - name: Verify the certificate variables are set
-  fail:
+  ansible.builtin.fail:
     msg:
     - "Must specify kubeinit_registry_certificate_country"
     - "kubeinit_registry_certificate_country: {{ kubeinit_registry_certificate_country }}"
@@ -9,7 +9,7 @@
     or  ( kubeinit_registry_certificate_country | trim | length == 0 )
 
 - name: Verify the certificate variables are set
-  fail:
+  ansible.builtin.fail:
     msg:
     - "Must specify kubeinit_registry_certificate_state"
     - "kubeinit_registry_certificate_state: {{ kubeinit_registry_certificate_state }}"
@@ -18,7 +18,7 @@
     or  ( kubeinit_registry_certificate_state | trim | length == 0 )
 
 - name: Verify the certificate variables are set
-  fail:
+  ansible.builtin.fail:
     msg:
     - "Must specify kubeinit_registry_certificate_locality"
     - "kubeinit_registry_certificate_locality: {{ kubeinit_registry_certificate_locality }}"
@@ -27,7 +27,7 @@
     or  ( kubeinit_registry_certificate_locality | trim | length == 0 )
 
 - name: Verify the certificate variables are set
-  fail:
+  ansible.builtin.fail:
     msg:
     - "Must specify kubeinit_registry_certificate_organization"
     - "kubeinit_registry_certificate_organization: {{ kubeinit_registry_certificate_organization }}"
@@ -36,7 +36,7 @@
     or  ( kubeinit_registry_certificate_organization | trim | length == 0 )
 
 - name: Verify the certificate variables are set
-  fail:
+  ansible.builtin.fail:
     msg:
     - "Must specify kubeinit_registry_certificate_organizational_unit"
     - "kubeinit_registry_certificate_organizational_unit: {{ kubeinit_registry_certificate_organizational_unit }}"
@@ -45,12 +45,12 @@
     or  ( kubeinit_registry_certificate_organizational_unit | trim | length == 0 )
 
 - name: Generate htpasswd entry
-  command: htpasswd -bBn {{ kubeinit_registry_user }} {{ kubeinit_registry_password }}
+  ansible.builtin.command: htpasswd -bBn {{ kubeinit_registry_user }} {{ kubeinit_registry_password }}
   register: htpass_entry
   changed_when: "htpass_entry.rc == 0"
 
 - name: Write htpasswd file
-  copy:
+  ansible.builtin.copy:
     content: '{{ htpass_entry.stdout }}'
     dest: "{{ kubeinit_registry_directory_auth }}/htpasswd"
     owner: "{{ ansible_user }}"
@@ -60,11 +60,11 @@
     force: yes
 
 - name: Set disconnected_auth
-  set_fact:
+  ansible.builtin.set_fact:
     disconnected_registry_up: "{{ kubeinit_registry_user }}:{{ kubeinit_registry_password }}"
 
 - name: Create registry auth for pullsecret
-  set_fact:
+  ansible.builtin.set_fact:
     # The spaces after the first single quote is required, do not remove
     # Something in Ansible appears to be recognizing this as valid Python,
     # so it's getting transformed into a Python list and then serialized
@@ -72,7 +72,7 @@
     disconnected_auth: '  {"{{ kubeinit_registry_uri }}": {"auth": "{{ disconnected_registry_up | b64encode }}", "email": "{{ kubeinit_registry_email }}" } }'
 
 - name: append auths to pullsecret
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     echo '{{ kubeinit_registry_pullsecret }}' | jq -c \
       '.auths += {{ disconnected_auth }}'
@@ -82,11 +82,11 @@
   changed_when: "new_pullsecret.rc == 0"
 
 - name: Override final kubeinit_registry_pullsecret with both auths
-  set_fact:
+  ansible.builtin.set_fact:
     kubeinit_registry_pullsecret: '{{ new_pullsecret.stdout }}'
 
 - name: Write auth for disconnected to localhost with only the local registry auth details
-  copy:
+  ansible.builtin.copy:
     content: '  { "auths": {{ disconnected_auth }} }'
     dest: "~/{{ kubeinit_registry_auth_file }}"
     mode: '0755'
@@ -94,11 +94,11 @@
     force: yes
 
 - name: Generate an OpenSSL private key
-  openssl_privatekey:
+  community.crypto.openssl_privatekey:
    path: "{{ kubeinit_registry_directory_cert }}/domain.key"
 
 - name: Generate an OpenSSL CSR
-  openssl_csr:
+  community.crypto.openssl_csr:
     path: "{{ kubeinit_registry_directory_cert }}/domain.csr"
     privatekey_path: "{{ kubeinit_registry_directory_cert }}/domain.key"
     common_name: "{{ kubeinit_registry_fqdn }}"
@@ -118,14 +118,14 @@
     - "{{ kubeinit_registry_fqdn_alt }}"
 
 - name: Generate a selfsigned OpenSSL CA Certificate
-  openssl_certificate:
+  community.crypto.x509_certificate:
     path: "{{ kubeinit_registry_directory_cert }}/domainCA.crt"
     privatekey_path: "{{ kubeinit_registry_directory_cert }}/domain.key"
     csr_path: "{{ kubeinit_registry_directory_cert }}/domain.csr"
     provider: selfsigned
 
 - name: Generate an ownca OpenSSL Certificate
-  openssl_certificate:
+  community.crypto.x509_certificate:
     path: "{{ kubeinit_registry_directory_cert }}/domain.crt"
     ownca_privatekey_path: "{{ kubeinit_registry_directory_cert }}/domain.key"
     csr_path: "{{ kubeinit_registry_directory_cert }}/domain.csr"
@@ -134,7 +134,7 @@
     provider: ownca
 
 - name: Copy cert to pki directory
-  copy:
+  ansible.builtin.copy:
     src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
     dest: /etc/pki/ca-trust/source/anchors/domain.crt
     remote_src: yes
@@ -147,7 +147,7 @@
   when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'eks'
 
 - name: Copy cert to pki directory
-  copy:
+  ansible.builtin.copy:
     src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
     dest: /usr/local/share/ca-certificates/domain.crt
     remote_src: yes
@@ -160,7 +160,7 @@
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: Install all certs in ubuntu
-  shell: |
+  ansible.builtin.shell: |
     set -e
     mkdir -p /usr/local/share/ca-certificates/kubeinit/
     openssl x509 -inform PEM -in {{ kubeinit_registry_directory_cert }}/domainCA.crt > {{ kubeinit_registry_directory_cert }}/domainCA.pem
@@ -171,14 +171,14 @@
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: Update the CA trust files
-  command: update-ca-trust extract
+  ansible.builtin.command: update-ca-trust extract
   register: update_ca_trust_files
   changed_when: "update_ca_trust_files.rc == 0"
   become: true
   when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'eks'
 
 - name: Update the CA trust files
-  command: update-ca-certificates
+  ansible.builtin.command: update-ca-certificates
   register: update_ca_certs
   changed_when: "update_ca_certs.rc == 0"
   become: true
@@ -232,28 +232,29 @@
   when: kubeinit_registry_container_engine == 'docker'
 
 - name: Setting Podman facts about the container that will run the registry
-  set_fact:
+  ansible.builtin.set_fact:
     container_registry_name: "{{ registry_podman_container_info.container.Name }}"
     container_registry_pidfile: "{{ registry_podman_container_info.container.ConmonPidFile }}"
   when: kubeinit_registry_container_engine == 'podman'
 
-- debug:
+- name: debug
+  ansible.builtin.debug:
     var: registry_docker_container_info
   when: kubeinit_registry_container_engine == 'docker'
 
 - name: Setting Docker facts about the container that will run the registry
-  set_fact:
+  ansible.builtin.set_fact:
     container_registry_id: "{{ registry_docker_container_info.ansible_facts.docker_container.Id }}"
   when: kubeinit_registry_container_engine == 'docker'
 
 - name: Ensure user specific systemd instance are persistent
-  command: |
+  ansible.builtin.command: |
     /usr/bin/loginctl enable-linger {{ ansible_user }}
   register: systemd_instance_persist
   changed_when: "systemd_instance_persist.rc == 0"
 
 - name: Create systemd user directory
-  file:
+  ansible.builtin.file:
     path: "{{ ansible_user_dir }}/.config/systemd/user"
     state: directory
     owner: "{{ ansible_user }}"
@@ -261,7 +262,7 @@
     mode: '0775'
 
 - name: Copy the podman systemd service file
-  copy:
+  ansible.builtin.copy:
     content: |
       [Unit]
       Description=Podman container-registry.service
@@ -282,7 +283,7 @@
 
 #TODO:FIXME:This needs to be a systemctl service
 # - name: Copy the Docker systemd service file
-#   copy:
+#   ansible.builtin.copy:
 #     content: |
 #       [Unit]
 #       Description=Docker container-registry.service
@@ -299,7 +300,7 @@
 #   when: kubeinit_registry_container_engine == 'docker'
 
 - name: Reload systemd service
-  systemd:
+  ansible.builtin.systemd:
     daemon_reexec: yes
     scope: user
   environment:
@@ -307,7 +308,7 @@
   when: kubeinit_registry_container_engine == 'podman'
 
 - name: Enable container-registry.service
-  systemd:
+  ansible.builtin.systemd:
     name: container-registry
     enabled: yes
     scope: user
@@ -316,7 +317,7 @@
   when: kubeinit_registry_container_engine == 'podman'
 
 - name: Start container-registry.service
-  systemd:
+  ansible.builtin.systemd:
     name: container-registry
     state: started
     scope: user
@@ -325,29 +326,29 @@
   when: kubeinit_registry_container_engine == 'podman'
 
 - name: Read in the contents of domain.crt
-  slurp:
+  ansible.builtin.slurp:
     src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
   register: domain_cert_b64
 
 - name: Set trustbundle fact to contents of domain.crt
-  set_fact:
+  ansible.builtin.set_fact:
     trustbundle: "{{ domain_cert_b64.content | string | b64decode }}"
 
 - name: Fetch the domain cert from the registry host
-  fetch:
+  ansible.builtin.fetch:
     dest: /tmp/domain.crt
     src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
     flat: yes
 
 - name: Create temporary pullsecret file
-  copy:
+  ansible.builtin.copy:
     content: "{{ kubeinit_registry_pullsecret }}"
     dest: "{{ ansible_env.HOME }}/pullsecret.json"
     mode: '0755'
     force: yes
 
 - name: Check if the registry is up and running
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     set -e
     curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/_catalog --stderr - | grep '\{"repositories":'
@@ -358,10 +359,10 @@
   changed_when: "check_registry.rc == 0"
 
 - name: Load images file
-  slurp:
+  ansible.builtin.slurp:
     src: ~/kubeinit_deployment_images.txt
   register: load_images
 
 - name: Set up variable with images list
-  set_fact:
+  ansible.builtin.set_fact:
     kubeinit_registry_images: "{{ (load_images.content | b64decode).split('\n') | select() | list }}"

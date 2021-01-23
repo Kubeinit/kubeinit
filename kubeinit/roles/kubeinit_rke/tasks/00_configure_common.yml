@@ -21,12 +21,12 @@
 - name: Configure common requirements in guests
   block:
     - name: Force apt-get update
-      shell: |
+      ansible.builtin.shell: |
         apt-get update
       changed_when: false
 
     - name: update packages
-      package:
+      ansible.builtin.package:
         name: "*"
         state: latest
       register: update_packages
@@ -34,19 +34,19 @@
     # TODO:FIXME: cloud-init is taking too much time in configure the nodes, it is
     # trying to get other datasource_list than local so it needs to timeout every time
     - name: Enable cloud init
-      shell: |
+      ansible.builtin.shell: |
         systemctl enable cloud-init
         systemctl start cloud-init
       changed_when: false
 
     - name: Reboot immediately after the package update
-      shell: "sleep 5 && reboot"
+      ansible.builtin.shell: "sleep 5 && reboot"
       async: 1
       poll: 0
       when: update_packages is changed
 
     - name: Wait for the reboot to complete if there was a change.
-      wait_for:
+      ansible.builtin.wait_for:
         port: 22
         host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
         search_regex: OpenSSH
@@ -56,19 +56,19 @@
       delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
     - name: install common requirements
-      package:
+      ansible.builtin.package:
         name: "{{ kubeinit_rke_common_dependencies }}"
         state: present
 
     - name: Resize root partition
-      shell: |
+      ansible.builtin.shell: |
         echo 'Reclaim space for root partition'
         growpart /dev/vda 1
         resize2fs /dev/vda1
       changed_when: false
 
     - name: Install Docker
-      shell: |
+      ansible.builtin.shell: |
         apt-get update -y
         apt-get remove docker docker-engine docker.io -y
         apt-get install docker.io -y
@@ -76,13 +76,13 @@
       changed_when: false
 
     - name: Start and enable docker service
-      service:
+      ansible.builtin.service:
         name: docker
         state: started
         enabled: yes
 
     - name: Install kubectl
-      shell: |
+      ansible.builtin.shell: |
         snap install kubectl --classic
       changed_when: false
 

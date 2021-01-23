@@ -19,7 +19,7 @@
 
 # found within the "vars/" path. If no OS files are found the task will skip.
 - name: Gather variables for each operating system
-  include_vars: "{{ item }}"
+  ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
     - skip: true
       files:
@@ -33,7 +33,7 @@
     - always
 
 - name: "Install KubeVirt"
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     export KUBECONFIG=~/install_dir/auth/kubeconfig;
     export KUBEVIRT_VERSION="v0.32.0"
@@ -56,7 +56,7 @@
     - kubeinit_kubevirt
 
 # - name: "wait until crds are loaded"
-#   shell: |
+#   ansible.builtin.shell: |
 #     set -o pipefail
 #     export KUBECONFIG=~/install_dir/auth/kubeconfig; \
 #     kubectl get crds | grep virtualmachines.kubevirt.io
@@ -75,7 +75,7 @@
 #     - kubeinit_kubevirt
 
 # - name: "Deploy example VM"
-#   shell: |
+#   ansible.builtin.shell: |
 #     set -o pipefail
 #     export KUBECONFIG=~/install_dir/auth/kubeconfig;
 #     kubectl apply -f https://raw.githubusercontent.com/kubevirt/kubevirt.github.io/master/labs/manifests/vm.yaml
@@ -101,7 +101,7 @@
 #       kubectl get vms
 #       kubectl get vmis
 #       oc get events -n default
-#   debug:
+#   ansible.builtin.debug:
 #     msg: "{{ msg.split('\n') }}"
 #   tags:
 #     - kubeinit_kubevirt
