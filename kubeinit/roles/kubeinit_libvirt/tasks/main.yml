@@ -384,13 +384,16 @@
     ## Configure OVN o a linux bridge in all the HVs
     ##
 
-    - name: include the OVN tasks
-      ansible.builtin.include: 00_ovn_setup.yml
+    - name: include the OVN install tasks
+      ansible.builtin.include: 00_ovn_install.yml
       when: kubeinit_libvirt_ovn_enabled
 
     - name: include the linux bridge tasks
       ansible.builtin.include: 00_linux_bridge_setup.yml
-      when: not kubeinit_libvirt_ovn_enabled
+
+    - name: include the OVN setup
+      ansible.builtin.include: 00_ovn_setup.yml
+      when: kubeinit_libvirt_ovn_enabled
 
   # In this case the node will be an hypervisor
   delegate_to: "{{ kubeinit_deployment_node_name }}"
