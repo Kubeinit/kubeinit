@@ -1,0 +1,119 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+##
+## OVN post deployment configuration steps.
+##
+
+- name: Post set up the OVN network details
+  block:
+
+    #
+    # We create the OVN switch that will be binded to each chassis (hypervisor)
+    #
+
+    - name: create OVS/OVN bindings for the VMs ports
+      ansible.builtin.shell: |
+        #
+        # On each hypervisor we get each vm port interface ID
+        #
+        #ifaceid=$(ovs-vsctl get interface veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }} external_ids:iface-id | sed s/\"//g)
+        #
+        # We create an OVN port using the interface ID and the mac address of the VM
+        #
+        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+            lsp-add {{ kubeinit_libvirt_ovn_switch }} {{ hostvars[item].interfaceid }}
+        #
+        # THe port name is the interface id of the VM, now we assign the mac address of the VM to the port
+        #
+        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+            lsp-set-addresses {{ hostvars[item].interfaceid }} {{ hostvars[item].mac }}
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      # We run this bucle in each hypervisor, so, we execute these tasks
+      # when the item (each guest) target is equal to the hypervisor where we
+      # execute the tasks "The VMs in each host"
+      when: kubeinit_deployment_node_name in hostvars[item].target
+
+    - name: create the VMs ports
+      ansible.builtin.shell: |
+        # Create the port
+        #
+        # We need to create one port per VM in our previously created network
+        #ovn-nbctl lsp-add {{ kubeinit_libvirt_ovn_switch }} veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }}
+        #
+        # Bind the created port to a chassis
+        # no funciona
+        #ovn-sbctl lsp-bind {{ item }}-port {{ item }}
+        #
+        #macaddr=$(tr -dc A-F0-9 < /dev/urandom | head -c 10 | sed -r 's/(..)/\1:/g;s/:$//;s/^/02:/')
+        #
+        # Set the port address
+        #ovn-nbctl lsp-set-addresses veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }} $macaddr
+        #ovn-nbctl lsp-set-addresses veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }} {{ hostvars[item].mac }}
+        #
+        # Set port security
+        #ovn-nbctl lsp-set-port-security veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }} {{ item }} $macaddr
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    - name: Create a port to binding between the OVN switch port and the OVS bridge
+      ansible.builtin.shell: |
+        # Bind port to chassis
+        #ovs-vsctl add-port br-int hypervisor-02-port \
+        #    -- set Interface hypervisor-02-port type=internal \
+        #    -- set Interface hypervisor-02-port external_ids:iface-id=hypervisor-02-port
+        #
+        #ovs-vsctl add-port br-int port0 -- set Interface port0 type=internal
+        #ovs-vsctl add-port br-int port1 -- set Interface port1 type=internal
+        #
+        #ovs-vsctl set interface port0 > type=patch
+        #ovs-vsctl set interface port1 > type=patch
+        #
+        #ovs-vsctl set interface port0 options:peer=port1
+        #ovs-vsctl set interface port1 options:peer=port0
+        #
+        # Los comandos anteriores los reemplazo por
+        #ovs-vsctl add-port br-int port0 -- set Interface port0 type=patch options:peer=port1
+        #ovs-vsctl add-port br-int port1 -- set Interface port1 type=patch options:peer=port0
+        #
+        #
+        #
+        # kimgtbr0 is the OVS bridge with the value from kubeinit_inventory_network_bridge
+        # ovs-vsctl add-port br-int port0 -- set Interface port0 type=internal
+        # ovs-vsctl set Interface port0 external_ids:iface-id={{ kubeinit_deployment_node_name }}-port
+        #
+        #ifaces=$(ovs-vsctl list-ports kimgtbr0 | grep vnet)
+        #for i in "${arr[@]}"
+        #do
+        #   echo "$i"
+        #   ifaceid=$(ovs-vsctl get interface $i external_ids:iface-id | sed s/\"//g)
+        #   #ovs-vsctl set Interface $i external_ids:iface-id=$ifaceid
+        #   ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} lsp-add {{ kubeinit_libvirt_ovn_switch }} $ifaceid
+        #   macaddr=$(ovs-vsctl get interface $ifaceid external_ids:attached-mac | sed s/\"//g)
+        #   ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} lsp-set-addresses $ifaceid $macaddr
+        #done
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  tags:
+    - provision_libvirt
+    # When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
+    #ovn-nbctl show
+    #ovn-sbctl show
+    #ovs-vsctl show
+    #ovs-vsctl list interface veth0-wo02
