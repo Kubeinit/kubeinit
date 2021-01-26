@@ -35,6 +35,20 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
+- name: post configure steps for OVN
+  ansible.builtin.include_role:
+   name: "../../roles/kubeinit_libvirt"
+   tasks_from: 00_ovn_post_setup.yml
+   public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  when: kubeinit_libvirt_ovn_enabled
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"

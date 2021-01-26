@@ -22,8 +22,12 @@
 - name: Get libvirt hypervisors directory free space
   ansible.builtin.shell: |
     set -o pipefail
-    df -BG --output=avail {{ kubeinit_validations_libvirt_path }} | grep -v Avail 2> /dev/null || \
-    df -BG --output=avail {{ kubeinit_validations_libvirt_path_fallback }} | grep -v Avail 2> /dev/null
+    if [ -d "{{ kubeinit_validations_libvirt_path }}" ]
+    then
+        df -BG --output=avail {{ kubeinit_validations_libvirt_path }} | grep -v Avail
+    else
+        df -BG --output=avail {{ kubeinit_validations_libvirt_path_fallback }} | grep -v Avail
+    fi
   register: kubeinit_validations_libvirt_free_space
   with_items:
     - "{{ groups['hypervisor_nodes'] | list }}"

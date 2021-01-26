@@ -62,7 +62,7 @@
       changed_when: "grow_img.rc == 0"
 
     # This will inject the VM configuration in the case of a CentOS machine
-    - name: "Inject {{ kubeinit_libvirt_cloud_user }} virt-customize assets"
+    - name: "Inject {{ kubeinit_libvirt_cloud_user }} virt-customize assets in {{ kubeinit_deployment_node_name }}"
       ansible.builtin.shell: |
         virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 \
           --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
@@ -82,7 +82,7 @@
       register: virt_inject
       changed_when: "virt_inject.rc == 0"
 
-    - name: "Create VM definition for the service nodes"
+    - name: "Create VM definition for {{ kubeinit_deployment_node_name }}"
       ansible.builtin.shell: |
         virt-install \
             --connect qemu:///system \
@@ -95,7 +95,11 @@
             --autostart \
             {% for net in kubeinit_libvirt_cluster_nets %}
               {% if net.enabled %}
+                {% if kubeinit_libvirt_ovn_enabled %}
+                  --network network={{ net.name }}{% if net.main %},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }}{% endif %},target.dev=veth0-{{ kubeinit_deployment_node_name.split("-")[1][:2] }}{{ kubeinit_deployment_node_name.split("-")[2] }},model=virtio \
+                {% else %}
                   --network network={{ net.name }}{% if net.main %},mac={{ hostvars[kubeinit_deployment_node_name].mac }}{% endif %},model=virtio \
+                {% endif %}
               {% endif %}
             {% endfor %}
             {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in kubeinit_deployment_node_name %}

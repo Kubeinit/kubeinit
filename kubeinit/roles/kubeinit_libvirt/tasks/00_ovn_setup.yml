@@ -15,7 +15,7 @@
 # under the License.
 
 ##
-## OVN setup in the Hypervisors.
+## OVN hypervisors setup.
 ##
 
 - name: Set up the OVN network details
@@ -31,8 +31,9 @@
             external_ids:ovn-nb="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_northbound_port }}" \
             external_ids:ovn-encap-ip=$LOCAL_IP \
             external_ids:ovn-encap-type="$ENCAP_TYPE" \
-            external_ids:system-id="{{ kubeinit_deployment_node_name }}" \
-            external-ids:ovn-bridge-mappings=kubeinit-ovn-net:kimgtbr0
+            external_ids:system-id="{{ kubeinit_deployment_node_name }}" #\
+            # external-ids:ovn-bridge-mappings=kubeinit-ovn-net:kimgtbr0
+            # https://access.redhat.com/documentation/en-us/red_hat_openstack_platform/13/html/networking_guide/bridge-mappings
 
         # Below two commands only for master. For SSL, other steps are required.
         sudo ovn-nbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_northbound_port }}
@@ -50,43 +51,37 @@
             external_ids:ovn-nb="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_northbound_port }}" \
             external_ids:ovn-encap-ip=$LOCAL_IP \
             external_ids:ovn-encap-type="$ENCAP_TYPE" \
-            external_ids:system-id="{{ kubeinit_deployment_node_name }}" \
-            external-ids:ovn-bridge-mappings=kubeinit-ovn-net:kimgtbr0
+            external_ids:system-id="{{ kubeinit_deployment_node_name }}" #\
+            # external-ids:ovn-bridge-mappings=kubeinit-ovn-net:kimgtbr0
+            # https://access.redhat.com/documentation/en-us/red_hat_openstack_platform/13/html/networking_guide/bridge-mappings
 
       when: >
         kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
         groups['hypervisor_nodes'] | length > 1
 
-    - name: remove the cluster switch if exists
+    - name: We configure an interface to provide access to the internet
       ansible.builtin.shell: |
-        ovn-nbctl ls-del {{ kubeinit_libvirt_ovn_switch }}
-      ignore_errors: True
-      when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        # Get the gateway interface
+        # This breaks the node connection
+        #iface=$(route | grep '^default' | grep -o '[^ ]*$')
+        #ovs-vsctl set open . external-ids:ovn-bridge-mappings=provider:br-provider
+        #ovs-vsctl --may-exist add-br br-provider
+        #ovs-vsctl --may-exist add-port br-provider $iface
 
-    - name: create the cluster switch
+    - name: Let's create a bridge to host the VMs
       ansible.builtin.shell: |
+        # On each HV lets create a virtual bridge
+        # This bridge will be used when we create the VMs
+        # we will use br-int so no removing
+        # ovs-vsctl del-br br-int || True
+        ovs-vsctl --may-exist add-br br-int
+        # This is executed in every Hypervisor, that is why when is empty
+        echo "asdf"
+
+    - name: remove and create the cluster switch if exists
+      ansible.builtin.shell: |
+        ovn-nbctl ls-del {{ kubeinit_libvirt_ovn_switch }} || True
         # Create a logical switch
         ovn-nbctl ls-add {{ kubeinit_libvirt_ovn_switch }}
       when: >
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
-
-    - name: create the nodes ports
-      ansible.builtin.shell: |
-        # Create the port
-        ovn-nbctl lsp-add {{ kubeinit_libvirt_ovn_switch }} {{ item }}
-        # Set the port address
-        ovn-nbctl lsp-set-addresses {{ item }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
-        # Set port security
-        ovn-nbctl lsp-set-port-security {{ item }} {{ hostvars[item].mac }}
-        # Bind the created port to a chassis
-        ovn-sbctl lsp-bind {{ item }} {{ hostvars[item].target }}
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-      when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
-
-    # When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
-    # ovn-nbctl show
-    # ovn-sbctl show
-    # ovs-vsctl show
