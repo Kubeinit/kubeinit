@@ -117,6 +117,14 @@
         path: /root/.ssh/known_hosts
       register: known_hosts_file
 
+    - name: Disable IPv6
+      ansible.builtin.shell: |
+        echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
+        echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
+        sysctl --load /etc/sysctl.d/70-ipv6.conf
+      when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
+      changed_when: false
+
     # - name: Disable netfilter
     #   ansible.builtin.shell: |
     #     modprobe br_netfilter
