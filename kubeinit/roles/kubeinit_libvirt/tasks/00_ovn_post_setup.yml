@@ -20,24 +20,36 @@
 
 - name: Post set up the OVN network details
   block:
+    - name: Let's create a bridge to host the VMs
+      ansible.builtin.shell: |
+        # On each HV lets create a virtual bridge br-int
+        # This bridge will be used when we create the VMs
+        # we will use br-int so no need to removing it before
+        # ovs-vsctl del-br br-int || True
+        ovs-vsctl --may-exist add-br br-int
+        # This is executed in every Hypervisor
 
     #
     # We create the OVN switch that will be binded to each chassis (hypervisor)
+    # In this switch we will create a port per guest
     #
+    - name: remove and create the cluster switch if exists
+      ansible.builtin.shell: |
+        ovn-nbctl ls-del {{ kubeinit_libvirt_ovn_switch }} || True
+        # Create a logical switch
+        ovn-nbctl ls-add {{ kubeinit_libvirt_ovn_switch }}
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
     - name: create OVS/OVN bindings for the VMs ports
       ansible.builtin.shell: |
-        #
-        # On each hypervisor we get each vm port interface ID
-        #
-        #ifaceid=$(ovs-vsctl get interface veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }} external_ids:iface-id | sed s/\"//g)
         #
         # We create an OVN port using the interface ID and the mac address of the VM
         #
         ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-add {{ kubeinit_libvirt_ovn_switch }} {{ hostvars[item].interfaceid }}
         #
-        # THe port name is the interface id of the VM, now we assign the mac address of the VM to the port
+        # The port name is the interface id of the VM, now we assign the mac address of the VM to the port
         #
         ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-addresses {{ hostvars[item].interfaceid }} {{ hostvars[item].mac }}
@@ -48,66 +60,88 @@
       # execute the tasks "The VMs in each host"
       when: kubeinit_deployment_node_name in hostvars[item].target
 
-    - name: create the VMs ports
+    - name: Configuring a router connected to the guests switch
       ansible.builtin.shell: |
-        # Create the port
+        #Create a logical router to connect the VMs switch
+        ovn-nbctl lr-add lr0
+        # This port will be the network gateway
+        ovn-nbctl lrp-add lr0 lr0-sw0 00:00:00:65:77:09 10.0.0.254/24
         #
-        # We need to create one port per VM in our previously created network
-        #ovn-nbctl lsp-add {{ kubeinit_libvirt_ovn_switch }} veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }}
+        # Create a port in the switch where we have the VMs
+        ovn-nbctl lsp-add sw0 sw0-lr0
+        # We mark this port a router type
+        ovn-nbctl lsp-set-type sw0-lr0 router
+        # We assign an address
+        ovn-nbctl lsp-set-addresses sw0-lr0 router
+        # We connect this to the previously created router
+        ovn-nbctl lsp-set-options sw0-lr0 router-port=lr0-sw0
         #
-        # Bind the created port to a chassis
-        # no funciona
-        #ovn-sbctl lsp-bind {{ item }}-port {{ item }}
-        #
-        #macaddr=$(tr -dc A-F0-9 < /dev/urandom | head -c 10 | sed -r 's/(..)/\1:/g;s/:$//;s/^/02:/')
-        #
-        # Set the port address
-        #ovn-nbctl lsp-set-addresses veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }} $macaddr
-        #ovn-nbctl lsp-set-addresses veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }} {{ hostvars[item].mac }}
-        #
-        # Set port security
-        #ovn-nbctl lsp-set-port-security veth0-{{ item.split("-")[1][:2] }}{{ item.split("-")[2] }} {{ item }} $macaddr
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+        # Static route for internet traffic.
+        # ovn-nbctl lr-route-add  lr0 0.0.0.0/0 172.24.4.9
+        # Static route for legacy networks.
+        # ovn-nbctl lr-route-add  lr0 10.0.0.0/24 10.0.0.1
       when: >
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
-    - name: Create a port to binding between the OVN switch port and the OVS bridge
+    - name: Create the detach interface script
+      ansible.builtin.template:
+        src: "../../roles/kubeinit_libvirt/templates/detach.sh"
+        dest: "~/detach.sh"
+        mode: "0755"
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    - name: Detach the phisical network interface and attach it to the OVN external bridge
+      ansible.builtin.command: ~/detach.sh
+      async: 45
+      poll: 0
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    - name: Configuring NAT to allow internet access to the VMs net
       ansible.builtin.shell: |
-        # Bind port to chassis
-        #ovs-vsctl add-port br-int hypervisor-02-port \
-        #    -- set Interface hypervisor-02-port type=internal \
-        #    -- set Interface hypervisor-02-port external_ids:iface-id=hypervisor-02-port
         #
-        #ovs-vsctl add-port br-int port0 -- set Interface port0 type=internal
-        #ovs-vsctl add-port br-int port1 -- set Interface port1 type=internal
-        #
-        #ovs-vsctl set interface port0 > type=patch
-        #ovs-vsctl set interface port1 > type=patch
-        #
-        #ovs-vsctl set interface port0 options:peer=port1
-        #ovs-vsctl set interface port1 options:peer=port0
-        #
-        # Los comandos anteriores los reemplazo por
-        #ovs-vsctl add-port br-int port0 -- set Interface port0 type=patch options:peer=port1
-        #ovs-vsctl add-port br-int port1 -- set Interface port1 type=patch options:peer=port0
+        # We do the nat
         #
         #
+        ovn-nbctl ls-add public
+        # Create a localnet port
+        ovn-nbctl lsp-add public ln-public
+        ovn-nbctl lsp-set-type ln-public localnet
+        ovn-nbctl lsp-set-addresses ln-public unknown
+        ovn-nbctl lsp-set-options ln-public network_name=provider
         #
-        # kimgtbr0 is the OVS bridge with the value from kubeinit_inventory_network_bridge
-        # ovs-vsctl add-port br-int port0 -- set Interface port0 type=internal
-        # ovs-vsctl set Interface port0 external_ids:iface-id={{ kubeinit_deployment_node_name }}-port
+        ovn-nbctl lrp-add lr0 lr0-public 00:00:20:20:12:13 172.168.0.200/24
+        ovn-nbctl lsp-add public public-lr0
+        ovn-nbctl lsp-set-type public-lr0 router
+        ovn-nbctl lsp-set-addresses public-lr0 router
+        ovn-nbctl lsp-set-options public-lr0 router-port=lr0-public
         #
-        #ifaces=$(ovs-vsctl list-ports kimgtbr0 | grep vnet)
-        #for i in "${arr[@]}"
-        #do
-        #   echo "$i"
-        #   ifaceid=$(ovs-vsctl get interface $i external_ids:iface-id | sed s/\"//g)
-        #   #ovs-vsctl set Interface $i external_ids:iface-id=$ifaceid
-        #   ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} lsp-add {{ kubeinit_libvirt_ovn_switch }} $ifaceid
-        #   macaddr=$(ovs-vsctl get interface $ifaceid external_ids:attached-mac | sed s/\"//g)
-        #   ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} lsp-set-addresses $ifaceid $macaddr
-        #done
+        # Configuring the chassis gateway
+        ovn-nbctl lrp-set-gateway-chassis lr0-public hypervisor-01
+        ovn-nbctl set logical_router_port lr0-public options:redirect-chassis=hypervisor-01
+        #
+        #
+        ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=provider:br-ex
+        #
+        #
+        # Solo SNAT now...
+        ovn-nbctl --may-exist lr-nat-add lr0 dnat_and_snat 172.168.0.22 10.0.0.88
+        ovn-nbctl --may-exist lr-nat-add lr0 snat 172.168.0.200 10.0.0.0/24
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    - name: Enabling DHCP
+      ansible.builtin.shell: |
+        # ovn-nbctl dhcp-options-create 10.0.0.0/24
+        # CIDR_UUID=$(ovn-nbctl --bare --columns=_uuid find dhcp_options cidr="10.0.0.0/24")
+        # ovn-nbctl dhcp-options-set-options ${CIDR_UUID} \
+        #   lease_time=3600 \
+        #   router=10.0.0.254 \
+        #   server_id=10.0.0.254 \
+        #   server_mac=00:00:00:65:77:09
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:

@@ -31,9 +31,7 @@
             external_ids:ovn-nb="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_northbound_port }}" \
             external_ids:ovn-encap-ip=$LOCAL_IP \
             external_ids:ovn-encap-type="$ENCAP_TYPE" \
-            external_ids:system-id="{{ kubeinit_deployment_node_name }}" #\
-            # external-ids:ovn-bridge-mappings=kubeinit-ovn-net:kimgtbr0
-            # https://access.redhat.com/documentation/en-us/red_hat_openstack_platform/13/html/networking_guide/bridge-mappings
+            external_ids:system-id="{{ kubeinit_deployment_node_name }}"
 
         # Below two commands only for master. For SSL, other steps are required.
         sudo ovn-nbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_northbound_port }}
@@ -51,37 +49,8 @@
             external_ids:ovn-nb="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_northbound_port }}" \
             external_ids:ovn-encap-ip=$LOCAL_IP \
             external_ids:ovn-encap-type="$ENCAP_TYPE" \
-            external_ids:system-id="{{ kubeinit_deployment_node_name }}" #\
-            # external-ids:ovn-bridge-mappings=kubeinit-ovn-net:kimgtbr0
-            # https://access.redhat.com/documentation/en-us/red_hat_openstack_platform/13/html/networking_guide/bridge-mappings
+            external_ids:system-id="{{ kubeinit_deployment_node_name }}"
 
       when: >
         kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
         groups['hypervisor_nodes'] | length > 1
-
-    - name: We configure an interface to provide access to the internet
-      ansible.builtin.shell: |
-        # Get the gateway interface
-        # This breaks the node connection
-        #iface=$(route | grep '^default' | grep -o '[^ ]*$')
-        #ovs-vsctl set open . external-ids:ovn-bridge-mappings=provider:br-provider
-        #ovs-vsctl --may-exist add-br br-provider
-        #ovs-vsctl --may-exist add-port br-provider $iface
-
-    - name: Let's create a bridge to host the VMs
-      ansible.builtin.shell: |
-        # On each HV lets create a virtual bridge
-        # This bridge will be used when we create the VMs
-        # we will use br-int so no removing
-        # ovs-vsctl del-br br-int || True
-        ovs-vsctl --may-exist add-br br-int
-        # This is executed in every Hypervisor, that is why when is empty
-        echo "asdf"
-
-    - name: remove and create the cluster switch if exists
-      ansible.builtin.shell: |
-        ovn-nbctl ls-del {{ kubeinit_libvirt_ovn_switch }} || True
-        # Create a logical switch
-        ovn-nbctl ls-add {{ kubeinit_libvirt_ovn_switch }}
-      when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
