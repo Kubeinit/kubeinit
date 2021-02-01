@@ -1,0 +1,36 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Deploy a CentOS based guest
+  block:
+    - name: wait for {{ kubeinit_deployment_node_name }} to boot
+      ansible.builtin.wait_for:
+        port: 22
+        host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 600
+
+    - name: Write the {{ kubeinit_deployment_node_name }} keys to the hypervisor known hosts
+      ansible.builtin.shell: |
+        set -o pipefail
+        ssh-keyscan -H {{ hostvars[kubeinit_deployment_node_name].ansible_host }} >> ~/.ssh/known_hosts
+        # We can not resolve  by name from the hypervisors
+        # ssh-keyscan -H {{ kubeinit_deployment_node_name }} >> ~/.ssh/known_hosts
+        # ssh-keyscan -H {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_domain }} >> ~/.ssh/known_hosts
+  delegate_to: "{{ groups['hypervisor_nodes'][0] }}"
+  tags:
+    - provision_libvirt

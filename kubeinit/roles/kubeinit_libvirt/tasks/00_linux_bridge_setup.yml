@@ -26,7 +26,7 @@
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
       ignore_errors: true
-      when: kubeinit_libvirt_destroy_nets|bool
+      when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     - name: Undefine deployment networks
       community.libvirt.virt_net:
@@ -34,19 +34,7 @@
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
       ignore_errors: true
-      when: kubeinit_libvirt_destroy_nets|bool
-
-    - name: Destroy default network
-      community.libvirt.virt_net:
-        command: destroy
-        name: "default"
-      ignore_errors: true
-
-    - name: Undefine default network
-      community.libvirt.virt_net:
-        command: undefine
-        name: "default"
-      ignore_errors: true
+      when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     ##
     ## Define common resources, networks
@@ -66,18 +54,18 @@
         name: "{{ item.name }}"
         xml: '{{ lookup("template", item.template) }}'
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+      when: item.enabled and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     - name: Activate KubeInit networks
       community.libvirt.virt_net:
         state: active
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+      when: item.enabled and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     - name: Autostart KubeInit networks
       community.libvirt.virt_net:
         autostart: yes
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item.enabled and kubeinit_libvirt_destroy_nets|bool
+      when: item.enabled and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks

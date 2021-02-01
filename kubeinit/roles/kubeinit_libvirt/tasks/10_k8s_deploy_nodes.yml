@@ -69,8 +69,8 @@
           --run-command 'id -u {{ kubeinit_libvirt_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_libvirt_cloud_user }}' \
           --run-command "sed -i s/^SELINUX=.*$/SELINUX=disabled/g /etc/selinux/config" \
           --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
-          --ssh-inject root:file:/root/.ssh/id_rsa.pub \
           --ssh-inject root:file:/root/.ssh/authorized_keys \
+          --run-command "echo {{ kubeinit_provision_vms_public_key }} >> /root/.ssh/authorized_keys" \
           --hostname {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
           {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in kubeinit_deployment_node_name %}
@@ -111,22 +111,6 @@
             --disk {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2,format=qcow2,bus=virtio
       register: virt_install
       changed_when: "virt_install.rc == 0"
-
-    - name: wait for the host to boot
-      ansible.builtin.wait_for:
-        port: 22
-        host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
-        search_regex: OpenSSH
-        delay: 10
-        timeout: 600
-
-    - name: Write the new instance host keys to the hypervisor known hosts
-      ansible.builtin.shell: |
-        set -o pipefail
-        ssh-keyscan -H {{ hostvars[kubeinit_deployment_node_name].ansible_host }} >> ~/.ssh/known_hosts
-        # We can not resolve  by name from the hypervisors
-        # ssh-keyscan -H {{ kubeinit_deployment_node_name }} >> ~/.ssh/known_hosts
-        # ssh-keyscan -H {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_domain }} >> ~/.ssh/known_hosts
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
   tags:

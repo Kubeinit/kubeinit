@@ -33,6 +33,22 @@ view "internal" {
         file "/etc/{{ kubeinit_bind_config_folder }}/zones/internals/db.{{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
     };
 
+{% if kubeinit_libvirt_multicluster_dns_forward_enabled and kubeinit_inventory_cluster_distro == "okd" %}
+    zone "{{ lookup('ini', 'kubeinit_inventory_cluster_name section=all:vars file='+kubeinit_libvirt_multicluster_rke_inventory) }}.{{ lookup('ini', 'kubeinit_inventory_cluster_domain section=all:vars file='+kubeinit_libvirt_multicluster_rke_inventory) }}" IN {
+        type forward;
+        forwarders {
+            {{ lookup('ini', 'kubeinit_inventory_cluster_dns_server section=all:vars file='+kubeinit_libvirt_multicluster_rke_inventory) }};
+        };
+    };
+{% elif kubeinit_libvirt_multicluster_dns_forward_enabled and kubeinit_inventory_cluster_distro == "rke" %}
+    zone "{{ lookup('ini', 'kubeinit_inventory_cluster_name section=all:vars file='+kubeinit_libvirt_multicluster_okd_inventory) }}.{{ lookup('ini', 'kubeinit_inventory_cluster_domain section=all:vars file='+kubeinit_libvirt_multicluster_okd_inventory) }}" IN {
+        type forward;
+        forwarders {
+            {{ lookup('ini', 'kubeinit_inventory_cluster_dns_server section=all:vars file='+kubeinit_libvirt_multicluster_okd_inventory) }};
+        };
+    };
+{% endif %}
+
 };
 
 {% if kubeinit_libvirt_external_service_interface_enabled | default(false) %}

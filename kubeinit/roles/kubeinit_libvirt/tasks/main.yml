@@ -52,6 +52,10 @@
           but CentOS 7 kernel does not understand them and refuses to mount it.
       when: (ansible_distribution == 'CentOS' and ansible_distribution_major_version == "7")
 
+    - name: Set fact for enabling OVN
+      ansible.builtin.set_fact:
+        kubeinit_libvirt_ovn_enabled: "{{ True if (groups['hypervisor_nodes'] | length > 1) else False }}"
+
     - name: Check if Intel virtualization is supported
       ansible.builtin.shell: |
         set -e
@@ -174,29 +178,34 @@
 
     - name: enable firewalld services
       block:
-        - name: Enable Services (firewalld)
+        - name: Disable Services (firewalld)
           ansible.builtin.service:
             name: "firewalld"
-            state: started
-            enabled: yes
-        - name: Enable HTTP for firewalld
-          ansible.posix.firewalld:
-            service: http
-            permanent: yes
-            state: enabled
-            immediate: yes
-        - name: Enable HTTPS for firewalld
-          ansible.posix.firewalld:
-            service: https
-            permanent: yes
-            state: enabled
-            immediate: yes
-        - name: Enable DNS for firewalld
-          ansible.posix.firewalld:
-            service: dns
-            permanent: yes
-            state: enabled
-            immediate: yes
+            state: stopped
+            enabled: no
+        # - name: Enable Services (firewalld)
+        #   ansible.builtin.service:
+        #     name: "firewalld"
+        #     state: started
+        #     enabled: yes
+        # - name: Enable HTTP for firewalld
+        #   ansible.posix.firewalld:
+        #     service: http
+        #     permanent: yes
+        #     state: enabled
+        #     immediate: yes
+        # - name: Enable HTTPS for firewalld
+        #   ansible.posix.firewalld:
+        #     service: https
+        #     permanent: yes
+        #     state: enabled
+        #     immediate: yes
+        # - name: Enable DNS for firewalld
+        #   ansible.posix.firewalld:
+        #     service: dns
+        #     permanent: yes
+        #     state: enabled
+        #     immediate: yes
       when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
     - name: install Debian based requirements
@@ -302,10 +311,18 @@
         mode: '0644'
 
     - name: "Add sudoers users to {{ kubeinit_libvirt_cloud_user }} group"
-      ansible.builtin.user: "name={{ kubeinit_libvirt_cloud_user }} groups={{ kubeinit_libvirt_cloud_user }} append=yes state=present createhome=yes"
+      ansible.builtin.user:
+        name: "{{ kubeinit_libvirt_cloud_user }}"
+        groups: "{{ kubeinit_libvirt_cloud_user }}"
+        append: yes
+        state: present
+        createhome: yes
 
     - name: Add Users to libvirt
-      action: user name="{{ item }}" groups="kvm,libvirt" append=yes
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: "kvm,libvirt"
+        append: yes
       with_items:
         - "{{ kubeinit_libvirt_cloud_user }}"
         - root

@@ -1,0 +1,50 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Configure the post deployment tasks
+  block:
+    - name: Remove resolv file
+      ansible.builtin.file:
+        path: /etc/resolv.conf
+        state: absent
+
+    - name: Create a symbolic link to the resolv.conf file
+      ansible.builtin.file:
+        src: /etc/resolvconf/resolv.conf.d/head
+        dest: /etc/resolv.conf
+        state: link
+
+    - name: Add the local DNS server as a local resolver
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
+        insertbefore: nameserver.*
+
+    - name: Restart the resolvconf service
+      ansible.builtin.service:
+        name: "resolvconf"
+        state: restarted
+        enabled: yes
+
+    - name: Restart the systemd-resolved service
+      ansible.builtin.service:
+        name: "systemd-resolved"
+        state: restarted
+        enabled: yes
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  tags:
+    - provision_libvirt

@@ -16,33 +16,17 @@
 
 - name: Configure the post deployment tasks
   block:
-    - name: Remove resolv file
-      ansible.builtin.file:
-        path: /etc/resolv.conf
-        state: absent
-
-    - name: Create a symbolic link to the resolv.conf file
-      ansible.builtin.file:
-        src: /etc/resolvconf/resolv.conf.d/head
-        dest: /etc/resolv.conf
-        state: link
-
-    - name: Add info to the resolv.conf
+    - name: "Finish"
       ansible.builtin.shell: |
-        echo "nameserver {{ kubeinit_inventory_network_gateway }}" > /etc/resolv.conf
-      changed_when: false
-
-    - name: Restart the resolvconf service
-      ansible.builtin.service:
-        name: "resolvconf"
-        state: restarted
-        enabled: yes
-
-    - name: Restart the systemd-resolved service
-      ansible.builtin.service:
-        name: "systemd-resolved"
-        state: restarted
-        enabled: yes
+        echo "Finished"
+    # #
+    # # Configure NFS
+    # #
+    #
+    # - name: Configure NFS
+    #   ansible.builtin.import_role:
+    #     name: ../../roles/kubeinit_nfs
+    #     tasks_from: main
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:

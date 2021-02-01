@@ -64,7 +64,9 @@
         delay: 10
         timeout: 7200
       when: update_packages is changed
-      delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+      # We always delegete to the first hypervisor for net checks
+      # because is the node where we have ssh access to the guests
+      delegate_to: "{{ groups['hypervisor_nodes'][0] }}"
 
     - name: install common requirements
       ansible.builtin.yum:
@@ -72,11 +74,17 @@
         state: present
         use_backend: dnf
 
+    - name: Add the local DNS server as a local resolver
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
+        insertbefore: nameserver.*
+
     #
     # Kubernetes config
     #
 
-    - name: install requirements for bubectl
+    - name: install requirements for kubectl
       ansible.builtin.package:
         name:
           - "kubectl-{{ kubeinit_eks_kubernetes_version }}"

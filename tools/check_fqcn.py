@@ -95,8 +95,9 @@ def check_tasks(file):
                         errors.append((file, task.action, module))
                         break
 
+                print(task.action)
                 if '.' not in task.action:
-                    errors.append(file, task.action, "no dot in namespace")
+                    errors.append((file, task.action, "no dot in namespace"))
 
             except AnsibleParserError:
                 pass

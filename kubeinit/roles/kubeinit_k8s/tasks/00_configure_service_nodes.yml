@@ -57,7 +57,7 @@
       poll: 0
       when: update_packages is changed
 
-    - name: Wait for the reboot to complete if there was a change.
+    - name: Wait for the reboot in {{ kubeinit_deployment_node_name }} to complete if there was a change.
       ansible.builtin.wait_for:
         port: 22
         host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
@@ -65,7 +65,9 @@
         delay: 10
         timeout: 7200
       when: update_packages is changed
-      delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+      # We always delegete to the first hypervisor for net checks
+      # because is the node where we have ssh access to the guests
+      delegate_to: "{{ groups['hypervisor_nodes'][0] }}"
 
     - name: install services requirements
       ansible.builtin.yum:
@@ -78,6 +80,12 @@
         name: "{{ kubeinit_k8s_common_dependencies }}"
         state: present
         use_backend: dnf
+
+    - name: Add the local DNS server as a local resolver
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
+        insertbefore: nameserver.*
 
     # #
     # # Configure local registry
