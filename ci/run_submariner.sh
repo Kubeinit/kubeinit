@@ -154,6 +154,7 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         --become \
         --become-user root \
         -e kubeinit_libvirt_multicluster_dns_forward_enabled=True \
+        -e @scenario_variables.yml \
         ./playbooks/okd.yml
 
     # Deploy the second cluster (rke)
@@ -164,6 +165,7 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         --become-user root \
         -e kubeinit_libvirt_multicluster_dns_forward_enabled=True \
         -e kubeinit_libvirt_multicluster_keep_predefined_networks=True \
+        -e @scenario_variables.yml \
         ./playbooks/rke.yml
 
     # Deploy submariner as broker (okd)
