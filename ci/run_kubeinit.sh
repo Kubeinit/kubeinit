@@ -53,11 +53,11 @@ git log -n 5 --pretty=oneline
 # variables depending on the scenario
 if [[ "$DISTRO" == "okd" && "$DRIVER" == "libvirt" ]]; then
 sudo tee scenario_variables.yml > /dev/null <<EOF
-kubeinit_libvirt_test_variable1: example_var
+kubeinit_common_dns_master: 10.64.63.6
 EOF
 else
 sudo tee scenario_variables.yml > /dev/null <<EOF
-kubeinit_libvirt_test_variable2: example_var2
+kubeinit_common_dns_master: 10.64.63.6
 EOF
 fi
 
@@ -100,6 +100,25 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/cdk/inventory
         sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/eks/inventory
     fi
+
+    sed -i "s/10.0.0.1 /10.0.0.201 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.2 /10.0.0.202 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.3 /10.0.0.203 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.4 /10.0.0.204 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.5 /10.0.0.205 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.6 /10.0.0.206 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.7 /10.0.0.207 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.8 /10.0.0.208 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.9 /10.0.0.209 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.10 /10.0.0.210 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.11 /10.0.0.211 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.12 /10.0.0.212 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.13 /10.0.0.213 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.14 /10.0.0.214 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.15 /10.0.0.215 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.100 /10.0.0.250 /g" ./hosts/rke/inventory
+    sed -i "s/10.0.0.100/10.0.0.250/g" ./hosts/rke/inventory
+
 else
     if [[ "$MASTER" == "1" ]]; then
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/$DISTRO/inventory
@@ -146,7 +165,7 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         -v -i ./hosts/okd/inventory \
         --become \
         --become-user root \
-        -e kubeinit_libvirt_dns_forward_multicluster_enabled=True \
+        -e kubeinit_libvirt_multicluster_dns_forward_enabled=True \
         ./playbooks/okd.yml
 
     # Deploy the second cluster (rke)
@@ -155,7 +174,8 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         -v -i ./hosts/rke/inventory \
         --become \
         --become-user root \
-        -e kubeinit_libvirt_dns_forward_multicluster_enabled=True \
+        -e kubeinit_libvirt_multicluster_dns_forward_enabled=True \
+        -e kubeinit_libvirt_multicluster_keep_predefined_networks=True \
         ./playbooks/rke.yml
 
     # Deploy submariner as broker (okd)

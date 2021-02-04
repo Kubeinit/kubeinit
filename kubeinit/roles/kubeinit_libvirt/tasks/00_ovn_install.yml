@@ -88,30 +88,30 @@
         groups['hypervisor_nodes'] | length > 1
       changed_when: false
 
-    - name: refresh firewalld services list
-      ansible.builtin.shell: |
-        firewall-cmd --reload
-      when: >
-        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
-
-    - name: Enable OVN central in firewalld
-      ansible.posix.firewalld:
-        service: ovn-central-firewall-service
-        permanent: yes
-        state: enabled
-        immediate: yes
-      when: >
-        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora') and
-        kubeinit_deployment_node_name in groups['hypervisor_nodes'][0]
-
-    - name: Enable OVN controller in firewalld
-      ansible.posix.firewalld:
-        service: ovn-host-firewall-service
-        permanent: yes
-        state: enabled
-        immediate: yes
-      when: >
-        (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
+    # - name: refresh firewalld services list
+    #   ansible.builtin.shell: |
+    #     firewall-cmd --reload
+    #   when: >
+    #     (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
+    #
+    # - name: Enable OVN central in firewalld
+    #   ansible.posix.firewalld:
+    #     service: ovn-central-firewall-service
+    #     permanent: yes
+    #     state: enabled
+    #     immediate: yes
+    #   when: >
+    #     (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora') and
+    #     kubeinit_deployment_node_name in groups['hypervisor_nodes'][0]
+    #
+    # - name: Enable OVN controller in firewalld
+    #   ansible.posix.firewalld:
+    #     service: ovn-host-firewall-service
+    #     permanent: yes
+    #     state: enabled
+    #     immediate: yes
+    #   when: >
+    #     (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
     - name: enable and start OVN services in the first hypervisor
       ansible.builtin.service:

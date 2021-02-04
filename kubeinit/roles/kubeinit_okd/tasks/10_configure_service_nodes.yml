@@ -37,7 +37,15 @@
         delay: 10
         timeout: 7200
       when: update_packages is changed
-      delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
+      # We always delegete to the first hypervisor for net checks
+      # because is the node where we have ssh access to the guests
+      delegate_to: "{{ groups['hypervisor_nodes'][0] }}"
+
+    - name: Add the local DNS server as a local resolver
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
+        insertbefore: nameserver.*
 
     - name: install services requirements
       ansible.builtin.yum:

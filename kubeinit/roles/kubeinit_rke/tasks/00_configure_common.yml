@@ -53,7 +53,9 @@
         delay: 10
         timeout: 7200
       when: update_packages is changed
-      delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+      # We always delegete to the first hypervisor for net checks
+      # because is the node where we have ssh access to the guests
+      delegate_to: "{{ groups['hypervisor_nodes'][0] }}"
 
     - name: install common requirements
       ansible.builtin.package:

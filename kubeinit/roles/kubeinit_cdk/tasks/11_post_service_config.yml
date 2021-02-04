@@ -27,10 +27,11 @@
         dest: /etc/resolv.conf
         state: link
 
-    - name: Add info to the resolv.conf
-      ansible.builtin.shell: |
-        echo "nameserver {{ kubeinit_inventory_network_gateway }}" > /etc/resolv.conf
-      changed_when: false
+    - name: Add the local DNS server as a local resolver
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
+        insertbefore: nameserver.*
 
     - name: Restart the resolvconf service
       ansible.builtin.service:
@@ -43,17 +44,6 @@
         name: "systemd-resolved"
         state: restarted
         enabled: yes
-
-    # #
-    # # Configure NFS
-    # #
-    #
-    # - name: Configure NFS
-    #   delegate_to: "{{ groups['cdk_service_nodes'][0] }}"
-    #   # delegate_facts: true
-    #   ansible.builtin.import_role:
-    #     name: ../../roles/kubeinit_nfs
-    #     tasks_from: main
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:

@@ -25,15 +25,7 @@
       </dhcp>
   </ip>
   <dns>
-{% if kubeinit_libvirt_dns_forward_multicluster_enabled %}
-  {% for inv in kubeinit_libvirt_dns_forward_multicluster_inventory_files %}
-  <forwarder domain="{{ lookup('ini', 'kubeinit_inventory_cluster_name section=all:vars file='+inv) }}.{{ lookup('ini', 'kubeinit_inventory_cluster_domain section=all:vars file='+inv) }}" addr="{{ lookup('ini', 'kubeinit_inventory_cluster_dns_server section=all:vars file='+inv) }}"/>
-  {% endfor %}
-{% else %}
-  {% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
-  <forwarder domain='{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}' addr="{{ hostvars[host].ansible_host }}"/>
-  {% endfor %}
-{% endif %}
+  <forwarder addr="{{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}"/>	
   </dns>
 </network>
 {% endif %}

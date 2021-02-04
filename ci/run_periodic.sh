@@ -52,11 +52,11 @@ cd kubeinit
 # variables depending on the scenario
 if [[ "$DISTRO" == "okd" && "$DRIVER" == "libvirt" ]]; then
 sudo tee scenario_variables.yml > /dev/null <<EOF
-kubeinit_libvirt_test_variable1: example_var
+kubeinit_common_dns_master: 10.64.63.6
 EOF
 else
 sudo tee scenario_variables.yml > /dev/null <<EOF
-kubeinit_libvirt_test_variable2: example_var2
+kubeinit_common_dns_master: 10.64.63.6
 EOF
 fi
 
