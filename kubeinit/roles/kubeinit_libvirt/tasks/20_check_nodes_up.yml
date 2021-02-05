@@ -14,23 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Deploy a CentOS based guest
-  block:
-    - name: wait for {{ kubeinit_deployment_node_name }} to boot
-      ansible.builtin.wait_for:
-        port: 22
-        host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
-        search_regex: OpenSSH
-        delay: 10
-        timeout: 600
-
-    - name: Write the {{ kubeinit_deployment_node_name }} keys to the hypervisor known hosts
-      ansible.builtin.shell: |
-        set -o pipefail
-        ssh-keyscan -H {{ hostvars[kubeinit_deployment_node_name].ansible_host }} >> ~/.ssh/known_hosts
-        # We can not resolve  by name from the hypervisors
-        # ssh-keyscan -H {{ kubeinit_deployment_node_name }} >> ~/.ssh/known_hosts
-        # ssh-keyscan -H {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_domain }} >> ~/.ssh/known_hosts
-  delegate_to: "{{ groups['hypervisor_nodes'][0] }}"
+- name: wait for {{ kubeinit_deployment_node_name }} to boot
+  ansible.builtin.wait_for_connection:
+    delay: 5
+    timeout: 600
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
   tags:
     - provision_libvirt

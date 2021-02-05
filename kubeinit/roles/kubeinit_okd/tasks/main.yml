@@ -63,7 +63,7 @@
     kubeinit_deployment_role: service
   tags: provision_libvirt
 
-- name: Check nodes are up and running
+- name: Check that the service node is up and running
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
     tasks_from: 20_check_nodes_up.yml
@@ -81,6 +81,12 @@
     name: "../../roles/kubeinit_okd"
     tasks_from: 10_configure_service_nodes.yml
     public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   tags: provision_libvirt
 
 - name: Deploy the cluster bootstrap nodes
@@ -104,8 +110,10 @@
     name: "../../roles/kubeinit_okd"
     tasks_from: 20_configure_cluster_nodes.yml
     public: yes
+  # We always delegate this to the service node and
+  # check the deployment_role variable
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list }}"
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -132,8 +140,10 @@
     name: "../../roles/kubeinit_okd"
     tasks_from: 20_configure_cluster_nodes.yml
     public: yes
+  # We always delegate this to the service node and
+  # check the deployment_role variable
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list }}"
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -162,8 +172,10 @@
     name: "../../roles/kubeinit_okd"
     tasks_from: 20_configure_cluster_nodes.yml
     public: yes
+  # We always delegate this to the service node and
+  # check the deployment_role variable
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list }}"
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -176,6 +188,12 @@
     name: "../../roles/kubeinit_okd"
     tasks_from: 30_post_deployment_tasks.yml
     public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   tags: provision_libvirt
 
 - name: Deploy KubeVirt

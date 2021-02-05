@@ -34,16 +34,10 @@
       when: update_packages is changed
 
     - name: Wait for the reboot to complete if there was a change.
-      ansible.builtin.wait_for:
-        port: 22
-        host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
-        search_regex: OpenSSH
-        delay: 10
-        timeout: 7200
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 600
       when: update_packages is changed
-      # We always delegete to the first hypervisor for net checks
-      # because is the node where we have ssh access to the guests
-      delegate_to: "{{ groups['hypervisor_nodes'][0] }}"
 
     - name: install common requirements
       ansible.builtin.yum:
@@ -298,6 +292,6 @@
         name: kubelet
         enabled: yes
 
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
   tags:
     - provision_libvirt
