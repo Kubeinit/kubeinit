@@ -28,7 +28,7 @@ if version_info < (3, 5):
 
 _NAME = 'kubeinit'
 _DESCRIPTION = 'The Kubeinit CLI'
-_REVISION = '0.6.5'
+_REVISION = '1.0.0'
 
 kubeinit_revision = os.environ.get('KUBEINIT_REVISION', "")
 if (kubeinit_revision != ""):
