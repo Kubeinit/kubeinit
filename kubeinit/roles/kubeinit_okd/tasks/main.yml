@@ -103,24 +103,6 @@
     kubeinit_deployment_role: bootstrap
   tags: provision_libvirt
 
-# 20_configure_cluster_nodes only checks for master nodes
-# check if possible to remove this as is skipped.
-- name: Configure the cluster bootstrap nodes
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_okd"
-    tasks_from: 20_configure_cluster_nodes.yml
-    public: yes
-  # We always delegate this to the service node and
-  # check the deployment_role variable
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: bootstrap
-  tags: provision_libvirt
-
 - name: Deploy the cluster master nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
@@ -138,7 +120,7 @@
 - name: Configure the cluster master nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_okd"
-    tasks_from: 20_configure_cluster_nodes.yml
+    tasks_from: 20_check_nodes_ready.yml
     public: yes
   # We always delegate this to the service node and
   # check the deployment_role variable
@@ -158,24 +140,6 @@
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: worker
-  tags: provision_libvirt
-
-# 20_configure_cluster_nodes only checks for master nodes
-# check if possible to remove this as is skipped.
-- name: Configure the cluster worker nodes
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_okd"
-    tasks_from: 20_configure_cluster_nodes.yml
-    public: yes
-  # We always delegate this to the service node and
-  # check the deployment_role variable
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
