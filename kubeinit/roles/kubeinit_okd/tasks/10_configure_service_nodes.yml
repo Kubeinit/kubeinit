@@ -30,16 +30,10 @@
       when: update_packages is changed
 
     - name: Wait for the reboot to complete if there was a change.
-      ansible.builtin.wait_for:
-        port: 22
-        host: "{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}"
-        search_regex: OpenSSH
-        delay: 10
-        timeout: 7200
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 600
       when: update_packages is changed
-      # We always delegete to the first hypervisor for net checks
-      # because is the node where we have ssh access to the guests
-      delegate_to: "{{ groups['hypervisor_nodes'][0] }}"
 
     - name: Add the local DNS server as a local resolver
       ansible.builtin.lineinfile:
@@ -257,8 +251,6 @@
       register: autoload
       changed_when: "autoload.rc == 0"
 
-  # From the hypervisor we delegate the execution to
-  # the service machine
-  delegate_to: "{{ groups['okd_service_nodes'][0] }}"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
   tags:
     - provision_libvirt

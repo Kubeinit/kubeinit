@@ -27,10 +27,8 @@
   until: cmd_res.stdout_lines | list | count == groups['okd_master_nodes'] | count
   # Delegated to be executed in the service node but
   # After the master nodes are deployed
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  # This should be only executed in master nodes
   when: "'master' in kubeinit_deployment_role"
   tags:
     - provision_libvirt
