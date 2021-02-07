@@ -48,13 +48,13 @@
         #
         # Create DHCP options
         #
-        Dhcp_opts=$(ovn-nbctl create DHCP_Options cidr=10.0.0.0/24 \
+        Dhcp_opts=$(ovn-nbctl create DHCP_Options cidr={{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} \
             options=" \
-                    \"server_id\"=\"10.0.0.254\" \
+                    \"server_id\"=\"{{ kubeinit_inventory_network_gateway }}\" \
                     \"server_mac\"=\"00:00:00:65:77:09\" \
                     \"lease_time\"=\"3600\" \
-                    \"router\"=\"10.0.0.254\" \
-                    \"dns_server\"=\"10.0.0.100\" \
+                    \"router\"=\"{{ kubeinit_inventory_network_gateway }}\" \
+                    \"dns_server\"=\"{{ kubeinit_inventory_cluster_dns_server }}\" \
                     \"mtu\"=\"1442\" \
                     ")
         echo $Dhcp_opts
@@ -105,7 +105,7 @@
         # Create a logical router to connect the VMs switch
         #
         ovn-nbctl lr-add lr0
-        ovn-nbctl lrp-add lr0 lr0-sw0 00:00:00:65:77:09 10.0.0.254/24
+        ovn-nbctl lrp-add lr0 lr0-sw0 00:00:00:65:77:09 {{ kubeinit_inventory_network_gateway }}/24
         ovn-nbctl lsp-add sw0 sw0-lr0
         ovn-nbctl lsp-set-type sw0-lr0 router
         ovn-nbctl lsp-set-addresses sw0-lr0 router
@@ -148,7 +148,7 @@
         # Routes
         #
         # Connectivity from the host to the guest machines
-        ip route add 10.0.0.0/24 via 172.16.0.1 dev br-ex
+        ip route add {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex
         # Connectivity to external/additional networks
         ovn-nbctl lr-route-add lr0 0.0.0.0/0 172.16.0.254
         #
@@ -158,7 +158,7 @@
         #
         # NAT from eno1
         #
-        iptables -t nat -A POSTROUTING -s 10.0.0.0/24 -o eno1 -j MASQUERADE
+        iptables -t nat -A POSTROUTING -s {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} -o eno1 -j MASQUERADE
         #
         iptables -A FORWARD -i eno1 -j ACCEPT
         iptables -A FORWARD -i br-ex -j ACCEPT
