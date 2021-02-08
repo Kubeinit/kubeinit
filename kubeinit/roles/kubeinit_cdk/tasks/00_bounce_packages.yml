@@ -20,37 +20,28 @@
 
 - name: Configure common requirements in guests
   block:
+    - name: Force apt-get update
+      ansible.builtin.shell: |
+        apt-get update
+      changed_when: false
 
-    - name: install common requirements
+    - name: update packages
       ansible.builtin.package:
-        name: "{{ kubeinit_rke_common_dependencies }}"
-        state: present
+        name: "*"
+        state: latest
+      register: update_packages
 
-    - name: Resize root partition
+    - name: Enable cloud init
       ansible.builtin.shell: |
-        echo 'Reclaim space for root partition'
-        growpart /dev/vda 1
-        resize2fs /dev/vda1
+        systemctl enable cloud-init
+        systemctl start cloud-init
       changed_when: false
 
-    - name: Install Docker
-      ansible.builtin.shell: |
-        apt-get update -y
-        apt-get remove docker docker-engine docker.io -y
-        apt-get install docker.io -y
-        docker --version
-      changed_when: false
-
-    - name: Start and enable docker service
-      ansible.builtin.service:
-        name: docker
-        state: started
-        enabled: yes
-
-    - name: Install kubectl
-      ansible.builtin.shell: |
-        snap install kubectl --classic
-      changed_when: false
+    - name: Reboot immediately after the package update
+      ansible.builtin.shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+      when: update_packages is changed
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
   tags:
