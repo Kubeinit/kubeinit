@@ -19,6 +19,16 @@
 ##
 - name: Set up an Hypervisors
   block:
+    - name: Experimental warning
+      ansible.builtin.debug:
+        msg:
+          - '|-------------------------------------------------------|'
+          - '| Deploying in multiple hosts is experimental, parts of |'
+          - '| the deployment might be broken or some distributions  |'
+          - '| might not work as expected.                           |'
+          - '|-------------------------------------------------------|'
+      when: groups['hypervisor_nodes'] | length > 1
+
     - name: "check if bridge is created"
       ansible.builtin.shell: |
         set -o pipefail
