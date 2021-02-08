@@ -20,37 +20,6 @@
 
 - name: Configure common requirements in guests
   block:
-    - name: Force apt-get update
-      ansible.builtin.shell: |
-        apt-get update
-      changed_when: false
-
-    - name: update packages
-      ansible.builtin.package:
-        name: "*"
-        state: latest
-      register: update_packages
-
-    - name: Enable cloud init
-      ansible.builtin.shell: |
-        systemctl enable cloud-init
-        systemctl start cloud-init
-      changed_when: false
-
-    - name: Reboot immediately after the package update
-      ansible.builtin.shell: "sleep 5 && reboot"
-      async: 1
-      poll: 0
-      when: update_packages is changed
-
-    - name: Wait for the reboot to complete if there was a change.
-      ansible.builtin.wait_for_connection:
-        connect_timeout: 20
-        sleep: 5
-        delay: 5
-        timeout: 300
-      when: update_packages is changed
-
     - name: install common requirements
       ansible.builtin.package:
         name: "{{ kubeinit_cdk_common_dependencies }}"

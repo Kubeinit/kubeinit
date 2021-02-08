@@ -20,26 +20,6 @@
 
 - name: Configure common requirements in guests
   block:
-    - name: update packages
-      ansible.builtin.yum:
-        name: "*"
-        state: latest
-        use_backend: dnf
-      register: update_packages
-
-    - name: Reboot immediately after the package update
-      ansible.builtin.shell: "sleep 5 && reboot"
-      async: 1
-      poll: 0
-      when: update_packages is changed
-
-    - name: Wait for the reboot to complete if there was a change.
-      ansible.builtin.wait_for_connection:
-        connect_timeout: 20
-        sleep: 5
-        delay: 5
-        timeout: 300
-      when: update_packages is changed
 
     - name: install common requirements
       ansible.builtin.yum:
