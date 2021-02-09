@@ -1,0 +1,101 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+##
+## OVN setup in the Hypervisors.
+##
+- name: Cleanup the environment
+  block:
+
+    - name: check if /root/.ssh/known_hosts exists
+      ansible.builtin.stat:
+        path: /root/.ssh/known_hosts
+      register: known_hosts_file
+
+    - name: Destroy deployment networks
+      community.libvirt.virt_net:
+        command: destroy
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      ignore_errors: true
+      when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+    - name: Undefine deployment networks
+      community.libvirt.virt_net:
+        command: undefine
+        name: "{{ item.name }}"
+      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
+      ignore_errors: true
+      when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+    ##
+    ## Destroy all VMs
+    ##
+
+    - name: Destroy vms
+      community.libvirt.virt:
+        name: "{{ item }}"
+        command: destroy
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      ignore_errors: true
+
+    - name: Undefine vms
+      community.libvirt.virt:
+        name: "{{ item }}"
+        command: undefine
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      ignore_errors: true
+
+    - name: Remove VMs storage
+      ansible.builtin.file:
+        state: absent
+        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+
+    ##
+    ## Config folders for guests details
+    ##
+
+    - name: Clean directories for config files per node
+      ansible.builtin.file:
+        state: absent
+        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/"
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+
+    - name: Reset ssh keys in hypervisor
+      ansible.builtin.shell: |
+        ssh-keygen -R  {{ item }}
+        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
+        ssh-keygen -R  {{ hostvars[item].ansible_host }}
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      when: known_hosts_file.stat.exists | bool
+      changed_when: false
+
+    - name: reset local ssh keys
+      become: no
+      delegate_to: localhost
+      ansible.builtin.shell: |
+        ssh-keygen -R  {{ item }} || true
+        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }} || true
+        ssh-keygen -R  {{ hostvars[item].ansible_host }} || true
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      changed_when: false
