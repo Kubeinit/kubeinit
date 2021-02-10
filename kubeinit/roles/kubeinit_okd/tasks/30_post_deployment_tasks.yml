@@ -81,6 +81,12 @@
       changed_when: "single_node_cluster.rc == 0"
       when: (groups['okd_master_nodes'] | count) == 1
 
+    - name: Copy the kubeconfig
+      ansible.builtin.shell: |
+        cp ~/install_dir/auth/kubeconfig ~/.kube/config
+      register: copy_kubeconfig
+      changed_when: "copy_kubeconfig.rc == 0"
+
     # This can take a lot of time until the cluster converges
     - name: Wait for installer to complete
       ansible.builtin.command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info
@@ -138,12 +144,6 @@
       ignore_errors: yes
       register: final_output_info
       changed_when: "final_output_info.rc == 0"
-
-    - name: Copy the kubeconfig
-      ansible.builtin.shell: |
-        cp ~/install_dir/auth/kubeconfig ~/.kube/config
-      register: copy_kubeconfig
-      changed_when: "copy_kubeconfig.rc == 0"
 
     #
     # Configure NFS
