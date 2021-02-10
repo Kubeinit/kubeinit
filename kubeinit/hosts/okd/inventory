@@ -3,7 +3,15 @@
 #
 
 [all:vars]
+
+#
+# Internal variables
+#
+
 # ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_pipelining=True
+ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o ProxyCommand="ssh -W %h:%p -q root@nyctea"' # ControlMaster=auto -o ControlPersist=54s -o ControlPath=~/.ssh/ansible-%r@%h:%p
+
 kubeinit_inventory_network_gateway=10.0.0.254
 kubeinit_inventory_network_netmask=255.255.255.0
 kubeinit_inventory_network_dhcp_start=10.0.0.1
@@ -28,7 +36,6 @@ kubeinit_inventory_cluster_domain=kubeinit.local
 kubeinit_inventory_cluster_service_cidr=172.30.0.0/16
 
 [okd_master_nodes:vars]
-ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null" -o ProxyCommand="ssh -W %h:%p root@nyctea"'
 os=coreos
 disk=25G
 ram=25165824
@@ -41,7 +48,6 @@ devicename=enp6s0
 root_device=/dev/vda
 
 [okd_worker_nodes:vars]
-ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null" -o ProxyCommand="ssh -W %h:%p root@nyctea"'
 os=coreos
 disk=30G
 ram=8388608
@@ -54,7 +60,6 @@ devicename=enp6s0
 root_device=/dev/vda
 
 [okd_service_nodes:vars]
-ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null" -o ProxyCommand="ssh -W %h:%p root@nyctea"'
 os=centos
 disk=150G
 ram=12582912
@@ -67,7 +72,6 @@ devicename=eth0
 root_device=/dev/sda1
 
 [okd_bootstrap_nodes:vars]
-ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null" -o ProxyCommand="ssh -W %h:%p root@nyctea"'
 os=coreos
 disk=20G
 ram=16777216
@@ -88,10 +92,10 @@ root_device=/dev/vda
 # Hypervisor
 
 [hypervisor_nodes]
-hypervisor-01 ansible_host=nyctea ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null"'
-# hypervisor-02 ansible_host=tyto ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null"'
-# hypervisor-03 ansible_host=strix ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null"'
-# hypervisor-04 ansible_host=otus ansible_ssh_common_args='-o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null"'
+hypervisor-01 ansible_host=nyctea
+# hypervisor-02 ansible_host=tyto
+# hypervisor-03 ansible_host=strix
+# hypervisor-04 ansible_host=otus
 
 # Master, worker, service, and bootstrap nodes can be configured as virtual
 # machines or using the already provisioned baremetal machines for the deployment.
