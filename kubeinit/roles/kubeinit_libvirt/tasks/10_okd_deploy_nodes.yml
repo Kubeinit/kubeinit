@@ -66,6 +66,7 @@
     - name: "Inject {{ kubeinit_libvirt_cloud_user }} virt-customize assets"
       ansible.builtin.shell: |
         virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 \
+          --install python3 \
           --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
           --run-command 'id -u {{ kubeinit_libvirt_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_libvirt_cloud_user }}' \
           --run-command "sed -i s/^SELINUX=.*$/SELINUX=disabled/g /etc/selinux/config" \
