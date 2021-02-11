@@ -15,15 +15,14 @@
 # under the License.
 
 ##
-## OVN setup in the Hypervisors.
+## Cleanup tasks
 ##
 - name: Cleanup the environment
   block:
 
-    - name: check if /root/.ssh/known_hosts exists
-      ansible.builtin.stat:
-        path: /root/.ssh/known_hosts
-      register: known_hosts_file
+    ##
+    ## Clean networks
+    ##
 
     - name: Destroy deployment networks
       community.libvirt.virt_net:
@@ -42,7 +41,7 @@
       when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     ##
-    ## Destroy all VMs
+    ## Clean VMs
     ##
 
     - name: Destroy vms
@@ -69,7 +68,7 @@
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
 
     ##
-    ## Config folders for guests details
+    ## Clean folders
     ##
 
     - name: Clean directories for config files per node
@@ -79,6 +78,15 @@
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
 
+    ##
+    ## Clean keys
+    ##
+
+    - name: check if /root/.ssh/known_hosts exists
+      ansible.builtin.stat:
+        path: /root/.ssh/known_hosts
+      register: known_hosts_file
+
     - name: Reset ssh keys in hypervisor
       ansible.builtin.shell: |
         ssh-keygen -R  {{ item }}
@@ -87,15 +95,25 @@
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
       when: known_hosts_file.stat.exists | bool
+      ignore_errors: true
       changed_when: false
 
     - name: reset local ssh keys
       become: no
       delegate_to: localhost
       ansible.builtin.shell: |
-        ssh-keygen -R  {{ item }} || true
-        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }} || true
-        ssh-keygen -R  {{ hostvars[item].ansible_host }} || true
+        ssh-keygen -R  {{ item }}
+        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
+        ssh-keygen -R  {{ hostvars[item].ansible_host }}
+      ignore_errors: true
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
       changed_when: false
+
+    - name: Delete keys in ~/.ssh/known_hosts
+      ansible.builtin.lineinfile:
+        dest: ~/.ssh/known_hosts
+        state: absent
+        regexp: '{{ hostvars[item].ansible_host }}'
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
