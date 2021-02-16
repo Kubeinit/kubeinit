@@ -129,6 +129,20 @@
     kubeinit_deployment_role: bootstrap
   tags: provision_libvirt
 
+- name: Wait for the bootstrap node to complete
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_okd"
+    tasks_from: 25_wait_bootstrap_complete.yml
+    public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: bootstrap
+  tags: provision_libvirt
+
 - name: Deploy the cluster master nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
