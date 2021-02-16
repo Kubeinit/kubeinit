@@ -132,3 +132,16 @@
         regexp: '{{ hostvars[item].ansible_host }}'
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+
+    ##
+    ## Clean bastion config
+    ##
+
+    - name: clean bastion config
+      become: no
+      delegate_to: localhost
+      ansible.builtin.shell: |
+        touch ~/.ssh/config
+        rm -rf ~/.ssh/config.kubeinit
+        sed -i '/Include config.kubeinit/d' ~/.ssh/config
+      changed_when: false

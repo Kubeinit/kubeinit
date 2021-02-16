@@ -345,6 +345,58 @@
     - name: Cleanup the host
       ansible.builtin.include: 00_cleanup.yml
 
+    - name: get the IP
+      become: no
+      delegate_to: localhost
+      ansible.builtin.command: hostname --ip-address
+      register: local_initiator_ip
+      changed_when: "local_initiator_ip.rc == 0"
+
+    - name: Set up the local IP
+      ansible.builtin.set_fact:
+        kubeinit_libvirt_initiator_ip={{ local_initiator_ip.stdout }}
+
+    - name: ansible_host
+      ansible.builtin.debug:
+        msg: "{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}"
+
+    - name: Include the bastion SSH config
+      become: no
+      delegate_to: localhost
+      ansible.builtin.shell: |
+        cat <<-"EOF" > ~/.ssh/config.kubeinit
+        Host {{ hostvars[groups['hypervisor_nodes'][0]].ansible_host }}
+            Hostname {{ hostvars[groups['hypervisor_nodes'][0]].ansible_host }}
+            User root
+            ControlMaster auto
+            ControlPath ~/.ssh/ansible-%r@%h:%p
+            ControlPersist 100m
+            StrictHostKeyChecking no
+            HashKnownHosts no
+            ForwardAgent yes
+            PreferredAuthentications publickey
+
+        Host {{ kubeinit_inventory_network_net.split('.')[0:2] | join('.') }}.*
+            ProxyCommand ssh -W %h:%p {{ hostvars[groups['hypervisor_nodes'][0]].ansible_host }}
+            ControlMaster auto
+            ControlPath ~/.ssh/ansible-%r@%h:%p
+            ControlPersist 100m
+            StrictHostKeyChecking no
+            HashKnownHosts no
+            ForwardAgent yes
+            PreferredAuthentications publickey
+        EOF
+        touch ~/.ssh/config
+        grep -q -F 'Include config.kubeinit' ~/.ssh/config
+        if [ $? -ne 0 ]; then
+          sed -i '1 i\Include config.kubeinit' ~/.ssh/config
+        fi
+
+        chmod 644 ~/.ssh/config.kubeinit
+        chmod 644 ~/.ssh/config
+      changed_when: False
+      when: hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip
+
     - name: Create directories for config files per node
       ansible.builtin.file:
         path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}"
@@ -353,6 +405,18 @@
         recurse: yes
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+
+    - name: get root host public key
+      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
+      register: public_key_content
+      changed_when: "public_key_content.rc == 0"
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+
+    - name: register the public key of the root user from the host
+      ansible.builtin.set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
+      when: >
+        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
     ##
     ## Configure OVN o a linux bridge in all the HVs

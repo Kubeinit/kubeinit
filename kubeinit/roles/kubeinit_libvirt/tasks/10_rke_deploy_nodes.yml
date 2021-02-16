@@ -16,14 +16,6 @@
 
 - name: Deploy an Ubuntu based guest
   block:
-    - name: get root host public key
-      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
-      register: public_key_content
-      changed_when: "public_key_content.rc == 0"
-
-    - name: register the public key of the root user from the host
-      ansible.builtin.set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
-
     - name: Create the interfaces template for networking details
       ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/00-installer-ubuntu-netconfig.yaml.j2"
