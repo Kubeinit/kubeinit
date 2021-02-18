@@ -154,6 +154,15 @@
       changed_when: false
       when: "'master' in kubeinit_deployment_node_name or 'worker' in kubeinit_deployment_node_name or 'bootstrap' in kubeinit_deployment_node_name"
 
+    - name: wait until {{ kubeinit_deployment_node_name }} is running
+      community.libvirt.virt:
+        command: list_vms
+        state: running
+      register: running_vms
+      retries: 30
+      delay: 10
+      until: kubeinit_deployment_node_name in running_vms.list_vms
+
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
   tags:
     - provision_libvirt

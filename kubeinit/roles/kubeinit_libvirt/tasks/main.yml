@@ -395,7 +395,12 @@
         chmod 644 ~/.ssh/config.kubeinit
         chmod 644 ~/.ssh/config
       changed_when: False
-      when: hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip
+      # This should be executed only:
+      #(If the IP of the first hypervisor is different thant the IP of the machine triggering the playbook) and
+      #(If the first hypervisor is the current machine)
+      when: >
+        (hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip ) and
+        (groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name)
 
     - name: Create directories for config files per node
       ansible.builtin.file:

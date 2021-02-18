@@ -137,6 +137,17 @@
     ## Clean bastion config
     ##
 
+    - name: get the IP
+      become: no
+      delegate_to: localhost
+      ansible.builtin.command: hostname --ip-address
+      register: local_initiator_ip
+      changed_when: "local_initiator_ip.rc == 0"
+
+    - name: Set up the local IP
+      ansible.builtin.set_fact:
+        kubeinit_libvirt_initiator_ip={{ local_initiator_ip.stdout }}
+
     - name: clean bastion config
       become: no
       delegate_to: localhost
@@ -145,3 +156,9 @@
         rm -rf ~/.ssh/config.kubeinit
         sed -i '/Include config.kubeinit/d' ~/.ssh/config
       changed_when: false
+      # This should be executed only:
+      #(If the IP of the first hypervisor is different thant the IP of the machine triggering the playbook) and
+      #(If the first hypervisor is the current machine)
+      when: >
+        (hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip ) and
+        (groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name)
