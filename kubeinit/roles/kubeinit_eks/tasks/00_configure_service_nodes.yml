@@ -115,22 +115,9 @@
       register: public_key_service_content
       changed_when: "public_key_service_content.rc == 0"
 
-    # TODO:FIXME: it should be like public_key_service_content.results.stdout in all the
-    # other roles, otherwise we are getting the stdout, error and other wrong data.
     - name: register the public key of the root service machine public key
       ansible.builtin.set_fact:
         kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
-
-    #- name: Autoload kubeconfig
-    #  ansible.builtin.shell: |
-    #    echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
-    #  delegate_to: "{{ cluster_node }}"
-    #  with_items: "{{ groups['eks_service_nodes'] }}"
-    #  loop_control:
-    #    loop_var: cluster_node
-    #  ignore_errors: yes
-    #  register: autoload
-    #  changed_when: "autoload.rc == 0"
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
   tags:

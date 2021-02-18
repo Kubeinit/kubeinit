@@ -160,36 +160,11 @@
       when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
       register: installed_packages_centos
 
-    - name: enable firewalld services
-      block:
-        - name: Disable Services (firewalld)
-          ansible.builtin.service:
-            name: "firewalld"
-            state: stopped
-            enabled: no
-        # - name: Enable Services (firewalld)
-        #   ansible.builtin.service:
-        #     name: "firewalld"
-        #     state: started
-        #     enabled: yes
-        # - name: Enable HTTP for firewalld
-        #   ansible.posix.firewalld:
-        #     service: http
-        #     permanent: yes
-        #     state: enabled
-        #     immediate: yes
-        # - name: Enable HTTPS for firewalld
-        #   ansible.posix.firewalld:
-        #     service: https
-        #     permanent: yes
-        #     state: enabled
-        #     immediate: yes
-        # - name: Enable DNS for firewalld
-        #   ansible.posix.firewalld:
-        #     service: dns
-        #     permanent: yes
-        #     state: enabled
-        #     immediate: yes
+    - name: Disable Services (firewalld)
+      ansible.builtin.service:
+        name: "firewalld"
+        state: stopped
+        enabled: no
       when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
     - name: install Debian based requirements
@@ -213,7 +188,7 @@
 
     - name: Restart if required
       ansible.builtin.set_fact:
-         kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
+        kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
 
     - name: Reboot host and wait for it to restart
       ansible.builtin.reboot:
@@ -396,8 +371,8 @@
         chmod 644 ~/.ssh/config
       changed_when: False
       # This should be executed only:
-      #(If the IP of the first hypervisor is different thant the IP of the machine triggering the playbook) and
-      #(If the first hypervisor is the current machine)
+      # (If the IP of the first hypervisor is different thant the IP of the machine triggering the playbook) and
+      # (If the first hypervisor is the current machine)
       when: >
         (hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip ) and
         (groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name)
