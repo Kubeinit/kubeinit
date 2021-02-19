@@ -100,3 +100,33 @@ Running from a release
             --become \
             --become-user root \
             ./playbooks/okd.yml
+
+Cleaning up the environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Each time a cluster is deployed, all the previously created resources are removed.
+In case a user needs to remove the resources created by Kubeinit execute
+from the project's root folder:
+
+.. code-block:: console
+
+    # Create a playbook to run the cleanup tasks
+    cat << EOF > ./playbooks/clean.yml
+    ---
+    - name: Clean
+      hosts: hypervisor_nodes
+      tasks:
+        - name: Clean the environment
+          ansible.builtin.include_role:
+            name: ../../roles/kubeinit_libvirt
+            tasks_from: 00_cleanup
+    EOF
+    # Run the cleanup playbook
+    ansible-playbook \
+        --user root \
+        -v -i ./hosts/okd/inventory \
+        --become \
+        --become-user root \
+        ./playbooks/clean.yml
+    # Remove cleanup playbook
+    rm -rf ./playbooks/clean.yml
