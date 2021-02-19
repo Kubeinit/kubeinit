@@ -100,6 +100,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#running-from-a-release">Running from a release</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#cleaning-up-the-environment">Cleaning up the environment</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="roles.html">Documented roles in KubeInit</a></li>
@@ -263,6 +264,34 @@ standard ansible-playbook parameters.</p>
 <span class="go">        ./playbooks/okd.yml</span>
 </pre></div>
 </div>
+</div>
+</div>
+<div class="section" id="cleaning-up-the-environment">
+<h2>Cleaning up the environment<a class="headerlink" href="#cleaning-up-the-environment" title="Permalink to this headline">¶</a></h2>
+<p>Each time a cluster is deployed, all the previously created resources are removed.
+In case a user needs to remove the resources created by Kubeinit execute
+from the project’s root folder:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>Create a playbook to run the cleanup tasks
+<span class="go">cat &lt;&lt; EOF &gt; ./playbooks/clean.yml</span>
+<span class="go">---</span>
+<span class="go">- name: Clean</span>
+<span class="go">  hosts: hypervisor_nodes</span>
+<span class="go">  tasks:</span>
+<span class="go">    - name: Clean the environment</span>
+<span class="go">      ansible.builtin.include_role:</span>
+<span class="go">        name: ../../roles/kubeinit_libvirt</span>
+<span class="go">        tasks_from: 00_cleanup</span>
+<span class="go">EOF</span>
+<span class="gp"># </span>Run the cleanup playbook
+<span class="go">ansible-playbook \</span>
+<span class="go">    --user root \</span>
+<span class="go">    -v -i ./hosts/okd/inventory \</span>
+<span class="go">    --become \</span>
+<span class="go">    --become-user root \</span>
+<span class="go">    ./playbooks/clean.yml</span>
+<span class="gp"># </span>Remove cleanup playbook
+<span class="go">rm -rf ./playbooks/clean.yml</span>
+</pre></div>
 </div>
 </div>
 </div>
