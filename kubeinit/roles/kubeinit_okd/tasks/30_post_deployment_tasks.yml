@@ -42,7 +42,7 @@
       changed_when: "cmd_res.rc == 0"
       retries: 60
       delay: 60
-      until: cmd_res.stdout_lines | list | count == ( (groups['okd_master_nodes'] | count) + (groups['okd_worker_nodes'] | count) )
+      until: cmd_res.stdout_lines | default([]) | list | count == ( (groups['okd_master_nodes'] | count) + (groups['okd_worker_nodes'] | count) )
 
     - name: "use single node cluster"
       ansible.builtin.shell: |
@@ -85,53 +85,6 @@
         cp ~/install_dir/auth/kubeconfig ~/.kube/config
       register: copy_kubeconfig
       changed_when: "copy_kubeconfig.rc == 0"
-
-    # This can take a lot of time until the cluster converges
-    - name: Wait for installer to complete
-      ansible.builtin.command: openshift-install --dir=install_dir/ wait-for install-complete --log-level info
-      register: result
-      retries: 5
-      delay: 20
-      until: result.rc == 0
-      changed_when: "result.rc == 0"
-      when: kubeinit_okd_wait_for_cluster_to_converge
-
-    - name: "remove bootstrap node from haproxy"
-      ansible.builtin.shell: |
-        sed -i '/bootstrap/s/^/#/' /etc/haproxy/haproxy.cfg
-        systemctl reload haproxy
-      register: remove_bootstrap_from_cluster
-      changed_when: "remove_bootstrap_from_cluster.rc == 0"
-      ignore_errors: yes
-
-    # To run in the hypervisor where
-    # the bootstrap machine is deployed
-    - name: Destroy bootstrap node VM
-      community.libvirt.virt:
-        name: "{{ item }}"
-        command: destroy
-      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
-      ignore_errors: true
-      delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
-
-    # To run in the hypervisor where
-    # the bootstrap machine is deployed
-    - name: Undefine bootstrap node VM
-      community.libvirt.virt:
-        name: "{{ item }}"
-        command: undefine
-      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
-      ignore_errors: true
-      delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
-
-    # To run in the hypervisor where
-    # the bootstrap machine is deployed
-    - name: Remove bootstrap node VM storage
-      ansible.builtin.file:
-        state: absent
-        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
-      delegate_to: "{{ hostvars[groups['okd_service_nodes'][0]].target }}"
 
     - name: get some final cluster information
       ansible.builtin.shell: |
