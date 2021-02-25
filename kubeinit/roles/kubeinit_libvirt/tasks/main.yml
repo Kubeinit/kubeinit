@@ -35,7 +35,9 @@
         nmcli con show | grep {{ kubeinit_libvirt_external_service_interface.attached }}
       register: bridge_status
       ignore_errors: yes
-      when: kubeinit_libvirt_external_service_interface_enabled
+      when: |
+        (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
+        kubeinit_libvirt_external_service_interface_enabled
 
     - name: Fail if bridge is not created but included
       ansible.builtin.fail:
@@ -43,8 +45,14 @@
           The bridge {{ kubeinit_libvirt_external_service_interface.attached }} to provide external
           connectivity is not created. This is a requirement that needs to be
           created before running the playbook.
+          You must create {{ kubeinit_libvirt_external_service_interface.attached }} in
+          {{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target }}
+          before continue.
           Run `nmcli con show` and check it is created correctly.
-      when: kubeinit_libvirt_external_service_interface_enabled and bridge_status.stdout_lines | list | count == 0
+      when: |
+        (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
+        kubeinit_libvirt_external_service_interface_enabled and
+        bridge_status.rc != 0
 
     - name: Fails if OS is not supported
       ansible.builtin.fail:
