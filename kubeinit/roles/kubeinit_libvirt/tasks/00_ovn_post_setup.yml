@@ -103,7 +103,7 @@
         # Create a logical router to connect the VMs switch
         #
         ovn-nbctl lr-add lr0
-        ovn-nbctl lrp-add lr0 lr0-sw0 00:00:00:65:77:09 {{ kubeinit_inventory_network_gateway }}/24
+        ovn-nbctl lrp-add lr0 lr0-sw0 00:00:00:65:77:09 {{ kubeinit_inventory_network_gateway }}/{{ kubeinit_inventory_network_cidr }}
         ovn-nbctl lsp-add sw0 sw0-lr0
         ovn-nbctl lsp-set-type sw0-lr0 router
         ovn-nbctl lsp-set-addresses sw0-lr0 router
@@ -154,13 +154,16 @@
         #
         sysctl net.ipv4.conf.all.rp_filter=2
         #
-        # NAT from eno1
+        # NAT from the external interface
         #
-        iptables -t nat -A POSTROUTING -s {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} -o eno1 -j MASQUERADE
+        # Get the external interface name
+        iface=$(ip route get "8.8.8.8" | grep -Po '(?<=(dev )).*(?= src| proto)')
         #
-        iptables -A FORWARD -i eno1 -j ACCEPT
+        iptables -t nat -A POSTROUTING -s {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} -o $iface -j MASQUERADE
+        #
+        iptables -A FORWARD -i $iface -j ACCEPT
         iptables -A FORWARD -i br-ex -j ACCEPT
-        iptables -A FORWARD -o eno1 -j ACCEPT
+        iptables -A FORWARD -o $iface -j ACCEPT
         iptables -A FORWARD -o br-ex -j ACCEPT
         #
         iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
