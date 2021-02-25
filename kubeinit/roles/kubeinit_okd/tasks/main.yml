@@ -159,6 +159,19 @@
     kubeinit_deployment_role: master
   tags: provision_libvirt
 
+- name: Wait until masters are ok and remove bootstrap node
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_okd"
+    tasks_from: 30_check_bootstrap_complete.yml
+    public: yes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
 - name: Deploy the cluster worker nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
