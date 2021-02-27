@@ -4,6 +4,7 @@
 
 import os
 import subprocess
+import sys
 from datetime import datetime
 
 from kubeinit_ci_utils import upload_logs
@@ -11,7 +12,7 @@ from kubeinit_ci_utils import upload_logs
 from pybadges import badge
 
 
-def main():
+def main(distros):
     """Run the main method."""
     gh_token = os.environ['GH_TOKEN']
 
@@ -24,21 +25,41 @@ def main():
     url = os.getenv('CI_PIPELINE_URL', "")
     print("The job results will be published in runtime at: " + url)
 
-    configs = ["cdk-libvirt-3-master-1-worker-default",
-               "cdk-libvirt-1-master-1-worker-default",
-               "cdk-libvirt-1-master-0-worker-default",
-               "okd-libvirt-3-master-1-worker-default",
-               "okd-libvirt-1-master-1-worker-default",
-               "okd-libvirt-1-master-0-worker-default",
-               "rke-libvirt-3-master-1-worker-default",
-               "rke-libvirt-1-master-1-worker-default",
-               "rke-libvirt-1-master-0-worker-default",
-               "k8s-libvirt-3-master-1-worker-default",
-               "k8s-libvirt-1-master-1-worker-default",
-               "k8s-libvirt-1-master-0-worker-default",
-               "eks-libvirt-3-master-1-worker-default",
-               "eks-libvirt-1-master-1-worker-default",
-               "eks-libvirt-1-master-0-worker-default"]
+    cdk_configs = ["cdk-libvirt-3-master-1-worker-default",
+                   "cdk-libvirt-1-master-1-worker-default",
+                   "cdk-libvirt-1-master-0-worker-default"]
+
+    okd_configs = ["okd-libvirt-3-master-1-worker-default",
+                   "okd-libvirt-1-master-1-worker-default",
+                   "okd-libvirt-1-master-0-worker-default"]
+
+    rke_configs = ["rke-libvirt-3-master-1-worker-default",
+                   "rke-libvirt-1-master-1-worker-default",
+                   "rke-libvirt-1-master-0-worker-default"]
+
+    k8s_configs = ["cdk-libvirt-3-master-1-worker-default",
+                   "cdk-libvirt-1-master-1-worker-default",
+                   "cdk-libvirt-1-master-0-worker-default"]
+
+    eks_configs = ["eks-libvirt-3-master-1-worker-default",
+                   "eks-libvirt-1-master-1-worker-default",
+                   "eks-libvirt-1-master-0-worker-default"]
+
+    list_of_distros = distros.split(',')
+
+    configs = []
+
+    for dist in list_of_distros:
+        if dist == 'okd':
+            configs = configs + okd_configs
+        if dist == 'eks':
+            configs = configs + eks_configs
+        if dist == 'rke':
+            configs = configs + rke_configs
+        if dist == 'cdk':
+            configs = configs + cdk_configs
+        if dist == 'k8s':
+            configs = configs + k8s_configs
 
     for config in configs:
         print("-*-*-*-*-")
@@ -260,4 +281,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+
+    if (len(sys.argv) != 1):
+        print("This can only take one argument like:")
+        print("launch_e2e_periodic.py okd")
+        print("launch_e2e_periodic.py okd,rke")
+        print("launch_e2e_periodic.py cdk,rke")
+        print("Mix any of the supported distros in a comma separated string")
+        sys.exit()
+
+    main(sys.argv[0])
