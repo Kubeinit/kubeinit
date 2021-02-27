@@ -282,7 +282,7 @@ def main(distros):
 
 if __name__ == "__main__":
 
-    if (len(sys.argv) != 1):
+    if (len(sys.argv) != 2):
         print("This can only take one argument like:")
         print("launch_e2e_periodic.py okd")
         print("launch_e2e_periodic.py okd,rke")
@@ -290,4 +290,9 @@ if __name__ == "__main__":
         print("Mix any of the supported distros in a comma separated string")
         sys.exit()
 
-    main(sys.argv[0])
+    print("---")
+    print("Main argument: " + sys.argv[0])
+    print("---")
+    print("Distros argument: " + sys.argv[1])
+    print("---")
+    main(sys.argv[1])
