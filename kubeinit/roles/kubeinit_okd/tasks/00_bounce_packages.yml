@@ -16,6 +16,18 @@
 
 - name: Configure the service node
   block:
+    - name: "Disable IPv6"
+      ansible.builtin.shell: |
+        set -o pipefail
+        # Disable IPv6
+        echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
+        echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
+        sysctl --load /etc/sysctl.d/70-ipv6.conf
+      args:
+        executable: /bin/bash
+      register: disable_ipv6
+      changed_when: "disable_ipv6.rc == 0"
+
     - name: update packages
       ansible.builtin.yum:
         name: "*"
