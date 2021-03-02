@@ -1,0 +1,118 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+#
+# Make sure the mount of cores if enough for all machines
+#
+
+- name: Get hypervisor total available cores
+  ansible.builtin.shell: |
+    set -o pipefail
+    cat /proc/cpuinfo | grep processor | grep : | wc -l
+  register: kubeinit_validations_libvirt_total_cores
+  with_items:
+    - "{{ groups['hypervisor_nodes'] | list }}"
+  delegate_to: "{{ item }}"
+  changed_when: "kubeinit_validations_libvirt_total_cores.rc == 0"
+  tags:
+    - provision_libvirt
+
+- name: debug
+  ansible.builtin.debug:
+    var: kubeinit_validations_libvirt_total_cores
+  tags:
+    - provision_libvirt
+
+- name: Define the hypervisors available cores dictionary
+  ansible.builtin.set_fact:
+    kubeinit_validations_hypervisors_available_cores: "{{ kubeinit_validations_hypervisors_available_cores|default([]) | combine( {item.item: item.stdout|int} ) }}"
+  with_items: "{{ kubeinit_validations_libvirt_total_cores.results }}"
+
+- name: debug
+  ansible.builtin.debug:
+    var: kubeinit_validations_libvirt_total_cores
+  tags:
+    - provision_libvirt
+
+- name: Get the total inventory cores usage
+  ansible.builtin.set_fact:
+    kubeinit_validations_libvirt_cores_usage: "{{ kubeinit_validations_libvirt_cores_usage|default({})| combine( {item: {'id': item, 'vcpus': hostvars[item].vcpus|int, 'target': hostvars[item].target} } ) }}"
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  tags:
+    - provision_libvirt
+
+- name: debug
+  ansible.builtin.debug:
+    var: kubeinit_validations_libvirt_cores_usage
+  tags:
+    - provision_libvirt
+
+- name: Set combined cores requirement per hypervisor
+  ansible.builtin.set_fact:
+    kubeinit_validations_libvirt_combined_cores_usage: >-
+      {{ kubeinit_validations_libvirt_combined_cores_usage | default({})
+        | combine({item.value.target: []
+        + [{
+            'vcpus': item.value.vcpus,
+            'id': item.value.id
+          }]
+        + kubeinit_validations_libvirt_combined_cores_usage[item.value.target] | default([]) })
+      }}
+  with_dict: "{{ kubeinit_validations_libvirt_cores_usage }}"
+  tags:
+    - provision_libvirt
+
+- name: debug
+  ansible.builtin.debug:
+    var: kubeinit_validations_libvirt_combined_cores_usage
+  tags:
+    - provision_libvirt
+
+- name: Set the summarized cores usage per hypervisor
+  ansible.builtin.set_fact:
+    kubeinit_validations_libvirt_summarized_cores_usage: "{{ kubeinit_validations_libvirt_summarized_cores_usage|default([]) | combine( {item: my_attribute} ) }}"
+  vars:
+    my_attribute: "{{ kubeinit_validations_libvirt_combined_cores_usage[item] | map(attribute='vcpus') | list | sum }}"
+  with_items: "{{ kubeinit_validations_libvirt_combined_cores_usage.keys() | list }}"
+  tags:
+    - provision_libvirt
+
+- name: debug
+  ansible.builtin.debug:
+    var: kubeinit_validations_libvirt_summarized_cores_usage
+  tags:
+    - provision_libvirt
+
+- name: debug
+  ansible.builtin.debug:
+    var: item
+  with_dict: "{{ kubeinit_validations_hypervisors_available_cores }}"
+  tags:
+    - provision_libvirt
+
+- name: Make sure there are enough cores
+  ansible.builtin.assert:
+    that:
+      - item.value|int >= kubeinit_validations_libvirt_summarized_cores_usage[item.key]|float / 4
+    msg:
+      - "It seems there are not enough cores"
+      - "Per each 4 virtual cores there must be one physical core"
+      - "(Required: {{ kubeinit_validations_libvirt_summarized_cores_usage }} Available: {{ kubeinit_validations_hypervisors_available_cores }})"
+  with_dict: "{{ kubeinit_validations_hypervisors_available_cores }}"
+  tags:
+    - provision_libvirt
