@@ -38,6 +38,9 @@
         # Create a logical switch
         #
         ovn-nbctl ls-add sw0
+        {% if kubeinit_libvirt_external_service_interface_enabled %}
+        ovn-nbctl ls-add sw1
+        {% endif %}
       when: >
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
 
@@ -79,6 +82,7 @@
         #
         ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-add sw0 {{ hostvars[item].interfaceid }}
+
         #
         # The port name is the interface id of the VM, now we assign the mac address of the VM to the port
         #
@@ -90,6 +94,18 @@
 
         ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-dhcpv4-options {{ hostvars[item].interfaceid }} {{ kubeinit_provision_dhcp_options }}
+
+        {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in item %}
+        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+            lsp-add sw1 {{ kubeinit_inventory_network_bridge_external_interfaceid }}
+
+        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+            lsp-set-addresses {{ kubeinit_inventory_network_bridge_external_interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
+
+        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+            lsp-set-port-security {{ kubeinit_inventory_network_bridge_external_interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
+        {% endif %}
+
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
       # We run this bucle in each hypervisor, so, we execute these tasks
@@ -142,6 +158,22 @@
         ovs-vsctl --may-exist add-br br-ex
         ip addr add 172.16.0.254/24 dev br-ex
         ip link set br-ex up
+        #
+        # Create a localnet port for the external interface
+        #
+        {% if kubeinit_libvirt_external_service_interface_enabled %}
+        ovn-nbctl lsp-add sw1 sw1-ln
+        ovn-nbctl lsp-set-type sw1-ln localnet
+        ovn-nbctl lsp-set-addresses sw1-ln unknown
+        #
+        # The following rules breaks the network but the sw1 connection needs to be
+        # connected to the host in some way
+        #
+        # ovn-nbctl lsp-set-options sw1-ln network_name=externalserv
+        # ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=externalserv:kiextbr0
+        # ovs-vsctl --may-exist add-br kiextbr0
+        # ip link set kiextbr0 up
+        {% endif %}
         #
         # Routes
         #
