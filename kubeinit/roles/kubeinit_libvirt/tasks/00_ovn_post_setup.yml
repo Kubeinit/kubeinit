@@ -105,7 +105,6 @@
         ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-port-security {{ kubeinit_inventory_network_bridge_external_interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
         {% endif %}
-
       with_items:
         - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
       # We run this bucle in each hypervisor, so, we execute these tasks
@@ -169,10 +168,9 @@
         # The following rules breaks the network but the sw1 connection needs to be
         # connected to the host in some way
         #
-        # ovn-nbctl lsp-set-options sw1-ln network_name=externalserv
-        # ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=externalserv:kiextbr0
-        # ovs-vsctl --may-exist add-br kiextbr0
-        # ip link set kiextbr0 up
+        ovs-vsctl --may-exist add-br kiextbr0
+        ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=externalserv:kiextbr0,provider:br-ex
+        ovn-nbctl lsp-set-options sw1-ln network_name=externalserv
         {% endif %}
         #
         # Routes
