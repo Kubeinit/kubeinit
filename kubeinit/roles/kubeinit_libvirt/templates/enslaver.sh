@@ -23,6 +23,8 @@ echo "This script will enslave the external interface $iface to $brname"
 echo "MAKE SURE YOU EXECUTE THIS LIKE"
 echo "######"
 echo "nohup ./enslaver.sh YesImReallySure &"
+echo "or"
+echo "nohup ./enslaver.sh YesImReallySure OVN &"
 echo "######"
 echo "Otherwise you might end up by dropping the interface IP"
 echo "and blocking the access to this node"
@@ -34,30 +36,46 @@ if [ "$1" == "YesImReallySure" ]; then
     if [ "$iface" = "$brname" ]; then
         echo "We are already using the interface, do nothing"
     else
-        echo "Creating bridge"
-        nmcli con add ifname "$brname" type bridge con-name "$brname"
-        echo "Enslaving the external access interface to the bridge"
-        nmcli con add type bridge-slave ifname "$iface" master "$brname"
-        echo "Disabling stp in the bridge"
-        nmcli con modify "$brname" bridge.stp no
-        echo "Shutting down the external connection"
-        nmcli con down "$conn"
-        echo "Starting the bridge"
-        nmcli con up "$brname"
-        echo "Show bridge info"
-        ip a s "$brname"
-        echo "Flushing the interface current IP"
-        ip addr add 0.0.0.0 dev "$iface" && \
-        ip addr flush dev "$iface"
 
-        if [ "$method" = "auto" ] && [ "$use_dhcp" -eq 1 ]; then
-            echo "Setting IP by DHCP"
-            dhclient -r "$iface" && \
-            dhclient "$brname"
+        if [ "$2" == "OVN" ]; then
+            ovs-vsctl add-port "$brname" "$iface"
+            ip addr add 0.0.0.0 dev "$iface" && ip addr flush dev "$iface"
+
+            if [ "$method" = "auto" ] && [ "$use_dhcp" -eq 1 ]; then
+                echo "Setting IP by DHCP"
+                dhclient -r "$iface" && \
+                dhclient "$iface"
+            else
+                echo "Setting static IP"
+                ip addr add "$addr" dev "$iface" && \
+                ip link set "$iface" up
+            fi
         else
-            echo "Setting static IP"
-            ip addr add "$addr" dev "$brname" && \
-            ip link set "$brname" up
+            echo "Creating bridge"
+            nmcli con add ifname "$brname" type bridge con-name "$brname"
+            echo "Enslaving the external access interface to the bridge"
+            nmcli con add type bridge-slave ifname "$iface" master "$brname"
+            echo "Disabling stp in the bridge"
+            nmcli con modify "$brname" bridge.stp no
+            echo "Shutting down the external connection"
+            nmcli con down "$conn"
+            echo "Starting the bridge"
+            nmcli con up "$brname"
+            echo "Show bridge info"
+            ip a s "$brname"
+            echo "Flushing the interface current IP"
+            ip addr add 0.0.0.0 dev "$iface" && \
+            ip addr flush dev "$iface"
+
+            if [ "$method" = "auto" ] && [ "$use_dhcp" -eq 1 ]; then
+                echo "Setting IP by DHCP"
+                dhclient -r "$iface" && \
+                dhclient "$brname"
+            else
+                echo "Setting static IP"
+                ip addr add "$addr" dev "$brname" && \
+                ip link set "$brname" up
+            fi
         fi
     fi
 
