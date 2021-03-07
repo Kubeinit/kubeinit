@@ -161,16 +161,22 @@
         # Create a localnet port for the external interface
         #
         {% if kubeinit_libvirt_external_service_interface_enabled %}
+        ovs-vsctl --may-exist add-br br-kiext
         ovn-nbctl lsp-add sw1 sw1-ln
         ovn-nbctl lsp-set-type sw1-ln localnet
         ovn-nbctl lsp-set-addresses sw1-ln unknown
-        #
-        # The following rules breaks the network but the sw1 connection needs to be
-        # connected to the host in some way
-        #
-        ovs-vsctl --may-exist add-br kiextbr0
-        ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=externalserv:kiextbr0,provider:br-ex
         ovn-nbctl lsp-set-options sw1-ln network_name=externalserv
+        #
+        # We add a bridge mapping from br-kiext called provider
+        #
+        ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=externalserv:br-kiext,provider:br-ex
+
+        ovs-vsctl add-port ovs-bridge ovs-bridge-patch
+        ovs-vsctl add-port br-kiext br-kiext-patch
+        ovs-vsctl set interface ovs-bridge-patch type=patch
+        ovs-vsctl set interface ovs-bridge-patch options:peer=br-kiext-patch
+        ovs-vsctl set interface br-kiext-patch type=patch
+        ovs-vsctl set interface br-kiext-patch options:peer=ovs-bridge-patch
         {% endif %}
         #
         # Routes
