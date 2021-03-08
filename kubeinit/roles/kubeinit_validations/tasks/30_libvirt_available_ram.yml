@@ -109,8 +109,8 @@
 - name: Make sure there is enough free space
   ansible.builtin.assert:
     that:
-      - item.value|int > kubeinit_validations_libvirt_summarized_ram_usage[item.key]|float * 1.1
+      - kubeinit_validations_hypervisors_free_ram[item.key]|int > item.value|float * 1.1
     msg: "It seems there is not enough ram space (Required: {{ kubeinit_validations_libvirt_summarized_ram_usage }} Available: {{ kubeinit_validations_hypervisors_free_ram }})"
-  with_dict: "{{ kubeinit_validations_hypervisors_free_ram }}"
+  with_dict: "{{ kubeinit_validations_libvirt_summarized_ram_usage }}"
   tags:
     - provision_libvirt
