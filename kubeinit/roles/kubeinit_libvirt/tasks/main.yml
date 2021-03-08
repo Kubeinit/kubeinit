@@ -370,44 +370,12 @@
       ansible.builtin.debug:
         msg: "{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}"
 
-    - name: Include the bastion SSH config
-      become: no
-      delegate_to: localhost
-      ansible.builtin.shell: |
-        cat <<-"EOF" > ~/.ssh/config.kubeinit
-        Host {{ hostvars[groups['hypervisor_nodes'][0]].ansible_host }}
-            Hostname {{ hostvars[groups['hypervisor_nodes'][0]].ansible_host }}
-            User root
-            ControlMaster auto
-            ControlPath ~/.ssh/ansible-%r@%h:%p
-            ControlPersist 100m
-            StrictHostKeyChecking no
-            HashKnownHosts no
-            ForwardAgent yes
-            PreferredAuthentications publickey
-
-        Host {{ kubeinit_inventory_network_net.split('.')[0:2] | join('.') }}.*
-            ProxyCommand ssh -W %h:%p {{ hostvars[groups['hypervisor_nodes'][0]].ansible_host }}
-            ControlMaster auto
-            ControlPath ~/.ssh/ansible-%r@%h:%p
-            ControlPersist 100m
-            StrictHostKeyChecking no
-            HashKnownHosts no
-            ForwardAgent yes
-            PreferredAuthentications publickey
-        EOF
-        touch ~/.ssh/config
-        grep -q -F 'Include config.kubeinit' ~/.ssh/config
-        if [ $? -ne 0 ]; then
-          sed -i '1 i\Include config.kubeinit' ~/.ssh/config
-        fi
-
-        chmod 644 ~/.ssh/config.kubeinit
-        chmod 644 ~/.ssh/config
-      changed_when: False
-      # This should be executed only:
-      # (If the IP of the first hypervisor is different thant the IP of the machine triggering the playbook) and
-      # (If the first hypervisor is the current machine)
+    - name: add ssh ProxyCommand option for all nodes
+      ansible.builtin.add_host:
+        name: "{{ hostvars[item].ansible_host }}"
+        ansible_ssh_common_args: >-
+          {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[groups['hypervisor_nodes'][0]].ansible_host }}"
+      with_items: "{{ groups['all_nodes'] }}"
       when: >
         (hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip ) and
         (groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name)
@@ -418,8 +386,7 @@
         state: directory
         mode: 0775
         recurse: yes
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      with_items: "{{ groups['all_nodes'] }}"
 
     - name: get root host public key
       ansible.builtin.command: cat /root/.ssh/id_rsa.pub

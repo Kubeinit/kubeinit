@@ -105,8 +105,7 @@
         ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-port-security {{ kubeinit_inventory_network_bridge_external_interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
         {% endif %}
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+      with_items: "{{ groups['all_nodes'] }}"
       # We run this bucle in each hypervisor, so, we execute these tasks
       # when the item (each guest) target is equal to the hypervisor where we
       # execute the tasks "The VMs in each host"
