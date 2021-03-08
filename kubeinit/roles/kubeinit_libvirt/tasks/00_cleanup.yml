@@ -126,12 +126,7 @@
         dest: ~/.ssh/known_hosts
         state: absent
         regexp: '{{ hostvars[item].ansible_host }}'
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
-
-    ##
-    ## Clean bastion config
-    ##
+      with_items: "{{ groups['all_nodes'] }}"
 
     - name: get the IP
       become: no
@@ -143,18 +138,3 @@
     - name: Set up the local IP
       ansible.builtin.set_fact:
         kubeinit_libvirt_initiator_ip={{ local_initiator_ip.stdout }}
-
-    - name: clean bastion config
-      become: no
-      delegate_to: localhost
-      ansible.builtin.shell: |
-        touch ~/.ssh/config
-        rm -rf ~/.ssh/config.kubeinit
-        sed -i '/Include config.kubeinit/d' ~/.ssh/config
-      changed_when: false
-      # This should be executed only:
-      # (If the IP of the first hypervisor is different thant the IP of the machine triggering the playbook) and
-      # (If the first hypervisor is the current machine)
-      when: >
-        (hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip ) and
-        (groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name)
