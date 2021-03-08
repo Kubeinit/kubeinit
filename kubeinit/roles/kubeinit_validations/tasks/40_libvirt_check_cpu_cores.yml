@@ -51,8 +51,7 @@
 - name: Get the total inventory cores usage
   ansible.builtin.set_fact:
     kubeinit_validations_libvirt_cores_usage: "{{ kubeinit_validations_libvirt_cores_usage|default({})| combine( {item: {'id': item, 'vcpus': hostvars[item].vcpus|int, 'target': hostvars[item].target} } ) }}"
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+  with_items: "{{ groups['all_nodes'] }}"
   tags:
     - provision_libvirt
 
