@@ -41,7 +41,8 @@
       ignore_errors: yes
       when: |
         (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
-        kubeinit_libvirt_external_service_interface_enabled
+        kubeinit_libvirt_external_service_interface_enabled and
+        not kubeinit_libvirt_ovn_enabled
 
     - name: "check if bridge is created in the multi node deployment"
       ansible.builtin.shell: |
@@ -51,7 +52,6 @@
       ignore_errors: yes
       when: |
         groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name and
-        kubeinit_libvirt_external_service_interface_enabled and
         kubeinit_libvirt_ovn_enabled
 
     - name: Fail if the external bridge is not created in the single node deployment
@@ -67,8 +67,8 @@
       when: |
         (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
         kubeinit_libvirt_external_service_interface_enabled and
-        bridge_status.rc != 0 and
-        not kubeinit_libvirt_ovn_enabled
+        not kubeinit_libvirt_ovn_enabled and
+        bridge_status.rc != 0
 
     - name: Fail if the external bridge is created in the multi node deployment
       ansible.builtin.fail:
@@ -82,8 +82,8 @@
           - "Run `nmcli con show` and check it is created correctly."
       when: |
         (groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name) and
-        bridge_ovn_status.rc == 0 and
-        kubeinit_libvirt_ovn_enabled
+        kubeinit_libvirt_ovn_enabled and
+        bridge_ovn_status.rc == 0
 
     - name: Fails if OS is not supported
       ansible.builtin.fail:

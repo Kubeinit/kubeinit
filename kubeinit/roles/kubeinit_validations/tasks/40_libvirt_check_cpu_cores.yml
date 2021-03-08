@@ -108,11 +108,11 @@
 - name: Make sure there are enough cores
   ansible.builtin.assert:
     that:
-      - item.value|int >= kubeinit_validations_libvirt_summarized_cores_usage[item.key]|float / 4
+      - kubeinit_validations_hypervisors_available_cores[item.key]|int >= item.value|float / 4
     msg:
       - "It seems there are not enough cores"
       - "Per each 4 virtual cores there must be one physical core"
       - "(Required: {{ kubeinit_validations_libvirt_summarized_cores_usage }} Available: {{ kubeinit_validations_hypervisors_available_cores }})"
-  with_dict: "{{ kubeinit_validations_hypervisors_available_cores }}"
+  with_dict: "{{ kubeinit_validations_libvirt_summarized_cores_usage }}"
   tags:
     - provision_libvirt
