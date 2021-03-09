@@ -80,9 +80,13 @@
     ##
     - name: Clean OVN/OVS resources
       ansible.builtin.shell: |
+        ###############################################
+        # WARNING: We can not remove the external     #
+        # bridge interface kiextbr0, the connection   #
+        # will be lost if this is executed in the HVs #
+        ###############################################
         ovs-vsctl del-br br-int || true
         ovs-vsctl del-br br-ex || true
-        ovs-vsctl del-br kiextbr0 || true
         ovn-nbctl ls-del sw0 || true
         ovn-nbctl ls-del sw1 || true
         ovn-nbctl lr-del lr0 || true

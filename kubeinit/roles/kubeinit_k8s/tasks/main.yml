@@ -21,12 +21,25 @@
     public: yes
   tags: provision_libvirt
 
+- name: run infra prepare steps
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 00_prepare.yml
+    public: yes
+  # We prepare all the available hypervisors
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
 - name: provision the initial virtual infra
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
     tasks_from: main.yml
     public: yes
-  # We prepare all the available hypervisors
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list }}"
   loop_control:
