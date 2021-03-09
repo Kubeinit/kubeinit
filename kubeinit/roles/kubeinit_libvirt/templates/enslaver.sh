@@ -37,7 +37,9 @@ if [ "$1" == "YesImReallySure" ]; then
     if [ "${iface}" = "${brname}" ]; then
         echo "We are already using the interface, do nothing"
     else
-
+        echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
+        echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
+        sysctl --load /etc/sysctl.d/70-ipv6.conf
         if [ "$2" == "OVN" ]; then
             # From:
             # https://blog.christophersmart.com/2020/07/27/how-to-create-linux-bridges-and-open-vswitch-bridges-with-networkmanager/
@@ -46,31 +48,31 @@ if [ "$1" == "YesImReallySure" ]; then
             systemctl enable --now openvswitch
             systemctl restart NetworkManager
             echo "Enslaving the physical interface with an OVS bridge"
-            nmcli con add type ovs-bridge conn.interface ovs-bridge con-name ovs-bridge
-            nmcli con add type ovs-port conn.interface port-ovs-bridge master ovs-bridge con-name ovs-bridge-port
-            nmcli con add type ovs-interface slave-type ovs-port conn.interface ovs-bridge master ovs-bridge-port con-name ovs-bridge-int
+            nmcli con add type ovs-bridge conn.interface "${brname}" con-name "${brname}"
+            nmcli con add type ovs-port conn.interface port-"${brname}" master "${brname}" con-name "${brname}"-port
+            nmcli con add type ovs-interface slave-type ovs-port conn.interface "${brname}" master "${brname}"-port con-name "${brname}"-int
 
-            nmcli con add type ovs-port conn.interface ovs-port-eth master ovs-bridge con-name ovs-port-eth
+            nmcli con add type ovs-port conn.interface ovs-port-eth master "${brname}" con-name ovs-port-eth
             nmcli con add type ethernet conn.interface "${iface}" master ovs-port-eth con-name ovs-port-eth-int
 
-            # nmcli con modify ovs-bridge-int ipv4.method disabled ipv6.method disabled
-            # nmcli con modify ovs-bridge-int ipv4.method static ipv4.address 192.168.123.100/24
-            # nmcli con modify ovs-bridge-int 802-3-ethernet.mtu 9000
+            # nmcli con modify "${brname}"-int ipv4.method disabled ipv6.method disabled
+            # nmcli con modify "${brname}"-int ipv4.method static ipv4.address 192.168.123.100/24
+            # nmcli con modify "${brname}"-int 802-3-ethernet.mtu 9000
             # nmcli con modify ovs-port-eth-int 802-3-ethernet.mtu 9000
 
             nmcli con down "${conn}" ; \
             nmcli con up ovs-port-eth-int ; \
-            nmcli con up ovs-bridge-int
+            nmcli con up "${brname}"-int
 
             nmcli con modify "${conn}" ipv4.method disabled ipv6.method disabled
 
             if [ "${method}" = "auto" ] && [ "${use_dhcp}" -eq 1 ]; then
                 echo "Setting IP by DHCP"
                 dhclient -r "${iface}" && \
-                dhclient ovs-bridge-int
+                dhclient "${brname}"-int
             else
                 echo "Setting static IP"
-                nmcli con modify ovs-bridge-int ipv4.method static ipv4.address "${addr}"
+                nmcli con modify "${brname}"-int ipv4.method static ipv4.address "${addr}"
             fi
         else
             echo "Enslaving the physical interface without OVN"
@@ -101,9 +103,7 @@ if [ "$1" == "YesImReallySure" ]; then
             fi
         fi
     fi
-
     echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
     echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
-
     sysctl --load /etc/sysctl.d/70-ipv6.conf
 fi

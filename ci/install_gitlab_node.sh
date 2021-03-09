@@ -37,7 +37,7 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     curl -LJO https://gitlab-runner-downloads.s3.amazonaws.com/latest/rpm/gitlab-runner_amd64.rpm
 
     if ! rpm -qa | grep gitlab-runner; then
-        sudo rpm -ivh -replacepkgs gitlab-runner_amd64.rpm
+        sudo rpm -ivh --replacepkgs gitlab-runner_amd64.rpm
     fi
 fi
 
