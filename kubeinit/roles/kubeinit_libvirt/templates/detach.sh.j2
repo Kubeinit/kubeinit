@@ -6,7 +6,7 @@
 #
 
 # The name of the bridge that will enslave the external access interface.
-brname="kiextbr0"
+brname="{{ kubeinit_libvirt_external_service_interface.attached }}"
 # To choose if we configure the bridge
 # with DHCP or static IP even if the interface
 # was using DHCP
@@ -22,9 +22,11 @@ method=$(nmcli -g IPV4.METHOD con show "$conn")
 echo "This script will enslave the external interface ${iface} to ${brname}"
 echo "MAKE SURE YOU EXECUTE THIS LIKE"
 echo "######"
-echo "nohup ./enslaver.sh YesImReallySure &"
+echo "Single node deployment with Linux bridge:"
+echo "nohup ./detach.sh YesImReallySure &"
 echo "or"
-echo "nohup ./enslaver.sh YesImReallySure OVN &"
+echo "Multi node deployment with OVN:"
+echo "nohup ./detach.sh YesImReallySure OVN &"
 echo "######"
 echo "Otherwise you might end up by dropping the interface IP"
 echo "and blocking the access to this node"
