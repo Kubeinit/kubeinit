@@ -11,14 +11,14 @@
     set -o pipefail
     set -e
 
+
     oc adm \
         release mirror \
         --registry-config={{ kubeinit_registry_auth_file }} \
-        --from={{ kubeinit_okd_registry }}/{{ kubeinit_okd_registry_organization }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }} \
+        --from={{ kubeinit_okd_registry }}/{{ kubeinit_okd_registry_organization }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}{% if ( kubeinit_okd_openshift_deploy | default(False) ) %}-x86_64{% endif %} \
         --to={{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }} \
         --to-release-image={{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }} \
         2>&1 | tee mirror-output.txt
-
     oc adm \
         release extract \
         --registry-config={{ kubeinit_registry_auth_file }} \

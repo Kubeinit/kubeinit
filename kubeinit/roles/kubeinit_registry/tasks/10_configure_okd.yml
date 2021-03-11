@@ -1,6 +1,14 @@
 ---
+- name: debug kubeinit_okd_registry_pullsecret before overriding kubeinit_registry_pullsecret
+  ansible.builtin.debug:
+    var: kubeinit_okd_registry_pullsecret
+
 # This task will override the default "empty" pullsecret from the registry playbook
 # with the content of the pullsecret defined in the OKD playbook
-- name: set pullsecret with new auth
+- name: Assign a default pullsecret when we use a local registry and deploying OKD
   ansible.builtin.set_fact:
-    kubeinit_registry_pullsecret: '{{ kubeinit_okd_registry_pullsecret }}'
+    kubeinit_registry_pullsecret: '  {{ kubeinit_okd_registry_pullsecret }}'
+
+- name: debug kubeinit_registry_pullsecret after overriding it
+  ansible.builtin.debug:
+    var: kubeinit_registry_pullsecret

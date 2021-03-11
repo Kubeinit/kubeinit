@@ -112,6 +112,20 @@
       changed_when: "virt_install.rc == 0"
       when: "'service' in kubeinit_deployment_node_name"
 
+    - name: Set guest images facts for OKD
+      ansible.builtin.set_fact:
+        kubeinit_libvirt_okd_image_initrd: "{{ kubeinit_libvirt_source_images.coreos.initrd }}"
+        kubeinit_libvirt_okd_image_raw: "{{ kubeinit_libvirt_source_images.coreos.raw }}"
+        kubeinit_libvirt_okd_image_rootfs: "{{ kubeinit_libvirt_source_images.coreos.rootfs }}"
+      when: not kubeinit_okd_openshift_deploy | default(False)
+
+    - name: Set guest images facts for OCP
+      ansible.builtin.set_fact:
+        kubeinit_libvirt_okd_image_initrd: "{{ kubeinit_libvirt_source_images.rhcos.initrd }}"
+        kubeinit_libvirt_okd_image_raw: "{{ kubeinit_libvirt_source_images.rhcos.raw }}"
+        kubeinit_libvirt_okd_image_rootfs: "{{ kubeinit_libvirt_source_images.rhcos.rootfs }}"
+      when: kubeinit_okd_openshift_deploy | default(False)
+
     - name: "Create VM definition for the {{ kubeinit_deployment_role }} nodes"
       ansible.builtin.shell: |
         set -o pipefail
@@ -119,7 +133,7 @@
         # Is not possible to render the template as --print-xml > vm.xml
         # If so then is good to have it like 'virsh define vm.xml'
         kernel_args=$(echo "$kernel_args_aux" | paste -sd "" -)
-        kernel_args_aux='initrd=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_source_images.coreos.initrd }}
+        kernel_args_aux='initrd=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_okd_image_initrd }}
                          ip=dhcp
                          nameserver={{ hostvars[groups['okd_service_nodes'][0]].gateway }}
                          rd.neednet=1
@@ -128,11 +142,11 @@
                          coreos.inst=yes
                          coreos.inst.insecure=yes
                          coreos.inst.install_dev={{ hostvars[kubeinit_deployment_node_name].root_device }}
-                         coreos.inst.image_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_source_images.coreos.raw }}
+                         coreos.inst.image_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_okd_image_raw }}
                          coreos.inst.ignition_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_deployment_role }}.ign
-                         coreos.live.rootfs_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_source_images.coreos.rootfs }}'
+                         coreos.live.rootfs_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_okd_image_rootfs }}'
 
-        kernel_args='initrd=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_source_images.coreos.initrd }} ip=dhcp nameserver={{ hostvars[groups['okd_service_nodes'][0]].gateway }} rd.neednet=1 console=tty0 console=ttyS0 coreos.inst=yes coreos.inst.insecure=yes coreos.inst.install_dev={{ hostvars[kubeinit_deployment_node_name].root_device }} coreos.inst.image_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_source_images.coreos.raw }} coreos.inst.ignition_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_deployment_role }}.ign coreos.live.rootfs_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_source_images.coreos.rootfs }}'
+        kernel_args='initrd=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_okd_image_initrd }} ip=dhcp nameserver={{ hostvars[groups['okd_service_nodes'][0]].gateway }} rd.neednet=1 console=tty0 console=ttyS0 coreos.inst=yes coreos.inst.insecure=yes coreos.inst.install_dev={{ hostvars[kubeinit_deployment_node_name].root_device }} coreos.inst.image_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_okd_image_raw }} coreos.inst.ignition_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_deployment_role }}.ign coreos.live.rootfs_url=http://{{ hostvars[groups['okd_service_nodes'][0]].ansible_host }}:8080/okd4/{{ kubeinit_libvirt_okd_image_rootfs }}'
 
         virt-install \
             --connect qemu:///system \

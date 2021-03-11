@@ -69,7 +69,7 @@
     # Something in Ansible appears to be recognizing this as valid Python,
     # so it's getting transformed into a Python list and then serialized
     # using Python's str(), which is why we end up with the single-quoted values.
-    disconnected_auth: '  {"{{ kubeinit_registry_uri }}": {"auth": "{{ disconnected_registry_up | b64encode }}", "email": "{{ kubeinit_registry_email }}" } }'
+    disconnected_auth: '  {"{{ kubeinit_registry_uri }}": {"auth": "{{ disconnected_registry_up | b64encode }}" } }'
 
 - name: append auths to pullsecret
   ansible.builtin.shell: |
@@ -83,11 +83,15 @@
 
 - name: Override final kubeinit_registry_pullsecret with both auths
   ansible.builtin.set_fact:
-    kubeinit_registry_pullsecret: '{{ new_pullsecret.stdout }}'
+    kubeinit_registry_pullsecret: '  {{ new_pullsecret.stdout }}'
 
-- name: Write auth for disconnected to localhost with only the local registry auth details
+- name: Debug the creds dictionary
+  ansible.builtin.debug:
+    var: kubeinit_registry_pullsecret
+
+- name: Write auth for disconnected registry auth details
   ansible.builtin.copy:
-    content: '  { "auths": {{ disconnected_auth }} }'
+    content: '  {{ kubeinit_registry_pullsecret }}'
     dest: "~/{{ kubeinit_registry_auth_file }}"
     mode: '0755'
     backup: yes
