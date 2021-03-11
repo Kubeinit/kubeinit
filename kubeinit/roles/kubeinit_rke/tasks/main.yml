@@ -17,7 +17,7 @@
 - name: Run validations
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_validations"
-    tasks_from: 70_libvirt.yml
+    tasks_from: 00_libvirt.yml
     public: yes
   tags: provision_libvirt
 
@@ -117,7 +117,7 @@
 - name: Configure the cluster common config
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_rke"
-    tasks_from: 00_configure_common.yml
+    tasks_from: 10_configure_common.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -130,7 +130,7 @@
 - name: Configure the cluster service node
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_rke"
-    tasks_from: 10_configure_service_nodes.yml
+    tasks_from: 20_configure_service_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
@@ -144,7 +144,7 @@
 - name: Post configure the DNS in all nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_rke"
-    tasks_from: 11_post_service_config.yml
+    tasks_from: 30_post_service_config.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
@@ -157,7 +157,7 @@
 - name: Configure the cluster master nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_rke"
-    tasks_from: 20_configure_master_nodes.yml
+    tasks_from: 40_configure_master_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list }}"
@@ -171,7 +171,7 @@
 - name: Configure the cluster worker nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_rke"
-    tasks_from: 30_configure_worker_nodes.yml
+    tasks_from: 50_configure_worker_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list }}"
@@ -185,7 +185,7 @@
 - name: Deploy RKE
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_rke"
-    tasks_from: 40_deploy_rke.yml
+    tasks_from: 60_deploy_rke.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
@@ -199,7 +199,7 @@
 - name: Finish post services deployment tasks
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_rke"
-    tasks_from: 60_post_deployment_services_tasks.yml
+    tasks_from: 70_post_deployment_services_tasks.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
