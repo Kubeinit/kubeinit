@@ -14,13 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Run validations
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_validations"
-    tasks_from: 00_libvirt.yml
-    public: yes
-  tags: provision_libvirt
-
 - name: run infra prepare steps
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
@@ -33,6 +26,13 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  tags: provision_libvirt
+
+- name: Run validations
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_validations"
+    tasks_from: 00_libvirt.yml
+    public: yes
   tags: provision_libvirt
 
 - name: provision the initial virtual infra
@@ -51,7 +51,7 @@
 - name: post configure steps for OVN
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 00_ovn_post_setup.yml
+    tasks_from: 50_ovn_post_setup.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list }}"
@@ -65,7 +65,7 @@
 - name: Deploy the cluster service node
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 10_okd_deploy_nodes.yml
+    tasks_from: 60_okd_deploy_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
@@ -79,7 +79,7 @@
 - name: Check that the service node is up and running
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 20_check_nodes_up.yml
+    tasks_from: 70_check_nodes_up.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
@@ -105,7 +105,7 @@
 - name: Check that the service node is up and running
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 20_check_nodes_up.yml
+    tasks_from: 70_check_nodes_up.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
@@ -131,7 +131,7 @@
 - name: Deploy the cluster bootstrap nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 10_okd_deploy_nodes.yml
+    tasks_from: 60_okd_deploy_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list }}"
@@ -145,7 +145,7 @@
 - name: Deploy the cluster master nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 10_okd_deploy_nodes.yml
+    tasks_from: 60_okd_deploy_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list }}"
@@ -188,7 +188,7 @@
 - name: Deploy the cluster worker nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 10_okd_deploy_nodes.yml
+    tasks_from: 60_okd_deploy_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list }}"
