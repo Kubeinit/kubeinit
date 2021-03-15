@@ -213,22 +213,79 @@ for further information.</p><div class="section" id="r-o-l-e-d-e-f-a-u-l-t-s">
 
 <span class="nt">kubeinit_okd_wait_for_cluster_to_converge</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
 
+<span class="c1">###########################################</span>
+<span class="c1"># If you need to deploy openshift instead #</span>
+<span class="c1"># This will override the OKD deployment   #</span>
+<span class="c1">###########################################</span>
+<span class="nt">kubeinit_okd_openshift_deploy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="nt">kubeinit_okd_openshift_registry_token_cloud_openshift_com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">THIS_IS_AN_EXAMPLE_TOKEN_FOR_CLOUD_OPENSHIFT_COM</span>
+<span class="nt">kubeinit_okd_openshift_registry_token_quay_io</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">THIS_IS_AN_EXAMPLE_TOKEN_FOR_QUAY_IO</span>
+<span class="nt">kubeinit_okd_openshift_registry_token_registry_connect_redhat_com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">THIS_IS_AN_EXAMPLE_TOKEN_FOR_CONNECT_REDHAT_COM</span>
+<span class="nt">kubeinit_okd_openshift_registry_token_registry_redhat_io</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">THIS_IS_AN_EXAMPLE_TOKEN_FOR_REDHAT_IO</span>
+<span class="nt">kubeinit_okd_openshift_registry_token_email</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">this_is_an_example_email@example.com</span>
+
+<span class="c1">################################################</span>
+<span class="c1"># Otherwise we will use the following defaults #</span>
+<span class="c1">################################################</span>
+
 <span class="nt">kubeinit_okd_registry</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">quay.io</span>
-<span class="nt">kubeinit_okd_registry_organization</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">openshift</span>
-<span class="nt">kubeinit_okd_registry_repository</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">okd</span>
-<span class="nt">kubeinit_okd_registry_release_tag</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">4.6.0-0.okd-2021-01-23-132511</span>
+<span class="nt">kubeinit_okd_registry_organization_aux</span><span class="p">:</span> <span class="s">&#39;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_okd_openshift_deploy</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">default(False)</span>
+  <span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">openshift-release-dev</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">openshift</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif</span><span class="nv"> </span><span class="s">%}&#39;</span>
+<span class="nt">kubeinit_okd_registry_organization</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_organization_aux</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">replace(&#39;\</span>
+  <span class="s">\ &#39;,&#39;&#39;)</span><span class="nv"> </span><span class="s">}}&quot;</span>
+
+<span class="nt">kubeinit_okd_registry_repository_aux</span><span class="p">:</span> <span class="s">&#39;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_okd_openshift_deploy</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">default(False)</span>
+  <span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">ocp-release</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">okd</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif</span><span class="nv"> </span><span class="s">%}&#39;</span>
+<span class="nt">kubeinit_okd_registry_repository</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_repository_aux</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">replace(&#39;\</span>
+  <span class="s">\ &#39;,&#39;&#39;)</span><span class="nv"> </span><span class="s">}}&quot;</span>
+
+<span class="c1">########################################################################</span>
+<span class="c1"># Replace 4.7.1 with the OpenShift release you will like to deploy, or #</span>
+<span class="c1"># 4.6.0-0.okd-2021-01-23-132511 with the choosen OKD release.          #</span>
+<span class="c1">########################################################################</span>
+<span class="nt">kubeinit_okd_registry_release_tag_aux</span><span class="p">:</span> <span class="s">&#39;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_okd_openshift_deploy</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">default(False)</span>
+  <span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">4.7.1</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">4.6.0-0.okd-2021-01-23-132511</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif</span><span class="nv"> </span><span class="s">%}&#39;</span>
+<span class="nt">kubeinit_okd_registry_release_tag</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag_aux</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">replace(&#39;\</span>
+  <span class="s">\ &#39;,&#39;&#39;)</span><span class="nv"> </span><span class="s">}}&quot;</span>
+
+<span class="nt">kubeinit_okd_registry_release_tag_major</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag.split(&#39;.&#39;)[0]\</span>
+  <span class="s">\ }}&quot;</span>
+<span class="nt">kubeinit_okd_registry_release_tag_minor</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag.split(&#39;.&#39;)[1]\</span>
+  <span class="s">\ }}&quot;</span>
+<span class="nt">kubeinit_okd_registry_release_tag_rev</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag.split(&#39;.&#39;)[2]\</span>
+  <span class="s">\ }}&quot;</span>
+
+<span class="nt">kubeinit_okd_registry_release_url_aux</span><span class="p">:</span> <span class="s">&#39;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_okd_openshift_deploy</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">default(False)</span>
+  <span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag</span>
+  <span class="s">}}/release.txt</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">https://api.github.com/repos/openshift/okd/releases/tags/{{</span>
+  <span class="s">kubeinit_okd_registry_release_tag</span><span class="nv"> </span><span class="s">}}</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif</span><span class="nv"> </span><span class="s">%}&#39;</span>
+<span class="nt">kubeinit_okd_registry_release_url</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_url_aux</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">replace(&#39;\</span>
+  <span class="s">\ &#39;,&#39;&#39;)</span><span class="nv"> </span><span class="s">}}&quot;</span>
+
 <span class="c1"># The space after the first single quote is required, do not remove</span>
 <span class="c1"># Something in Ansible appears to be recognizing this as valid Python,</span>
 <span class="c1"># so it&#39;s getting transformed into a Python list and then serialized</span>
 <span class="c1"># using Python&#39;s str(), which is why we end up with the single-quoted values.</span>
-<span class="nt">kubeinit_okd_registry_pullsecret</span><span class="p">:</span> <span class="s">&#39;</span><span class="nv">  </span><span class="s">{&quot;auths&quot;:{&quot;fakeregistry:5000&quot;:{&quot;auth&quot;:</span><span class="nv"> </span><span class="s">&quot;foo&quot;,</span>
-  <span class="s">&quot;email&quot;:</span><span class="nv"> </span><span class="s">&quot;bar&quot;}}}&#39;</span>
+<span class="nt">kubeinit_okd_registry_pullsecret</span><span class="p">:</span> <span class="s">&#39;</span><span class="nv">  </span><span class="s">{</span><span class="nv"> </span><span class="s">&quot;auths&quot;:</span><span class="nv"> </span><span class="s">{}</span><span class="nv"> </span><span class="s">}&#39;</span>
+<span class="nt">kubeinit_okd_registry_pullsecret_empty</span><span class="p">:</span> <span class="s">&#39;</span><span class="nv">  </span><span class="s">{</span><span class="nv"> </span><span class="s">&quot;auths&quot;:</span><span class="nv"> </span><span class="s">{}</span><span class="nv"> </span><span class="s">}&#39;</span>
+
+<span class="nt">kubeinit_okd_dependencies_client_aux</span><span class="p">:</span> <span class="s">&#39;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_okd_openshift_deploy</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">default(False)</span>
+  <span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag</span>
+  <span class="s">}}/openshift-client-linux-{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag</span><span class="nv"> </span><span class="s">}}.tar.gz</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span>
+  <span class="s">%}</span><span class="nv"> </span><span class="s">https://github.com/openshift/okd/releases/download/{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag</span>
+  <span class="s">}}/openshift-client-linux-{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag</span><span class="nv"> </span><span class="s">}}.tar.gz</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif</span>
+  <span class="s">%}&#39;</span>
+
+<span class="nt">kubeinit_okd_dependencies_installer_aux</span><span class="p">:</span> <span class="s">&#39;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_okd_openshift_deploy</span><span class="nv"> </span><span class="s">|</span>
+  <span class="s">default(False)</span><span class="nv"> </span><span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{</span>
+  <span class="s">kubeinit_okd_registry_release_tag</span><span class="nv"> </span><span class="s">}}/openshift-install-linux-{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag</span>
+  <span class="s">}}.tar.gz</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">https://github.com/openshift/okd/releases/download/{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag</span>
+  <span class="s">}}/openshift-install-linux-{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag</span><span class="nv"> </span><span class="s">}}.tar.gz</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif</span>
+  <span class="s">%}&#39;</span>
 
 <span class="nt">kubeinit_okd_dependencies</span><span class="p">:</span>
-  <span class="nt">client</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/openshift/okd/releases/download/{{ kubeinit_okd_registry_release_tag</span>
-    <span class="l l-Scalar l-Scalar-Plain">}}/openshift-client-linux-{{ kubeinit_okd_registry_release_tag }}.tar.gz</span>
-  <span class="nt">installer</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/openshift/okd/releases/download/{{ kubeinit_okd_registry_release_tag</span>
-    <span class="l l-Scalar l-Scalar-Plain">}}/openshift-install-linux-{{ kubeinit_okd_registry_release_tag }}.tar.gz</span>
+  <span class="nt">client</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_dependencies_client_aux</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">replace(&#39;</span><span class="nv"> </span><span class="s">&#39;,&#39;&#39;)</span><span class="nv"> </span><span class="s">}}&quot;</span>
+  <span class="nt">installer</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_dependencies_installer_aux</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">replace(&#39;</span><span class="nv"> </span><span class="s">&#39;,&#39;&#39;)</span><span class="nv"> </span><span class="s">}}&quot;</span>
 
 <span class="nt">kubeinit_okd_service_dependencies</span><span class="p">:</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">haproxy</span>
@@ -249,6 +306,7 @@ for further information.</p><div class="section" id="r-o-l-e-d-e-f-a-u-l-t-s">
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">kernel-headers</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">kernel-devel</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">nano</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">libvirt-devel</span>
 </pre></div>
 </div>
 </div>
