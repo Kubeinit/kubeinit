@@ -46,7 +46,16 @@ if [ "$1" == "YesImReallySure" ]; then
             # From:
             # https://blog.christophersmart.com/2020/07/27/how-to-create-linux-bridges-and-open-vswitch-bridges-with-networkmanager/
             echo "Install dependencies"
-            dnf install -y NetworkManager-ovs openvswitch
+
+            if grep -q "Centos" /etc/redhat-release; then
+                dnf install -y centos-release-nfv-openvswitch
+                yum install -y openvswitch2.13
+            fi
+
+            if grep -q "Fedora" /etc/redhat-release; then
+                dnf install -y NetworkManager-ovs openvswitch
+            fi
+
             systemctl enable --now openvswitch
             systemctl restart NetworkManager
             echo "Enslaving the physical interface with an OVS bridge"
