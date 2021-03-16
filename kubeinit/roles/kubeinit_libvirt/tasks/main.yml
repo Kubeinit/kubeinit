@@ -193,20 +193,37 @@
       with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
       when: "item.value.initrd"
 
-    - name: create the treeinfo directory
+    - name: create the treeinfo directory FCOS
       ansible.builtin.shell: |
         cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
         [general]
         arch = x86_64
         family = Fedora CoreOS
         platforms = x86_64
-        version = 32
+        version = kubeinit_libvirt_fcos_release.split(".")[0]
         [images-x86_64]
         initrd = {{ kubeinit_libvirt_source_images.coreos.initrd }}
         kernel = {{ kubeinit_libvirt_source_images.coreos.kernel }}
         EOF
       register: treeinfo
       changed_when: "treeinfo.rc == 0"
+      when: "'okd' in kubeinit_inventory_cluster_distro and not kubeinit_okd_openshift_deploy | default(false)"
+
+    - name: create the treeinfo directory for RHCOS
+      ansible.builtin.shell: |
+        cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
+        [general]
+        arch = x86_64
+        family = Red Hat CoreOS
+        platforms = x86_64
+        version = {{ kubeinit_okd_registry_release_tag_aux | default(omit) }}
+        [images-x86_64]
+        initrd = {{ kubeinit_libvirt_source_images.rhcos.initrd }}
+        kernel = {{ kubeinit_libvirt_source_images.rhcos.kernel }}
+        EOF
+      register: treeinfo
+      changed_when: "treeinfo.rc == 0"
+      when: "'okd' in kubeinit_inventory_cluster_distro and kubeinit_okd_openshift_deploy | default(false)"
 
     - name: "Make sure we have a '{{ kubeinit_libvirt_cloud_user }}' group"
       ansible.builtin.group:
