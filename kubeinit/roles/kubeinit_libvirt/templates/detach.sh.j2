@@ -43,13 +43,11 @@ if [ "$1" == "YesImReallySure" ]; then
         echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
         sysctl --load /etc/sysctl.d/70-ipv6.conf
         if [ "$2" == "OVN" ]; then
-            # From:
-            # https://blog.christophersmart.com/2020/07/27/how-to-create-linux-bridges-and-open-vswitch-bridges-with-networkmanager/
             echo "Install dependencies"
 
             if grep -q "Centos" /etc/redhat-release; then
                 dnf install -y centos-release-nfv-openvswitch
-                yum install -y openvswitch2.13
+                dnf install -y NetworkManager-ovs openvswitch2.13
             fi
 
             if grep -q "Fedora" /etc/redhat-release; then
