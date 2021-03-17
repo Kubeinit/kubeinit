@@ -1,8 +1,8 @@
 #!/bin/bash
+set -euo pipefail
+
 #
 # Enslave a physical interface to the external bridge
-#
-# Execute as: nohup detach.sh &
 #
 
 # The name of the bridge that will enslave the external access interface.
@@ -45,13 +45,23 @@ if [ "$1" == "YesImReallySure" ]; then
         if [ "$2" == "OVN" ]; then
             echo "Install dependencies"
 
-            if grep -q "Centos" /etc/redhat-release; then
+            if grep -qi "CentOS" /etc/redhat-release; then
                 dnf install -y centos-release-nfv-openvswitch
                 dnf install -y NetworkManager-ovs openvswitch2.13
             fi
 
-            if grep -q "Fedora" /etc/redhat-release; then
+            if grep -qi "Fedora" /etc/redhat-release; then
                 dnf install -y NetworkManager-ovs openvswitch
+            fi
+
+            if grep -qi "Ubuntu" /etc/os-release; then
+                echo "OS not supported yet"
+                exit 1
+            fi
+
+            if grep -qi "Debian" /etc/os-release; then
+                echo "OS not supported yet"
+                exit 1
             fi
 
             systemctl enable --now openvswitch
