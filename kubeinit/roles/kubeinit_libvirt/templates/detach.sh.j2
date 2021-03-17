@@ -13,6 +13,7 @@ brname="{{ kubeinit_libvirt_external_service_interface.attached }}"
 use_dhcp=0
 
 iface=$(ip route get "8.8.8.8" | grep -Po '(?<=(dev )).*(?= src| proto)')
+gw=$(ip route get "8.8.8.8" | grep -Po '(?<=(via )).*(?= dev)')
 addr=$(nmcli -g IP4.ADDRESS device show "${iface}")
 conn=$(nmcli -g GENERAL.CONNECTION device show "${iface}")
 # mac=$(nmcli -g GENERAL.HWADDR device show "${iface}")
@@ -31,9 +32,9 @@ echo "######"
 echo "Otherwise you might end up by dropping the interface IP"
 echo "and blocking the access to this node"
 
-
 if [ "$1" == "YesImReallySure" ]; then
     echo "IP: ${addr}"
+    echo "GW: ${gw}"
     echo "Method: ${method}"
     # This can be auto or manual
     if [ "${iface}" = "${brname}" ]; then
@@ -74,24 +75,25 @@ if [ "$1" == "YesImReallySure" ]; then
             nmcli con add type ovs-port conn.interface ovs-port-eth master "${brname}" con-name ovs-port-eth
             nmcli con add type ethernet conn.interface "${iface}" master ovs-port-eth con-name ovs-port-eth-int
 
-            # nmcli con modify "${brname}"-int ipv4.method disabled ipv6.method disabled
-            # nmcli con modify "${brname}"-int ipv4.method static ipv4.address 192.168.123.100/24
-            # nmcli con modify "${brname}"-int 802-3-ethernet.mtu 9000
-            # nmcli con modify ovs-port-eth-int 802-3-ethernet.mtu 9000
-
             nmcli con down "${conn}" ; \
             nmcli con up ovs-port-eth-int ; \
-            nmcli con up "${brname}"-int
 
             nmcli con modify "${conn}" ipv4.method disabled ipv6.method disabled
 
+            if [ "${method}" = "auto" ]; then
+                echo "Releasing interfaces"
+                dhclient -r "${iface}"
+            fi
+
             if [ "${method}" = "auto" ] && [ "${use_dhcp}" -eq 1 ]; then
                 echo "Setting IP by DHCP"
-                dhclient -r "${iface}" && \
+                nmcli con up "${brname}"-int
                 dhclient "${brname}"-int
             else
                 echo "Setting static IP"
-                nmcli con modify "${brname}"-int ipv4.method static ipv4.address "${addr}"
+                nmcli con modify "${brname}"-int ipv4.method disabled ipv6.method disabled
+                nmcli con modify "${brname}"-int ipv4.method manual ipv4.address "${addr}" ipv4.gateway "${gw}"
+                nmcli con up "${brname}"-int
             fi
         else
             echo "Enslaving the physical interface without OVN"
@@ -122,6 +124,7 @@ if [ "$1" == "YesImReallySure" ]; then
             fi
         fi
     fi
+    nmcli connection reload
     echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
     echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
     sysctl --load /etc/sysctl.d/70-ipv6.conf
