@@ -71,68 +71,14 @@
     executable: /bin/bash
 
 #
-# Configure PV
-#
-- name: "Add some example PV and claims"
-  ansible.builtin.shell: |
-    # We create the folder for the PV in our NFS share
-    # mkdir -p /var/nfsshare/registry
-    # chmod -R 777 /var/nfsshare/registry
-    # chown -R nobody:nobody /var/nfsshare/registry
-    cat << EOF > ~/registry_pv.yaml
-    apiVersion: v1
-    kind: PersistentVolume
-    metadata:
-      name: image-registry-pv
-    spec:
-      capacity:
-        storage: 5Gi
-      accessModes:
-        - ReadWriteMany
-      storageClassName: nfs01registry
-      persistentVolumeReclaimPolicy: Retain
-      nfs:
-        path: /var/nfsshare/registry
-        server: {{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}
-    EOF
-    cat << EOF > ~/registry_pvc.yaml
-    apiVersion: v1
-    kind: PersistentVolumeClaim
-    metadata:
-      name: image-registry-pvc
-    spec:
-      volumeName: image-registry-pv
-      accessModes:
-        - ReadWriteMany
-      resources:
-        requests:
-          storage: 5Gi
-      storageClassName: nfs01registry
-      volumeMode: Filesystem
-    EOF
-    # oc create -f ~/registry_pv.yaml
-    # oc create -f ~/registry_pvc.yaml
-    # We patch the imageregistry operator to use
-    # the recently created PV by assigning a managed PVC
-    # oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
-    # oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"storage": {"pvc": {"claim": "image-registry-pvc" }}}}'
-
-    export KUBECONFIG=~/.kube/config
-    kubectl apply -f ~/registry_pv.yaml
-    kubectl apply -f ~/registry_pvc.yaml
-  register: configure_cluster_pv
-  changed_when: "configure_cluster_pv.rc == 0"
-  args:
-    executable: /bin/bash
-#
 # add nfs dynamic provisioning
 #
 
 - name: add nfs provisioning role
   ansible.builtin.shell: |
     cat << EOF > ~/nfs_rbac.yaml
-    kind: ServiceAccount
     apiVersion: v1
+    kind: ServiceAccount
     metadata:
       name: nfs-client-provisioner
     ---
@@ -161,7 +107,7 @@
     subjects:
       - kind: ServiceAccount
         name: nfs-client-provisioner
-        namespace: nfs-client-provisioning
+        namespace: default
     roleRef:
       kind: ClusterRole
       name: nfs-client-provisioner-runner
@@ -184,7 +130,7 @@
       - kind: ServiceAccount
         name: nfs-client-provisioner
         # replace with namespace where provisioner is deployed
-        namespace: nfs-client-provisioning
+        namespace: default
     roleRef:
       kind: Role
       name: leader-locking-nfs-client-provisioner
@@ -219,13 +165,13 @@
           serviceAccountName: nfs-client-provisioner
           containers:
             - name: nfs-client-provisioner
-              image: quay.io/external_storage/nfs-client-provisioner:latest
+              image: gcr.io/k8s-staging-sig-storage/nfs-subdir-external-provisioner:v4.0.0
               volumeMounts:
                 - name: nfs-client-root
                   mountPath: /persistentvolumes
               env:
                 - name: PROVISIONER_NAME
-                  value: nfs-client-provisioner
+                  value: k8s-sigs.io/nfs-subdir-external-provisioner
                 - name: NFS_SERVER
                   value: {{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].ansible_host }}
                 - name: NFS_PATH
@@ -252,7 +198,7 @@
       name: managed-nfs-storage
       annotations:
         storageclass.kubernetes.io/is-default-class: "true"
-    provisioner: nfs-client-provisioner
+    provisioner: k8s-sigs.io/nfs-subdir-external-provisioner
     parameters:
       archiveOnDelete: "false"
     EOF
@@ -318,5 +264,16 @@
   register: apply_nfs_sec
   changed_when: "apply_nfs_sec.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
+  args:
+    executable: /bin/bash
+
+- name: patch imageregistry operator to claim storage
+  ansible.builtin.shell: |
+    # We patch the imageregistry operator to create a claim that managed-nfs-storage will satisfy
+    export KUBECONFIG=~/.kube/config
+    oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"storage": {"pvc": {"claim": "" }}}}'
+    oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
+  register: patch_imageregistry_operator
+  changed_when: "patch_imageregistry_operator.rc == 0"
   args:
     executable: /bin/bash
