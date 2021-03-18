@@ -17,6 +17,7 @@ gw=$(ip route get "8.8.8.8" | grep -Po '(?<=(via )).*(?= dev)')
 addr=$(nmcli -g IP4.ADDRESS device show "${iface}")
 conn=$(nmcli -g GENERAL.CONNECTION device show "${iface}")
 # mac=$(nmcli -g GENERAL.HWADDR device show "${iface}")
+dns=$(nmcli -g IP4.DNS con show "$conn" | tr '|' ' ')
 method=$(nmcli -g IPV4.METHOD con show "$conn")
 
 
@@ -36,6 +37,7 @@ if [ "$1" == "YesImReallySure" ]; then
     echo "IP: ${addr}"
     echo "GW: ${gw}"
     echo "Method: ${method}"
+    echo "DNS: ${dns}"
     # This can be auto or manual
     if [ "${iface}" = "${brname}" ]; then
         echo "We are already using the interface, do nothing"
@@ -92,7 +94,7 @@ if [ "$1" == "YesImReallySure" ]; then
             else
                 echo "Setting static IP"
                 nmcli con modify "${brname}"-int ipv4.method disabled ipv6.method disabled
-                nmcli con modify "${brname}"-int ipv4.method manual ipv4.address "${addr}" ipv4.gateway "${gw}"
+                nmcli con modify "${brname}"-int ipv4.method manual ipv4.address "${addr}" ipv4.gateway "${gw}" ipv4.dns "${dns}"
                 nmcli con up "${brname}"-int
             fi
         else
