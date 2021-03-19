@@ -267,6 +267,19 @@
   args:
     executable: /bin/bash
 
+- name: Wait for the image registry operator to start its componentes
+  ansible.builtin.shell: |
+    export KUBECONFIG=~/.kube/config
+    oc get configs.imageregistry.operator.openshift.io cluster
+  register: iregistry_result
+  retries: 5
+  delay: 20
+  until: iregistry_result.rc == 0
+  changed_when: "iregistry_result.rc == 0"
+  when: kubeinit_inventory_cluster_distro == 'okd'
+  args:
+    executable: /bin/bash
+
 - name: patch imageregistry operator to claim storage
   ansible.builtin.shell: |
     # We patch the imageregistry operator to create a claim that managed-nfs-storage will satisfy
@@ -275,5 +288,6 @@
     oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
   register: patch_imageregistry_operator
   changed_when: "patch_imageregistry_operator.rc == 0"
+  when: kubeinit_inventory_cluster_distro == 'okd'
   args:
     executable: /bin/bash
