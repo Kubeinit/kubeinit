@@ -25,42 +25,6 @@
       delay: 20
       until: result.rc == 0
       changed_when: "result.rc == 0"
-      when: groups['okd_master_nodes'] | length > 1
-
-    - name: "remove bootstrap node from haproxy"
-      ansible.builtin.shell: |
-        sed -i '/bootstrap/s/^/#/' /etc/haproxy/haproxy.cfg
-        systemctl reload haproxy
-      register: remove_bootstrap_from_cluster
-      changed_when: "remove_bootstrap_from_cluster.rc == 0"
-      ignore_errors: yes
-
-    # To run in the hypervisor where
-    # the bootstrap machine is deployed
-    - name: Destroy bootstrap node VM
-      community.libvirt.virt:
-        name: "{{ item }}"
-        command: destroy
-      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
-      delegate_to: "{{ hostvars[groups['okd_bootstrap_nodes'][0]].target }}"
-
-    # To run in the hypervisor where
-    # the bootstrap machine is deployed
-    - name: Undefine bootstrap node VM
-      community.libvirt.virt:
-        name: "{{ item }}"
-        command: undefine
-      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
-      delegate_to: "{{ hostvars[groups['okd_bootstrap_nodes'][0]].target }}"
-
-    # To run in the hypervisor where
-    # the bootstrap machine is deployed
-    - name: Remove bootstrap node VM storage
-      ansible.builtin.file:
-        state: absent
-        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
-      delegate_to: "{{ hostvars[groups['okd_bootstrap_nodes'][0]].target }}"
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
   tags:
