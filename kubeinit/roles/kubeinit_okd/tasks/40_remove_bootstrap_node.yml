@@ -1,0 +1,57 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Remove boostrap node
+  block:
+
+    - name: "remove bootstrap node from haproxy"
+      ansible.builtin.shell: |
+        sed -i '/bootstrap/s/^/#/' /etc/haproxy/haproxy.cfg
+        systemctl reload haproxy
+      register: remove_bootstrap_from_cluster
+      changed_when: "remove_bootstrap_from_cluster.rc == 0"
+      ignore_errors: yes
+
+    # To run in the hypervisor where
+    # the bootstrap machine is deployed
+    - name: Destroy bootstrap node VM
+      community.libvirt.virt:
+        name: "{{ item }}"
+        command: destroy
+      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
+      delegate_to: "{{ hostvars[groups['okd_bootstrap_nodes'][0]].target }}"
+
+    # To run in the hypervisor where
+    # the bootstrap machine is deployed
+    - name: Undefine bootstrap node VM
+      community.libvirt.virt:
+        name: "{{ item }}"
+        command: undefine
+      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
+      delegate_to: "{{ hostvars[groups['okd_bootstrap_nodes'][0]].target }}"
+
+    # To run in the hypervisor where
+    # the bootstrap machine is deployed
+    - name: Remove bootstrap node VM storage
+      ansible.builtin.file:
+        state: absent
+        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
+      with_items: "{{ groups['okd_bootstrap_nodes'] }}"
+      delegate_to: "{{ hostvars[groups['okd_bootstrap_nodes'][0]].target }}"
+
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  tags:
+    - provision_libvirt
