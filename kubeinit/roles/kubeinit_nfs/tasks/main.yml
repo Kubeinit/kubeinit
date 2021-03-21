@@ -267,7 +267,7 @@
   args:
     executable: /bin/bash
 
-- name: Wait for the image registry operator to start its componentes
+- name: Wait for the image registry operator to start its components
   ansible.builtin.shell: |
     export KUBECONFIG=~/.kube/config
     oc get configs.imageregistry.operator.openshift.io cluster
@@ -277,6 +277,7 @@
   until: iregistry_result.rc == 0
   changed_when: "iregistry_result.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
+  ignore_errors: True
   args:
     executable: /bin/bash
 
