@@ -243,16 +243,15 @@
       register: render_bootstrap_details
       changed_when: "render_bootstrap_details.rc == 0"
 
-    - name: "Disable master schedulable"
+    - name: "Enable master schedulable"
       ansible.builtin.shell: |
+        # By default starting at 4.6 master nodes are not schedulable
         set -o pipefail
         cd
-        # Be aware of this option, explain the consequences in:
-        # https://www.anstack.com/blog/2020/08/16/a-review-of-the-machineconfig-operator.html
-        sed -i 's/mastersSchedulable: true/mastersSchedulable: False/' install_dir/manifests/cluster-scheduler-02-config.yml
-      register: disable_masters_sched
-      changed_when: "disable_masters_sched.rc == 0"
-      when: groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length > 0
+        sed -i 's/mastersSchedulable: false/mastersSchedulable: True/' install_dir/manifests/cluster-scheduler-02-config.yml
+      register: enable_masters_sched
+      changed_when: "enable_masters_sched.rc == 0"
+      when: groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length == 0
 
     - name: "Render ignition files"
       ansible.builtin.shell: |
