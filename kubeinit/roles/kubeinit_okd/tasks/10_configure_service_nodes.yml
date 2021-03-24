@@ -243,15 +243,29 @@
       register: render_bootstrap_details
       changed_when: "render_bootstrap_details.rc == 0"
 
-    - name: "Enable master schedulable"
+    - name: "Enable master schedulable if there are no worker nodes"
       ansible.builtin.shell: |
-        # By default starting at 4.6 master nodes are not schedulable
         set -o pipefail
         cd
-        sed -i 's/mastersSchedulable: false/mastersSchedulable: True/' install_dir/manifests/cluster-scheduler-02-config.yml
+        yaml_file="install_dir/manifests/cluster-scheduler-02-config.yml"
+        key="mastersSchedulable"
+        new_value="true"
+        sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
       register: enable_masters_sched
       changed_when: "enable_masters_sched.rc == 0"
       when: groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length == 0
+
+    - name: "Disable master schedulable if there is at least one worker node"
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd
+        yaml_file="install_dir/manifests/cluster-scheduler-02-config.yml"
+        key="mastersSchedulable"
+        new_value="false"
+        sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
+      register: disable_masters_sched
+      changed_when: "disable_masters_sched.rc == 0"
+      when: groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length > 0
 
     - name: "Render ignition files"
       ansible.builtin.shell: |
