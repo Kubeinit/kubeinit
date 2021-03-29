@@ -25,7 +25,7 @@ echo "This script will enslave the external interface ${iface} to ${brname}"
 echo "MAKE SURE YOU EXECUTE THIS LIKE"
 echo "######"
 echo "Single node deployment with Linux bridge:"
-echo "nohup ./detach.sh YesImReallySure &"
+echo "nohup ./detach.sh YesImReallySure LinuxBridge &"
 echo "or"
 echo "Multi node deployment with OVN:"
 echo "nohup ./detach.sh YesImReallySure OVN &"
@@ -33,7 +33,7 @@ echo "######"
 echo "Otherwise you might end up by dropping the interface IP"
 echo "and blocking the access to this node"
 
-if [ "$1" == "YesImReallySure" ]; then
+if [ $# -eq 2 ] && [ "$1" == "YesImReallySure" ]; then
     echo "IP: ${addr}"
     echo "GW: ${gw}"
     echo "Method: ${method}"
@@ -97,7 +97,7 @@ if [ "$1" == "YesImReallySure" ]; then
                 nmcli con modify "${brname}"-int ipv4.method manual ipv4.address "${addr}" ipv4.gateway "${gw}" ipv4.dns "${dns}"
                 nmcli con up "${brname}"-int
             fi
-        else
+        elif [ "$2" == "LinuxBridge" ]; then
             echo "Enslaving the physical interface without OVN"
             echo "Creating bridge"
             nmcli con add ifname "${brname}" type bridge con-name "${brname}"
@@ -124,10 +124,21 @@ if [ "$1" == "YesImReallySure" ]; then
                 ip addr add "${addr}" dev "${brname}" && \
                 ip link set "${brname}" up
             fi
+        else
+            echo "Wrong parameters, options are"
+            echo "Single node deployment with Linux bridge:"
+            echo "nohup ./detach.sh YesImReallySure LinuxBridge &"
+            echo "or"
+            echo "Multi node deployment with OVN:"
+            echo "nohup ./detach.sh YesImReallySure OVN &"
+            exit 1
         fi
     fi
     nmcli connection reload
     echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
     echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
     sysctl --load /etc/sysctl.d/70-ipv6.conf
+else
+    echo "Wrong parameters"
+    exit 1
 fi
