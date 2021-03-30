@@ -32,26 +32,108 @@
   tags:
     - always
 
-- name: Install HAProxy
-  ansible.builtin.package:
-    name:
-      - haproxy
-    state: present
+
+- name: Create HAProxy folder
+  ansible.builtin.file:
+    path: "{{ kubeinit_haproxy_directory }}"
+    state: directory
+    recurse: yes
+    mode: '0755'
 
 - name: Create HAProxy config file
   ansible.builtin.template:
     src: "haproxy.cfg.j2"
-    dest: "/etc/haproxy/haproxy.cfg"
+    dest: "{{ kubeinit_haproxy_directory }}/haproxy.cfg"
     mode: '0644'
 
-# - name: "allow access to the cluster"
-#   ansible.builtin.shell: |
-#     setsebool -P haproxy_connect_any 1
-#     setsebool -P httpd_read_user_content 1
-#   register: allow_haproxy_connect
-#   changed_when: "allow_haproxy_connect.rc == 0"
+- name: Install podman if required
+  ansible.builtin.package:
+    state: present
+    name: "podman"
 
-# If there is a problem with haproxy start it manually with:
-# haproxy -db -f /etc/haproxy/haproxy.cfg
-- name: Start and enable haproxy service
-  ansible.builtin.service: name=haproxy state=restarted enabled=yes
+- name: Podman login to docker.io
+  ansible.builtin.shell: |
+    podman login docker.io \
+      --username {{ kubeinit_common_docker_username }} \
+      --password {{ kubeinit_common_docker_password }}
+  args:
+    executable: /bin/bash
+  register: podman_login
+  changed_when: "podman_login.rc == 0"
+  when: |
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password
+
+- name: Create a podman container to serve the haproxy
+  containers.podman.podman_container:
+    name: "{{ kubeinit_haproxy_pod_name }}"
+    image: docker.io/library/haproxy:2.3
+    state: stopped
+    network: host
+    volumes:
+    - "{{ kubeinit_haproxy_directory }}/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg"
+    - "/var/lib/haproxy:/var/lib/haproxy:Z"
+  register: haproxy_podman_container_info
+
+- name: Setting Podman facts about the container that will run the haproxy
+  ansible.builtin.set_fact:
+    container_haproxy_name: "{{ haproxy_podman_container_info.container.Name }}"
+    container_haproxy_pidfile: "{{ haproxy_podman_container_info.container.ConmonPidFile }}"
+
+- name: Ensure user specific systemd instance are persistent
+  ansible.builtin.command: |
+    /usr/bin/loginctl enable-linger {{ ansible_user }}
+  register: systemd_instance_persist
+  changed_when: "systemd_instance_persist.rc == 0"
+
+- name: Create systemd user directory
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0775'
+
+- name: Copy the podman systemd service file
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Podman container-haproxy.service
+      [Service]
+      Restart=on-failure
+      ExecStart=/usr/bin/podman start {{ container_haproxy_name }}
+      ExecStop=/usr/bin/podman stop -t 10 {{ container_haproxy_name }}
+      KillMode=none
+      Type=forking
+      PIDFile={{ container_haproxy_pidfile }}
+      [Install]
+      WantedBy=default.target
+    dest: "{{ ansible_user_dir }}/.config/systemd/user/container-haproxy.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Reload systemd service
+  ansible.builtin.systemd:
+    daemon_reexec: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Enable container-haproxy.service
+  ansible.builtin.systemd:
+    name: container-haproxy
+    enabled: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Start container-haproxy.service
+  ansible.builtin.systemd:
+    name: container-haproxy
+    state: started
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
