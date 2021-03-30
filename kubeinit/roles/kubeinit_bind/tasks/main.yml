@@ -32,96 +32,143 @@
   tags:
     - always
 
-#
-# Install bind
-#
 
-- name: Install Bind
-  ansible.builtin.package:
-    name: "{{ kubeinit_bind_packages }}"
-    state: present
-
-- name: Create named.conf
-  ansible.builtin.template:
-    src: "named.conf.j2"
-    dest: "/etc/named.conf"
-    mode: '0644'
-  when: kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks'
+- name: Create Bind folder
+  ansible.builtin.file:
+    path: "{{ kubeinit_bind_directory }}"
+    state: directory
+    recurse: yes
+    mode: '0755'
 
 - name: Create named.conf
   ansible.builtin.template:
     src: "named.conf.j2"
-    dest: "/etc/bind/named.conf"
+    dest: "{{ kubeinit_bind_directory }}/named.conf"
     mode: '0644'
-  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: Create named.conf.local
   ansible.builtin.template:
     src: "named.conf.local.j2"
-    dest: "/etc/{{ kubeinit_bind_config_folder }}/named.conf.local"
+    dest: "{{ kubeinit_bind_directory }}/named.conf.local"
     mode: '0644'
 
-- name: Create BIND zones directoy
+- name: Create BIND zones directories
   ansible.builtin.file:
-    path: /etc/{{ kubeinit_bind_config_folder }}/zones
+    path: "{{ item }}"
     state: directory
-    mode: '0777'
-
-- name: Create BIND zones directoy
-  ansible.builtin.file:
-    path: /etc/{{ kubeinit_bind_config_folder }}/zones/internals
-    state: directory
-    mode: '0777'
-
-- name: Create BIND zones directoy
-  ansible.builtin.file:
-    path: /etc/{{ kubeinit_bind_config_folder }}/zones/externals
-    state: directory
-    mode: '0777'
+    mode: '0755'
+    recurse: yes
+  with_items:
+  - "{{ kubeinit_bind_directory }}/zones/internals"
+  - "{{ kubeinit_bind_directory }}/zones/externals"
 
 - name: Create BIND db internal subnet
   ansible.builtin.template:
     src: "internals_db.j2"
-    dest: "/etc/{{ kubeinit_bind_config_folder }}/zones/internals/db.{{ kubeinit_inventory_network_net }}"
+    dest: "{{ kubeinit_bind_directory }}/zones/internals/db.{{ kubeinit_inventory_network_net }}"
     mode: '0644'
 
 - name: Create BIND db internal zone
   ansible.builtin.template:
     src: "internals_db.local.j2"
-    dest: "/etc/{{ kubeinit_bind_config_folder }}/zones/internals/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    dest: "{{ kubeinit_bind_directory }}/zones/internals/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
     mode: '0644'
 
 - name: Create BIND db external zone
   ansible.builtin.template:
     src: "externals_db.local.j2"
-    dest: "/etc/{{ kubeinit_bind_config_folder }}/zones/externals/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    dest: "{{ kubeinit_bind_directory }}/zones/externals/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
     mode: '0644'
   when: kubeinit_libvirt_external_service_interface_enabled
 
-- name: Disable IPv6 support in named
-  ansible.builtin.lineinfile:
-    dest: /etc/sysconfig/named
-    line: 'OPTIONS="-4"'
-    regexp: "^OPTIONS"
-    mode: '0644'
-  when: kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks'
+- name: Install podman if required
+  ansible.builtin.package:
+    state: present
+    name: "podman"
 
-- name: "Disable IPv6 in bind9"
-  ansible.builtin.lineinfile:
-    dest: /lib/systemd/system/named.service
-    line: 'ExecStart=/usr/sbin/named -f -4 $OPTIONS'
-    regexp: 'ExecStart=/usr/sbin/named -f \$OPTIONS'
-    mode: '0644'
-  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
-
-- name: "Bounce bind"
+- name: Podman login to docker.io
   ansible.builtin.shell: |
-    systemctl daemon-reload
-  register: bind_bounce
-  changed_when: "bind_bounce.rc == 0"
+    podman login docker.io \
+      --username {{ kubeinit_common_docker_username }} \
+      --password {{ kubeinit_common_docker_password }}
+  args:
+    executable: /bin/bash
+  register: podman_login
+  changed_when: "podman_login.rc == 0"
+  when: |
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password
 
-- name: Start and enable bind service
-  ansible.builtin.service:
-    name: "{{ kubeinit_bind_service_name }}"
-    state: restarted
+- name: Create a podman container to serve the Bind server
+  containers.podman.podman_container:
+    name: "{{ kubeinit_bind_pod_name }}"
+    image: docker.io/internetsystemsconsortium/bind9:9.11
+    state: stopped
+    network: host
+    volumes:
+    - "{{ kubeinit_bind_directory }}/named.conf:/etc/bind/named.conf"
+    - "{{ kubeinit_bind_directory }}/:/etc/bind/kubeinit/:Z"
+  register: bind_podman_container_info
+
+- name: Setting Podman facts about the container that will run the bind
+  ansible.builtin.set_fact:
+    container_bind_name: "{{ bind_podman_container_info.container.Name }}"
+    container_bind_pidfile: "{{ bind_podman_container_info.container.ConmonPidFile }}"
+
+- name: Ensure user specific systemd instance are persistent
+  ansible.builtin.command: |
+    /usr/bin/loginctl enable-linger {{ ansible_user }}
+  register: systemd_instance_persist
+  changed_when: "systemd_instance_persist.rc == 0"
+
+- name: Create systemd user directory
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0775'
+
+- name: Copy the podman systemd service file
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Podman container-bind.service
+      [Service]
+      Restart=on-failure
+      ExecStart=/usr/bin/podman start {{ container_bind_name }}
+      ExecStop=/usr/bin/podman stop -t 10 {{ container_bind_name }}
+      KillMode=none
+      Type=forking
+      PIDFile={{ container_bind_pidfile }}
+      [Install]
+      WantedBy=default.target
+    dest: "{{ ansible_user_dir }}/.config/systemd/user/container-bind.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Reload systemd service
+  ansible.builtin.systemd:
+    daemon_reexec: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Enable container-bind.service
+  ansible.builtin.systemd:
+    name: container-bind
     enabled: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Start container-bind.service
+  ansible.builtin.systemd:
+    name: container-bind
+    state: started
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
