@@ -107,7 +107,7 @@
     - name: Reset ssh keys in hypervisor
       ansible.builtin.shell: |
         ssh-keygen -R  {{ item }}
-        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
+        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
         ssh-keygen -R  {{ hostvars[item].ansible_host }}
       with_items: "{{ groups['all_nodes'] }}"
       when: known_hosts_file.stat.exists | bool
@@ -119,7 +119,7 @@
       delegate_to: localhost
       ansible.builtin.shell: |
         ssh-keygen -R  {{ item }}
-        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_domain }}
+        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
         ssh-keygen -R  {{ hostvars[item].ansible_host }}
       ignore_errors: true
       with_items: "{{ groups['all_nodes'] }}"
