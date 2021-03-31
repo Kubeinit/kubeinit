@@ -3,11 +3,12 @@
 # No not edit directly
 # More information at: https://github.com/kubeinit/kubeinit
 
+#---------------------------------------------------------------------
 # Global settings
 #---------------------------------------------------------------------
 global
-    maxconn     20000
-    log         /dev/log local0 info
+    maxconn     {{ kubeinit_haproxy_global_maxconn }}
+    log         {{ kubeinit_haproxy_global_log }}
     chroot      /var/lib/haproxy
     pidfile     /var/run/haproxy.pid
     user        haproxy
@@ -33,17 +34,18 @@ defaults
     timeout http-request    10s
     timeout queue           1m
     timeout connect         10s
-    timeout client          300s
-    timeout server          300s
+    timeout client          {{ kubeinit_haproxy_defaults_timeout_client }}
+    timeout server          {{ kubeinit_haproxy_defaults_timeout_server }}
     timeout http-keep-alive 10s
     timeout check           10s
-    maxconn                 20000
+    maxconn                 {{ kubeinit_haproxy_defaults_maxconn }}
 
 listen stats
-    bind :9090
+    bind :{{ kubeinit_haproxy_listen_stats_bind }}
     mode http
     stats enable
     stats uri /
+    monitor-uri /healthz
 
 frontend okd4_k8s_api_fe
     bind :6443
@@ -96,7 +98,7 @@ backend okd4_http_ingress_traffic_be
 {% endfor %}
 
 frontend okd4_https_ingress_traffic_fe
-    bind *:443
+    bind :443
     default_backend okd4_https_ingress_traffic_be
     mode tcp
     option tcplog
