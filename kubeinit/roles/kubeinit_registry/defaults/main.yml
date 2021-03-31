@@ -23,9 +23,6 @@ kubeinit_registry_hide_sensitive_logs: true
 
 kubeinit_registry_enabled: true
 
-# kubeinit_registry_container_engine: docker
-kubeinit_registry_container_engine: podman
-
 kubeinit_registry_user: registryusername
 kubeinit_registry_password: registrypassword
 # The space after the first single quote is required, do not remove
@@ -34,12 +31,11 @@ kubeinit_registry_password: registrypassword
 # using Python's str(), which is why we end up with the single-quoted values.
 kubeinit_registry_pullsecret: '  { "auths": {} }'
 
-kubeinit_registry_required_packages_aux: "{% if ( kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk' ) %}
-                                            python3, python3-dns, jq, apache2-utils, skopeo
-                                          {% else %}
-                                            python3, python3-dns, jq, httpd-tools, skopeo
-                                          {% endif %}"
-kubeinit_registry_required_packages: "{{ kubeinit_registry_required_packages_aux.split(',') }}"
+kubeinit_registry_required_packages:
+  - python3
+  - python3-dns
+  - jq
+  - skopeo
 
 kubeinit_registry_directory: /var/kubeinit/local_registry
 kubeinit_registry_directory_auth: "{{ kubeinit_registry_directory }}/auth"

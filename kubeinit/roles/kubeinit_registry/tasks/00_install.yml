@@ -5,9 +5,6 @@
     set -o pipefail
     apt-get install software-properties-common -y
     . /etc/os-release
-    # TODO:FIXME:Uncomment when the podman container module is fixed
-    # echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-    # curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
     sudo apt-get update -qq
   args:
     executable: /bin/bash
@@ -15,15 +12,10 @@
   changed_when: "enable_repos.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
-- name: Enable CentOS 8 repositories
+- name: Enable CentOS repositories
   ansible.builtin.shell: |
     set -o pipefail
-    # TODO:FIXME:Remove the container tools and uncoment the other lines when the podman container module is fixed
     dnf install -y @container-tools
-    # dnf -y module disable container-tools
-    # dnf -y install 'dnf-command(copr)'
-    # dnf -y copr enable rhcontainerbot/container-selinux
-    # curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo
   args:
     executable: /bin/bash
   register: enable_repos
@@ -35,11 +27,17 @@
     state: present
     name: "{{ kubeinit_registry_required_packages | default([]) }}"
 
-- name: Install podman if required
+- name: Install passlib
+  ansible.builtin.shell: |
+    set -o pipefail
+    python3 -m pip install passlib
+  args:
+    executable: /bin/bash
+
+- name: Install podman
   ansible.builtin.package:
     state: present
     name: "podman"
-  when: kubeinit_registry_container_engine == 'podman'
 
 - name: Podman login to docker.io
   ansible.builtin.shell: |
@@ -51,101 +49,6 @@
   register: podman_login
   changed_when: "podman_login.rc == 0"
   when: |
-    kubeinit_registry_container_engine == 'podman' and
-    kubeinit_common_docker_username is defined and
-    kubeinit_common_docker_password is defined and
-    kubeinit_common_docker_username and
-    kubeinit_common_docker_password
-
-- name: Install docker if required and distro is CentOS and we need docker in the registry
-  ansible.builtin.shell: |
-    yum install -y yum-utils
-    # Make sure podman is out
-    yum remove -y buildah podman cockpit-podman toolbox
-    yum remove -y docker \
-                  docker-client \
-                  docker-client-latest \
-                  docker-common \
-                  docker-latest \
-                  docker-latest-logrotate \
-                  docker-logrotate \
-                  docker-engine
-    yum-config-manager \
-        --add-repo \
-        https://download.docker.com/linux/centos/docker-ce.repo
-    yum install -y docker-ce docker-ce-cli containerd.io
-    systemctl start docker
-    systemctl enable docker
-  args:
-    executable: /bin/bash
-  register: docker_reg_install
-  changed_when: "docker_reg_install.rc == 0"
-  when: (kubeinit_registry_container_engine == 'docker') and (kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks' or kubeinit_inventory_cluster_distro == 'okd')
-
-- name: Install docker if required and distro is Ubuntu and we need docker in the registry
-  ansible.builtin.shell: |
-    set -o pipefail
-    sudo apt-get remove docker docker-engine docker.io containerd runc
-    sudo apt-get update -y
-    sudo apt-get install -y \
-      apt-transport-https \
-      ca-certificates \
-      curl \
-      gnupg-agent \
-      software-properties-common
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-
-    #sudo add-apt-repository -y \
-    #   "deb [arch=arm64] https://download.docker.com/linux/ubuntu \
-    #   $(lsb_release -cs) \
-    #   stable"
-
-    # TODO:FIXME:Remove when the packages are available for groovy
-    sudo add-apt-repository -y \
-       "deb [arch=arm64] https://download.docker.com/linux/ubuntu \
-       bionic \
-       stable"
-
-    sudo apt-get update -y
-    sudo apt-get install docker-ce docker-ce-cli containerd.io -y
-
-    systemctl start docker
-    systemctl enable docker
-  args:
-    executable: /bin/bash
-  register: docker_reg_install
-  changed_when: "docker_reg_install.rc == 0"
-  when: (kubeinit_registry_container_engine == 'docker') and (kubeinit_inventory_cluster_distro == 'cdk' or kubeinit_inventory_cluster_distro == 'rke')
-
-- name: Enable insecure registry in Docker
-  ansible.builtin.shell: |
-    # This is mandatory so the cluster nodes can fetch the
-    # images from the local (insecure) registry
-    sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
-    systemctl daemon-reload
-    systemctl restart docker
-  args:
-    executable: /bin/bash
-  register: enable_docker_insec
-  changed_when: "enable_docker_insec.rc == 0"
-  when: kubeinit_registry_container_engine == 'docker'
-
-- name: Make sure the python bindings are installed
-  ansible.builtin.shell: |
-    set -o pipefail
-    pip3 install docker
-  args:
-    executable: /bin/bash
-  register: install_python_docker_bindings
-  changed_when: "install_python_docker_bindings.rc == 0"
-  when: kubeinit_registry_container_engine == 'docker'
-
-- name: Log into DockerHub
-  community.general.docker_login:
-    username: "{{ kubeinit_common_docker_username | default(omit) }}"
-    password: "{{ kubeinit_common_docker_password | default(omit) }}"
-  when: |
-    kubeinit_registry_container_engine == 'docker' and
     kubeinit_common_docker_username is defined and
     kubeinit_common_docker_password is defined and
     kubeinit_common_docker_username and

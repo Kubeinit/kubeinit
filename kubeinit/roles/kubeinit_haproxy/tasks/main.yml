@@ -32,18 +32,18 @@
   tags:
     - always
 
-
-- name: Create HAProxy folder
+- name: Create HAProxy folders
   ansible.builtin.file:
-    path: "{{ kubeinit_haproxy_directory }}"
+    path: "{{ item | safe | trim }}"
     state: directory
     recurse: yes
     mode: '0755'
+  with_items: "{{ kubeinit_haproxy_directories }}"
 
 - name: Create HAProxy config file
   ansible.builtin.template:
     src: "haproxy.cfg.j2"
-    dest: "{{ kubeinit_haproxy_directory }}/haproxy.cfg"
+    dest: "{{ kubeinit_haproxy_config_file }}"
     mode: '0644'
 
 - name: Install podman if required
@@ -73,7 +73,7 @@
     state: stopped
     network: host
     volumes:
-      - "{{ kubeinit_haproxy_directory }}/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg"
+      - "{{ kubeinit_haproxy_config_file }}:/usr/local/etc/haproxy/haproxy.cfg"
       - "/var/lib/haproxy:/var/lib/haproxy:Z"
   register: haproxy_podman_container_info
 
