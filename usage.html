@@ -277,10 +277,16 @@ from the project’s root folder:</p>
 <span class="go">- name: Clean</span>
 <span class="go">  hosts: hypervisor_nodes</span>
 <span class="go">  tasks:</span>
+<span class="go">    - name: add all nodes to the all_nodes group</span>
+<span class="go">      ansible.builtin.add_host:</span>
+<span class="go">        name: &quot;{{ item }}&quot;</span>
+<span class="go">        group: all_nodes</span>
+<span class="go">      with_items:</span>
+<span class="go">        - &quot;{{ groups[&#39;all&#39;] | map(&#39;regex_search&#39;,&#39;^((?!hypervisor).)*$&#39;) | select(&#39;string&#39;) | list }}&quot;</span>
 <span class="go">    - name: Clean the environment</span>
 <span class="go">      ansible.builtin.include_role:</span>
 <span class="go">        name: ../../roles/kubeinit_libvirt</span>
-<span class="go">        tasks_from: 00_cleanup</span>
+<span class="go">        tasks_from: 10_cleanup</span>
 <span class="go">EOF</span>
 <span class="gp"># </span>Run the cleanup playbook
 <span class="go">ansible-playbook \</span>
