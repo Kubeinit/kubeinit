@@ -137,7 +137,7 @@
       apiGroup: rbac.authorization.k8s.io
     EOF
     export KUBECONFIG=~/.kube/config
-    kubectl apply -f ~/nfs_rbac.yaml
+    kubectl apply -f ~/nfs_rbac.yaml --request-timeout=1800s
   register: add_provisioning_role
   changed_when: "add_provisioning_role.rc == 0"
   args:
@@ -183,7 +183,7 @@
                 path: /var/nfsshare
     EOF
     export KUBECONFIG=~/.kube/config
-    kubectl apply -f ~/nfs_client_prov_deployment.yaml
+    kubectl apply -f ~/nfs_client_prov_deployment.yaml --request-timeout=1800s
   register: add_provisioning_client
   changed_when: "add_provisioning_client.rc == 0"
   args:
@@ -203,7 +203,7 @@
       archiveOnDelete: "false"
     EOF
     export KUBECONFIG=~/.kube/config
-    kubectl apply -f ~/nfs_storage_class.yaml
+    kubectl apply -f ~/nfs_storage_class.yaml --request-timeout=1800s
   register: add_storage_class
   changed_when: "add_storage_class.rc == 0"
   args:
@@ -250,7 +250,7 @@
     - secret
     EOF
     export KUBECONFIG=~/.kube/config
-    kubectl apply -f ~/nfs_scc.yaml
+    kubectl apply -f ~/nfs_scc.yaml --request-timeout=1800s
   register: add_sec_context
   changed_when: "add_sec_context.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
