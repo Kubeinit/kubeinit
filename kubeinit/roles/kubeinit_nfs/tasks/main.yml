@@ -284,8 +284,17 @@
   ansible.builtin.shell: |
     # We patch the imageregistry operator to create a claim that managed-nfs-storage will satisfy
     export KUBECONFIG=~/.kube/config
-    oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"storage": {"pvc": {"claim": "" }}}}'
-    oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
+    oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"storage": {"pvc": {"claim": "" }}}}'
+  register: patch_imageregistry_operator
+  changed_when: "patch_imageregistry_operator.rc == 0"
+  when: kubeinit_inventory_cluster_distro == 'okd'
+  args:
+    executable: /bin/bash
+
+- name: patch imageregistry operator to move to Managed state
+  ansible.builtin.shell: |
+    export KUBECONFIG=~/.kube/config
+    oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
   register: patch_imageregistry_operator
   changed_when: "patch_imageregistry_operator.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd'
