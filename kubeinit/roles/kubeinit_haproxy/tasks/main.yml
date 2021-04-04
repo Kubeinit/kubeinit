@@ -63,8 +63,9 @@
     kubeinit_common_docker_password
 
 - name: Podman login to docker.io
-  ansible.builtin.command: >
-    podman login docker.io --username {{ kubeinit_common_docker_username }} --password-stdin < ~/docker_io_pass
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman login --username {{ kubeinit_common_docker_username }} --password-stdin < ~/docker_io_pass docker.io
   args:
     executable: /bin/bash
   register: podman_login
