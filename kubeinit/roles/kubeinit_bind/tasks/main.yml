@@ -86,6 +86,17 @@
     state: present
     name: "podman"
 
+- name: Create the docker.io password file
+  ansible.builtin.template:
+    src: "../../roles/kubeinit_libvirt/templates/docker_io_pass.j2"
+    dest: "~/docker_io_pass"
+    mode: "0755"
+  when: >
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password
+
 - name: Podman login to docker.io
   ansible.builtin.command: >
     podman login docker.io --username {{ kubeinit_common_docker_username }} --password-stdin < ~/docker_io_pass
