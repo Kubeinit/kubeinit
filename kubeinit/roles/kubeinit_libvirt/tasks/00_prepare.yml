@@ -53,18 +53,6 @@
         kubeinit_libvirt_external_service_interface_enabled and
         bridge_status.rc != 0
 
-    - name: Create the docker.io password file
-      ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/docker_io_pass.j2"
-        dest: "~/docker_io_pass"
-        mode: "0755"
-      when: >
-        (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
-        kubeinit_common_docker_username is defined and
-        kubeinit_common_docker_password is defined and
-        kubeinit_common_docker_username and
-        kubeinit_common_docker_password
-
     #
     # The next two tasks are dangerous so for now we leave them commented for now
     #
