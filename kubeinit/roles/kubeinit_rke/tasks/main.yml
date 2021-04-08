@@ -14,6 +14,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: run the prepare steps prior distro or provider
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    tasks_from: main.yml
+    public: yes
+  tags: provision_libvirt
+
 - name: run infra prepare steps
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
@@ -21,7 +28,7 @@
     public: yes
   # We prepare all the available hypervisors
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list }}"
+    - "{{ groups['all_hosts'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:

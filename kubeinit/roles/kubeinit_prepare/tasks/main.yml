@@ -1,0 +1,105 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+# "kubeinit_prepare" will search for and load any operating system variable file
+
+# found within the "vars/" path. If no OS files are found the task will skip.
+- name: Gather variables for each operating system
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - skip: true
+      files:
+        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
+        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
+        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
+        - "{{ ansible_distribution | lower }}.yml"
+        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_version.split('.')[0] }}.yml"
+        - "{{ ansible_os_family | lower }}.yml"
+  tags:
+    - always
+
+- name: add all nodes to the all_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_nodes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list | default([]) }}"
+
+- name: add all master nodes to the all_master_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_master_nodes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list | default([]) }}"
+
+- name: add all worker nodes to the all_worker_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_worker_nodes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | default([]) }}"
+
+- name: add all bootstrap nodes the all_bootstrap_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_bootstrap_nodes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list | default([]) }}"
+
+- name: add all service nodes to the all_service_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_service_nodes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | default([]) }}"
+
+- name: add all hosts to the all_hosts group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_hosts
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list | default([]) }}"
+
+- name: list all_hosts
+  ansible.builtin.debug:
+    msg: "Item {{ item }}"
+  with_items: "{{ groups['all_hosts'] }}"
+
+- name: list all_nodes
+  ansible.builtin.debug:
+    msg: "Item {{ item }}"
+  with_items: "{{ groups['all_nodes'] }}"
+
+- name: list all_master_nodes
+  ansible.builtin.debug:
+    msg: "Item {{ item }}"
+  with_items: "{{ groups['all_master_nodes'] }}"
+
+- name: list all_worker_nodes
+  ansible.builtin.debug:
+    msg: "Item {{ item }}"
+  with_items: "{{ groups['all_worker_nodes'] }}"
+
+- name: list all_service_nodes
+  ansible.builtin.debug:
+    msg: "Item {{ item }}"
+  with_items: "{{ groups['all_service_nodes'] }}"
+
+- name: list all_bootstrap_nodes
+  ansible.builtin.debug:
+    msg: "Item {{ item }}"
+  with_items: "{{ groups['all_bootstrap_nodes'] }}"
