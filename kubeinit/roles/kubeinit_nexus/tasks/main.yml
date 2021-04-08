@@ -31,3 +31,112 @@
         - "{{ ansible_os_family | lower }}.yml"
   tags:
     - always
+
+- name: Create Nexus folders
+  ansible.builtin.file:
+    path: "{{ item | safe | trim }}"
+    state: directory
+    recurse: yes
+    mode: '0755'
+  with_items: "{{ kubeinit_nexus_directories }}"
+
+- name: Install podman if required
+  ansible.builtin.package:
+    state: present
+    name: "podman"
+
+- name: Create the docker.io password file
+  ansible.builtin.template:
+    src: "../../roles/kubeinit_libvirt/templates/docker_io_pass.j2"
+    dest: "~/docker_io_pass"
+    mode: "0755"
+  when: >
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password
+
+- name: Podman login to docker.io
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman login --username {{ kubeinit_common_docker_username }} --password-stdin < ~/docker_io_pass docker.io
+  args:
+    executable: /bin/bash
+  register: podman_login
+  changed_when: "podman_login.rc == 0"
+  when: |
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password
+
+- name: Create a podman container to serve nexus
+  containers.podman.podman_container:
+    name: "{{ kubeinit_nexus_pod_name }}"
+    image: docker.io/sonatype/nexus3:3.30.0
+    state: stopped
+    network: host
+    volumes:
+      - "/var/kubeinit/nexus:/nexus-data:Z"
+  register: nexus_podman_container_info
+
+- name: Setting Podman facts about the container that will run nexus
+  ansible.builtin.set_fact:
+    container_nexus_name: "{{ nexus_podman_container_info.container.Name }}"
+    container_nexus_pidfile: "{{ nexus_podman_container_info.container.ConmonPidFile }}"
+
+- name: Ensure user specific systemd instance are persistent
+  ansible.builtin.command: |
+    /usr/bin/loginctl enable-linger {{ ansible_user }}
+  register: systemd_instance_persist
+  changed_when: "systemd_instance_persist.rc == 0"
+
+- name: Create systemd user directory
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0775'
+
+- name: Copy the podman systemd service file
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Podman container-nexus.service
+      [Service]
+      Restart=on-failure
+      ExecStart=/usr/bin/podman start {{ container_nexus_name }}
+      ExecStop=/usr/bin/podman stop -t 10 {{ container_nexus_name }}
+      KillMode=none
+      Type=forking
+      PIDFile={{ container_nexus_pidfile }}
+      [Install]
+      WantedBy=default.target
+    dest: "{{ ansible_user_dir }}/.config/systemd/user/container-nexus.service"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Reload systemd service
+  ansible.builtin.systemd:
+    daemon_reexec: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Enable container-nexus.service
+  ansible.builtin.systemd:
+    name: container-nexus
+    enabled: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Start container-nexus.service
+  ansible.builtin.systemd:
+    name: container-nexus
+    state: started
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
