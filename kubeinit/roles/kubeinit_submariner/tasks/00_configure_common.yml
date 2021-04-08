@@ -79,12 +79,27 @@
     set -e
 
     # Remove the previously created images
-    docker system prune -af;
+    podman system prune -af;
   args:
     executable: /bin/bash
   register: clean_all_local_images
   changed_when: "clean_all_local_images.rc == 0"
   when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool
+
+- name: "Tweak install"
+  ansible.builtin.shell: |
+    set -o pipefail
+    set -e
+
+    touch /etc/containers/nodocker
+    yum install podman-remote -y
+    systemctl enable --now podman.socket
+    docker network create kind
+  args:
+    executable: /bin/bash
+  register: tweak_docker
+  changed_when: "tweak_docker.rc == 0"
+  when: kubeinit_submariner_is_broker|bool or kubeinit_submariner_is_secondary|bool and kubeinit_inventory_cluster_distro == 'okd'
 
 - name: "Make clean"
   community.general.make:
@@ -119,9 +134,9 @@
     set -e
     LOCAL_REGISTRY=$(cat ~/registry-auths.json | jq .auths | jq -r 'keys[]')
     cp registry-auths.json ~/config.json
-    docker --config ~/ tag quay.io/submariner/submariner-operator:devel $LOCAL_REGISTRY/submariner/submariner-operator:devel;
+    podman --config ~/ tag quay.io/submariner/submariner-operator:devel $LOCAL_REGISTRY/submariner/submariner-operator:devel;
     # --config will search the config.json in ~/
-    docker --config ~/ push $LOCAL_REGISTRY/submariner/submariner-operator:devel;
+    podman --config ~/ push $LOCAL_REGISTRY/submariner/submariner-operator:devel;
   args:
     executable: /bin/bash
   register: push_submariner_to_local_registry
