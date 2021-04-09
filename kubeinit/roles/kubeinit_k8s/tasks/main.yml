@@ -14,6 +14,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: run the prepare steps prior distro or provider
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    tasks_from: main.yml
+    public: yes
+  tags: provision_libvirt
+
 - name: run infra prepare steps
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
@@ -21,7 +28,7 @@
     public: yes
   # We prepare all the available hypervisors
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list }}"
+    - "{{ groups['all_hosts'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -41,7 +48,7 @@
     tasks_from: main.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list }}"
+    - "{{ groups['all_hosts'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -54,7 +61,7 @@
     tasks_from: 50_ovn_post_setup.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list }}"
+    - "{{ groups['all_hosts'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   when: kubeinit_libvirt_ovn_enabled
@@ -68,7 +75,7 @@
     tasks_from: 60_k8s_deploy_nodes.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+    - "{{ groups['all_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -81,7 +88,7 @@
     tasks_from: 70_check_nodes_up.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+    - "{{ groups['all_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -94,7 +101,7 @@
     tasks_from: 00_bounce_packages.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+    - "{{ groups['all_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -108,7 +115,7 @@
     tasks_from: 70_check_nodes_up.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+    - "{{ groups['all_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -121,7 +128,7 @@
     tasks_from: 10_configure_service_nodes.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
+    - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -135,7 +142,7 @@
     tasks_from: 20_configure_common.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
+    - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -148,7 +155,7 @@
     tasks_from: 30_configure_master_nodes.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list }}"
+    - "{{ groups['all_master_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -162,7 +169,7 @@
     tasks_from: 40_configure_worker_nodes.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list }}"
+    - "{{ groups['all_worker_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -176,7 +183,7 @@
     tasks_from: 50_post_deployment_tasks.yml
     public: yes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list }}"
+    - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
