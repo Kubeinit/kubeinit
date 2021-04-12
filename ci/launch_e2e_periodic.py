@@ -37,9 +37,9 @@ def main(distros):
                    "rke-libvirt-1-master-1-worker-default",
                    "rke-libvirt-1-master-0-worker-default"]
 
-    k8s_configs = ["cdk-libvirt-3-master-1-worker-default",
-                   "cdk-libvirt-1-master-1-worker-default",
-                   "cdk-libvirt-1-master-0-worker-default"]
+    k8s_configs = ["k8s-libvirt-3-master-1-worker-default",
+                   "k8s-libvirt-1-master-1-worker-default",
+                   "ks8-libvirt-1-master-0-worker-default"]
 
     eks_configs = ["eks-libvirt-3-master-1-worker-default",
                    "eks-libvirt-1-master-1-worker-default",
