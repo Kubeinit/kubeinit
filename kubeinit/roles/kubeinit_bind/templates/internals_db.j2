@@ -5,7 +5,7 @@ $TTL    604800
 ; No not edit directly
 ; More information at: https://github.com/kubeinit/kubeinit
 
-{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+{% for host in groups['all_service_nodes'] | list %}
 @       IN      SOA     {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}. admin.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.(
 {% endfor %}
                   6     ; Serial
@@ -16,24 +16,24 @@ $TTL    604800
 )
 
 ; name servers - NS records
-{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+{% for host in groups['all_service_nodes'] | list %}
     IN      NS      {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
 {% endfor %}
 
 ; KubeInit cluster Cluster - PTR records
-{% for host in groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list %}
+{% for host in groups['all_master_nodes'] | list %}
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR master{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
 {% endfor %}
 
-{% for host in groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list %}
+{% for host in groups['all_worker_nodes'] | list %}
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR worker{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
 {% endfor %}
 
-{% for host in groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list %}
+{% for host in groups['all_bootstrap_nodes'] | list %}
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR bootstrap.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
 {% endfor %}
 
-{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+{% for host in groups['all_service_nodes'] | list %}
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR api.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR api-int.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.

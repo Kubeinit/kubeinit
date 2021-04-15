@@ -54,7 +54,7 @@
       register: add_cdk_machines
       changed_when: "add_cdk_machines.rc == 0"
       with_items:
-        - "{{ groups['all'] | map('regex_search','^(?!hypervisor)(?!.*service).*$') | select('string') | list }}"
+        - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] | list }}"
 
     - name: "verify that all cluster nodes are started"
       ansible.builtin.shell: |

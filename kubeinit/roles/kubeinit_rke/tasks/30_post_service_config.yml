@@ -30,7 +30,7 @@
     - name: Add the local DNS server as a local resolver
       ansible.builtin.lineinfile:
         path: /etc/resolv.conf
-        line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
+        line: "nameserver {{ hostvars[groups['all_service_nodes'] | list | first].ansible_host }}"
         insertbefore: nameserver.*
 
     - name: Restart the resolvconf service

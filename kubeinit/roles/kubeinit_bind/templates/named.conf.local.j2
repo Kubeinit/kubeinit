@@ -24,9 +24,9 @@ view "internal" {
         file "/etc/bind/kubeinit/zones/internals/db.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}"; # zone file path
     };
 
-    zone "{{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipaddr('revdns') | regex_replace('^[0-9]+\\.', '') }}" {
+    zone "{{ hostvars[groups['all_service_nodes'] | list | first].ansible_host | ipaddr('revdns') | regex_replace('^[0-9]+\\.', '') }}" {
         type master;
-        file "/etc/bind/kubeinit/zones/internals/db.{{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
+        file "/etc/bind/kubeinit/zones/internals/db.{{ hostvars[groups['all_service_nodes'] | list | first].ansible_host | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
     };
 
 {% if kubeinit_libvirt_multicluster_dns_forward_enabled and kubeinit_inventory_cluster_distro == "okd" %}

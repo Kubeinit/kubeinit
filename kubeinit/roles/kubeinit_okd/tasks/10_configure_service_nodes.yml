@@ -66,7 +66,7 @@
     - name: Add the local DNS server as a local resolver
       ansible.builtin.lineinfile:
         path: /etc/resolv.conf
-        line: "nameserver {{ hostvars[groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first].ansible_host }}"
+        line: "nameserver {{ hostvars[groups['all_service_nodes'] | list | first].ansible_host }}"
         insertbefore: nameserver.*
 
     - name: install services requirements
@@ -253,7 +253,7 @@
         sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
       register: enable_masters_sched
       changed_when: "enable_masters_sched.rc == 0"
-      when: groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length == 0
+      when: groups['all_worker_nodes'] | list | length == 0
 
     - name: "Disable master schedulable if there is at least one worker node"
       ansible.builtin.shell: |
@@ -265,7 +265,7 @@
         sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
       register: disable_masters_sched
       changed_when: "disable_masters_sched.rc == 0"
-      when: groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length > 0
+      when: groups['all_worker_nodes'] | list | length > 0
 
     - name: "Render ignition files"
       ansible.builtin.shell: |
