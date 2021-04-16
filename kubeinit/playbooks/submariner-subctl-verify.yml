@@ -28,14 +28,17 @@
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
 
   tasks:
-    - name: Run the prepare tasks
-      ansible.builtin.import_role:
-        name: "../../roles/kubeinit_prepare"
-        tasks_from: main.yml
-
     - name: Deploy submariner
-      delegate_to: "{{ hostvars[groups['all_service_nodes'] | list | first].ansible_host }}"
-      # delegate_facts: true
-      ansible.builtin.import_role:
-        name: "../../roles/kubeinit_submariner"
-        tasks_from: 30_subctl_verify
+      block:
+        - name: Run the prepare tasks
+          ansible.builtin.import_role:
+            name: "../../roles/kubeinit_prepare"
+            tasks_from: main.yml
+
+        - name: Deploy submariner
+          ansible.builtin.import_role:
+            name: "../../roles/kubeinit_submariner"
+            tasks_from: 30_subctl_verify
+      delegate_to: "{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}"
+      tags:
+        - provision_libvirt

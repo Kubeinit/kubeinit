@@ -14,20 +14,22 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Execute subctl verify
-  ansible.builtin.shell: |
-    set -o pipefail
-    set -e
-    export PATH=$PATH:~/.local/bin
-    subctl verify ~/kubeconfig_okd ~/kubeconfig_rke \
-        --verbose \
-        --enable-disruptive \
-        --operation-timeout {{ kubeinit_submariner_subctl_verify_operation_timeout }} \
-        --connection-attempts {{ kubeinit_submariner_subctl_verify_connection_attempts }} \
-        --connection-timeout {{ kubeinit_submariner_subctl_verify_connection_timeout }} \
-        --only {{ kubeinit_submariner_subctl_verify_only }}
-  args:
-    executable: /bin/bash
-  register: subma_subctl_verify
-  changed_when: "subma_subctl_verify.rc == 0"
-  when: kubeinit_submariner_is_secondary|bool
+- name: Run the subctl verify tasks
+  block:
+    - name: Execute subctl verify
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -e
+        export PATH=$PATH:~/.local/bin
+        subctl verify ~/kubeconfig_okd ~/kubeconfig_rke \
+            --verbose \
+            --enable-disruptive \
+            --operation-timeout {{ kubeinit_submariner_subctl_verify_operation_timeout }} \
+            --connection-attempts {{ kubeinit_submariner_subctl_verify_connection_attempts }} \
+            --connection-timeout {{ kubeinit_submariner_subctl_verify_connection_timeout }} \
+            --only {{ kubeinit_submariner_subctl_verify_only }}
+      args:
+        executable: /bin/bash
+      register: subma_subctl_verify
+      changed_when: "subma_subctl_verify.rc == 0"
+      when: kubeinit_submariner_is_secondary|bool
