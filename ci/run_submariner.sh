@@ -187,10 +187,10 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         -e @scenario_variables.yml \
         ./playbooks/submariner.yml
 
-    # Run subctl verify to check cluster status in the sec cluster (rke)
+    # Run subctl verify to check cluster status in the sec cluster (okd)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/rke/inventory \
+        -v -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_secondary=True \

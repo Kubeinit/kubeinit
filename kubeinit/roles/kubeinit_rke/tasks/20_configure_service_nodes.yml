@@ -61,6 +61,16 @@
       changed_when: "policy_routing.rc == 0"
       when: kubeinit_libvirt_external_service_interface_enabled
 
+    - name: "Render net info"
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "{{ kubeinit_rke_pod_cidr }}" > ~/pod_cidr
+        echo "{{ kubeinit_rke_service_cidr }}" > ~/service_cidr
+      args:
+        executable: /bin/bash
+      register: render_net_info
+      changed_when: "render_net_info.rc == 0"
+
     - name: Render the cluster template
       ansible.builtin.template:
         src: "cluster.yml.j2"

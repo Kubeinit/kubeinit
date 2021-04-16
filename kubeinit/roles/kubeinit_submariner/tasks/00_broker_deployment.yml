@@ -14,6 +14,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+################################################################
+#                                                              #
+# Submariner requires Docker for building the container images #
+# Do not change docker by podman anywhere in this file         #
+#                                                              #
+################################################################
+
 - name: Deploy broker/main cluster
   block:
     - name: "Remove repo file"
@@ -49,6 +56,7 @@
     - name: configure a variable with the PR ID
       ansible.builtin.set_fact:
         kubeinit_submariner_test_pr_id: '{{ get_repo_pr_id.stdout }}'
+      when: kubeinit_submariner_is_broker|bool
 
     - name: "Get submariner code based on a PR or from master"
       ansible.builtin.shell: |
@@ -80,12 +88,25 @@
         set -o pipefail
         set -e
 
+        # We use docker in the RKE cluster
+        # Do not change this by podman
         # Remove the previously created images
-        podman system prune -af;
+        docker system prune -af;
       args:
         executable: /bin/bash
       register: clean_all_local_images
       changed_when: "clean_all_local_images.rc == 0"
+      when: kubeinit_submariner_is_broker|bool
+
+    - name: "Create the kind network"
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -e
+        docker network create kind
+      args:
+        executable: /bin/bash
+      register: create_kind_net
+      changed_when: "create_kind_net.rc == 0"
       when: kubeinit_submariner_is_broker|bool
 
     - name: "Make clean"
@@ -110,6 +131,7 @@
       community.general.make:
         chdir: ~/submariner-operator
         target: images
+      ignore_errors: True
       when: kubeinit_submariner_is_broker|bool
 
     - name: "Push the images to the local registry"
@@ -119,9 +141,9 @@
         LOCAL_REGISTRY=$(cat ~/registry-auths.json | jq .auths | jq -r 'keys[]')
         cp registry-auths.json ~/config.json
         cat ~/config.json
-        podman --config ~/ tag quay.io/submariner/submariner-operator:devel $LOCAL_REGISTRY/submariner/submariner-operator:devel;
+        docker --config ~/ tag quay.io/submariner/submariner-operator:devel $LOCAL_REGISTRY/submariner/submariner-operator:devel;
         # --config will search the config.json in ~/
-        podman --config ~/ push $LOCAL_REGISTRY/submariner/submariner-operator:devel;
+        docker --config ~/ push $LOCAL_REGISTRY/submariner/submariner-operator:devel;
       args:
         executable: /bin/bash
       register: push_submariner_to_local_registry
@@ -142,41 +164,39 @@
       changed_when: "install_subctl.rc == 0"
       when: kubeinit_submariner_is_broker|bool
 
-    - name: Check if ~/.profile exists
-      ansible.builtin.stat:
-        path: ~/.profile
-      register: profile_exists
-      when: kubeinit_submariner_is_broker|bool
-
     - name: Append subctl path to profile
       ansible.builtin.lineinfile:
         line: export PATH=$PATH:~/.local/bin
         dest: ~/.profile
-      when: profile_exists.stat.exists and kubeinit_submariner_is_broker|bool
-
-    - name: Check if ~/.bash_profile exists
-      ansible.builtin.stat:
-        path: ~/.bash_profile
-      register: bash_profile_exists
+      ignore_errors: True
       when: kubeinit_submariner_is_broker|bool
 
     - name: Append subctl path to bash_profile
       ansible.builtin.lineinfile:
         line: export PATH=$PATH:~/.local/bin
         dest: ~/.bash_profile
-      when: bash_profile_exists.stat.exists and kubeinit_submariner_is_broker|bool
-
-    - name: Check if ~/.bashrc exists
-      ansible.builtin.stat:
-        path: ~/.bashrc
-      register: bashrc_exists
+      ignore_errors: True
       when: kubeinit_submariner_is_broker|bool
 
     - name: Append subctl path to bashrc
       ansible.builtin.lineinfile:
         line: export PATH=$PATH:~/.local/bin
         dest: ~/.bashrc
-      when: bashrc_exists.stat.exists and kubeinit_submariner_is_broker|bool
+      ignore_errors: True
+      when: kubeinit_submariner_is_broker|bool
+
+    - name: "Make sure ~/.kube/config exists"
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -e
+
+        mkdir -p ~/.kube/
+        cp ~/kube_config_cluster.yml ~/.kube/config
+      args:
+        executable: /bin/bash
+      register: install_subctl
+      changed_when: "install_subctl.rc == 0"
+      when: kubeinit_submariner_is_broker|bool
 
     - name: "Configure broker cluster"
       ansible.builtin.shell: |
@@ -184,11 +204,26 @@
         export PATH=$PATH:~/.local/bin
 
         touch ~/broker-info.subm;
-        subctl deploy-broker --kubeconfig ~/install_dir/auth/kubeconfig --service-discovery {% if kubeinit_submariner_globalnet_enabled %} --globalnet --globalnet-cidr-range {{ kubeinit_submariner_globalnet_cidr_range }} {% endif %}
+        subctl deploy-broker --kubeconfig ~/.kube/config --service-discovery {% if kubeinit_submariner_globalnet_enabled %} --globalnet --globalnet-cidr-range {{ kubeinit_submariner_globalnet_cidr_range }} {% endif %}
       args:
         executable: /bin/bash
       register: install_subctl
       changed_when: "install_subctl.rc == 0"
+      when: kubeinit_submariner_is_broker|bool
+
+    - name: "Get the service cidr"
+      ansible.builtin.shell: |
+        set -e
+        cat ~/service_cidr
+      args:
+        executable: /bin/bash
+      register: submariner_service_cidr
+      changed_when: "submariner_service_cidr.rc == 0"
+      when: kubeinit_submariner_is_broker|bool
+
+    - name: Set the cidr variable
+      ansible.builtin.set_fact:
+        kubeinit_submariner_service_cidr: "{{ submariner_service_cidr.stdout }}"
       when: kubeinit_submariner_is_broker|bool
 
     - name: "Join the main cluster to the broker"
@@ -198,7 +233,7 @@
 
         export PATH=$PATH:~/.local/bin
         LOCAL_REGISTRY=$(cat ~/registry-auths.json | jq .auths | jq -r 'keys[]')
-        subctl join --kubeconfig ~/.kube/config ./broker-info.subm --no-label --disable-nat --enable-pod-debugging --cable-driver libreswan --clusterid {{ kubeinit_inventory_cluster_name }} --image-override="submariner-operator=$LOCAL_REGISTRY/submariner/submariner-operator:devel"
+        subctl join --kubeconfig ~/.kube/config ./broker-info.subm --servicecidr {{ kubeinit_submariner_service_cidr }} --label-gateway=false --natt=false --pod-debug --cable-driver libreswan --clusterid {{ kubeinit_inventory_cluster_name }} --image-override="submariner-operator=$LOCAL_REGISTRY/submariner/submariner-operator:devel"
       args:
         executable: /bin/bash
       register: join_cluster
@@ -210,11 +245,12 @@
         set -o pipefail
         set -e
         # Backup the images
-        IDS=$(docker images | awk '{if ($1 ~ /^(submariner|quay)/) print $3}')
+        IDS=$(docker images | awk '{if ($1 ~ /^(submariner|quay)/) print $1}')
         docker save $IDS -o /tmp/submariner_images.tar
 
         # Backup the binary files
-        tar -cvf /tmp/submariner_binaries.tar ~/submariner-operator/bin/subctl
+        cp ~/submariner-operator/bin/subctl--linux-amd64 ~/subctl
+        tar -cvf /tmp/submariner_binaries.tar ~/subctl
       args:
         executable: /bin/bash
       register: backup_subm_images_binaries
