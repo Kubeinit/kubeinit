@@ -116,12 +116,10 @@ from the project's root folder:
     - name: Clean
       hosts: hypervisor_nodes
       tasks:
-        - name: add all nodes to the all_nodes group
-          ansible.builtin.add_host:
-            name: "{{ item }}"
-            group: all_nodes
-          with_items:
-            - "{{ groups['all'] | map('regex_search','^((?!hypervisor).)*$') | select('string') | list }}"
+        - name: Run the prepare tasks
+          ansible.builtin.include_role:
+            name: "../../roles/kubeinit_prepare"
+            tasks_from: main.yml
         - name: Clean the environment
           ansible.builtin.include_role:
             name: ../../roles/kubeinit_libvirt
