@@ -131,7 +131,6 @@ for i in $(virsh -q net-list | awk '{ print $1 }'); do
     virsh net-undefine $i;
 done;
 
-
 #
 # We need to receive here some parameters, the source and destination
 # tenants should be defined depending on where we will need to run the job
@@ -168,20 +167,20 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         -e @scenario_variables.yml \
         ./playbooks/rke.yml
 
-    # Deploy submariner as broker (okd)
+    # Deploy submariner as broker (rke)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/okd/inventory \
+        -v -i ./hosts/rke/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_broker=True \
         -e @scenario_variables.yml \
         ./playbooks/submariner.yml
 
-    # Deploy submariner as secondary (rke)
+    # Deploy submariner as secondary (okd)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/rke/inventory \
+        -v -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_secondary=True \

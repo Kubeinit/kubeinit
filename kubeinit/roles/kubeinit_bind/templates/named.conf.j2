@@ -4,11 +4,11 @@
 /* More information at: https://github.com/kubeinit/kubeinit */
 
 options {
-    listen-on port 53 { 127.0.0.1; {{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host }}; {% if kubeinit_libvirt_external_service_interface_enabled | default(false) %}{{ kubeinit_libvirt_external_service_interface.ip }}; {% endif %}};
+    listen-on port 53 { 127.0.0.1; {{ hostvars[groups['all_service_nodes'] | list | first].ansible_host }}; {% if kubeinit_libvirt_external_service_interface_enabled | default(false) %}{{ kubeinit_libvirt_external_service_interface.ip }}; {% endif %}};
 
     directory "/var/cache/bind";
 
-    allow-query        { localhost; {{ hostvars[groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | first].ansible_host | ipsubnet(24) }}; };
+    allow-query        { localhost; {{ hostvars[groups['all_service_nodes'] | list | first].ansible_host | ipsubnet(24) }}; };
 
     recursion yes;
     allow-recursion { any; };

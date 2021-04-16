@@ -56,10 +56,10 @@ frontend okd4_k8s_api_fe
 backend okd4_k8s_api_be
     balance source
     mode tcp
-{% for host in groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list %}
+{% for host in groups['all_bootstrap_nodes'] | list %}
     server      {{ host }} {{ hostvars[host].ansible_host }}:6443 check
 {% endfor %}
-{% for host in groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list %}
+{% for host in groups['all_master_nodes'] | list %}
     server      {{ host }} {{ hostvars[host].ansible_host }}:6443 check
 {% endfor %}
 
@@ -72,10 +72,10 @@ frontend okd4_machine_config_server_fe
 backend okd4_machine_config_server_be
     balance source
     mode tcp
-{% for host in groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list %}
+{% for host in groups['all_bootstrap_nodes'] | list %}
     server      {{ host }} {{ hostvars[host].ansible_host }}:22623 check
 {% endfor %}
-{% for host in groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list %}
+{% for host in groups['all_master_nodes'] | list %}
     server      {{ host }} {{ hostvars[host].ansible_host }}:22623 check
 {% endfor %}
 
@@ -88,11 +88,11 @@ frontend okd4_http_ingress_traffic_fe
 backend okd4_http_ingress_traffic_be
     balance source
     mode tcp
-{% for host in groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list %}
+{% for host in groups['all_worker_nodes'] | list %}
     server      {{ host }} {{ hostvars[host].ansible_host }}:80 check
 {% endfor %}
-{% for host in groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list %}
-{% if not groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length > 0 %}
+{% for host in groups['all_master_nodes'] | list %}
+{% if not groups['all_worker_nodes'] | list | length > 0 %}
     server      {{ host }} {{ hostvars[host].ansible_host }}:80 check
 {% endif %}
 {% endfor %}
@@ -106,11 +106,11 @@ frontend okd4_https_ingress_traffic_fe
 backend okd4_https_ingress_traffic_be
     balance source
     mode tcp
-{% for host in groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list %}
+{% for host in groups['all_worker_nodes'] | list %}
     server      {{ host }} {{ hostvars[host].ansible_host }}:443 check
 {% endfor %}
-{% for host in groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list %}
-{% if not groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | length > 0 %}
+{% for host in groups['all_master_nodes'] | list %}
+{% if not groups['all_worker_nodes'] | list | length > 0 %}
     server      {{ host }} {{ hostvars[host].ansible_host }}:443 check
 {% endif %}
 {% endfor %}

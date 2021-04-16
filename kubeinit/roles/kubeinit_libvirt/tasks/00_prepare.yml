@@ -40,7 +40,7 @@
       register: bridge_status
       ignore_errors: yes
       when: |
-        (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
+        (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
         kubeinit_libvirt_external_service_interface_enabled
 
     - name: Create the detach interface script
@@ -49,7 +49,7 @@
         dest: "~/detach.sh"
         mode: "0755"
       when: >
-        (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
+        (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
         kubeinit_libvirt_external_service_interface_enabled and
         bridge_status.rc != 0
 
@@ -62,7 +62,7 @@
     #   async: 45
     #   poll: 0
     #   when: >
-    #     (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
+    #     (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
     #     kubeinit_libvirt_external_service_interface_enabled and
     #     kubeinit_libvirt_ovn_enabled and
     #     bridge_status.rc != 0
@@ -72,7 +72,7 @@
     #   async: 45
     #   poll: 0
     #   when: >
-    #     (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
+    #     (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
     #     kubeinit_libvirt_external_service_interface_enabled and
     #     not kubeinit_libvirt_ovn_enabled and
     #     bridge_status.rc != 0
@@ -82,7 +82,7 @@
         msg:
           - "The bridge {{ kubeinit_libvirt_external_service_interface.attached }} to provide external connectivity is not created."
           - "This is a requirement that needs to be addressed before running the playbook."
-          - "You must create {{ kubeinit_libvirt_external_service_interface.attached }} in {{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target }} before continue."
+          - "You must create {{ kubeinit_libvirt_external_service_interface.attached }} in {{ hostvars[ groups['all_service_nodes'] | list | first ].target }} before continue."
           - "It is created a script called ~/detach.sh in the hypervisor where the"
           - "service node will be deployed. This script will help to detach the physical"
           - "interface without breaking the network connectivity of the host."
@@ -95,15 +95,15 @@
           - "* for further details.                                               *"
           - "**********************************************************************"
       when: |
-        (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
+        (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
         kubeinit_libvirt_external_service_interface_enabled and
         bridge_status.rc != 0
 
     - name: Fail if the external bridge is not created when using the external interface
       ansible.builtin.fail:
-        msg: "Bridge {{ kubeinit_libvirt_external_service_interface.attached }} required in {{ hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target }} but not found"
+        msg: "Bridge {{ kubeinit_libvirt_external_service_interface.attached }} required in {{ hostvars[ groups['all_service_nodes'] | list | first ].target }} but not found"
       when: |
-        (hostvars[ groups['all'] | map('regex_search','^.*service.*$') | select('string') | list | first ].target in kubeinit_deployment_node_name) and
+        (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
         kubeinit_libvirt_external_service_interface_enabled and
         bridge_status.rc != 0
 

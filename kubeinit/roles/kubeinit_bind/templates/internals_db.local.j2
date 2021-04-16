@@ -5,7 +5,7 @@ $TTL    604800
 ; No not edit directly
 ; More information at: https://github.com/kubeinit/kubeinit
 
-{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+{% for host in groups['all_service_nodes'] | list %}
 @       IN      SOA     {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}. admin.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.(
 {% endfor %}
                   1     ; Serial
@@ -16,34 +16,34 @@ $TTL    604800
 )
 
 ; name servers - NS records
-{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+{% for host in groups['all_service_nodes'] | list %}
     IN      NS      {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
 {% endfor %}
 
 ; name servers - A records
-{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+{% for host in groups['all_service_nodes'] | list %}
 {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 ; KubeInit cluster Cluster - A records
-{% for host in groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list %}
+{% for host in groups['all_master_nodes'] | list %}
 {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
 master{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.       IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
-{% for host in groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list %}
+{% for host in groups['all_worker_nodes'] | list %}
 {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
 worker{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.       IN      A       {{ hostvars[host].ansible_host }}
 
 {% endfor %}
 
-{% for host in groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list %}
+{% for host in groups['all_bootstrap_nodes'] | list %}
 {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
 bootstrap.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                        IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - A records
-{% for host in groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list %}
+{% for host in groups['all_service_nodes'] | list %}
 registry.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                         IN      A       {{ hostvars[host].ansible_host }}
 api.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                              IN      A       {{ hostvars[host].ansible_host }}
 api-int.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                          IN      A       {{ hostvars[host].ansible_host }}
@@ -52,11 +52,11 @@ console-openshift-console.apps.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_i
 oauth-openshift.apps.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.             IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
-{% for host in groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list %}
+{% for host in groups['all_master_nodes'] | list %}
 etcd-{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.        IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - SRV records
-{% for host in groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list %}
+{% for host in groups['all_master_nodes'] | list %}
 _etcd-server-ssl._tcp.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.    86400   IN    SRV     0    10    2380    etcd-{{ loop.index - 1 }}
 {% endfor %}
