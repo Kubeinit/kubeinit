@@ -98,40 +98,73 @@
       changed_when: "clean_all_local_images.rc == 0"
       when: kubeinit_submariner_is_broker|bool
 
-    - name: "Create the kind network"
-      ansible.builtin.shell: |
-        set -o pipefail
-        set -e
-        docker network create kind
-      args:
-        executable: /bin/bash
-      register: create_kind_net
-      changed_when: "create_kind_net.rc == 0"
-      when: kubeinit_submariner_is_broker|bool
+    # TODO:FIXME:This should work with the make module
+    # - name: "Make clean"
+    #   community.general.make:
+    #     chdir: ~/submariner-operator
+    #     target: clean
+    #   when: kubeinit_submariner_is_broker|bool
 
     - name: "Make clean"
-      community.general.make:
-        chdir: ~/submariner-operator
-        target: clean
+      ansible.builtin.shell: |
+        cd ~/submariner-operator
+        docker network create kind
+        make clean
+      args:
+        executable: /bin/bash
+      register: make_clean
+      changed_when: "make_clean.rc == 0"
       when: kubeinit_submariner_is_broker|bool
 
-    - name: "Make the subctl binary"
-      community.general.make:
-        chdir: ~/submariner-operator
-        target: bin/subctl
+    # TODO:FIXME:This should work with the make module
+    # - name: "Make the subctl binary"
+    #   community.general.make:
+    #     chdir: ~/submariner-operator
+    #     target: bin/subctl
+    #   when: kubeinit_submariner_is_broker|bool
+
+    - name: "Make binsubctl"
+      ansible.builtin.shell: |
+        cd ~/submariner-operator
+        make bin/subctl
+      args:
+        executable: /bin/bash
+      register: make_binsubctl
+      changed_when: "make_binsubctl.rc == 0"
       when: kubeinit_submariner_is_broker|bool
+
+    # TODO:FIXME:This should work with the make module
+    # - name: "Make build"
+    #   community.general.make:
+    #     chdir: ~/submariner-operator
+    #     target: build
+    #   when: kubeinit_submariner_is_broker|bool
 
     - name: "Make build"
-      community.general.make:
-        chdir: ~/submariner-operator
-        target: build
+      ansible.builtin.shell: |
+        cd ~/submariner-operator
+        make build
+      args:
+        executable: /bin/bash
+      register: make_build
+      changed_when: "make_build.rc == 0"
       when: kubeinit_submariner_is_broker|bool
 
+    # TODO:FIXME:This should work with the make module
+    # - name: "Make images"
+    #   community.general.make:
+    #     chdir: ~/submariner-operator
+    #     target: images
+    #   when: kubeinit_submariner_is_broker|bool
+
     - name: "Make images"
-      community.general.make:
-        chdir: ~/submariner-operator
-        target: images
-      ignore_errors: True
+      ansible.builtin.shell: |
+        cd ~/submariner-operator
+        make images || true
+      args:
+        executable: /bin/bash
+      register: make_images
+      changed_when: "make_images.rc == 0"
       when: kubeinit_submariner_is_broker|bool
 
     - name: "Push the images to the local registry"
