@@ -45,6 +45,9 @@ def main(distros):
                    "eks-libvirt-1-master-1-worker-default",
                    "eks-libvirt-1-master-0-worker-default"]
 
+    okd_rke_configs = ["okd.rke-libvirt-1-master-2-worker-submariner",
+                       "okd.rke-libvirt-3-master-1-worker-submariner"]
+
     list_of_distros = distros.split(',')
 
     configs = []
@@ -60,6 +63,8 @@ def main(distros):
             configs = configs + cdk_configs
         if dist == 'k8s':
             configs = configs + k8s_configs
+        if dist == 'okd.rke':
+            configs = configs + okd_rke_configs
 
     for config in configs:
         print("-*-*-*-*-")
@@ -226,6 +231,24 @@ def main(distros):
             driver = "libvirt"
             master = "1"
             worker = "0"
+            execute = True
+            scenario = "periodic"
+
+        #
+        # Submariner
+        #
+        elif ("okd.rke-libvirt-1-master-2-worker-submariner" == config):
+            distro = "okd.rke"
+            driver = "libvirt"
+            master = "1"
+            worker = "2"
+            execute = True
+            scenario = "periodic"
+        elif ("okd.rke-libvirt-3-master-1-worker-submariner" == config):
+            distro = "okd.rke"
+            driver = "libvirt"
+            master = "3"
+            worker = "1"
             execute = True
             scenario = "periodic"
 

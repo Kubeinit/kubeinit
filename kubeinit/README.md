@@ -38,6 +38,7 @@
     <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-rke-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-rke-libvirt-3-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
     <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-rke-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-rke-libvirt-1-1-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
     <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-rke-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-rke-libvirt-1-0-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
+    <a href="https://kubeinit-bot.github.io/kubeinit-ci-results/periodic-okd.rke-libvirt-1-2-periodic-weekly-go/index.html"><img height="20px" src="https://raw.githubusercontent.com/kubeinit-bot/kubeinit-ci-results/master/periodic-okd.rke-libvirt-1-2-periodic-weekly-go/badge_status.svg?sanitize=true"/></a>
 </p>
 
 # What is KubeInit?
