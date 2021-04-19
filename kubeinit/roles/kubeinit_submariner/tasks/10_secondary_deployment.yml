@@ -76,6 +76,9 @@
         set -o pipefail
         set -e
         LOCAL_REGISTRY=$(cat ~/registry-auths.json | jq .auths | jq -r 'keys[]')
+        mkdir -p .docker
+        cp ~/registry-auths.json ~/config.json
+        cp ~/config.json .docker/
         podman login --authfile ~/registry-auths.json $LOCAL_REGISTRY
         podman tag quay.io/submariner/submariner-operator:devel $LOCAL_REGISTRY/submariner/submariner-operator:devel;
         podman push $LOCAL_REGISTRY/submariner/submariner-operator:devel;
