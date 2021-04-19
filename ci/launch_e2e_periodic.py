@@ -39,7 +39,7 @@ def main(distros):
 
     k8s_configs = ["k8s-libvirt-3-master-1-worker-default",
                    "k8s-libvirt-1-master-1-worker-default",
-                   "ks8-libvirt-1-master-0-worker-default"]
+                   "k8s-libvirt-1-master-0-worker-default"]
 
     eks_configs = ["eks-libvirt-3-master-1-worker-default",
                    "eks-libvirt-1-master-1-worker-default",
