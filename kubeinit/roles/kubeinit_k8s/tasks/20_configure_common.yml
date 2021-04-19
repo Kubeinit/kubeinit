@@ -80,18 +80,19 @@
         path: /etc/yum.repos.d/crio.repo
         block: |
           [devel_kubic_libcontainers_stable]
-          name=Stable Releases of Upstream github.com/containers packages (CentOS_8)
+          name=Stable Releases of Upstream github.com/containers packages ({{ kubeinit_k8s_os }})
           type=rpm-md
-          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/
+          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ kubeinit_k8s_os }}/
           gpgcheck=1
-          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/repodata/repomd.xml.key
+          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ kubeinit_k8s_os }}/repodata/repomd.xml.key
           enabled=1
-          [devel_kubic_libcontainers_stable_cri-o_1.18]
-          name=Last release available in 1.18 branch (CentOS_8)
+
+          [devel_kubic_libcontainers_stable_cri-o_{{ kubeinit_k8s_version }}]
+          name=Last release available in {{ kubeinit_k8s_version }} branch ({{ kubeinit_k8s_os }})
           type=rpm-md
-          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.18/CentOS_8/
+          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ kubeinit_k8s_version }}/{{ kubeinit_k8s_os }}/
           gpgcheck=1
-          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.18/CentOS_8/repodata/repomd.xml.key
+          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ kubeinit_k8s_version }}/{{ kubeinit_k8s_os }}/repodata/repomd.xml.key
           enabled=1
 
     #
@@ -121,6 +122,7 @@
          repo_gpgcheck=1
          gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
                 https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+         # exclude=kubelet kubeadm kubectl
 
     #
     # cri-o config
@@ -150,8 +152,12 @@
       ansible.builtin.command: sysctl -p/etc/sysctl.d/99-kubernetes-cri.conf
       changed_when: false
 
-    - name: Update cri-o config systemd to cgroupfs
+    - name: Update cri-o config group_manager to cgroupfs
       ansible.builtin.command: sed -i 's#group_manager = "systemd"#group_manager = "cgroupfs"#g' /etc/crio/crio.conf
+      changed_when: false
+
+    - name: Update cri-o config conmon_cgroup to pod
+      ansible.builtin.command: sed -i 's#conmon_cgroup = "system.slice"#conmon_cgroup = "pod"#g' /etc/crio/crio.conf
       changed_when: false
 
     - name: Update cri-o config overlay to overlay2
@@ -249,9 +255,9 @@
           - yum-utils
           - device-mapper-persistent-data
           - lvm2
-          - kubelet
-          - kubeadm
-          - kubectl
+          - kubelet-{{ kubeinit_k8s_version }}.*
+          - kubeadm-{{ kubeinit_k8s_version }}.*
+          - kubectl-{{ kubeinit_k8s_version }}.*
         state: present
 
     - name: enable kubelet
