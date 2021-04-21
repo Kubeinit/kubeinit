@@ -35,7 +35,7 @@
       delegate_to: "hypervisor-01"
       when: kubeinit_submariner_is_secondary|bool
 
-    - name: Copying the broker-info.subm, kubeconfig, images, and binaries to the secondary cluster
+    - name: Copying the broker-info.subm, kubeconfig to the secondary cluster
       ansible.builtin.shell: |
         set -e
 
@@ -44,6 +44,16 @@
 
         # Kubeconfig
         scp -oStrictHostKeyChecking=no /root/kubeconfig_* root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:/root/
+      args:
+        executable: /bin/bash
+      register: kubeinit_submariner_secondary_sync_mand
+      changed_when: "kubeinit_submariner_secondary_sync_mand.rc == 0"
+      delegate_to: "hypervisor-01"
+      when: kubeinit_submariner_is_secondary|bool
+
+    - name: Copying the images, and binaries to the secondary cluster
+      ansible.builtin.shell: |
+        set -e
 
         # Submariner container images
         scp -oStrictHostKeyChecking=no /root/submariner_images.tar root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:/root/
@@ -55,7 +65,7 @@
       register: kubeinit_submariner_secondary_sync
       changed_when: "kubeinit_submariner_secondary_sync.rc == 0"
       delegate_to: "hypervisor-01"
-      when: kubeinit_submariner_is_secondary|bool
+      when: kubeinit_submariner_is_secondary|bool and not kubeinit_submariner_deploy_stable|bool
 
     - name: Extract images and binaries
       ansible.builtin.shell: |
@@ -69,7 +79,7 @@
         executable: /bin/bash
       register: kubeinit_submariner_extract
       changed_when: "kubeinit_submariner_extract.rc == 0"
-      when: kubeinit_submariner_is_secondary|bool
+      when: kubeinit_submariner_is_secondary|bool and not kubeinit_submariner_deploy_stable|bool
 
     - name: "Push the images to the local registry"
       ansible.builtin.shell: |
@@ -86,7 +96,7 @@
         executable: /bin/bash
       register: push_submariner_to_local_registry
       changed_when: "push_submariner_to_local_registry.rc == 0"
-      when: kubeinit_submariner_is_secondary|bool
+      when: kubeinit_submariner_is_secondary|bool and not kubeinit_submariner_deploy_stable|bool
 
     - name: "Make the subctl binary available"
       ansible.builtin.shell: |
@@ -100,7 +110,19 @@
         executable: /bin/bash
       register: install_subctl
       changed_when: "install_subctl.rc == 0"
-      when: kubeinit_submariner_is_secondary|bool
+      when: kubeinit_submariner_is_secondary|bool and not kubeinit_submariner_deploy_stable|bool
+
+    - name: "Make the subctl binary available from a stable release"
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -e
+
+        curl -Ls https://get.submariner.io | VERSION={{ kubeinit_submariner_deploy_version }} bash
+      args:
+        executable: /bin/bash
+      register: install_subctl
+      changed_when: "install_subctl.rc == 0"
+      when: kubeinit_submariner_is_broker|bool and kubeinit_submariner_deploy_stable|bool
 
     - name: Append subctl path to profile
       ansible.builtin.lineinfile:
@@ -138,7 +160,7 @@
         kubeinit_submariner_service_cidr: "{{ submariner_service_cidr.stdout }}"
       when: kubeinit_submariner_is_secondary|bool
 
-    - name: "Join secondary cluster to the broker"
+    - name: "Join secondary cluster to the broker overriding the images registry"
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -150,7 +172,20 @@
         executable: /bin/bash
       register: join_cluster
       changed_when: "join_cluster.rc == 0"
-      when: kubeinit_submariner_is_secondary|bool
+      when: kubeinit_submariner_is_secondary|bool and not kubeinit_submariner_deploy_stable|bool
+
+    - name: "Join secondary cluster to the broker pulling from the default registry"
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -e
+
+        export PATH=$PATH:~/.local/bin
+        subctl join --kubeconfig ~/.kube/config ./broker-info.subm --servicecidr {{ kubeinit_submariner_service_cidr }} --label-gateway=false --natt=false --pod-debug --cable-driver libreswan --clusterid {{ kubeinit_inventory_cluster_name }}
+      args:
+        executable: /bin/bash
+      register: join_cluster
+      changed_when: "join_cluster.rc == 0"
+      when: kubeinit_submariner_is_secondary|bool and kubeinit_submariner_deploy_stable|bool
 
     - name: Tag worker node
       ansible.builtin.shell: |
