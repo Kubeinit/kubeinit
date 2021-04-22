@@ -122,7 +122,7 @@
         executable: /bin/bash
       register: install_subctl
       changed_when: "install_subctl.rc == 0"
-      when: kubeinit_submariner_is_broker|bool and kubeinit_submariner_deploy_stable|bool
+      when: kubeinit_submariner_is_secondary|bool and kubeinit_submariner_deploy_stable|bool
 
     - name: Append subctl path to profile
       ansible.builtin.lineinfile:
@@ -187,13 +187,14 @@
       changed_when: "join_cluster.rc == 0"
       when: kubeinit_submariner_is_secondary|bool and kubeinit_submariner_deploy_stable|bool
 
-    - name: Tag worker node
+    - name: Tag the worker nodes
       ansible.builtin.shell: |
         KUBECONFIG=~/.kube/config kubectl label node {{ item }} submariner.io/gateway=true --overwrite
+        KUBECONFIG=~/.kube/config kubectl label node {{ item }} gateway.submariner.io/natt-discovery-port=4490 --overwrite
       args:
         executable: /bin/bash
-      register: tag_worker_okd
-      changed_when: "tag_worker_okd.rc == 0"
-      when: kubeinit_submariner_is_secondary|bool or kubeinit_submariner_is_secondary|bool
+      register: tag_worker_sec
+      changed_when: "tag_worker_sec.rc == 0"
+      when: kubeinit_submariner_is_secondary|bool
       with_items:
         - "{{ groups['all_worker_nodes'] | list }}"
