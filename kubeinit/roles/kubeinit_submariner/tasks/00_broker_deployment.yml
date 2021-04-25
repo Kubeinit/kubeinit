@@ -39,7 +39,7 @@
         repo: https://github.com/submariner-io/submariner-operator
         dest: ~/submariner-operator
         force: yes
-        version: master
+        version: devel
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
     - name: "Get the PR ID"
@@ -58,7 +58,7 @@
         kubeinit_submariner_test_pr_id: '{{ get_repo_pr_id.stdout }}'
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Get submariner code based on a PR or from master"
+    - name: "Get submariner code based on a PR or from devel"
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -75,7 +75,7 @@
             git checkout -b pr FETCH_HEAD
             git log -n 5 --pretty=oneline
         else
-            echo "Running from master"
+            echo "Running from devel"
         fi
       args:
         executable: /bin/bash
@@ -98,73 +98,28 @@
       changed_when: "clean_all_local_images.rc == 0"
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    # TODO:FIXME:This should work with the make module
-    # - name: "Make clean"
-    #   community.general.make:
-    #     chdir: ~/submariner-operator
-    #     target: clean
-    #   when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
-
     - name: "Make clean"
-      ansible.builtin.shell: |
-        cd ~/submariner-operator
-        docker network create kind
-        make clean
-      args:
-        executable: /bin/bash
-      register: make_clean
-      changed_when: "make_clean.rc == 0"
+      community.general.make:
+        chdir: ~/submariner-operator
+        target: clean
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    # TODO:FIXME:This should work with the make module
-    # - name: "Make the subctl binary"
-    #   community.general.make:
-    #     chdir: ~/submariner-operator
-    #     target: bin/subctl
-    #   when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
-
-    - name: "Make binsubctl"
-      ansible.builtin.shell: |
-        cd ~/submariner-operator
-        make bin/subctl
-      args:
-        executable: /bin/bash
-      register: make_binsubctl
-      changed_when: "make_binsubctl.rc == 0"
+    - name: "Make the subctl binary"
+      community.general.make:
+        chdir: ~/submariner-operator
+        target: bin/subctl
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
-
-    # TODO:FIXME:This should work with the make module
-    # - name: "Make build"
-    #   community.general.make:
-    #     chdir: ~/submariner-operator
-    #     target: build
-    #   when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
     - name: "Make build"
-      ansible.builtin.shell: |
-        cd ~/submariner-operator
-        make build
-      args:
-        executable: /bin/bash
-      register: make_build
-      changed_when: "make_build.rc == 0"
+      community.general.make:
+        chdir: ~/submariner-operator
+        target: build
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    # TODO:FIXME:This should work with the make module
-    # - name: "Make images"
-    #   community.general.make:
-    #     chdir: ~/submariner-operator
-    #     target: images
-    #   when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
-
     - name: "Make images"
-      ansible.builtin.shell: |
-        cd ~/submariner-operator
-        make images || true
-      args:
-        executable: /bin/bash
-      register: make_images
-      changed_when: "make_images.rc == 0"
+      community.general.make:
+        chdir: ~/submariner-operator
+        target: images
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
     - name: "Push the images to the local registry"

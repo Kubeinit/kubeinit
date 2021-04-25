@@ -180,30 +180,30 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         -e @scenario_variables.yml \
         ./playbooks/rke.yml
 
-    # Deploy submariner as broker (okd)
+    # Deploy submariner as broker (rke)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/okd/inventory \
+        -v -i ./hosts/rke/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_broker=True \
         -e @scenario_variables.yml \
         ./playbooks/submariner.yml
 
-    # Deploy submariner as secondary (rke)
+    # Deploy submariner as secondary (okd)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/rke/inventory \
+        -v -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_secondary=True \
         -e @scenario_variables.yml \
         ./playbooks/submariner.yml
 
-    # Run subctl verify to check cluster status in the sec cluster (rke)
+    # Run subctl verify to check cluster status in the sec cluster (okd)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/rke/inventory \
+        -v -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_secondary=True \
