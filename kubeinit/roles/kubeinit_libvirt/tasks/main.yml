@@ -303,17 +303,17 @@
 
     - name: ansible_host
       ansible.builtin.debug:
-        msg: "{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}"
+        msg: "{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}"
 
     - name: add ssh ProxyCommand option for all nodes
       ansible.builtin.add_host:
         name: "{{ hostvars[item].ansible_host }}"
         ansible_ssh_common_args: >-
-          {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[groups['hypervisor_nodes'][0]].ansible_host }}"
+          {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[kubeinit_bastion_host].ansible_host }}"
       with_items: "{{ groups['all_nodes'] }}"
       when: >
-        (hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip ) and
-        (groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name)
+        (hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip ) and
+        (kubeinit_bastion_host in kubeinit_deployment_node_name)
 
     - name: Create directories for config files per node
       ansible.builtin.file:
@@ -328,12 +328,12 @@
       register: public_key_content
       changed_when: "public_key_content.rc == 0"
       when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        kubeinit_bastion_host in kubeinit_deployment_node_name
 
     - name: register the public key of the root user from the host
       ansible.builtin.set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
       when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        kubeinit_bastion_host in kubeinit_deployment_node_name
 
     ##
     ## Configure OVN o a linux bridge in all the HVs

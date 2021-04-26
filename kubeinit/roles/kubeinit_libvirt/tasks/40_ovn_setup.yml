@@ -23,7 +23,7 @@
 
     - name: configure OVN in the first Hypervisor
       ansible.builtin.shell: |
-        CENTRAL_IP={{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
+        CENTRAL_IP={{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
         LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
         ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
         sudo ovs-vsctl set Open_vSwitch . \
@@ -37,11 +37,11 @@
         sudo ovn-nbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_northbound_port }}
         sudo ovn-sbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_southbound_port }}
       when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        kubeinit_bastion_host in kubeinit_deployment_node_name
 
     - name: configure OVN in the rest of the Hypervisors
       ansible.builtin.shell: |
-        CENTRAL_IP={{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
+        CENTRAL_IP={{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
         LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
         ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
         sudo ovs-vsctl set Open_vSwitch . \
@@ -52,5 +52,4 @@
             external_ids:system-id="{{ kubeinit_deployment_node_name }}"
 
       when: >
-        kubeinit_deployment_node_name in groups['hypervisor_nodes'][1:] and
-        groups['hypervisor_nodes'] | length > 1
+        not (kubeinit_bastion_host in kubeinit_deployment_node_name)

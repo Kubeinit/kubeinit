@@ -21,7 +21,7 @@
   block:
     - name: Set fact for enabling OVN
       ansible.builtin.set_fact:
-        kubeinit_libvirt_ovn_enabled: "{{ True if (groups['hypervisor_nodes'] | length > 1) else False }}"
+        kubeinit_libvirt_ovn_enabled: "{{ True if (groups['all_hosts'] | length > 1) else False }}"
 
     - name: Experimental warning
       ansible.builtin.debug:
@@ -40,8 +40,8 @@
       register: bridge_status
       ignore_errors: yes
       when: |
-        (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
-        kubeinit_libvirt_external_service_interface_enabled
+        kubeinit_libvirt_external_service_interface_enabled and
+        (kubeinit_external_service_target in kubeinit_deployment_node_name)
 
     - name: Create the detach interface script
       ansible.builtin.template:
@@ -49,8 +49,8 @@
         dest: "~/detach.sh"
         mode: "0755"
       when: >
-        (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
         kubeinit_libvirt_external_service_interface_enabled and
+        (kubeinit_external_service_target in kubeinit_deployment_node_name) and
         bridge_status.rc != 0
 
     #
@@ -62,8 +62,8 @@
     #   async: 45
     #   poll: 0
     #   when: >
-    #     (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
     #     kubeinit_libvirt_external_service_interface_enabled and
+    #     (kubeinit_external_service_target in kubeinit_deployment_node_name) and
     #     kubeinit_libvirt_ovn_enabled and
     #     bridge_status.rc != 0
 
@@ -72,8 +72,8 @@
     #   async: 45
     #   poll: 0
     #   when: >
-    #     (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
     #     kubeinit_libvirt_external_service_interface_enabled and
+    #     (kubeinit_external_service_target in kubeinit_deployment_node_name) and
     #     not kubeinit_libvirt_ovn_enabled and
     #     bridge_status.rc != 0
 
@@ -82,7 +82,7 @@
         msg:
           - "The bridge {{ kubeinit_libvirt_external_service_interface.attached }} to provide external connectivity is not created."
           - "This is a requirement that needs to be addressed before running the playbook."
-          - "You must create {{ kubeinit_libvirt_external_service_interface.attached }} in {{ hostvars[ groups['all_service_nodes'] | list | first ].target }} before continue."
+          - "You must create {{ kubeinit_libvirt_external_service_interface.attached }} in {{ kubeinit_external_service_target }} before continue."
           - "It is created a script called ~/detach.sh in the hypervisor where the"
           - "service node will be deployed. This script will help to detach the physical"
           - "interface without breaking the network connectivity of the host."
@@ -95,16 +95,16 @@
           - "* for further details.                                               *"
           - "**********************************************************************"
       when: |
-        (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
         kubeinit_libvirt_external_service_interface_enabled and
+        (kubeinit_external_service_target in kubeinit_deployment_node_name) and
         bridge_status.rc != 0
 
     - name: Fail if the external bridge is not created when using the external interface
       ansible.builtin.fail:
-        msg: "Bridge {{ kubeinit_libvirt_external_service_interface.attached }} required in {{ hostvars[ groups['all_service_nodes'] | list | first ].target }} but not found"
+        msg: "Bridge {{ kubeinit_libvirt_external_service_interface.attached }} required in {{ kubeinit_external_service_target }} but not found"
       when: |
-        (hostvars[ groups['all_service_nodes'] | list | first ].target in kubeinit_deployment_node_name) and
         kubeinit_libvirt_external_service_interface_enabled and
+        (kubeinit_external_service_target in kubeinit_deployment_node_name) and
         bridge_status.rc != 0
 
     - name: Fails if OS is not supported
