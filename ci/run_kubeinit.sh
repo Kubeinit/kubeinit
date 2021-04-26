@@ -91,14 +91,20 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/k8s/inventory
         sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/cdk/inventory
         sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/eks/inventory
+
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/rke/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/k8s/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/eks/inventory
     fi
 
-    if [[ "$WORKER" == "2" ]]; then
-        sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/okd/inventory
-        sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/rke/inventory
-        sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/k8s/inventory
-        sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/cdk/inventory
-        sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/eks/inventory
+    if [[ "$WORKER" == "1" ]]; then
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/rke/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/k8s/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/eks/inventory
     fi
 
     sed -i "s/10.0.0.1 /10.0.0.201 /g" ./hosts/rke/inventory
@@ -127,10 +133,11 @@ else
 
     if [[ "$WORKER" == "0" ]]; then
         sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/$DISTRO/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/$DISTRO/inventory
     fi
 
-    if [[ "$WORKER" == "2" ]]; then
-        sed -i -E "/# .*-worker-02/ s/# //g" ./hosts/$DISTRO/inventory
+    if [[ "$WORKER" == "1" ]]; then
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/$DISTRO/inventory
     fi
 fi
 # We need to remove any created VM in other jobs
