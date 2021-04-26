@@ -42,7 +42,7 @@
         ovn-nbctl --wait=hv ls-add sw1
         {% endif %}
       when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        kubeinit_bastion_host in kubeinit_deployment_node_name
 
     - name: create the DHCP options
       ansible.builtin.shell: |
@@ -62,47 +62,47 @@
       register: dhcp_options
       changed_when: "dhcp_options.rc == 0"
       when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        kubeinit_bastion_host in kubeinit_deployment_node_name
 
     - name: register the dhcp options uuid
       ansible.builtin.set_fact: kubeinit_provision_dhcp_options={{ dhcp_options.stdout }}
       when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        kubeinit_bastion_host in kubeinit_deployment_node_name
 
     - name: Display the registered dhcp options
       ansible.builtin.debug:
         var: kubeinit_provision_dhcp_options
       when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        kubeinit_bastion_host in kubeinit_deployment_node_name
 
     - name: create OVS/OVN bindings for the VMs ports
       ansible.builtin.shell: |
         #
         # We create an OVN port using the interface ID and the mac address of the VM
         #
-        ovn-nbctl --wait=hv --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --wait=hv --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-add sw0 {{ hostvars[item].interfaceid }}
 
         #
         # The port name is the interface id of the VM, now we assign the mac address of the VM to the port
         #
-        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
 
-        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
 
-        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-dhcpv4-options {{ hostvars[item].interfaceid }} {{ kubeinit_provision_dhcp_options }}
 
         {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in item %}
-        ovn-nbctl --wait=hv --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --wait=hv --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-add sw1 {{ kubeinit_inventory_network_bridge_external_interfaceid }}
 
-        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-addresses {{ kubeinit_inventory_network_bridge_external_interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
 
-        ovn-nbctl --db=tcp:{{ hostvars[groups['hypervisor_nodes'][0]]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-port-security {{ kubeinit_inventory_network_bridge_external_interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
 
         # The following command will be executed in the hypervisor where the service machine is.
@@ -151,11 +151,11 @@
         #
         # Configuring the chassis gateway to the first hypervisor
         #
-        ovn-nbctl lrp-set-gateway-chassis lr0-public hypervisor-01
+        ovn-nbctl lrp-set-gateway-chassis lr0-public {{ kubeinit_bastion_host }}
         ovn-nbctl \
-          --id=@gc0 create Gateway_Chassis name=lr0-public chassis_name=hypervisor-01 priority=20 -- \
+          --id=@gc0 create Gateway_Chassis name=lr0-public chassis_name={{ kubeinit_bastion_host }} priority=20 -- \
           set Logical_Router_Port lr0-public 'gateway_chassis=[@gc0]'
-        ovn-nbctl set logical_router_port lr0-public options:redirect-chassis=hypervisor-01
+        ovn-nbctl set logical_router_port lr0-public options:redirect-chassis={{ kubeinit_bastion_host }}
         #
         # Create an ovs br-ex bridge to connect to the host
         #
@@ -189,7 +189,7 @@
         #
         sysctl net.ipv4.conf.all.rp_filter=2
       when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        kubeinit_bastion_host in kubeinit_deployment_node_name
 
     - name: Configuring NAT when not using the external bridge interface
       ansible.builtin.shell: |
@@ -212,7 +212,7 @@
         iptables -P INPUT ACCEPT
         iptables -P OUTPUT ACCEPT
       when: >
-        groups['hypervisor_nodes'][0] in kubeinit_deployment_node_name
+        kubeinit_bastion_host in kubeinit_deployment_node_name
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"
   tags:
