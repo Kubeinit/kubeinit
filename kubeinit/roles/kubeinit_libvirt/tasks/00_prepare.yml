@@ -14,34 +14,16 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-##
-## Hypervisor installing dependencies and rebooting.
-##
-- name: Prepare the environment
-  block:
-    - name: Set fact for enabling OVN
-      ansible.builtin.set_fact:
-        kubeinit_libvirt_ovn_enabled: "{{ True if (groups['all_hosts'] | length > 1) else False }}"
 
-    - name: Experimental warning
-      ansible.builtin.debug:
-        msg:
-          - '|-------------------------------------------------------|'
-          - '| Deploying in multiple hosts is experimental, parts of |'
-          - '| the deployment might be broken or some distributions  |'
-          - '| might not work as expected.                           |'
-          - '|-------------------------------------------------------|'
-      when: kubeinit_libvirt_ovn_enabled
+- name: Check kubeinit_external_service_target
+  block:
 
     - name: "check if the external bridge is created when using the external interface"
       ansible.builtin.shell: |
         set -o pipefail
-        nmcli con show | grep {{ kubeinit_libvirt_external_service_interface.attached }}
+        nmcli con show | grep {{ kubeinit_inventory_network_bridge_external }}
       register: bridge_status
       ignore_errors: yes
-      when: |
-        kubeinit_libvirt_external_service_interface_enabled and
-        (kubeinit_external_service_target in kubeinit_deployment_node_name)
 
     - name: Create the detach interface script
       ansible.builtin.template:
@@ -49,8 +31,6 @@
         dest: "~/detach.sh"
         mode: "0755"
       when: >
-        kubeinit_libvirt_external_service_interface_enabled and
-        (kubeinit_external_service_target in kubeinit_deployment_node_name) and
         bridge_status.rc != 0
 
     #
@@ -62,8 +42,6 @@
     #   async: 45
     #   poll: 0
     #   when: >
-    #     kubeinit_libvirt_external_service_interface_enabled and
-    #     (kubeinit_external_service_target in kubeinit_deployment_node_name) and
     #     kubeinit_libvirt_ovn_enabled and
     #     bridge_status.rc != 0
 
@@ -72,17 +50,15 @@
     #   async: 45
     #   poll: 0
     #   when: >
-    #     kubeinit_libvirt_external_service_interface_enabled and
-    #     (kubeinit_external_service_target in kubeinit_deployment_node_name) and
     #     not kubeinit_libvirt_ovn_enabled and
     #     bridge_status.rc != 0
 
     - name: Message before fail (external bridge not found)
       ansible.builtin.debug:
         msg:
-          - "The bridge {{ kubeinit_libvirt_external_service_interface.attached }} to provide external connectivity is not created."
+          - "The bridge {{ kubeinit_inventory_network_bridge_external }} to provide external connectivity is not created."
           - "This is a requirement that needs to be addressed before running the playbook."
-          - "You must create {{ kubeinit_libvirt_external_service_interface.attached }} in {{ kubeinit_external_service_target }} before continue."
+          - "You must create {{ kubeinit_inventory_network_bridge_external }} in {{ kubeinit_external_service_target }} before continue."
           - "It is created a script called ~/detach.sh in the hypervisor where the"
           - "service node will be deployed. This script will help to detach the physical"
           - "interface without breaking the network connectivity of the host."
@@ -95,36 +71,12 @@
           - "* for further details.                                               *"
           - "**********************************************************************"
       when: |
-        kubeinit_libvirt_external_service_interface_enabled and
-        (kubeinit_external_service_target in kubeinit_deployment_node_name) and
         bridge_status.rc != 0
 
     - name: Fail if the external bridge is not created when using the external interface
       ansible.builtin.fail:
-        msg: "Bridge {{ kubeinit_libvirt_external_service_interface.attached }} required in {{ kubeinit_external_service_target }} but not found"
+        msg: "Bridge {{ kubeinit_inventory_network_bridge_external }} required in {{ kubeinit_external_service_target }} but not found"
       when: |
-        kubeinit_libvirt_external_service_interface_enabled and
-        (kubeinit_external_service_target in kubeinit_deployment_node_name) and
         bridge_status.rc != 0
 
-    - name: Fails if OS is not supported
-      ansible.builtin.fail:
-        msg: The hypervisor machine needs to be CentOS/RHEL
-      when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora' or ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
-
-    - name: Fails if CentOS 7 hypervisor
-      ansible.builtin.fail:
-        msg:
-          - "CentOS 7 is not supported as CentOS 8 guests are used."
-          - "Refer to: https://access.redhat.com/solutions/4073061"
-          - "This issue is caused by the forward compatibility of xfs"
-          - "file system between CentOS 7 and CentOS 8."
-          - "Xfs file system in CentOS 8 uses reflink and sparse files,"
-          - "but CentOS 7 kernel does not understand them and refuses to mount it."
-          - "This means that CentOS 8 guests won't work with CentOS 8 hosts."
-      when: (ansible_distribution == 'CentOS' and ansible_distribution_major_version == "7")
-
-  # In this case the node will be an hypervisor
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
-  tags:
-    - provision_libvirt
+  delegate_to: "{{ kubeinit_external_service_target }}"
