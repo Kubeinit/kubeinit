@@ -25,10 +25,16 @@ jobs:
           sudo python3 -m pip install --upgrade ansible-inventory-grapher
           sudo python3 -m pip install --upgrade ansible-playbook-grapher
 
-          for f in ./playbooks/*; do
-              filename=$(basename $f)
-              echo "ansible-playbook-grapher ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename"
-              ansible-playbook-grapher ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename
+          distros=()
+          for p in ./hosts/*/
+          do
+            distros=$(echo ${distros} ${p:8:-1})
+          done
+
+          for distro in ${distros}; do
+              filename=${distro}.yml
+              echo "ansible-playbook-grapher -e kubeinit_inventory_cluster_distro=${distro} ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename"
+              ansible-playbook-grapher -e kubeinit_inventory_cluster_distro=${distro} ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename
           cat << EOF >> ./docs/src/playbook_diagrams.rst
 
           $filename playbook architecture
@@ -41,9 +47,8 @@ jobs:
           EOF
           done
 
-          for f in ./hosts/*; do
-          filename=$(basename $f)
-          if [[ "$filename" != "common.yml" ]]; then
+          for distro in ${distros}; do
+              filename=${distro}
               echo "ansible-inventory-grapher -i ./hosts/$filename/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png"
               ansible-inventory-grapher -i hosts/$filename/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png
           cat << EOF >> ./docs/src/inventory_diagrams.rst
@@ -56,7 +61,6 @@ jobs:
             :alt: Alternative text
 
           EOF
-          fi
           done
 
           cat ./docs/src/playbook_diagrams.rst
