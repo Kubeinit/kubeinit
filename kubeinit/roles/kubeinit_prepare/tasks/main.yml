@@ -120,13 +120,62 @@
 # Set facts
 #
 
-- name: define host and node related facts
+- name: define host, node and ovn related facts
   ansible.builtin.set_fact:
     kubeinit_bastion_host: "{{ groups['all_hosts'][0] }}"
     kubeinit_external_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
     kubeinit_external_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}"
     kubeinit_external_service_target: "{{ hostvars[groups['all_service_nodes'][0]].target }}"
+    kubeinit_libvirt_ovn_enabled: "{{ True if (groups['all_hosts'] | length > 1) else False }}"
   with_items:
     - "{{ groups['all_hosts'] }}"
     - localhost
+  delegate_to: "{{ item }}"
+
+- name: Experimental warning
+  ansible.builtin.debug:
+    msg:
+      - '|-------------------------------------------------------|'
+      - '| Deploying in multiple hosts is experimental, parts of |'
+      - '| the deployment might be broken or some distributions  |'
+      - '| might not work as expected.                           |'
+      - '|-------------------------------------------------------|'
+  when: kubeinit_libvirt_ovn_enabled
+
+#
+# Check external service target
+#
+
+- name: Check external service target
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 00_prepare.yml
+    public: yes
+  when: kubeinit_common_external_service_bridge_enabled
+
+#
+# Check that host OS are supported
+#
+
+- name: Fails if OS is not supported
+  ansible.builtin.fail:
+    msg: The hypervisor machine needs to be CentOS/RHEL
+  when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora' or ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+  with_items:
+    - "{{ groups['all_hosts'] | list }}"
+  delegate_to: "{{ item }}"
+
+- name: Fails if CentOS 7 hypervisor
+  ansible.builtin.fail:
+    msg:
+      - "CentOS 7 is not supported as CentOS 8 guests are used."
+      - "Refer to: https://access.redhat.com/solutions/4073061"
+      - "This issue is caused by the forward compatibility of xfs"
+      - "file system between CentOS 7 and CentOS 8."
+      - "Xfs file system in CentOS 8 uses reflink and sparse files,"
+      - "but CentOS 7 kernel does not understand them and refuses to mount it."
+      - "This means that CentOS 8 guests won't work with CentOS 8 hosts."
+  when: (ansible_distribution == 'CentOS' and ansible_distribution_major_version == "7")
+  with_items:
+    - "{{ groups['all_hosts'] | list }}"
   delegate_to: "{{ item }}"

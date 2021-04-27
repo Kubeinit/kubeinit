@@ -65,6 +65,15 @@
 - name: Main deployment role for cluster
   hosts: hypervisor_nodes[0]
   tasks:
+
+    - name: run the prepare steps
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_prepare"
+
+    - name: run validations
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_validations"
+
     - name: deploy {{ kubeinit_inventory_cluster_distro }}
       ansible.builtin.include_role:
         name: "../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
