@@ -287,9 +287,6 @@
         line: export LIBVIRT_DEFAULT_URI=qemu:///system
         mode: '0644'
 
-    - name: Cleanup the host
-      ansible.builtin.include: 10_cleanup.yml
-
     - name: get the IP
       become: no
       delegate_to: localhost
@@ -303,7 +300,7 @@
 
     - name: ansible_host
       ansible.builtin.debug:
-        msg: "{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}"
+        msg: "{{ kubeinit_bastion_host_address }}"
 
     - name: add ssh ProxyCommand option for all nodes
       ansible.builtin.add_host:
@@ -312,7 +309,7 @@
           {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[kubeinit_bastion_host].ansible_host }}"
       with_items: "{{ groups['all_nodes'] }}"
       when: >
-        (hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] not in kubeinit_libvirt_initiator_ip ) and
+        (kubeinit_bastion_host_address not in kubeinit_libvirt_initiator_ip ) and
         (kubeinit_bastion_host in kubeinit_deployment_node_name)
 
     - name: Create directories for config files per node

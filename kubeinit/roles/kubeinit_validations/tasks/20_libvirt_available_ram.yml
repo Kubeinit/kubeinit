@@ -37,7 +37,7 @@
   tags:
     - provision_libvirt
 
-- name: Define the hypervisors ram free space dictionary
+- name: Define the hypervisors ram available dictionary
   ansible.builtin.set_fact:
     kubeinit_validations_hypervisors_free_ram: "{{ kubeinit_validations_hypervisors_free_ram|default([]) | combine( {item.item: item.stdout|int} ) }}"
   with_items: "{{ kubeinit_validations_libvirt_total_ram.results }}"
@@ -105,7 +105,7 @@
   tags:
     - provision_libvirt
 
-- name: Make sure there is enough free space
+- name: Make sure there is enough available ram
   ansible.builtin.assert:
     that:
       - kubeinit_validations_hypervisors_free_ram[item.key]|int > item.value|float * 1.1

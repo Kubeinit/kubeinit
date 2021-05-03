@@ -32,89 +32,98 @@
   tags:
     - always
 
-- name: add all master nodes to the all_master_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_master_nodes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list | default([]) }}"
+#
+# Define additional groups we will use
+#
+- name: delegate to localhost
+  block:
 
-- name: add all worker nodes to the all_worker_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_worker_nodes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | default([]) }}"
+    - name: add all master nodes to the all_master_nodes group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        group: all_master_nodes
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list | default([]) }}"
 
-- name: add all bootstrap nodes the all_bootstrap_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_bootstrap_nodes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list | default([]) }}"
+    - name: add all worker nodes to the all_worker_nodes group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        group: all_worker_nodes
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | default([]) }}"
 
-- name: add all cluster nodes to the all_cluster_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_cluster_nodes
-  with_items:
-    - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] + groups['all_bootstrap_nodes'] }}"
+    - name: add all bootstrap nodes the all_bootstrap_nodes group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        group: all_bootstrap_nodes
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list | default([]) }}"
 
-- name: add all service nodes to the all_service_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_service_nodes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | default([]) }}"
+    - name: add all cluster nodes to the all_cluster_nodes group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        group: all_cluster_nodes
+      with_items:
+        - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] + groups['all_bootstrap_nodes'] }}"
 
-- name: add all service and cluster nodes to the all_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_nodes
-  with_items:
-    - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
+    - name: add all service nodes to the all_service_nodes group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        group: all_service_nodes
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | default([]) }}"
 
-- name: add all hosts to the all_hosts group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_hosts
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list | default([]) }}"
+    - name: add all service and cluster nodes to the all_nodes group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        group: all_nodes
+      with_items:
+        - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
 
-- name: list all_hosts
-  ansible.builtin.debug:
-    msg: "Host {{ item }}"
-  with_items: "{{ groups['all_hosts'] }}"
+    - name: add all hosts to the all_hosts group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        group: all_hosts
+      with_items:
+        - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list | default([]) }}"
 
-- name: list all_nodes
-  ansible.builtin.debug:
-    msg: "Node {{ item }}"
-  with_items: "{{ groups['all_nodes'] }}"
+    - name: list all_hosts
+      ansible.builtin.debug:
+        msg: "Host {{ item }}"
+      with_items: "{{ groups['all_hosts'] }}"
 
-- name: list all_service_nodes
-  ansible.builtin.debug:
-    msg: "Service Node {{ item }}"
-  with_items: "{{ groups['all_service_nodes'] }}"
+    - name: list all_nodes
+      ansible.builtin.debug:
+        msg: "Node {{ item }}"
+      with_items: "{{ groups['all_nodes'] }}"
 
-- name: list all_cluster_nodes
-  ansible.builtin.debug:
-    msg: "Cluster Node {{ item }}"
-  with_items: "{{ groups['all_cluster_nodes'] }}"
+    - name: list all_service_nodes
+      ansible.builtin.debug:
+        msg: "Service Node {{ item }}"
+      with_items: "{{ groups['all_service_nodes'] }}"
 
-- name: list all_master_nodes
-  ansible.builtin.debug:
-    msg: "Master Node {{ item }}"
-  with_items: "{{ groups['all_master_nodes'] }}"
+    - name: list all_cluster_nodes
+      ansible.builtin.debug:
+        msg: "Cluster Node {{ item }}"
+      with_items: "{{ groups['all_cluster_nodes'] }}"
 
-- name: list all_worker_nodes
-  ansible.builtin.debug:
-    msg: "Worker Node {{ item }}"
-  with_items: "{{ groups['all_worker_nodes'] }}"
+    - name: list all_master_nodes
+      ansible.builtin.debug:
+        msg: "Master Node {{ item }}"
+      with_items: "{{ groups['all_master_nodes'] }}"
 
-- name: list all_bootstrap_nodes
-  ansible.builtin.debug:
-    msg: "Bootstrap Node {{ item }}"
-  with_items: "{{ groups['all_bootstrap_nodes'] }}"
+    - name: list all_worker_nodes
+      ansible.builtin.debug:
+        msg: "Worker Node {{ item }}"
+      with_items: "{{ groups['all_worker_nodes'] }}"
+
+    - name: list all_bootstrap_nodes
+      ansible.builtin.debug:
+        msg: "Bootstrap Node {{ item }}"
+      with_items: "{{ groups['all_bootstrap_nodes'] }}"
+
+  delegate_to: localhost
+  become: false
 
 #
 # Set facts
@@ -123,10 +132,14 @@
 - name: define host, node and ovn related facts
   ansible.builtin.set_fact:
     kubeinit_bastion_host: "{{ groups['all_hosts'][0] }}"
-    kubeinit_external_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
-    kubeinit_external_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}"
-    kubeinit_external_service_target: "{{ hostvars[groups['all_service_nodes'][0]].target }}"
-    kubeinit_libvirt_ovn_enabled: "{{ True if (groups['all_hosts'] | length > 1) else False }}"
+    kubeinit_bastion_host_address: "{{ hostvars[groups['all_hosts'][0]]['ansible_default_ipv4']['address'] }}"
+    kubeinit_apache_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
+    kubeinit_bind_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
+    kubeinit_nfs_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
+    kubeinit_registry_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}"
+    kubeinit_libvirt_ovn_enabled: "{{ True if (groups['all_hosts'] | length > 1) else kubeinit_common_ovn_enabled_default }}"
+    kubeinit_service_user: "root"
+    kubeinit_service_user_dir: "/root"
   with_items:
     - "{{ groups['all_hosts'] }}"
     - localhost
@@ -143,39 +156,31 @@
   when: kubeinit_libvirt_ovn_enabled
 
 #
-# Check external service target
+# Prepare hypervisor hosts
 #
 
-- name: Check external service target
+- name: Prepare the hypervisors
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    tasks_from: 00_prepare_hypervisor.yml
+  with_items:
+    - "{{ groups['all_hosts'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+#
+# Cleanup hosts now before validations are run
+#
+
+- name: Cleanup the hosts
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 00_prepare.yml
-    public: yes
-  when: kubeinit_common_external_service_bridge_enabled
-
-#
-# Check that host OS are supported
-#
-
-- name: Fails if OS is not supported
-  ansible.builtin.fail:
-    msg: The hypervisor machine needs to be CentOS/RHEL
-  when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora' or ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+    tasks_from: 10_cleanup.yml
   with_items:
     - "{{ groups['all_hosts'] | list }}"
-  delegate_to: "{{ item }}"
-
-- name: Fails if CentOS 7 hypervisor
-  ansible.builtin.fail:
-    msg:
-      - "CentOS 7 is not supported as CentOS 8 guests are used."
-      - "Refer to: https://access.redhat.com/solutions/4073061"
-      - "This issue is caused by the forward compatibility of xfs"
-      - "file system between CentOS 7 and CentOS 8."
-      - "Xfs file system in CentOS 8 uses reflink and sparse files,"
-      - "but CentOS 7 kernel does not understand them and refuses to mount it."
-      - "This means that CentOS 8 guests won't work with CentOS 8 hosts."
-  when: (ansible_distribution == 'CentOS' and ansible_distribution_major_version == "7")
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
-  delegate_to: "{{ item }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"

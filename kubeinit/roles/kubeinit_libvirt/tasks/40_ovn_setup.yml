@@ -21,9 +21,9 @@
 - name: Set up the OVN network details
   block:
 
-    - name: configure OVN in the first Hypervisor
+    - name: configure OVS on the Hypervisors
       ansible.builtin.shell: |
-        CENTRAL_IP={{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
+        CENTRAL_IP={{ kubeinit_bastion_host_address }} # This is the IP of the first HV
         LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
         ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
         sudo ovs-vsctl set Open_vSwitch . \
@@ -33,23 +33,10 @@
             external_ids:ovn-encap-type="$ENCAP_TYPE" \
             external_ids:system-id="{{ kubeinit_deployment_node_name }}"
 
+    - name: configure OVN in the first Hypervisor
+      ansible.builtin.shell: |
         # Below two commands only for master. For SSL, other steps are required.
         sudo ovn-nbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_northbound_port }}
         sudo ovn-sbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_southbound_port }}
       when: >
         kubeinit_bastion_host in kubeinit_deployment_node_name
-
-    - name: configure OVN in the rest of the Hypervisors
-      ansible.builtin.shell: |
-        CENTRAL_IP={{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }} # This is the IP of the first HV
-        LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
-        ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
-        sudo ovs-vsctl set Open_vSwitch . \
-            external_ids:ovn-remote="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_southbound_port }}" \
-            external_ids:ovn-nb="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_northbound_port }}" \
-            external_ids:ovn-encap-ip=$LOCAL_IP \
-            external_ids:ovn-encap-type="$ENCAP_TYPE" \
-            external_ids:system-id="{{ kubeinit_deployment_node_name }}"
-
-      when: >
-        not (kubeinit_bastion_host in kubeinit_deployment_node_name)

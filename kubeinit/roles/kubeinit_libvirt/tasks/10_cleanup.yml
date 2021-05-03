@@ -132,13 +132,5 @@
         regexp: '{{ hostvars[item].ansible_host }}'
       with_items: "{{ groups['all_nodes'] }}"
 
-    - name: get the IP
-      become: no
-      delegate_to: localhost
-      ansible.builtin.command: hostname --ip-address
-      register: local_initiator_ip
-      changed_when: "local_initiator_ip.rc == 0"
-
-    - name: Set up the local IP
-      ansible.builtin.set_fact:
-        kubeinit_libvirt_initiator_ip={{ local_initiator_ip.stdout }}
+  # In this case the node will be an hypervisor
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

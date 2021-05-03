@@ -80,30 +80,30 @@
         #
         # We create an OVN port using the interface ID and the mac address of the VM
         #
-        ovn-nbctl --wait=hv --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --wait=hv --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-add sw0 {{ hostvars[item].interfaceid }}
 
         #
         # The port name is the interface id of the VM, now we assign the mac address of the VM to the port
         #
-        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
 
-        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
 
-        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+        ovn-nbctl --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-dhcpv4-options {{ hostvars[item].interfaceid }} {{ kubeinit_provision_dhcp_options }}
 
         {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in item %}
-        ovn-nbctl --wait=hv --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
-            lsp-add sw1 {{ kubeinit_inventory_network_bridge_external_interfaceid }}
+        ovn-nbctl --wait=hv --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+            lsp-add sw1 {{ kubeinit_libvirt_external_service_interface.interfaceid }}
 
-        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
-            lsp-set-addresses {{ kubeinit_inventory_network_bridge_external_interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
+        ovn-nbctl --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+            lsp-set-addresses {{ kubeinit_libvirt_external_service_interface.interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
 
-        ovn-nbctl --db=tcp:{{ hostvars[kubeinit_bastion_host]['ansible_default_ipv4']['address'] }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
-            lsp-set-port-security {{ kubeinit_inventory_network_bridge_external_interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
+        ovn-nbctl --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
+            lsp-set-port-security {{ kubeinit_libvirt_external_service_interface.interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
 
         # The following command will be executed in the hypervisor where the service machine is.
         # We need to make sure the bridge binding exists between the OVN interface (Logical SWitch Port) and
