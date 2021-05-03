@@ -129,16 +129,16 @@
 
 - name: Ensure user specific systemd instance are persistent
   ansible.builtin.command: |
-    /usr/bin/loginctl enable-linger {{ ansible_user }}
+    /usr/bin/loginctl enable-linger {{ kubeinit_service_user }}
   register: systemd_instance_persist
   changed_when: "systemd_instance_persist.rc == 0"
 
 - name: Create systemd user directory
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/systemd/user"
+    path: "{{ kubeinit_service_user_dir }}/.config/systemd/user"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ kubeinit_service_user }}"
+    group: "{{ kubeinit_service_user }}"
     mode: '0775'
 
 - name: Copy the podman systemd service file
@@ -155,9 +155,9 @@
       PIDFile={{ container_bind_pidfile }}
       [Install]
       WantedBy=default.target
-    dest: "{{ ansible_user_dir }}/.config/systemd/user/container-bind.service"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/container-bind.service"
+    owner: "{{ kubeinit_service_user }}"
+    group: "{{ kubeinit_service_user }}"
     mode: '0644'
 
 - name: Reload systemd service

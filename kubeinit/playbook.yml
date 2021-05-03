@@ -14,7 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "Prerequisites for localhost environment"
+- name: Ansible version check
   hosts: localhost
   become: false
   pre_tasks:
@@ -26,46 +26,15 @@
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
 
-- name: "Prerequisites for deploying cluster in a multinode environment"
+- name: Gather facts from all hypervisor hosts
   hosts: hypervisor_nodes
-  tasks:
-    - name: Create a public key in the hypervisor hosts
-      ansible.builtin.shell: |
-        set -o pipefail
-        ssh-keygen -q -b 2048 -t rsa -N "" -C "creating SSH" -f ~/.ssh/id_rsa
-        creates="~/.ssh/id_rsa"
-      args:
-        executable: /bin/bash
-      register: render_publickey
-      changed_when: "render_publickey.rc == 0"
-    - name: Fetch the keyfile from each node
-      ansible.builtin.fetch:
-        src: "~/.ssh/id_rsa.pub"
-        dest: "buffer/{{ inventory_hostname }}-id_rsa.pub"
-        flat: yes
-    - name: Add the keys to authorized_keys
-      ansible.posix.authorized_key:
-        user: root
-        state: present
-        key: "{{ lookup('file','buffer/' + item + '-id_rsa.pub') }}"
-      with_items:
-        - "{{ groups['hypervisor_nodes'] }}"
-    - name: Update the /etc/hosts file with node name
-      become: yes
-      become_user: root
-      ansible.builtin.lineinfile:
-        path: "/etc/hosts"
-        regexp: ".*    {{ hostvars[item]['inventory_hostname'] }}    {{ hostvars[item]['ansible_hostname'] }}    {{ hostvars[item]['ansible_host'] }}"
-        line: "{{ hostvars[item]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}    {{ hostvars[item]['inventory_hostname'] }}    {{ hostvars[item]['ansible_hostname'] }}    {{ hostvars[item]['ansible_host'] }}"
-        state: present
-        backup: yes
-      register: etchostsupdate
-      with_items: "{{ groups['hypervisor_nodes'] }}"
+  become: true
+  become_user: root
 
 - name: Main deployment role for cluster
-  hosts: hypervisor_nodes[0]
+  hosts: localhost
+  become: false
   tasks:
-
     - name: run the prepare steps
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"

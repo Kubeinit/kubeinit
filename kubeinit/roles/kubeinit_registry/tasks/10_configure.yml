@@ -49,8 +49,8 @@
     path: "{{ kubeinit_registry_directory_auth }}/htpasswd"
     name: "{{ kubeinit_registry_user }}"
     password: "{{ kubeinit_registry_password }}"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ kubeinit_service_user }}"
+    group: "{{ kubeinit_service_user }}"
     crypt_scheme: "bcrypt"
     mode: '0755'
 
@@ -137,8 +137,8 @@
     src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
     dest: /etc/pki/ca-trust/source/anchors/domain.crt
     remote_src: yes
-    group: "{{ ansible_user }}"
-    owner: "{{ ansible_user }}"
+    group: "{{ kubeinit_service_user }}"
+    owner: "{{ kubeinit_service_user }}"
     mode: 0644
     force: yes
     backup: yes
@@ -150,8 +150,8 @@
     src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
     dest: /usr/local/share/ca-certificates/domain.crt
     remote_src: yes
-    group: "{{ ansible_user }}"
-    owner: "{{ ansible_user }}"
+    group: "{{ kubeinit_service_user }}"
+    owner: "{{ kubeinit_service_user }}"
     mode: 0644
     force: yes
     backup: yes
@@ -210,16 +210,16 @@
 
 - name: Ensure user specific systemd instance are persistent
   ansible.builtin.command: |
-    /usr/bin/loginctl enable-linger {{ ansible_user }}
+    /usr/bin/loginctl enable-linger {{ kubeinit_service_user }}
   register: systemd_instance_persist
   changed_when: "systemd_instance_persist.rc == 0"
 
 - name: Create systemd user directory
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/systemd/user"
+    path: "{{ kubeinit_service_user_dir }}/.config/systemd/user"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ kubeinit_service_user }}"
+    group: "{{ kubeinit_service_user }}"
     mode: '0775'
 
 - name: Copy the podman systemd service file
@@ -236,9 +236,9 @@
       PIDFile={{ container_registry_pidfile }}
       [Install]
       WantedBy=default.target
-    dest: "{{ ansible_user_dir }}/.config/systemd/user/container-registry.service"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/container-registry.service"
+    owner: "{{ kubeinit_service_user }}"
+    group: "{{ kubeinit_service_user }}"
     mode: '0644'
 
 - name: Reload systemd service
@@ -282,7 +282,7 @@
 - name: Create temporary pullsecret file
   ansible.builtin.copy:
     content: "{{ kubeinit_registry_pullsecret }}"
-    dest: "{{ ansible_env.HOME }}/pullsecret.json"
+    dest: "{{ kubeinit_service_user_dir }}/pullsecret.json"
     mode: '0755'
     force: yes
 
