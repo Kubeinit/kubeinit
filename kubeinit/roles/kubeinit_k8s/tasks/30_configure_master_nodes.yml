@@ -107,8 +107,6 @@
         sysctl -p
       changed_when: false
       when: groups['k8s_master_nodes'] | length > 1 and groups['k8s_master_nodes'][0] not in kubeinit_deployment_node_name
-      tags:
-        - provision_libvirt
 
     - name: Joining aditional master nodes using the PK
       ansible.builtin.shell: |
@@ -133,5 +131,3 @@
       when: groups['k8s_master_nodes'] | length > 1 and groups['k8s_master_nodes'][0] not in kubeinit_deployment_node_name
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
-  tags:
-    - provision_libvirt

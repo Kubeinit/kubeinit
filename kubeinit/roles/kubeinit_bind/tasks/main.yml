@@ -15,24 +15,6 @@
 # under the License.
 
 
-# "kubeinit_bind" will search for and load any operating system variable file
-
-# found within the "vars/" path. If no OS files are found the task will skip.
-- name: Gather variables for each operating system
-  ansible.builtin.include_vars: "{{ item }}"
-  with_first_found:
-    - skip: true
-      files:
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_version.split('.')[0] }}.yml"
-        - "{{ ansible_os_family | lower }}.yml"
-  tags:
-    - always
-
-
 - name: Create Bind folder
   ansible.builtin.file:
     path: "{{ kubeinit_bind_directory }}"
@@ -52,6 +34,13 @@
     dest: "{{ kubeinit_bind_directory }}/named.conf.local"
     mode: '0644'
 
+- name: Create script to provide external access to the cluster through the bastion host
+  ansible.builtin.template:
+    src: "create-external-ingress.sh.j2"
+    dest: "~/create-external-ingress.sh"
+    mode: '0644'
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
 - name: Create BIND zones directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -60,7 +49,6 @@
     recurse: yes
   with_items:
     - "{{ kubeinit_bind_directory }}/zones/internals"
-    - "{{ kubeinit_bind_directory }}/zones/externals"
 
 - name: Create BIND db internal subnet
   ansible.builtin.template:
@@ -74,47 +62,11 @@
     dest: "{{ kubeinit_bind_directory }}/zones/internals/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
     mode: '0644'
 
-- name: Create BIND db external zone
-  ansible.builtin.template:
-    src: "externals_db.local.j2"
-    dest: "{{ kubeinit_bind_directory }}/zones/externals/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
-    mode: '0644'
-  when: kubeinit_libvirt_external_service_interface_enabled
-
-- name: Install podman if required
-  ansible.builtin.package:
-    state: present
-    name: "podman"
-
-- name: Create the docker.io password file
-  ansible.builtin.template:
-    src: "../../roles/kubeinit_libvirt/templates/docker_io_pass.j2"
-    dest: "~/docker_io_pass"
-    mode: "0755"
-  when: >
-    kubeinit_common_docker_username is defined and
-    kubeinit_common_docker_password is defined and
-    kubeinit_common_docker_username and
-    kubeinit_common_docker_password
-
-- name: Podman login to docker.io
-  ansible.builtin.shell: |
-    set -o pipefail
-    podman login --username {{ kubeinit_common_docker_username }} --password-stdin < ~/docker_io_pass docker.io
-  args:
-    executable: /bin/bash
-  register: podman_login
-  changed_when: "podman_login.rc == 0"
-  when: |
-    kubeinit_common_docker_username is defined and
-    kubeinit_common_docker_password is defined and
-    kubeinit_common_docker_username and
-    kubeinit_common_docker_password
-
 - name: Create a podman container to serve the Bind server
   containers.podman.podman_container:
     name: "{{ kubeinit_bind_pod_name }}"
     image: docker.io/internetsystemsconsortium/bind9:9.11
+    pod: "{{ kubeinit_services_pod_name }}"
     state: stopped
     network: host
     volumes:

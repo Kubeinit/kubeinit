@@ -15,23 +15,6 @@
 # under the License.
 
 
-# "kubeinit_kubevirt" will search for and load any operating system variable file
-
-# found within the "vars/" path. If no OS files are found the task will skip.
-- name: Gather variables for each operating system
-  ansible.builtin.include_vars: "{{ item }}"
-  with_first_found:
-    - skip: true
-      files:
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_version.split('.')[0] }}.yml"
-        - "{{ ansible_os_family | lower }}.yml"
-  tags:
-    - always
-
 - name: "Install KubeVirt"
   ansible.builtin.shell: |
     set -o pipefail
@@ -48,12 +31,7 @@
     executable: /bin/bash
   register: cmd_res
   changed_when: "cmd_res.rc == 0"
-  delegate_to: "{{ cluster_node }}"
-  with_items: "{{ groups['okd_service_nodes'] }}"
-  loop_control:
-    loop_var: cluster_node
-  tags:
-    - kubeinit_kubevirt
+  delegate_to: "{{ kubeinit_services_service_address }}"
 
 # - name: "wait until crds are loaded"
 #   ansible.builtin.shell: |
@@ -71,8 +49,6 @@
 #   with_items: "{{ groups['okd_service_nodes'] }}"
 #   loop_control:
 #     loop_var: cluster_node
-#   tags:
-#     - kubeinit_kubevirt
 
 # - name: "Deploy example VM"
 #   ansible.builtin.shell: |
@@ -88,8 +64,6 @@
 #   with_items: "{{ groups['okd_service_nodes'] }}"
 #   loop_control:
 #     loop_var: cluster_node
-#   tags:
-#     - kubeinit_kubevirt
 
 # - name: Print some final data
 #   vars:
@@ -103,5 +77,3 @@
 #       oc get events -n default
 #   ansible.builtin.debug:
 #     msg: "{{ msg.split('\n') }}"
-#   tags:
-#     - kubeinit_kubevirt

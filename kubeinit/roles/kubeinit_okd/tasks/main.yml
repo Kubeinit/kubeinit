@@ -19,7 +19,6 @@
     name: "../../roles/kubeinit_libvirt"
     tasks_from: main.yml
     public: yes
-  tags: provision_libvirt
   with_items:
     - "{{ groups['all_hosts'] | list }}"
   loop_control:
@@ -39,7 +38,6 @@
   when: kubeinit_libvirt_ovn_enabled
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  tags: provision_libvirt
 
 - name: Deploy the cluster service node
   ansible.builtin.include_role:
@@ -53,7 +51,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: service
-  tags: provision_libvirt
 
 - name: Check that the service node is up and running
   ansible.builtin.include_role:
@@ -66,7 +63,6 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  tags: provision_libvirt
 
 - name: Upgrade packages and restart
   ansible.builtin.include_role:
@@ -79,7 +75,6 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  tags: provision_libvirt
 
 - name: Check that the service node is up and running
   ansible.builtin.include_role:
@@ -92,7 +87,6 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  tags: provision_libvirt
 
 - name: Configure the cluster service node
   ansible.builtin.include_role:
@@ -105,7 +99,6 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  tags: provision_libvirt
 
 - name: Deploy the cluster bootstrap nodes
   ansible.builtin.include_role:
@@ -119,7 +112,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: bootstrap
-  tags: provision_libvirt
 
 - name: Deploy the cluster master nodes
   ansible.builtin.include_role:
@@ -133,7 +125,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: master
-  tags: provision_libvirt
 
 - name: Configure the cluster master nodes
   ansible.builtin.include_role:
@@ -149,7 +140,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: master
-  tags: provision_libvirt
 
 - name: Wait until bootstrap completes
   ansible.builtin.include_role:
@@ -162,7 +152,6 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  tags: provision_libvirt
 
 - name: Remove the bootstrap node in a multimaster deployment
   ansible.builtin.include_role:
@@ -176,7 +165,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   when: groups['okd_master_nodes'] | length > 1
-  tags: provision_libvirt
 
 - name: Deploy the cluster worker nodes
   ansible.builtin.include_role:
@@ -190,7 +178,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: worker
-  tags: provision_libvirt
 
 - name: Finish post deployment tasks
   ansible.builtin.include_role:
@@ -203,7 +190,6 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  tags: provision_libvirt
 
 - name: Remove the bootstrap node in a singlemaster deployment
   ansible.builtin.include_role:
@@ -217,7 +203,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   when: groups['okd_master_nodes'] | length == 1
-  tags: provision_libvirt
 
 - name: Deploy KubeVirt
   ansible.builtin.include_role:
@@ -225,4 +210,3 @@
     tasks_from: main.yml
     public: yes
   when: not kubeinit_okd_openshift_deploy | default(False)
-  tags: kubeinit_kubevirt

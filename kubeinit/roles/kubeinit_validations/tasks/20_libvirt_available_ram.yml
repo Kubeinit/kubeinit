@@ -28,14 +28,10 @@
     - "{{ groups['all_hosts'] | list }}"
   delegate_to: "{{ item }}"
   changed_when: "kubeinit_validations_libvirt_total_ram.rc == 0"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_total_ram
-  tags:
-    - provision_libvirt
 
 - name: Define the hypervisors ram available dictionary
   ansible.builtin.set_fact:
@@ -45,22 +41,16 @@
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_total_ram
-  tags:
-    - provision_libvirt
 
 
 - name: Get the total inventory ram usage
   ansible.builtin.set_fact:
     kubeinit_validations_libvirt_ram_usage: "{{ kubeinit_validations_libvirt_ram_usage|default({})| combine( {item: {'id': item, 'ram': hostvars[item].ram|int, 'target': hostvars[item].target} } ) }}"
   with_items: "{{ groups['all_nodes'] }}"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_ram_usage
-  tags:
-    - provision_libvirt
 
 - name: Set combined ram requirement per hypervisor
   ansible.builtin.set_fact:
@@ -74,14 +64,10 @@
         + kubeinit_validations_libvirt_combined_ram_usage[item.value.target] | default([]) })
       }}
   with_dict: "{{ kubeinit_validations_libvirt_ram_usage }}"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_combined_ram_usage
-  tags:
-    - provision_libvirt
 
 - name: Set the summarized ram usage per hypervisor
   ansible.builtin.set_fact:
@@ -89,21 +75,15 @@
   vars:
     my_attribute: "{{ kubeinit_validations_libvirt_combined_ram_usage[item] | map(attribute='ram') | list | sum }}"
   with_items: "{{ kubeinit_validations_libvirt_combined_ram_usage.keys() | list }}"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_summarized_ram_usage
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: item
   with_dict: "{{ kubeinit_validations_hypervisors_free_ram }}"
-  tags:
-    - provision_libvirt
 
 - name: Make sure there is enough available ram
   ansible.builtin.assert:
@@ -111,5 +91,3 @@
       - kubeinit_validations_hypervisors_free_ram[item.key]|int > item.value|float * 1.1
     msg: "It seems there is not enough ram space (Required: {{ kubeinit_validations_libvirt_summarized_ram_usage }} Available: {{ kubeinit_validations_hypervisors_free_ram }})"
   with_dict: "{{ kubeinit_validations_libvirt_summarized_ram_usage }}"
-  tags:
-    - provision_libvirt

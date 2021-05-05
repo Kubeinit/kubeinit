@@ -131,15 +131,20 @@
 
 - name: define host, node and ovn related facts
   ansible.builtin.set_fact:
+    kubeinit_libvirt_ovn_enabled: "{{ True if (groups['all_hosts'] | length > 1) else kubeinit_common_ovn_enabled_default }}"
     kubeinit_bastion_host: "{{ groups['all_hosts'][0] }}"
     kubeinit_bastion_host_address: "{{ hostvars[groups['all_hosts'][0]]['ansible_default_ipv4']['address'] }}"
     kubeinit_apache_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
     kubeinit_bind_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
+    kubeinit_haproxy_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
     kubeinit_nfs_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
     kubeinit_registry_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}"
-    kubeinit_libvirt_ovn_enabled: "{{ True if (groups['all_hosts'] | length > 1) else kubeinit_common_ovn_enabled_default }}"
+    kubeinit_services_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
+    kubeinit_services_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}"
+    kubeinit_services_pod_name: "kubeinit-service-pod"
     kubeinit_service_user: "root"
     kubeinit_service_user_dir: "/root"
+    kubeinit_ingress_hostname: "ingress"
   with_items:
     - "{{ groups['all_hosts'] }}"
     - localhost

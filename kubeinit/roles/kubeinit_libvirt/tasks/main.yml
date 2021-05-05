@@ -98,8 +98,6 @@
     #     EOF
     #     sysctl -p /etc/sysctl.conf
     #   changed_when: false
-    #   tags:
-    #     - provision_libvirt
 
     - name: Disable SELinux
       ansible.posix.selinux:
@@ -309,8 +307,8 @@
           {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[kubeinit_bastion_host].ansible_host }}"
       with_items: "{{ groups['all_nodes'] }}"
       when: >
-        (kubeinit_bastion_host_address not in kubeinit_libvirt_initiator_ip ) and
-        (kubeinit_bastion_host in kubeinit_deployment_node_name)
+        (kubeinit_bastion_host in kubeinit_deployment_node_name) and
+        (kubeinit_bastion_host_address not in kubeinit_libvirt_initiator_ip )
 
     - name: Create directories for config files per node
       ansible.builtin.file:
@@ -349,5 +347,3 @@
 
   # In this case the node will be an hypervisor
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  tags:
-    - provision_libvirt

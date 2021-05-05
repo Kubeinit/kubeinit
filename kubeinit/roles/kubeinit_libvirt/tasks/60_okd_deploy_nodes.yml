@@ -22,13 +22,6 @@
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth0"
         mode: "0644"
 
-    - name: Create the network interface template for the external interface if enabled
-      ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/ifcfg-eth1.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth1"
-        mode: "0644"
-      when: kubeinit_libvirt_external_service_interface_enabled
-
     - name: Create the hosts template
       ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
@@ -67,9 +60,6 @@
           --run-command "echo {{ kubeinit_provision_vms_public_key }} >> /root/.ssh/authorized_keys" \
           --hostname {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
-          {% if kubeinit_libvirt_external_service_interface_enabled %}
-          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth1:/etc/sysconfig/network-scripts \
-          {% endif %}
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.redhat.tmpl:/etc/cloud/templates \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg:/etc/cloud \
           --selinux-relabel --root-password password:{{ kubeinit_libvirt_vms_default_password }}
@@ -97,13 +87,6 @@
                 {% endif %}
               {% endif %}
             {% endfor %}
-            {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in kubeinit_deployment_node_name %}
-                {% if kubeinit_libvirt_ovn_enabled %}
-                  --network network={{ kubeinit_inventory_network_name }},mac={{ kubeinit_libvirt_external_service_interface.mac }},virtualport.parameters.interfaceid={{ kubeinit_libvirt_external_service_interface.interfaceid }},target.dev=veth1-{{ kubeinit_deployment_node_name.split("-")[1][:2] }}{{ kubeinit_deployment_node_name.split("-")[2] }},model=virtio \
-                {% else %}
-                  --network bridge={{ kubeinit_libvirt_external_service_interface.attached }},mac={{ kubeinit_libvirt_external_service_interface.mac }},model=virtio \
-                {% endif %}
-            {% endif %}
             --graphics none \
             --noautoconsole \
             --import \
@@ -182,5 +165,3 @@
       until: kubeinit_deployment_node_name in running_vms.list_vms
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
-  tags:
-    - provision_libvirt

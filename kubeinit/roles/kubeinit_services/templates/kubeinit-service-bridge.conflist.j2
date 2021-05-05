@@ -1,0 +1,40 @@
+{
+  "cniVersion": "0.4.0",
+  "name": "{{ kubeinit_services_bridge_name }}",
+  "plugins": [
+    {
+      "type": "bridge",
+      "bridge": "{{ kubeinit_inventory_network_bridge }}",
+      "isGateway": true,
+      "ipMasq": true,
+      "ipam": {
+        "type": "host-local",
+        "routes": [
+          {
+            "dst": "0.0.0.0/0"
+          }
+        ],
+        "ranges": [
+          [
+            {
+              "gateway": "{{ kubeinit_inventory_network_gateway }}",
+              "subnet": "{{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }}"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "portmap",
+      "capabilities": {
+        "portMappings": true
+      }
+    },
+    {
+      "type": "firewall"
+    },
+    {
+      "type": "tuning"
+    }
+  ]
+}

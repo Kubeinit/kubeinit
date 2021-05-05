@@ -1,0 +1,96 @@
+#!/bin/bash
+set -euo pipefail
+
+# This file is rendered using a template from a KubeInit role
+# This file will be overriden each time the playbook runs
+# No not edit directly
+# More information at: https://github.com/kubeinit/kubeinit
+
+KUBEINIT_INGRESS_IP=$(hostname -i)
+KUBEINIT_HAPROXY_IP={{ kubeinit_haproxy_service_address }}
+
+# Install buildah and podman
+dnf install -y buildah podman
+
+# Build a container for external ingress and populate local directory with
+# configuration assets from the docker hub container image
+rm -rf /var/kubeinit/bind
+mkdir -p /var/kubeinit/bind
+if [ "$(buildah ls --filter 'name=buildah-external' --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]; then buildah rm buildah-external; fi
+buildah from --name buildah-external -v /var/kubeinit/bind:/var/kubeinit/bind:Z docker.io/internetsystemsconsortium/bind9:9.11
+buildah run buildah-external -- apt-get update -y
+buildah run buildah-external -- apt-get install -y openssh-client
+buildah run buildah-external -- cp -pr /etc/bind/. /var/kubeinit/bind/.
+buildah commit buildah-external kubeinit/kubeinit-ingress-bind
+
+# Remove default-zones include from named.conf
+sed -i -e '/include "\/etc\/bind\/named.conf.default-zones\";/d' /var/kubeinit/bind/named.conf
+
+# Modify named.conf.options to only listen on the ingress IP address and only on ipv4 network
+sed -i -e '/options {/a\\tlisten-on port 53 { '${KUBEINIT_INGRESS_IP}'; };' -e '/listen-on-v6/s/any/none/' /var/kubeinit/bind/named.conf.options
+
+# Add an external view for our zone to named.conf.local
+cat >> /var/kubeinit/bind/named.conf.local << EOF
+
+view "external" {
+    match-clients { any; };
+    allow-query { any; };
+
+    zone "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}" {
+        type master;
+        file "/etc/bind/db.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}";
+    };
+
+};
+EOF
+
+# Create db file for our zone database
+cat > "/var/kubeinit/bind/db.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}" << EOF
+\$TTL    604800
+
+; This file is rendered using a template from a KubeInit role
+; This file will be overriden each time the playbook runs
+; No not edit directly
+; More information at: https://github.com/kubeinit/kubeinit
+
+@       IN      SOA     {{ kubeinit_ingress_hostname }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}. admin.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.(
+                  1     ; Serial
+             604800     ; Refresh
+              86400     ; Retry
+            2419200     ; Expire
+             604800     ; Negative Cache TTL
+)
+
+; name servers - NS records
+    IN      NS      {{ kubeinit_ingress_hostname }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
+
+; external access IP - A records
+{{ kubeinit_ingress_hostname }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                          IN      A       ${KUBEINIT_INGRESS_IP}
+registry.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                         IN      A       ${KUBEINIT_INGRESS_IP}
+api.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                              IN      A       ${KUBEINIT_INGRESS_IP}
+api-int.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                          IN      A       ${KUBEINIT_INGRESS_IP}
+*.apps.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                           IN      A       ${KUBEINIT_INGRESS_IP}
+console-openshift-console.apps.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.   IN      A       ${KUBEINIT_INGRESS_IP}
+oauth-openshift.apps.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.             IN      A       ${KUBEINIT_INGRESS_IP}
+EOF
+
+# Tear down any remants from previous executions of this script
+if podman container exists kubeinit-ingress-bind; then podman stop kubeinit-ingress-bind; fi
+
+# Create a volume to provide a cache for the bind server
+if [ "$(podman volume ls --filter 'name=kubeinit-bind-cache' --format {% raw %}'{{ .Name }}'{% endraw %})" != "" ]; then podman volume rm kubeinit-bind-cache; fi
+podman volume create kubeinit-bind-cache
+podman run --rm --name kubeinit-set-bind-cache-owner -v kubeinit-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind chown bind:bind /var/cache/bind
+
+# Create a pod for our container with dns nameserver and search options
+# If you would also like to add a container running VNC you can add this option to the end of the command on the next line: -p ${KUBEINIT_INGRESS_IP}:5901:5901
+if podman pod exists kubeinit-ingress-pod; then podman pod rm kubeinit-ingress-pod; fi
+podman pod create --name kubeinit-ingress-pod --dns ${KUBEINIT_INGRESS_IP} --dns 8.8.8.8 --dns-search okdcluster.kubeinit.local
+
+# Run the ingress container on the host network mounting required volumes
+podman run --rm -d --pod kubeinit-ingress-pod --name kubeinit-ingress-bind --network host -v /root/.ssh:/root/.ssh:ro -v /var/kubeinit/bind:/etc/bind:ro -v kubeinit-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind
+
+# Create ssh tunnels in the running container for all the ports served by the cluster haproxy service
+podman exec kubeinit-ingress-bind ssh -N -f -L ${KUBEINIT_INGRESS_IP}:80:${KUBEINIT_HAPROXY_IP}:80 -L ${KUBEINIT_INGRESS_IP}:443:${KUBEINIT_HAPROXY_IP}:443 -L ${KUBEINIT_INGRESS_IP}:6443:${KUBEINIT_HAPROXY_IP}:6443 -L ${KUBEINIT_INGRESS_IP}:22623:${KUBEINIT_HAPROXY_IP}:22623 root@${KUBEINIT_HAPROXY_IP}
+
+# Anything else you would like to add
