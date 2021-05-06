@@ -28,14 +28,10 @@
     - "{{ groups['all_hosts'] | list }}"
   delegate_to: "{{ item }}"
   changed_when: "kubeinit_validations_libvirt_total_cores.rc == 0"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_total_cores
-  tags:
-    - provision_libvirt
 
 - name: Define the hypervisors available cores dictionary
   ansible.builtin.set_fact:
@@ -45,21 +41,15 @@
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_total_cores
-  tags:
-    - provision_libvirt
 
 - name: Get the total inventory cores usage
   ansible.builtin.set_fact:
     kubeinit_validations_libvirt_cores_usage: "{{ kubeinit_validations_libvirt_cores_usage|default({})| combine( {item: {'id': item, 'vcpus': hostvars[item].vcpus|int, 'target': hostvars[item].target} } ) }}"
   with_items: "{{ groups['all_nodes'] }}"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_cores_usage
-  tags:
-    - provision_libvirt
 
 - name: Set combined cores requirement per hypervisor
   ansible.builtin.set_fact:
@@ -73,14 +63,10 @@
         + kubeinit_validations_libvirt_combined_cores_usage[item.value.target] | default([]) })
       }}
   with_dict: "{{ kubeinit_validations_libvirt_cores_usage }}"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_combined_cores_usage
-  tags:
-    - provision_libvirt
 
 - name: Set the summarized cores usage per hypervisor
   ansible.builtin.set_fact:
@@ -88,21 +74,15 @@
   vars:
     my_attribute: "{{ kubeinit_validations_libvirt_combined_cores_usage[item] | map(attribute='vcpus') | list | sum }}"
   with_items: "{{ kubeinit_validations_libvirt_combined_cores_usage.keys() | list }}"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_summarized_cores_usage
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: item
   with_dict: "{{ kubeinit_validations_hypervisors_available_cores }}"
-  tags:
-    - provision_libvirt
 
 - name: Make sure there are enough cores
   ansible.builtin.assert:
@@ -113,5 +93,3 @@
       - "Per each 4 virtual cores there must be one physical core"
       - "(Required: {{ kubeinit_validations_libvirt_summarized_cores_usage }} Available: {{ kubeinit_validations_hypervisors_available_cores }})"
   with_dict: "{{ kubeinit_validations_libvirt_summarized_cores_usage }}"
-  tags:
-    - provision_libvirt

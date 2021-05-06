@@ -11,26 +11,13 @@ network:
       dhcp4: true
       dhcp6: false
       addresses: [{{ hostvars[kubeinit_deployment_node_name].ansible_host }}/{{ hostvars[kubeinit_deployment_node_name].prefix }}]
-      gateway4: {{ hostvars[kubeinit_deployment_node_name].gateway }}
+      gateway4: {{ kubeinit_inventory_network_gateway }}
       match:
         macaddress: {{ hostvars[kubeinit_deployment_node_name].mac }}
       mtu: "1442"
       nameservers:
-        #addresses: [{{ hostvars[kubeinit_deployment_node_name].gateway }}]
+        #addresses: [{{ kubeinit_bind_service_address }}]
         addresses: [{{ kubeinit_common_dns_master }}]
-{% if kubeinit_libvirt_external_service_interface_enabled and 'service' in kubeinit_deployment_node_name %}
-    {{ kubeinit_libvirt_external_service_interface.dev }}:
-      dhcp4: true
-      dhcp6: false
-      addresses: [{{ kubeinit_libvirt_external_service_interface.ip }}/{{ kubeinit_libvirt_external_service_interface.netmask }}]
-      gateway4: {{ kubeinit_libvirt_external_service_interface.gateway }}
-      match:
-        macaddress: {{ kubeinit_libvirt_external_service_interface.mac }}
-      mtu: "1442"
-      nameservers:
-        # addresses: [{{ kubeinit_libvirt_external_service_interface.gateway }}]
-        addresses: [{{ kubeinit_common_dns_master }}]
-{% endif %}
 
 # enp1s0
 # enp2s0

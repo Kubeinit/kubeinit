@@ -1,0 +1,58 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+#
+# "kubeinit_services" tasks
+#
+
+- name: Services setup
+  block:
+
+    - name: Prepare podman
+      # delegate_facts: true
+      ansible.builtin.import_role:
+        name: ../../roles/kubeinit_prepare
+        tasks_from: prepare_podman
+
+    - name: Setup the services pod
+      ansible.builtin.include: 00_create_service_pod.yml
+
+    - name: Setup the services container
+      ansible.builtin.include: 10_create_service_container.yml
+
+    - name: Configure Bind
+      # delegate_facts: true
+      ansible.builtin.import_role:
+        name: ../../roles/kubeinit_bind
+      when: kubeinit_services_bind_enabled
+
+    - name: Configure HAProxy
+      # delegate_facts: true
+      ansible.builtin.import_role:
+        name: ../../roles/kubeinit_haproxy
+      when: kubeinit_services_haproxy_enabled
+
+    - name: Configure Apache
+      # delegate_facts: true
+      ansible.builtin.import_role:
+        name: ../../roles/kubeinit_apache
+      when: kubeinit_services_apache_enabled
+
+    - name: Configure the cluster services
+      ansible.builtin.include: 20_configure_services.yml
+
+  delegate_to: "{{ kubeinit_bastion_host }}"

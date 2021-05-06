@@ -1,0 +1,56 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+- name: Install podman if required
+  ansible.builtin.package:
+    state: present
+    name: "podman"
+
+- name: Create the docker.io password file
+  ansible.builtin.template:
+    src: "docker_io_pass.j2"
+    dest: "~/docker_io_pass"
+    mode: "0755"
+  when: >
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password
+
+- name: Podman login to docker.io
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman login --username {{ kubeinit_common_docker_username }} --password-stdin < ~/docker_io_pass docker.io
+  args:
+    executable: /bin/bash
+  register: podman_login
+  changed_when: "podman_login.rc == 0"
+  when: |
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password
+
+- name: Create a minimal podman pod for the service containers running on service node VMs
+  containers.podman.podman_pod:
+    name: "{{ kubeinit_services_pod_name }}"
+    dns:
+      - "{{ kubeinit_services_service_address }}"
+      - "{{ kubeinit_common_dns_master }}"
+    dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    state: created
+  register: services_podman_pod_info

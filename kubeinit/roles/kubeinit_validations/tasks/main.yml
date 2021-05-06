@@ -15,22 +15,5 @@
 # under the License.
 
 
-# "kubeinit_validations" will search for and load any operating system variable file
-
-# found within the "vars/" path. If no OS files are found the task will skip.
-- name: Gather variables for each operating system
-  ansible.builtin.include_vars: "{{ item }}"
-  with_first_found:
-    - skip: true
-      files:
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_version.split('.')[0] }}.yml"
-        - "{{ ansible_os_family | lower }}.yml"
-  tags:
-    - always
-
 - name: run libvirt validations
   ansible.builtin.include_tasks: 00_libvirt.yml

@@ -1,0 +1,276 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Configure the service node
+  block:
+
+    - name: "Render net info"
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "{{ kubeinit_okd_pod_cidr }}" > ~/pod_cidr
+        echo "{{ kubeinit_okd_service_cidr }}" > ~/service_cidr
+      args:
+        executable: /bin/bash
+      register: render_net_info
+      changed_when: "render_net_info.rc == 0"
+
+    - name: Create directory for apache
+      ansible.builtin.file:
+        path: "{{ kubeinit_apache_directory_htdocs }}/okd4"
+        state: directory
+        mode: 0775
+        recurse: yes
+      delegate_to: "{{ kubeinit_bastion_host }}"
+
+    #
+    # Include the install configuration
+    #
+
+    - name: "Render root keys in the service node"
+      ansible.builtin.shell: |
+        cd
+        mkdir ~/.ssh
+        ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
+      args:
+        executable: /bin/bash
+      register: render_service_keys
+      changed_when: "render_service_keys.rc == 0"
+
+    - name: get root service machine public key
+      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
+      register: public_key_service_content
+      changed_when: "public_key_service_content.rc == 0"
+
+    - name: register the public key of the root service machine public key
+      ansible.builtin.set_fact:
+        kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
+
+    - name: Download okd installer
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_okd_dependencies.installer }}"
+        dest: ~/
+
+    - name: Download okd client
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_okd_dependencies.client }}"
+        dest: ~/
+
+    - name: "Install okd client and installer"
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd
+        rm -rf install_dir
+        mkdir install_dir
+        for f in *.tar.gz; do tar -xvf "$f"; done
+        mv kubectl oc openshift-install /usr/local/bin/
+        oc version
+        openshift-install version
+      args:
+        executable: /bin/bash
+      register: install_client_and_installer
+      changed_when: "install_client_and_installer.rc == 0"
+
+    #
+    # Configure local registry
+    #
+
+    - name: Override initial pullsecret with fake auth
+      ansible.builtin.set_fact:
+        kubeinit_okd_registry_pullsecret: '  { "auths": { "fakeregistry:5000": { "auth": "foo" } } }'
+      when: not kubeinit_registry_enabled|default(false) and kubeinit_okd_registry_pullsecret_empty in kubeinit_okd_registry_pullsecret
+
+    - name: Create registry auth for pullsecret
+      ansible.builtin.set_fact:
+        # The spaces after the first single quote is required, do not remove
+        # Something in Ansible appears to be recognizing this as valid Python,
+        # so it's getting transformed into a Python list and then serialized
+        # using Python's str(), which is why we end up with the single-quoted values.
+        ocp_registry_token: '  { "cloud.openshift.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_cloud_openshift_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"quay.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_quay_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.connect.redhat.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_connect_redhat_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.redhat.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_redhat_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } }'
+      when: kubeinit_okd_openshift_deploy
+
+    - name: append openshift auth to pullsecret
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo '{{ kubeinit_okd_registry_pullsecret }}' | jq -c \
+          '.auths += {{ ocp_registry_token }}'
+      args:
+        executable: /bin/bash
+      register: ocp_new_pullsecret
+      changed_when: "ocp_new_pullsecret.rc == 0"
+      when: kubeinit_okd_openshift_deploy
+
+    - name: Override final openshift kubeinit_okd_registry_pullsecret with both auths
+      ansible.builtin.set_fact:
+        kubeinit_okd_registry_pullsecret: '  {{ ocp_new_pullsecret.stdout }}'
+      when: kubeinit_okd_openshift_deploy
+
+    - name: "Render the required container images"
+      ansible.builtin.shell: |
+        set -o pipefail
+
+        {% if ( kubeinit_okd_openshift_deploy | default(False) ) %}
+        URL="{{ kubeinit_okd_registry_release_url }}"
+        {% else %}
+        URL=$( curl -s "{{ kubeinit_okd_registry_release_url }}" \
+           | jq -r '.assets[] | select(.name=="release.txt") | .browser_download_url' )
+        {% endif %}
+
+        curl -LO "$URL"
+        cat release.txt | grep quay | grep -v "Pull From" | tr -s ' ' | cut -d ' ' -f 3 > ~/kubeinit_deployment_images.txt
+      args:
+        executable: /bin/bash
+      register: render_images_list
+      changed_when: "render_images_list.rc == 0"
+
+  delegate_to: "{{ kubeinit_services_service_address }}"
+
+- name: Configure a local container image registry
+  # delegate_facts: true
+  ansible.builtin.import_role:
+    name: ../../roles/kubeinit_registry
+    tasks_from: main
+  when: kubeinit_registry_enabled|bool
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
+- name: Configure the service node continued
+  block:
+
+    - name: Render the cluster template
+      ansible.builtin.template:
+        src: "install-config.yaml.j2"
+        dest: "~/install_dir/install-config.yaml"
+        mode: '0644'
+
+    - name: "Backup the install config file"
+      ansible.builtin.shell: |
+        cp ~/install_dir/install-config.yaml ~/install-config.yaml
+      register: backup_install_config
+      changed_when: "backup_install_config.rc == 0"
+
+    - name: "Render the bootstrap details"
+      ansible.builtin.shell: |
+        openshift-install create manifests --dir=install_dir/
+      register: render_bootstrap_details
+      changed_when: "render_bootstrap_details.rc == 0"
+
+    - name: "Enable master schedulable if there are no worker nodes"
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd
+        yaml_file="install_dir/manifests/cluster-scheduler-02-config.yml"
+        key="mastersSchedulable"
+        new_value="true"
+        sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
+      register: enable_masters_sched
+      changed_when: "enable_masters_sched.rc == 0"
+      when: groups['all_worker_nodes'] | list | length == 0
+
+    - name: "Disable master schedulable if there is at least one worker node"
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd
+        yaml_file="install_dir/manifests/cluster-scheduler-02-config.yml"
+        key="mastersSchedulable"
+        new_value="false"
+        sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
+      register: disable_masters_sched
+      changed_when: "disable_masters_sched.rc == 0"
+      when: groups['all_worker_nodes'] | list | length > 0
+
+    - name: "Render ignition files"
+      ansible.builtin.shell: |
+        # We backup first the manifests
+        tar -czvf install_manifests_backup.tar.gz ~/install_dir/
+        openshift-install create ignition-configs --dir=install_dir/
+        cp -R install_dir/* "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+      register: render_ignition_files
+      changed_when: "render_ignition_files.rc == 0"
+
+    #
+    # CoreOS images
+    #
+    - name: Download coreos initrd image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.initrd }}"
+        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        mode: 0775
+      when: not kubeinit_okd_openshift_deploy
+
+    - name: Download coreos rootfs image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.rootfs }}"
+        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        mode: 0775
+      when: not kubeinit_okd_openshift_deploy
+
+    - name: Download coreos raw image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.raw }}"
+        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        mode: 0775
+      when: not kubeinit_okd_openshift_deploy
+
+    - name: Download coreos sig image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.sig }}"
+        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        mode: 0775
+      when: not kubeinit_okd_openshift_deploy
+
+    #
+    # RHCOS images
+    #
+    - name: Download rhcos initrd image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_libvirt_source_images.rhcos.uri }}{{ kubeinit_libvirt_source_images.rhcos.initrd }}"
+        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        mode: 0775
+      when: kubeinit_okd_openshift_deploy
+
+    - name: Download rhcos rootfs image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_libvirt_source_images.rhcos.uri }}{{ kubeinit_libvirt_source_images.rhcos.rootfs }}"
+        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        mode: 0775
+      when: kubeinit_okd_openshift_deploy
+
+    - name: Download rhcos raw image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_libvirt_source_images.rhcos.uri }}{{ kubeinit_libvirt_source_images.rhcos.raw }}"
+        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        mode: 0775
+      when: kubeinit_okd_openshift_deploy
+
+    - name: "Apply permissions to the apache folder"
+      ansible.builtin.shell: |
+        sudo chmod -R 755 "{{ kubeinit_apache_directory_htdocs }}/"
+      register: apply_apache_permissions
+      changed_when: "apply_apache_permissions.rc == 0"
+
+    - name: Create kube directory
+      ansible.builtin.file:
+        path: ~/.kube
+        state: directory
+        mode: '0644'
+
+    - name: Autoload kubeconfig
+      ansible.builtin.shell: |
+        echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
+      ignore_errors: yes
+      register: autoload
+      changed_when: "autoload.rc == 0"
+
+  delegate_to: "{{ kubeinit_services_service_address }}"

@@ -16,52 +16,6 @@
 
 - name: Configure the service node
   block:
-    - name: "Install dispatch packages and arp filter"
-      ansible.builtin.shell: |
-        set -o pipefail
-        #
-        # Install the nm dispatcher packages
-        #
-        yum install NetworkManager-config-routing-rules -y
-        systemctl enable NetworkManager-dispatcher.service
-        systemctl start NetworkManager-dispatcher.service
-        #
-        # Make sure ARP responses will come only from
-        # that interface where the request went
-        #
-        sysctl -w net.ipv4.conf.default.arp_filter=1
-        sysctl -w net.ipv4.conf.all.arp_filter=1
-        echo "net.ipv4.conf.all.arp_filter = 1" >> /etc/sysctl.conf
-        echo "net.ipv4.conf.default.arp_filter=1" >> /etc/sysctl.conf
-      args:
-        executable: /bin/bash
-      register: routing_dispatch
-      changed_when: "routing_dispatch.rc == 0"
-      when: kubeinit_libvirt_external_service_interface_enabled
-
-    - name: "Configure Policy-Based-Routing Rules"
-      ansible.builtin.shell: |
-        set -o pipefail
-        #
-        # Policy based routing for the external interface
-        #
-        echo 200 external >> /etc/iproute2/rt_tables
-        ip route add {{ (kubeinit_libvirt_external_service_interface.ip + "/" + kubeinit_libvirt_external_service_interface.netmask) | ansible.netcommon.ipaddr('network/prefix') }} dev eth1 table external
-        ip route add default via {{ kubeinit_libvirt_external_service_interface.gateway }} dev eth1 table external
-        ip rule add from {{ kubeinit_libvirt_external_service_interface.ip }}/32 table external
-        ip rule add to {{ kubeinit_libvirt_external_service_interface.ip }}/32 table external
-        ip rule add iif eth1 table external
-        #
-        # TODO:FIXME:BUG:WHYNOT: Check if the previous rules persist
-        #
-        # mkdir -p /etc/sysconfig/network-scripts/
-        # echo "default via {{ kubeinit_libvirt_external_service_interface.gateway }} table external" >> /etc/sysconfig/network-scripts/route-{{ kubeinit_libvirt_external_service_interface.dev }}
-        # echo "from {{ kubeinit_libvirt_external_service_interface.ip }} table external" >> /etc/sysconfig/network-scripts/rule-{{ kubeinit_libvirt_external_service_interface.dev }}
-      args:
-        executable: /bin/bash
-      register: policy_routing
-      changed_when: "policy_routing.rc == 0"
-      when: kubeinit_libvirt_external_service_interface_enabled
 
     - name: install services requirements
       ansible.builtin.yum:
@@ -80,6 +34,16 @@
         path: /etc/resolv.conf
         line: "nameserver {{ kubeinit_bind_service_address }}"
         insertbefore: nameserver.*
+
+    #
+    # Prepare podman
+    #
+
+    - name: Prepare podman
+      # delegate_facts: true
+      ansible.builtin.import_role:
+        name: ../../roles/kubeinit_prepare
+        tasks_from: prepare_podman
 
     # #
     # # Configure local registry
@@ -144,5 +108,3 @@
         kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
-  tags:
-    - provision_libvirt

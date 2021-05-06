@@ -38,9 +38,6 @@
         # Create a logical switch
         #
         ovn-nbctl --wait=hv ls-add sw0
-        {% if kubeinit_libvirt_external_service_interface_enabled %}
-        ovn-nbctl --wait=hv ls-add sw1
-        {% endif %}
       when: >
         kubeinit_bastion_host in kubeinit_deployment_node_name
 
@@ -95,22 +92,6 @@
         ovn-nbctl --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
             lsp-set-dhcpv4-options {{ hostvars[item].interfaceid }} {{ kubeinit_provision_dhcp_options }}
 
-        {% if kubeinit_libvirt_external_service_interface_enabled and 'service' in item %}
-        ovn-nbctl --wait=hv --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
-            lsp-add sw1 {{ kubeinit_libvirt_external_service_interface.interfaceid }}
-
-        ovn-nbctl --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
-            lsp-set-addresses {{ kubeinit_libvirt_external_service_interface.interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
-
-        ovn-nbctl --db=tcp:{{ kubeinit_bastion_host_address }}:{{ kubeinit_libvirt_ovn_northbound_port }} \
-            lsp-set-port-security {{ kubeinit_libvirt_external_service_interface.interfaceid }} "{{ kubeinit_libvirt_external_service_interface.mac }} {{ kubeinit_libvirt_external_service_interface.ip }}"
-
-        # The following command will be executed in the hypervisor where the service machine is.
-        # We need to make sure the bridge binding exists between the OVN interface (Logical SWitch Port) and
-        # the local bridge (OVS local bridge)
-        ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=externalserv:{{ kubeinit_libvirt_external_service_interface.attached }},provider:br-ex
-
-        {% endif %}
       with_items: "{{ groups['all_nodes'] }}"
       # We run this bucle in each hypervisor, so, we execute these tasks
       # when the item (each guest) target is equal to the hypervisor where we
@@ -164,20 +145,6 @@
         ip link set br-ex up
 
         #
-        # Create a localnet port for the external interface
-        #
-        {% if kubeinit_libvirt_external_service_interface_enabled %}
-        ovn-nbctl --wait=hv lsp-add sw1 sw1-ln
-        ovn-nbctl lsp-set-type sw1-ln localnet
-        ovn-nbctl lsp-set-addresses sw1-ln unknown
-        ovn-nbctl lsp-set-options sw1-ln network_name=externalserv
-        #
-        # We add a bridge mapping from the external interface bridge called externalserv
-        #
-        ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=externalserv:{{ kubeinit_libvirt_external_service_interface.attached }},provider:br-ex
-        {% endif %}
-
-        #
         # Routes
         #
         # Connectivity from the host to the guest machines
@@ -215,10 +182,9 @@
         kubeinit_bastion_host in kubeinit_deployment_node_name
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  tags:
-    - provision_libvirt
-    # When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
-    # ovn-nbctl show
-    # ovn-sbctl show
-    # ovs-vsctl show
-    # ovs-vsctl list interface veth0-wo02
+
+# When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
+# ovn-nbctl show
+# ovn-sbctl show
+# ovs-vsctl show
+# ovs-vsctl list interface veth0-ma01

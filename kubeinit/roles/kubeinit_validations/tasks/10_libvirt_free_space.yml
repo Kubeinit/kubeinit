@@ -33,14 +33,10 @@
     - "{{ groups['all_hosts'] | list }}"
   delegate_to: "{{ item }}"
   changed_when: "kubeinit_validations_libvirt_free_space.rc == 0"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_free_space
-  tags:
-    - provision_libvirt
 
 - name: Define the hypervisors disk free space dictionary
   ansible.builtin.set_fact:
@@ -50,21 +46,15 @@
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_hypervisors_free_disk_space
-  tags:
-    - provision_libvirt
 
 - name: Get the total inventory disk usage
   ansible.builtin.set_fact:
     kubeinit_validations_libvirt_disk_usage: "{{ kubeinit_validations_libvirt_disk_usage|default({})| combine( {item: {'id': item, 'disk': hostvars[item].disk[:-1]|int, 'target': hostvars[item].target} } ) }}"
   with_items: "{{ groups['all_nodes'] }}"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_disk_usage
-  tags:
-    - provision_libvirt
 
 - name: Set combined disk requirement per hypervisor
   ansible.builtin.set_fact:
@@ -78,14 +68,10 @@
         + kubeinit_validations_libvirt_combined_disk_usage[item.value.target] | default([]) })
       }}
   with_dict: "{{ kubeinit_validations_libvirt_disk_usage }}"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_combined_disk_usage
-  tags:
-    - provision_libvirt
 
 - name: Set the summarized disk usage per hypervisor
   ansible.builtin.set_fact:
@@ -93,21 +79,15 @@
   vars:
     my_attribute: "{{ kubeinit_validations_libvirt_combined_disk_usage[item] | map(attribute='disk') | list | sum }}"
   with_items: "{{ kubeinit_validations_libvirt_combined_disk_usage.keys() | list }}"
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_summarized_disk_usage
-  tags:
-    - provision_libvirt
 
 - name: debug
   ansible.builtin.debug:
     var: item
   with_dict: "{{ kubeinit_validations_hypervisors_free_disk_space }}"
-  tags:
-    - provision_libvirt
 
 - name: Make sure there is enough free space
   ansible.builtin.assert:
@@ -115,5 +95,3 @@
       - kubeinit_validations_hypervisors_free_disk_space[item.key]|int > item.value|float * 1.1
     msg: "It seems there is not enough disk space (Required: {{ kubeinit_validations_libvirt_summarized_disk_usage }} Available: {{ kubeinit_validations_hypervisors_free_disk_space }})"
   with_dict: "{{ kubeinit_validations_libvirt_summarized_disk_usage }}"
-  tags:
-    - provision_libvirt
