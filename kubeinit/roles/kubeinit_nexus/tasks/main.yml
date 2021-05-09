@@ -23,15 +23,110 @@
     mode: '0755'
   with_items: "{{ kubeinit_nexus_directories }}"
 
+- name: Create nexus-data subfolders
+  ansible.builtin.file:
+    path: "{{ item | safe | trim }}"
+    state: directory
+    recurse: yes
+    mode: '0755'
+  with_items:
+    - "{{ kubeinit_nexus_directory_data }}/etc/ssl"
+    - "{{ kubeinit_nexus_directory_data }}/log"
+    - "{{ kubeinit_nexus_directory_data }}/tmp"
+
+- name: Create the property file update script
+  ansible.builtin.copy:
+    content: |
+      #!/bin/bash
+      set -eo pipefail
+      cp /opt/sonatype/nexus/etc/nexus-default.properties /nexus-data/etc/nexus.properties
+      sed -i -e 's/^\([^#]\)/# \1/' -e 's/^# nexus-args=/nexus-args=/' -e 's/jetty-http/jetty-https/' -e 's/# application-port=8081/application-port-ssl=8443/' -e '$ a ssl.etc=${karaf.data}/etc/ssl' -e '$ a nexus.scripts.allowCreation=true' /nexus-data/etc/nexus.properties
+      sed -i -e '/New id="sslContextFactory"/ a REPLACE_ME' -e 's;REPLACE_ME;    <Set name="certAlias">kubeinit-nexus</Set>;' /opt/sonatype/nexus/etc/jetty/jetty-https.xml
+    dest: "{{ kubeinit_nexus_directory_data }}/update-props.sh"
+    mode: '0644'
+
+- name: Install buildah if required
+  ansible.builtin.package:
+    state: present
+    name: "buildah"
+
+- name: Remove any old nexus buildah container
+  ansible.builtin.command: buildah rm buildah-nexus
+  ignore_errors: yes
+
+- name: Create a new working container image
+  ansible.builtin.command: buildah from --name buildah-nexus --volume "{{ kubeinit_nexus_directory_data }}:/nexus-data" docker.io/sonatype/nexus3:3.30.0
+
+- name: Set working directory inside container
+  ansible.builtin.command: buildah config --workingdir /nexus-data/tmp buildah-nexus
+
+- name: Update image
+  ansible.builtin.command: buildah run --user root:root buildah-nexus -- dnf update -q -y
+
+- name: Create java keystore
+  ansible.builtin.command: buildah run --user root:root buildah-nexus -- keytool -genkeypair -keystore keystore.jks -storepass password -keypass password -alias kubeinit-nexus -keyalg RSA -keysize 2048 -validity 5000 -dname "CN=*.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}, OU={{ kubeinit_nexus_certificate_organizational_unit }}, O={{ kubeinit_nexus_certificate_organization }}, L={{ kubeinit_nexus_certificate_locality }}, ST={{ kubeinit_nexus_certificate_state }}, C={{ kubeinit_nexus_certificate_country }}" -ext "SAN=DNS:{{ kubeinit_nexus_fqdn }},IP:{{ kubeinit_nexus_service_address }}" -ext "BC=ca:true"
+
+- name: Copy keystore file
+  ansible.builtin.command: buildah run --user root:root buildah-nexus -- keytool -importkeystore -srckeystore keystore.jks -srcstorepass password -destkeystore keystore.jks -deststoretype pkcs12
+
+- name: Copy keystore file
+  ansible.builtin.command: buildah run --user root:root buildah-nexus -- keytool -export -alias kubeinit-nexus -keystore keystore.jks -storepass password -rfc -file public.cert
+
+- name: Copy keystore file
+  ansible.builtin.command: buildah run --user root:root buildah-nexus -- cp keystore.jks public.cert /nexus-data/etc/ssl/
+
+- name: Link keystore file to alternate location
+  ansible.builtin.command: buildah run --user root:root buildah-nexus -- ln -s /nexus-data/etc/ssl/keystore.jks /opt/sonatype/nexus/etc/ssl/keystore.jks
+
+- name: Run script to update properties
+  ansible.builtin.command: buildah run --user root:root buildah-nexus -- bash /nexus-data/update-props.sh
+
+- name: Set owner of nexus data to nexus
+  ansible.builtin.command: buildah run --user root:root buildah-nexus -- chown -R nexus:nexus /nexus-data
+
+- name: Commit the container image
+  ansible.builtin.command: buildah commit buildah-nexus kubeinit/kubeinit-nexus:latest
+
+- name: Create a podman volume for nexus data
+  containers.podman.podman_volume:
+    name: "kubeinit-nexus-data"
+    state: present
+    recreate: yes
+  register: nexus_data_volume_info
+
+- name: Set nexus as owner of the volume root
+  containers.podman.podman_container:
+    name: "{{ kubeinit_nexus_service_name }}-set-owner"
+    image: kubeinit/kubeinit-nexus:latest
+    state: started
+    detach: no
+    remove: yes
+    user: root
+    command: chown nexus:nexus /mnt
+    volumes:
+      - "kubeinit-nexus-data:/mnt"
+
+- name: Copy data into nexus-data volume
+  containers.podman.podman_container:
+    name: "{{ kubeinit_nexus_service_name }}-copy-data"
+    image: kubeinit/kubeinit-nexus:latest
+    state: started
+    detach: no
+    remove: yes
+    command: cp -pr /mnt/etc /nexus-data/
+    volumes:
+      - "kubeinit-nexus-data:/nexus-data"
+      - "{{ kubeinit_nexus_directory_data }}:/mnt"
+
 - name: Create a podman container to serve nexus
   containers.podman.podman_container:
-    name: "{{ kubeinit_nexus_pod_name }}"
-    image: docker.io/sonatype/nexus3:3.30.0
+    name: "{{ kubeinit_nexus_service_name }}"
+    image: kubeinit/kubeinit-nexus:latest
     pod: "{{ kubeinit_services_pod_name }}"
     state: stopped
     network: host
     volumes:
-      - "/var/kubeinit/nexus:/nexus-data:Z"
+      - "kubeinit-nexus-data:/nexus-data"
   register: nexus_podman_container_info
 
 - name: Setting Podman facts about the container that will run nexus
@@ -57,7 +152,7 @@
   ansible.builtin.copy:
     content: |
       [Unit]
-      Description=Podman container-nexus.service
+      Description=Podman {{ kubeinit_nexus_service_name }}.service
       [Service]
       Restart=on-failure
       ExecStart=/usr/bin/podman start {{ container_nexus_name }}
@@ -67,7 +162,7 @@
       PIDFile={{ container_nexus_pidfile }}
       [Install]
       WantedBy=default.target
-    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/container-nexus.service"
+    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/{{ kubeinit_nexus_service_name }}.service"
     owner: "{{ kubeinit_service_user }}"
     group: "{{ kubeinit_service_user }}"
     mode: '0644'
@@ -79,18 +174,66 @@
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Enable container-nexus.service
+- name: Enable {{ kubeinit_nexus_service_name }}.service
   ansible.builtin.systemd:
-    name: container-nexus
+    name: "{{ kubeinit_nexus_service_name }}"
     enabled: yes
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Start container-nexus.service
+- name: Start {{ kubeinit_nexus_service_name }}.service
   ansible.builtin.systemd:
-    name: container-nexus
+    name: "{{ kubeinit_nexus_service_name }}"
     state: started
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Wait for service to be available
+  ansible.builtin.shell: |
+    set -eo pipefail
+    while [[ "$(curl --cacert {{ kubeinit_nexus_directory_data }}/etc/ssl/public.cert -s -o /dev/null -w '%{http_code}' https://10.0.0.100:8443)" != "200" ]]; do sleep 5; done
+  args:
+    executable: /bin/bash
+  register: nexus_service_wait
+  changed_when: "nexus_service_wait.rc == 0"
+
+- name: Copy out admin password
+  ansible.builtin.command: |
+    podman cp kubeinit-nexus:/nexus-data/admin.password "{{ kubeinit_nexus_directory_data }}/admin.password"
+  register: result
+  changed_when: "result.rc == 0"
+
+- name: Read admin password into a var
+  ansible.builtin.slurp:
+    src: "{{ kubeinit_nexus_directory_data }}/admin.password"
+  register: admin_password
+
+- name: Put nexus admin password into a fact
+  ansible.builtin.set_fact:
+    nexus_admin_password: "{{ admin_password.content | b64decode }}"
+
+# - name: Copy nexus public cert into services container
+#   ansible.builtin.command: |
+#     podman cp "{{ kubeinit_nexus_directory_data }}/etc/ssl/public.cert" kubeinit-services:"{{ kubeinit_nexus_directory_data }}/etc/ssl/public.cert"
+
+- name: Setup server using nexus3 cli
+  block:
+    - name: Install the nexus3 cli
+      ansible.builtin.command: |
+        python3 -m pip install -q cryptography==3.3.2 nexus3-cli
+
+    - name: Login to nexus3 cli
+      ansible.builtin.command: |
+        env LC_ALL=C.UTF-8 LANG=C.UTF-8 nexus3 login -u admin -p {{ nexus_admin_password }} -U "https://{{ kubeinit_nexus_service_address }}:8443" --x509_verify
+
+    - name: Create docker repository
+      ansible.builtin.command: |
+        env LC_ALL=C.UTF-8 LANG=C.UTF-8 REQUESTS_CA_BUNDLE="{{ kubeinit_nexus_directory_data }}/etc/ssl/public.cert" nexus3 repository create hosted docker --https-port {{ kubeinit_nexus_registry_port }} --v1-enabled origin
+
+    - name: Activate security realm for docker tokens
+      ansible.builtin.command: |
+        env LC_ALL=C.UTF-8 LANG=C.UTF-8 REQUESTS_CA_BUNDLE="{{ kubeinit_nexus_directory_data }}/etc/ssl/public.cert" nexus3 security realm activate DockerToken
+
+  delegate_to: "{{ kubeinit_nexus_service_address }}"

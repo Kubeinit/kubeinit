@@ -21,12 +21,17 @@
 kubeinit_haproxy_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
 kubeinit_haproxy_hide_sensitive_logs: true
 
-kubeinit_haproxy_config_file: /var/kubeinit/haproxy/haproxy.cfg
-kubeinit_haproxy_directories:
-  - /var/kubeinit/haproxy
-  - /var/lib/haproxy
+kubeinit_haproxy_service_name: kubeinit-haproxy
 
-kubeinit_haproxy_pod_name: kubeinit-haproxy
+kubeinit_haproxy_directory: /var/kubeinit/haproxy
+kubeinit_haproxy_directory_conf: "{{ kubeinit_haproxy_directory }}/conf"
+kubeinit_haproxy_directory_lib: "{{ kubeinit_haproxy_directory }}/lib"
+
+kubeinit_haproxy_directories:
+  - "{{ kubeinit_haproxy_directory_conf }}"
+  - "{{ kubeinit_haproxy_directory_lib }}"
+
+kubeinit_haproxy_config_file: "{{ kubeinit_haproxy_directory_conf }}/haproxy.cfg"
 
 kubeinit_haproxy_global_maxconn: 20000
 kubeinit_haproxy_global_log: stdout format raw local0 info

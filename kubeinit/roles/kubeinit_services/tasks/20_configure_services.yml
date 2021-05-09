@@ -148,6 +148,12 @@
 - name: Configure the service node continued
   block:
 
+    - name: Mirror local registry
+      ansible.builtin.import_role:
+        name: ../../roles/kubeinit_registry
+        tasks_from: 20_mirror_okd.yml
+      when: kubeinit_registry_enabled|bool
+
     - name: Render the cluster template
       ansible.builtin.template:
         src: "install-config.yaml.j2"

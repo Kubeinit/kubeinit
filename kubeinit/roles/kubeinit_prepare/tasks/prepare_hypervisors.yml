@@ -15,15 +15,12 @@
 # under the License.
 
 
-# All variables intended for modification should be placed in this file.
-
-# All variables within this role should have a prefix of "kubeinit_bind_"
-kubeinit_bind_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
-kubeinit_bind_hide_sensitive_logs: true
-
-kubeinit_bind_service_name: kubeinit-bind
-
-kubeinit_bind_directory: /var/kubeinit/bind
-
-kubeinit_bind_directories:
-  - "{{ kubeinit_bind_directory }}"
+#
+# Prepare hypervisor hosts
+#
+- name: Prepare the hypervisors
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    tasks_from: prepare_hypervisor.yml
+  vars:
+    kubeinit_deployment_node_name: "{{ inventory_hostname }}"

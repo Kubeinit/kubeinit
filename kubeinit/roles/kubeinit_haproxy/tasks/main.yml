@@ -31,14 +31,14 @@
 
 - name: Create a podman container to serve the haproxy
   containers.podman.podman_container:
-    name: "{{ kubeinit_haproxy_pod_name }}"
+    name: "{{ kubeinit_haproxy_service_name }}"
     image: docker.io/library/haproxy:2.3
     pod: "{{ kubeinit_services_pod_name }}"
     state: stopped
     network: host
     volumes:
       - "{{ kubeinit_haproxy_config_file }}:/usr/local/etc/haproxy/haproxy.cfg"
-      - "/var/lib/haproxy:/var/lib/haproxy:Z"
+      - "{{ kubeinit_haproxy_directory_lib }}:/var/lib/haproxy:Z"
   register: haproxy_podman_container_info
 
 - name: Setting Podman facts about the container that will run the haproxy
@@ -64,7 +64,7 @@
   ansible.builtin.copy:
     content: |
       [Unit]
-      Description=Podman container-haproxy.service
+      Description=Podman {{ kubeinit_haproxy_service_name }}.service
       [Service]
       Restart=on-failure
       ExecStart=/usr/bin/podman start {{ container_haproxy_name }}
@@ -74,7 +74,7 @@
       PIDFile={{ container_haproxy_pidfile }}
       [Install]
       WantedBy=default.target
-    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/container-haproxy.service"
+    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/{{ kubeinit_haproxy_service_name }}.service"
     owner: "{{ kubeinit_service_user }}"
     group: "{{ kubeinit_service_user }}"
     mode: '0644'
@@ -86,17 +86,17 @@
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Enable container-haproxy.service
+- name: Enable {{ kubeinit_haproxy_service_name }}.service
   ansible.builtin.systemd:
-    name: container-haproxy
+    name: "{{ kubeinit_haproxy_service_name }}"
     enabled: yes
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Start container-haproxy.service
+- name: Start {{ kubeinit_haproxy_service_name }}.service
   ansible.builtin.systemd:
-    name: container-haproxy
+    name: "{{ kubeinit_haproxy_service_name }}"
     state: started
     scope: user
   environment:

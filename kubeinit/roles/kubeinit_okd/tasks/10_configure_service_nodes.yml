@@ -68,6 +68,7 @@
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_bind
         tasks_from: main
+
     #
     # Configure HAproxy
     #
@@ -77,6 +78,16 @@
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_haproxy
         tasks_from: main
+
+    #
+    # Configure Nexus
+    #
+
+    # - name: Configure Nexus
+    #   # delegate_facts: true
+    #   ansible.builtin.import_role:
+    #     name: ../../roles/kubeinit_nexus
+    #     tasks_from: main
 
     #
     # Configure httpd
@@ -95,8 +106,10 @@
     - name: "Render root keys in the service node"
       ansible.builtin.shell: |
         cd
-        mkdir ~/.ssh
+        mkdir -p ~/.ssh
         ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
+      args:
+        executable: /bin/bash
       register: render_service_keys
       changed_when: "render_service_keys.rc == 0"
 
@@ -191,6 +204,12 @@
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_registry
         tasks_from: main
+      when: kubeinit_registry_enabled|bool
+
+    - name: Mirror local registry
+      ansible.builtin.import_role:
+        name: ../../roles/kubeinit_registry
+        tasks_from: 20_mirror_okd.yml
       when: kubeinit_registry_enabled|bool
 
     - name: Render the cluster template
