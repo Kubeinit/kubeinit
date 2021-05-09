@@ -26,7 +26,7 @@
 
 - name: Extract configuration from the container
   containers.podman.podman_container:
-    name: "{{ kubeinit_apache_pod_name }}-extract-config"
+    name: "{{ kubeinit_apache_service_name }}-extract-config"
     image: docker.io/httpd:2.4
     state: started
     detach: no
@@ -45,7 +45,7 @@
 
 - name: Create a podman container to serve the Apache server
   containers.podman.podman_container:
-    name: "{{ kubeinit_apache_pod_name }}"
+    name: "{{ kubeinit_apache_service_name }}"
     image: docker.io/httpd:2.4
     state: stopped
     network: host
@@ -78,7 +78,7 @@
   ansible.builtin.copy:
     content: |
       [Unit]
-      Description=Podman container-apache.service
+      Description=Podman {{ kubeinit_apache_service_name }}.service
       [Service]
       Restart=on-failure
       ExecStart=/usr/bin/podman start {{ container_apache_name }}
@@ -88,7 +88,7 @@
       PIDFile={{ container_apache_pidfile }}
       [Install]
       WantedBy=default.target
-    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/container-apache.service"
+    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/{{ kubeinit_apache_service_name }}.service"
     owner: "{{ kubeinit_service_user }}"
     group: "{{ kubeinit_service_user }}"
     mode: '0644'
@@ -100,17 +100,17 @@
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Enable container-apache.service
+- name: Enable {{ kubeinit_apache_service_name }}.service
   ansible.builtin.systemd:
-    name: container-apache
+    name: "{{ kubeinit_apache_service_name }}"
     enabled: yes
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Start container-apache.service
+- name: Start {{ kubeinit_apache_service_name }}.service
   ansible.builtin.systemd:
-    name: container-apache
+    name: "{{ kubeinit_apache_service_name }}"
     state: started
     scope: user
   environment:

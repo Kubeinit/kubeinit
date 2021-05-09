@@ -29,7 +29,7 @@
       retries: 60
       delay: 60
       # Per each node we have 2 certs one per kubelet-serving and another per kube-apiserver-client-kubelet
-      until: cmd_res.stdout_lines | default([]) | list | count == ( groups['okd_master_nodes'] | count + groups['okd_worker_nodes'] | count ) * 2
+      until: cmd_res.stdout_lines | default([]) | list | count == ( groups['all_master_nodes'] | count + groups['all_worker_nodes'] | count ) * 2
 
     - name: "wait until all nodes are ready"
       ansible.builtin.shell: |
@@ -42,7 +42,7 @@
       changed_when: "cmd_res.rc == 0"
       retries: 60
       delay: 60
-      until: cmd_res.stdout_lines | default([]) | list | count == ( (groups['okd_master_nodes'] | count) + (groups['okd_worker_nodes'] | count) )
+      until: cmd_res.stdout_lines | default([]) | list | count == ( (groups['all_master_nodes'] | count) + (groups['all_worker_nodes'] | count) )
 
     - name: "use single node cluster"
       ansible.builtin.shell: |
@@ -78,7 +78,7 @@
         executable: /bin/bash
       register: single_node_cluster
       changed_when: "single_node_cluster.rc == 0"
-      when: (groups['okd_master_nodes'] | count) == 1
+      when: (groups['all_master_nodes'] | count) == 1
 
     - name: Copy the kubeconfig
       ansible.builtin.shell: |

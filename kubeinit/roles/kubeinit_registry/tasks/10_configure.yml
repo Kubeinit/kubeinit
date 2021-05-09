@@ -132,6 +132,15 @@
     ownca_create_authority_key_identifier: yes
     provider: ownca
 
+- name: Read in the contents of domain.crt
+  ansible.builtin.slurp:
+    src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
+  register: domain_cert_b64
+
+- name: Set trustbundle fact to contents of domain.crt
+  ansible.builtin.set_fact:
+    trustbundle: "{{ domain_cert_b64.content | string | b64decode }}"
+
 - name: Copy cert to pki directory
   ansible.builtin.copy:
     src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
@@ -142,7 +151,6 @@
     mode: 0644
     force: yes
     backup: yes
-  become: true
   when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'eks'
 
 - name: Copy cert to pki directory
@@ -155,7 +163,6 @@
     mode: 0644
     force: yes
     backup: yes
-  become: true
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: Install all certs in ubuntu
@@ -166,34 +173,31 @@
     cp {{ kubeinit_registry_directory_cert }}/* /usr/local/share/ca-certificates/kubeinit/
   register: install_all_certs
   changed_when: "install_all_certs.rc == 0"
-  become: true
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: Update the CA trust files
   ansible.builtin.command: update-ca-trust extract
   register: update_ca_trust_files
   changed_when: "update_ca_trust_files.rc == 0"
-  become: true
   when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'eks'
 
 - name: Update the CA trust files
   ansible.builtin.command: update-ca-certificates
   register: update_ca_certs
   changed_when: "update_ca_certs.rc == 0"
-  become: true
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
 - name: Create a podman container to serve the registry
   containers.podman.podman_container:
-    name: "{{ kubeinit_registry_pod_name }}"
+    name: "{{ kubeinit_registry_service_name }}"
     image: docker.io/library/registry:2
     pod: "{{ kubeinit_services_pod_name }}"
     state: stopped
     network: host
     volumes:
-    - "{{ kubeinit_registry_directory_data }}:/var/lib/registry:z"
     - "{{ kubeinit_registry_directory_auth }}:/auth:z"
     - "{{ kubeinit_registry_directory_cert }}:/certs:z"
+    - "{{ kubeinit_registry_directory_data }}:/var/lib/registry:z"
     env:
       REGISTRY_AUTH: htpasswd
       REGISTRY_AUTH_HTPASSWD_REALM: Registry
@@ -227,7 +231,7 @@
   ansible.builtin.copy:
     content: |
       [Unit]
-      Description=Podman container-registry.service
+      Description=Podman {{ kubeinit_registry_service_name }}.service
       [Service]
       Restart=on-failure
       ExecStart=/usr/bin/podman start {{ container_registry_name }}
@@ -237,7 +241,7 @@
       PIDFile={{ container_registry_pidfile }}
       [Install]
       WantedBy=default.target
-    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/container-registry.service"
+    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/{{ kubeinit_registry_service_name }}.service"
     owner: "{{ kubeinit_service_user }}"
     group: "{{ kubeinit_service_user }}"
     mode: '0644'
@@ -249,30 +253,21 @@
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Enable container-registry.service
+- name: Enable {{ kubeinit_registry_service_name }}.service
   ansible.builtin.systemd:
-    name: container-registry
+    name: "{{ kubeinit_registry_service_name }}"
     enabled: yes
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Start container-registry.service
+- name: Start {{ kubeinit_registry_service_name }}.service
   ansible.builtin.systemd:
-    name: container-registry
+    name: "{{ kubeinit_registry_service_name }}"
     state: started
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
-
-- name: Read in the contents of domain.crt
-  ansible.builtin.slurp:
-    src: "{{ kubeinit_registry_directory_cert }}/domain.crt"
-  register: domain_cert_b64
-
-- name: Set trustbundle fact to contents of domain.crt
-  ansible.builtin.set_fact:
-    trustbundle: "{{ domain_cert_b64.content | string | b64decode }}"
 
 - name: Fetch the domain cert from the registry host
   ansible.builtin.fetch:

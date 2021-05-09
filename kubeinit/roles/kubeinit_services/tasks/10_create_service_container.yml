@@ -15,6 +15,13 @@
 # under the License.
 
 
+- name: get the public key we will use to access the service pod
+  become: false
+  delegate_to: localhost
+  ansible.builtin.command: cat ~/.ssh/id_rsa.pub
+  register: kubeinit_services_public_key
+  changed_when: "kubeinit_services_public_key.rc == 0"
+
 - name: Install buildah if required
   ansible.builtin.package:
     state: present
@@ -29,12 +36,6 @@
   with_items:
     - "{{ kubeinit_services_directory }}/.ssh"
 
-- name: get the public key we will use to access the service pod
-  become: no
-  delegate_to: localhost
-  ansible.builtin.command: cat ~/.ssh/id_rsa.pub
-  register: kubeinit_services_public_key
-  changed_when: "kubeinit_services_public_key.rc == 0"
 
 - name: set the fact for the service pod public key
   ansible.builtin.set_fact:

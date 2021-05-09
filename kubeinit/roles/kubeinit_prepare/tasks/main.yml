@@ -15,116 +15,6 @@
 # under the License.
 
 
-# "kubeinit_prepare" will search for and load any operating system variable file
-
-# found within the "vars/" path. If no OS files are found the task will skip.
-- name: Gather variables for each operating system
-  ansible.builtin.include_vars: "{{ item }}"
-  with_first_found:
-    - skip: true
-      files:
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_version.split('.')[0] }}.yml"
-        - "{{ ansible_os_family | lower }}.yml"
-  tags:
-    - always
-
-#
-# Define additional groups we will use
-#
-- name: delegate to localhost
-  block:
-
-    - name: add all master nodes to the all_master_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_master_nodes
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list | default([]) }}"
-
-    - name: add all worker nodes to the all_worker_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_worker_nodes
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | default([]) }}"
-
-    - name: add all bootstrap nodes the all_bootstrap_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_bootstrap_nodes
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list | default([]) }}"
-
-    - name: add all cluster nodes to the all_cluster_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_cluster_nodes
-      with_items:
-        - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] + groups['all_bootstrap_nodes'] }}"
-
-    - name: add all service nodes to the all_service_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_service_nodes
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | default([]) }}"
-
-    - name: add all service and cluster nodes to the all_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_nodes
-      with_items:
-        - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
-
-    - name: add all hosts to the all_hosts group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_hosts
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list | default([]) }}"
-
-    - name: list all_hosts
-      ansible.builtin.debug:
-        msg: "Host {{ item }}"
-      with_items: "{{ groups['all_hosts'] }}"
-
-    - name: list all_nodes
-      ansible.builtin.debug:
-        msg: "Node {{ item }}"
-      with_items: "{{ groups['all_nodes'] }}"
-
-    - name: list all_service_nodes
-      ansible.builtin.debug:
-        msg: "Service Node {{ item }}"
-      with_items: "{{ groups['all_service_nodes'] }}"
-
-    - name: list all_cluster_nodes
-      ansible.builtin.debug:
-        msg: "Cluster Node {{ item }}"
-      with_items: "{{ groups['all_cluster_nodes'] }}"
-
-    - name: list all_master_nodes
-      ansible.builtin.debug:
-        msg: "Master Node {{ item }}"
-      with_items: "{{ groups['all_master_nodes'] }}"
-
-    - name: list all_worker_nodes
-      ansible.builtin.debug:
-        msg: "Worker Node {{ item }}"
-      with_items: "{{ groups['all_worker_nodes'] }}"
-
-    - name: list all_bootstrap_nodes
-      ansible.builtin.debug:
-        msg: "Bootstrap Node {{ item }}"
-      with_items: "{{ groups['all_bootstrap_nodes'] }}"
-
-  delegate_to: localhost
-  become: false
-
 #
 # Set facts
 #
@@ -137,6 +27,8 @@
     kubeinit_apache_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
     kubeinit_bind_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
     kubeinit_haproxy_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
+    kubeinit_nexus_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
+    kubeinit_nexus_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}"
     kubeinit_nfs_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
     kubeinit_registry_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}"
     kubeinit_services_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}"
@@ -161,25 +53,10 @@
   when: kubeinit_libvirt_ovn_enabled
 
 #
-# Prepare hypervisor hosts
-#
-
-- name: Prepare the hypervisors
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_prepare"
-    tasks_from: 00_prepare_hypervisor.yml
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
-#
 # Cleanup hosts now before validations are run
 #
 
-- name: Cleanup the hosts
+- name: Cleanup the hosts before validations
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
     tasks_from: 10_cleanup.yml

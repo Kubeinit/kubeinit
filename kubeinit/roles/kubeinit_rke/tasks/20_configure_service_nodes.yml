@@ -72,6 +72,12 @@
         tasks_from: main
       when: kubeinit_registry_enabled|bool
 
+    - name: Mirror local registry
+      ansible.builtin.import_role:
+        name: ../../roles/kubeinit_registry
+        tasks_from: 20_mirror_rke.yml
+      when: kubeinit_registry_enabled|bool
+
     - name: Enable insecure registry in Docker
       ansible.builtin.shell: |
         # This is mandatory so the cluster nodes can fetch the

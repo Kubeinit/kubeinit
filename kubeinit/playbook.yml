@@ -14,7 +14,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Ansible version check
+
+- name: Check that we are running a recent version of ansible
   hosts: localhost
   become: false
   pre_tasks:
@@ -25,17 +26,25 @@
         that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
+  tasks:
+    - name: prepare localhost
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_prepare"
+        tasks_from: prepare_localhost
 
 - name: Gather facts from all hypervisor hosts
   hosts: hypervisor_nodes
-  become: true
-  become_user: root
+  tasks:
+    - name: prepare hypervisors
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_prepare"
+        tasks_from: prepare_hypervisors
 
 - name: Main deployment role for cluster
   hosts: localhost
   become: false
   tasks:
-    - name: run the prepare steps
+    - name: run the remaining prepare tasks
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"
 
