@@ -17,7 +17,7 @@
 ##
 ## Hypervisor installing dependencies and rebooting.
 ##
-- name: Set up an Hypervisors
+- name: Set up the Hypervisors
   block:
     - name: Check if Intel virtualization is supported
       ansible.builtin.shell: |
@@ -262,12 +262,6 @@
 
     - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
       community.crypto.openssh_keypair:
-        path: "/root/.ssh/id_rsa"
-        owner: root
-        group: root
-
-    - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
-      community.crypto.openssh_keypair:
         path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa"
         owner: "{{ kubeinit_libvirt_cloud_user }}"
         group: "{{ kubeinit_libvirt_cloud_user }}"
@@ -285,30 +279,11 @@
         line: export LIBVIRT_DEFAULT_URI=qemu:///system
         mode: '0644'
 
-    - name: get the IP
-      become: false
-      delegate_to: localhost
-      ansible.builtin.command: hostname --ip-address
-      register: local_initiator_ip
-      changed_when: "local_initiator_ip.rc == 0"
-
-    - name: Set up the local IP
-      ansible.builtin.set_fact:
-        kubeinit_libvirt_initiator_ip={{ local_initiator_ip.stdout }}
-
-    - name: ansible_host
-      ansible.builtin.debug:
-        msg: "{{ kubeinit_bastion_host_address }}"
-
-    - name: add ssh ProxyCommand option for all nodes
-      ansible.builtin.add_host:
-        name: "{{ hostvars[item].ansible_host }}"
-        ansible_ssh_common_args: >-
-          {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[kubeinit_bastion_host].ansible_host }}"
-      with_items: "{{ groups['all_nodes'] }}"
-      when: >
-        (kubeinit_bastion_host in kubeinit_deployment_node_name) and
-        (kubeinit_bastion_host_address not in kubeinit_libvirt_initiator_ip )
+    - name: clean up the hosts before validations
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_libvirt"
+        tasks_from: 10_cleanup.yml
+        public: true
 
     - name: Create directories for config files per node
       ansible.builtin.file:
@@ -317,18 +292,6 @@
         mode: 0775
         recurse: yes
       with_items: "{{ groups['all_nodes'] }}"
-
-    - name: get root host public key
-      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
-      register: public_key_content
-      changed_when: "public_key_content.rc == 0"
-      when: >
-        kubeinit_bastion_host in kubeinit_deployment_node_name
-
-    - name: register the public key of the root user from the host
-      ansible.builtin.set_fact: kubeinit_provision_vms_public_key={{ public_key_content.stdout }}
-      when: >
-        kubeinit_bastion_host in kubeinit_deployment_node_name
 
     ##
     ## Configure OVN o a linux bridge in all the HVs
@@ -345,5 +308,6 @@
       ansible.builtin.include: 40_ovn_setup.yml
       when: kubeinit_libvirt_ovn_enabled
 
-  # In this case the node will be an hypervisor
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+    - name: post configure steps for OVN
+      ansible.builtin.include: 50_ovn_post_setup.yml
+      when: kubeinit_libvirt_ovn_enabled and (kubeinit_bastion_host in kubeinit_deployment_node_name)

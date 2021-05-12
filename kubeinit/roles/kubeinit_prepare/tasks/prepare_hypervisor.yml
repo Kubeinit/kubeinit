@@ -22,9 +22,12 @@
 - name: delegate to kubeinit_deployment_node_name
   block:
 
-    #
-    # Check that host OS are supported
-    #
+    - name: set kubeinit_bastion_host_address fact
+      ansible.builtin.set_fact:
+        kubeinit_bastion_host_address: "{{ hostvars[groups['all_hosts'][0]]['ansible_default_ipv4']['address'] }}"
+
+    - name: define host, node and ovn related facts
+      ansible.builtin.include: set_facts.yml
 
     - name: Fails if OS is not supported
       ansible.builtin.fail:
@@ -75,4 +78,11 @@
         backup: yes
       register: etchostsupdate
 
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+    - name: provision the initial virtual infra
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_libvirt"
+        public: true
+
+  vars:
+    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

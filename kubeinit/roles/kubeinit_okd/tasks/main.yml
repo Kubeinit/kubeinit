@@ -14,31 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: provision the initial virtual infra
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: main.yml
-    public: yes
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
-- name: post configure steps for OVN
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: 50_ovn_post_setup.yml
-    public: yes
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  when: kubeinit_libvirt_ovn_enabled
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
 - name: Deploy the cluster service node
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"

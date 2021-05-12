@@ -114,17 +114,6 @@
       ignore_errors: true
       changed_when: false
 
-    - name: reset local ssh keys
-      become: false
-      delegate_to: localhost
-      ansible.builtin.shell: |
-        ssh-keygen -R  {{ item }}
-        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
-        ssh-keygen -R  {{ hostvars[item].ansible_host }}
-      ignore_errors: true
-      with_items: "{{ groups['all_nodes'] }}"
-      changed_when: false
-
     - name: Delete keys in ~/.ssh/known_hosts
       ansible.builtin.lineinfile:
         dest: ~/.ssh/known_hosts
@@ -132,4 +121,4 @@
         regexp: '{{ hostvars[item].ansible_host }}'
       with_items: "{{ groups['all_nodes'] }}"
 
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

@@ -16,7 +16,6 @@
 
 
 # "kubeinit_prepare" will search for and load any operating system variable file
-
 # found within the "vars/" path. If no OS files are found the task will skip.
 - name: Gather variables for each operating system
   ansible.builtin.include_vars: "{{ item }}"
@@ -35,92 +34,157 @@
 #
 # Define additional groups we will use
 #
-- name: delegate to localhost
-  block:
+- name: add all master nodes to the all_master_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_master_nodes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list | default([]) }}"
 
-    - name: add all master nodes to the all_master_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_master_nodes
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list | default([]) }}"
+- name: add all worker nodes to the all_worker_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_worker_nodes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | default([]) }}"
 
-    - name: add all worker nodes to the all_worker_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_worker_nodes
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | default([]) }}"
+- name: add all bootstrap nodes the all_bootstrap_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_bootstrap_nodes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list | default([]) }}"
 
-    - name: add all bootstrap nodes the all_bootstrap_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_bootstrap_nodes
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list | default([]) }}"
+- name: add all cluster nodes to the all_cluster_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_cluster_nodes
+  with_items:
+    - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] + groups['all_bootstrap_nodes'] }}"
 
-    - name: add all cluster nodes to the all_cluster_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_cluster_nodes
-      with_items:
-        - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] + groups['all_bootstrap_nodes'] }}"
+- name: add all service nodes to the all_service_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_service_nodes
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | default([]) }}"
 
-    - name: add all service nodes to the all_service_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_service_nodes
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | default([]) }}"
+- name: add all service and cluster nodes to the all_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_nodes
+  with_items:
+    - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
 
-    - name: add all service and cluster nodes to the all_nodes group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_nodes
-      with_items:
-        - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
+- name: add all hosts to the all_hosts group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_hosts
+  with_items:
+    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list | default([]) }}"
 
-    - name: add all hosts to the all_hosts group
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        group: all_hosts
-      with_items:
-        - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list | default([]) }}"
+- name: list all_hosts
+  ansible.builtin.debug:
+    msg: "Host {{ item }}"
+  with_items: "{{ groups['all_hosts'] }}"
 
-    - name: list all_hosts
-      ansible.builtin.debug:
-        msg: "Host {{ item }}"
-      with_items: "{{ groups['all_hosts'] }}"
+- name: list all_nodes
+  ansible.builtin.debug:
+    msg: "Node {{ item }}"
+  with_items: "{{ groups['all_nodes'] }}"
 
-    - name: list all_nodes
-      ansible.builtin.debug:
-        msg: "Node {{ item }}"
-      with_items: "{{ groups['all_nodes'] }}"
+- name: list all_service_nodes
+  ansible.builtin.debug:
+    msg: "Service Node {{ item }}"
+  with_items: "{{ groups['all_service_nodes'] }}"
 
-    - name: list all_service_nodes
-      ansible.builtin.debug:
-        msg: "Service Node {{ item }}"
-      with_items: "{{ groups['all_service_nodes'] }}"
+- name: list all_cluster_nodes
+  ansible.builtin.debug:
+    msg: "Cluster Node {{ item }}"
+  with_items: "{{ groups['all_cluster_nodes'] }}"
 
-    - name: list all_cluster_nodes
-      ansible.builtin.debug:
-        msg: "Cluster Node {{ item }}"
-      with_items: "{{ groups['all_cluster_nodes'] }}"
+- name: list all_master_nodes
+  ansible.builtin.debug:
+    msg: "Master Node {{ item }}"
+  with_items: "{{ groups['all_master_nodes'] }}"
 
-    - name: list all_master_nodes
-      ansible.builtin.debug:
-        msg: "Master Node {{ item }}"
-      with_items: "{{ groups['all_master_nodes'] }}"
+- name: list all_worker_nodes
+  ansible.builtin.debug:
+    msg: "Worker Node {{ item }}"
+  with_items: "{{ groups['all_worker_nodes'] }}"
 
-    - name: list all_worker_nodes
-      ansible.builtin.debug:
-        msg: "Worker Node {{ item }}"
-      with_items: "{{ groups['all_worker_nodes'] }}"
+- name: list all_bootstrap_nodes
+  ansible.builtin.debug:
+    msg: "Bootstrap Node {{ item }}"
+  with_items: "{{ groups['all_bootstrap_nodes'] }}"
 
-    - name: list all_bootstrap_nodes
-      ansible.builtin.debug:
-        msg: "Bootstrap Node {{ item }}"
-      with_items: "{{ groups['all_bootstrap_nodes'] }}"
+- name: reset local ssh keys
+  ansible.builtin.shell: |
+    ssh-keygen -R  {{ item }}
+    ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
+    ssh-keygen -R  {{ hostvars[item].ansible_host }}
+  ignore_errors: true
+  with_items: "{{ groups['all_nodes'] }}"
+  changed_when: false
 
-  delegate_to: localhost
-  become: false
+- name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
+  community.crypto.openssh_keypair:
+    path: "/root/.ssh/id_rsa"
+    owner: root
+    group: root
+  with_items: "{{ groups['all_hosts'] }}"
+  delegate_to: "{{ item }}"
+
+- name: get root host public key
+  ansible.builtin.command: cat /root/.ssh/id_rsa.pub
+  register: public_key_content
+  changed_when: "public_key_content.rc == 0"
+  delegate_to: "{{ groups['all_hosts'][0] }}"
+
+- name: register the public key of the root user from the host
+  ansible.builtin.set_fact:
+    kubeinit_provision_vms_public_key: "{{ public_key_content.stdout }}"
+  with_items:
+    - "{{ groups['all_hosts'] }}"
+    - localhost
+  delegate_to: "{{ item }}"
+
+- name: get the localhost IP address
+  ansible.builtin.command: hostname --ip-address
+  register: local_initiator_ip
+  changed_when: "local_initiator_ip.rc == 0"
+
+- name: get the bastion host IP address
+  ansible.builtin.command: hostname --ip-address
+  register: bastion_host_ip
+  changed_when: "bastion_host_ip.rc == 0"
+  delegate_to: "{{ groups['all_hosts'][0] }}"
+
+- name: set kubeinit_bastion_host_address fact
+  ansible.builtin.set_fact:
+    kubeinit_bastion_host_address: "{{ bastion_host_ip.stdout }}"
+
+- name: define host, node and ovn related facts
+  ansible.builtin.include: set_facts.yml
+
+- name: ansible_host
+  ansible.builtin.debug:
+    msg: "{{ kubeinit_bastion_host_address }}"
+
+- name: add ssh ProxyCommand option for all nodes
+  ansible.builtin.add_host:
+    name: "{{ hostvars[item].ansible_host }}"
+    ansible_ssh_common_args: >-
+      {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[kubeinit_bastion_host].ansible_host }}"
+  with_items: "{{ groups['all_nodes'] }}"
+  when: kubeinit_bastion_host_address not in local_initiator_ip.stdout
+
+- name: Experimental warning
+  ansible.builtin.debug:
+    msg:
+      - '|-------------------------------------------------------|'
+      - '| Deploying in multiple hosts is experimental, parts of |'
+      - '| the deployment might be broken or some distributions  |'
+      - '| might not work as expected.                           |'
+      - '|-------------------------------------------------------|'
+  when: kubeinit_libvirt_ovn_enabled

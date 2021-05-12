@@ -15,7 +15,7 @@
 # under the License.
 
 
-- name: Check that we are running a recent version of ansible
+- name: Prepare localhost
   hosts: localhost
   become: false
   pre_tasks:
@@ -31,27 +31,30 @@
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"
         tasks_from: prepare_localhost
+        public: true
 
-- name: Gather facts from all hypervisor hosts
+- name: Prepare all hypervisor hosts
   hosts: hypervisor_nodes
   tasks:
-    - name: prepare hypervisors
+    - name: prepare each hypervisor
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"
-        tasks_from: prepare_hypervisors
+        tasks_from: prepare_hypervisor
+        public: true
+
+- name: Run validations
+  hosts: localhost
+  become: false
+  tasks:
+    - name: run validations
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_validations"
 
 - name: Main deployment role for cluster
   hosts: localhost
   become: false
   tasks:
-    - name: run the remaining prepare tasks
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_prepare"
-
-    - name: run validations
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_validations"
-
     - name: deploy {{ kubeinit_inventory_cluster_distro }}
       ansible.builtin.include_role:
         name: "../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+        public: true
