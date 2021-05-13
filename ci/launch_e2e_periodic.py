@@ -87,12 +87,12 @@ def main(distros):
             master = "3"
             worker = "2"
             execute = True
-            scenario = "default"
+            scenario = "periodic"
 
         #
         # Charmed Distribution of Kubernetes
         #
-        if ("cdk-libvirt-3-master-1-worker-default" == config):
+        elif ("cdk-libvirt-3-master-1-worker-default" == config):
             distro = "cdk"
             driver = "libvirt"
             master = "3"

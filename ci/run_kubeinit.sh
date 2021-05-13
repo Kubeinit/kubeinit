@@ -65,12 +65,6 @@ echo "The content of the scenario_variables.yml file is:"
 
 cat scenario_variables.yml
 
-if [[ "$DISTRO" == "okd.ovn" ]]; then
-    sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" ./hosts/okd/inventory
-    sed -i -E "/okd-worker-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
-    sed -i -E "/okd-worker-02 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
-fi
-
 # By default we deploy 3 master and 1 worker cluster
 # the case of 3 master is already by default
 # the case of 1 worker is already by default
@@ -132,6 +126,13 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
     sed -i "s/10.0.0.100/10.0.0.250/g" ./hosts/rke/inventory
 
 else
+
+    if [[ "$DISTRO" == "okd.ovn" ]]; then
+        sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" ./hosts/okd/inventory
+        sed -i -E "/okd-worker-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
+        sed -i -E "/okd-worker-02 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
+    fi
+
     if [[ "$MASTER" == "1" ]]; then
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/$DISTRO/inventory
         sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/$DISTRO/inventory
@@ -222,6 +223,18 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         -e kubeinit_submariner_is_secondary=True \
         -e @scenario_variables.yml \
         ./playbooks/submariner-subctl-verify.yml
+
+elif [[ "$DISTRO" == "okd.ovn" ]]; then
+    # We will deploy a multi HV cluster
+    # With OVN
+    ansible-playbook \
+        --user root \
+        -v -i ./hosts/okd/inventory \
+        --become \
+        --become-user root \
+        -e @scenario_variables.yml \
+        ./playbooks/okd.yml
+
 elif [[ "$SCENARIO" == "default" ]]; then
     # This will deploy a single kubernetes cluster based
     # on the $DISTRO variable
