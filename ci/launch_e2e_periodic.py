@@ -81,14 +81,14 @@ def main(distros):
         #
         # OVN multi HV deployment
         #
-        if ("okd.ovn-libvirt-3-master-2-worker-default" in labels):
+        if ("okd.ovn-libvirt-3-master-2-worker-default" == config):
             distro = "okd.ovn"
             driver = "libvirt"
             master = "3"
             worker = "2"
             execute = True
             scenario = "default"
-            remove_label("okd.ovn-libvirt-3-master-2-worker-default", pr, repo)
+
         #
         # Charmed Distribution of Kubernetes
         #
