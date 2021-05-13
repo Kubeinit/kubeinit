@@ -48,6 +48,17 @@ def main():
             # We mark the PR as e2e-executed
 
             #
+            # OVN multi HV deployment
+            #
+            if ("okd.ovn-libvirt-3-master-2-worker-default" in labels):
+                distro = "okd.ovn"
+                driver = "libvirt"
+                master = "3"
+                worker = "2"
+                execute = True
+                scenario = "default"
+                remove_label("okd.ovn-libvirt-3-master-2-worker-default", pr, repo)
+            #
             # Charmed Distribution of Kubernetes
             #
             if ("cdk-libvirt-3-master-1-worker-default" in labels):
