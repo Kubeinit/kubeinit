@@ -76,6 +76,12 @@ for i in $(virsh -q net-list | awk '{ print $1 }'); do
     virsh net-undefine $i;
 done;
 
+if [[ "$DISTRO" == "okd.ovn" ]]; then
+    sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" ./hosts/okd/inventory
+    sed -i -E "/okd-worker-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
+    sed -i -E "/okd-worker-02 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
+fi
+
 # By default we deploy 3 master and 1 worker cluster
 # the case of 3 master is already by default
 # the case of 1 worker is already by default
