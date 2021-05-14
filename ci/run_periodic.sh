@@ -203,7 +203,9 @@ else
 
     if [[ "$DISTRO" == "okd.ovn" ]]; then
 
+        sed -i -E "s/ansible_host=nyctea/ansible_host=nycteaa/g" ./hosts/okd/inventory
         sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" ./hosts/okd/inventory
+        sed -i -E "/okd-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
         sed -i -E "/okd-worker-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
         sed -i -E "/okd-worker-02 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
 
