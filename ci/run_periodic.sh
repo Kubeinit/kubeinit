@@ -186,6 +186,48 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         -e kubeinit_submariner_is_secondary=True \
         -e @scenario_variables.yml \
         ./playbooks/submariner-subctl-verify.yml
+
+elif [[ "$DISTRO" == "okd.ovn" ]]; then
+    if [[ "$MASTER" == "1" ]]; then
+        sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/okd/inventory
+    fi
+
+    if [[ "$WORKER" == "0" ]]; then
+        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/okd/inventory
+    fi
+
+    if [[ "$WORKER" == "1" ]]; then
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/okd/inventory
+    fi
+
+    # We rename nyctea to nycteaa
+    sed -i -E "s/ansible_host=nyctea/ansible_host=nycteaa/g" ./hosts/okd/inventory
+    # We enable the 4 HVs
+    sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" ./hosts/okd/inventory
+    sed -i -E "/# hypervisor-03 ansible_host=strix/ s/# //g" ./hosts/okd/inventory
+    sed -i -E "/# hypervisor-04 ansible_host=otus/ s/# //g" ./hosts/okd/inventory
+
+    # We balance the cluster nodes across the HVs
+    sed -i -E "/okd-master-01 ansible_host/ s/hypervisor-01/hypervisor-01/g" ./hosts/okd/inventory
+    sed -i -E "/okd-master-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" ./hosts/okd/inventory
+    sed -i -E "/okd-master-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
+
+    sed -i -E "/okd-worker-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
+    sed -i -E "/okd-worker-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" ./hosts/okd/inventory
+
+    sed -i -E "/okd-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" ./hosts/okd/inventory
+
+    sed -i -E "/okd-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-04/g" ./hosts/okd/inventory
+
+    ansible-playbook \
+        --user root \
+        -v -i ./hosts/okd/inventory \
+        --become \
+        --become-user root \
+        -e @scenario_variables.yml \
+        ./playbooks/okd.yml
 else
     if [[ "$MASTER" == "1" ]]; then
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/$DISTRO/inventory
@@ -201,28 +243,11 @@ else
         sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/$DISTRO/inventory
     fi
 
-    if [[ "$DISTRO" == "okd.ovn" ]]; then
-
-        sed -i -E "s/ansible_host=nyctea/ansible_host=nycteaa/g" ./hosts/okd/inventory
-        sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" ./hosts/okd/inventory
-        sed -i -E "/okd-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
-        sed -i -E "/okd-worker-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
-        sed -i -E "/okd-worker-02 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
-
-        ansible-playbook \
-            --user root \
-            -v -i ./hosts/okd/inventory \
-            --become \
-            --become-user root \
-            -e @scenario_variables.yml \
-            ./playbooks/okd.yml
-    else
-        ansible-playbook \
-            --user root \
-            -v -i ./hosts/$DISTRO/inventory \
-            --become \
-            --become-user root \
-            -e @scenario_variables.yml \
-            ./playbooks/$DISTRO.yml
-    fi
+    ansible-playbook \
+        --user root \
+        -v -i ./hosts/$DISTRO/inventory \
+        --become \
+        --become-user root \
+        -e @scenario_variables.yml \
+        ./playbooks/$DISTRO.yml
 fi
