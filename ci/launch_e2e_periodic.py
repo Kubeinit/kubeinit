@@ -25,7 +25,7 @@ def main(distros):
     url = os.getenv('CI_PIPELINE_URL', "")
     print("The job results will be published in runtime at: " + url)
 
-    ovn_configs = ["okd.ovn-libvirt-3-master-2-worker-default"]
+    ovn_configs = ["k8s.ovn-libvirt-3-master-2-worker-default"]
 
     cdk_configs = ["cdk-libvirt-3-master-1-worker-default",
                    "cdk-libvirt-1-master-1-worker-default",
@@ -67,7 +67,7 @@ def main(distros):
             configs = configs + k8s_configs
         if dist == 'okd.rke':
             configs = configs + okd_rke_configs
-        if dist == 'okd.ovn':
+        if dist == 'k8s.ovn':
             configs = configs + ovn_configs
 
     for config in configs:
@@ -81,8 +81,8 @@ def main(distros):
         #
         # OVN multi HV deployment
         #
-        if ("okd.ovn-libvirt-3-master-2-worker-default" == config):
-            distro = "okd.ovn"
+        if ("k8s.ovn-libvirt-3-master-2-worker-default" == config):
+            distro = "k8s.ovn"
             driver = "libvirt"
             master = "3"
             worker = "2"
