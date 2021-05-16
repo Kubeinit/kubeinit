@@ -187,47 +187,47 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         -e @scenario_variables.yml \
         ./playbooks/submariner-subctl-verify.yml
 
-elif [[ "$DISTRO" == "okd.ovn" ]]; then
+elif [[ "$DISTRO" == "k8s.ovn" ]]; then
     if [[ "$MASTER" == "1" ]]; then
-        sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/okd/inventory
-        sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/k8s/inventory
+        sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/k8s/inventory
     fi
 
     if [[ "$WORKER" == "0" ]]; then
-        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/okd/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/k8s/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/k8s/inventory
     fi
 
     if [[ "$WORKER" == "1" ]]; then
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/k8s/inventory
     fi
 
     # We rename nyctea to nycteaa
-    sed -i -E "s/ansible_host=nyctea/ansible_host=nycteaa/g" ./hosts/okd/inventory
+    sed -i -E "s/ansible_host=nyctea/ansible_host=nycteaa/g" ./hosts/k8s/inventory
     # We enable the 4 HVs
-    sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" ./hosts/okd/inventory
-    sed -i -E "/# hypervisor-03 ansible_host=strix/ s/# //g" ./hosts/okd/inventory
-    sed -i -E "/# hypervisor-04 ansible_host=otus/ s/# //g" ./hosts/okd/inventory
+    sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" ./hosts/k8s/inventory
+    sed -i -E "/# hypervisor-03 ansible_host=strix/ s/# //g" ./hosts/k8s/inventory
+    sed -i -E "/# hypervisor-04 ansible_host=otus/ s/# //g" ./hosts/k8s/inventory
 
     # We balance the cluster nodes across the HVs
-    sed -i -E "/okd-master-01 ansible_host/ s/hypervisor-01/hypervisor-01/g" ./hosts/okd/inventory
-    sed -i -E "/okd-master-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" ./hosts/okd/inventory
-    sed -i -E "/okd-master-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
+    sed -i -E "/k8s-master-01 ansible_host/ s/hypervisor-01/hypervisor-01/g" ./hosts/k8s/inventory
+    sed -i -E "/k8s-master-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" ./hosts/k8s/inventory
+    sed -i -E "/k8s-master-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/k8s/inventory
 
-    sed -i -E "/okd-worker-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/okd/inventory
-    sed -i -E "/okd-worker-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" ./hosts/okd/inventory
+    sed -i -E "/k8s-worker-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" ./hosts/k8s/inventory
+    sed -i -E "/k8s-worker-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" ./hosts/k8s/inventory
 
-    sed -i -E "/okd-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" ./hosts/okd/inventory
+    sed -i -E "/k8s-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" ./hosts/k8s/inventory
 
-    sed -i -E "/okd-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-04/g" ./hosts/okd/inventory
+    sed -i -E "/k8s-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-04/g" ./hosts/k8s/inventory
 
     ansible-playbook \
         --user root \
-        -v -i ./hosts/okd/inventory \
+        -v -i ./hosts/k8s/inventory \
         --become \
         --become-user root \
         -e @scenario_variables.yml \
-        ./playbooks/okd.yml
+        ./playbooks/k8s.yml
 else
     if [[ "$MASTER" == "1" ]]; then
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/$DISTRO/inventory

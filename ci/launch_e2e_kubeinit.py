@@ -50,14 +50,14 @@ def main():
             #
             # OVN multi HV deployment
             #
-            if ("okd.ovn-libvirt-3-master-2-worker-default" in labels):
-                distro = "okd.ovn"
+            if ("k8s.ovn-libvirt-3-master-2-worker-default" in labels):
+                distro = "k8s.ovn"
                 driver = "libvirt"
                 master = "3"
                 worker = "2"
                 execute = True
                 scenario = "default"
-                remove_label("okd.ovn-libvirt-3-master-2-worker-default", pr, repo)
+                remove_label("k8s.ovn-libvirt-3-master-2-worker-default", pr, repo)
             #
             # Charmed Distribution of Kubernetes
             #
