@@ -28,7 +28,7 @@
             --pod-network-cidr={{ kubeinit_k8s_pod_network_cidr }}
       register: k8s_master_kubeadm_master_init_output
       changed_when: "k8s_master_kubeadm_master_init_output.rc == 0"
-      when: groups['k8s_master_nodes'][0] in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: debug
       ansible.builtin.debug: var=k8s_master_kubeadm_master_init_output
@@ -37,7 +37,7 @@
       ansible.builtin.set_fact:
         k8s_master_kubeadm_init_master_join_key: "{{ item }}"
       when: >
-        groups['k8s_master_nodes'][0] in kubeinit_deployment_node_name and
+        groups['all_master_nodes'][0] in kubeinit_deployment_node_name and
         '--control-plane --certificate-key' in item
       with_items:
         - "{{ k8s_master_kubeadm_master_init_output.stdout_lines }}"
@@ -51,33 +51,33 @@
         content: "{{ k8s_master_kubeadm_init_master_join_key }}"
         dest: ~/k8s_master_join_key
         mode: '0644'
-      when: groups['k8s_master_nodes'] | length > 1
+      when: groups['all_master_nodes'] | length > 1
 
     - name: Create kube directory
       ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0644'
-      when: groups['k8s_master_nodes'][0] in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: Copying required files
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
       changed_when: false
-      when: groups['k8s_master_nodes'][0] in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: Get the join command
       ansible.builtin.shell: |
         kubeadm token create --print-join-command
       register: k8s_master_kubeadm_init_output_aux
       changed_when: "k8s_master_kubeadm_init_output_aux.rc == 0"
-      when: groups['k8s_master_nodes'][0] in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: register the join command for other nodes
       ansible.builtin.set_fact:
         k8s_master_kubeadm_init_output={{ k8s_master_kubeadm_init_output_aux.stdout }}
-      when: groups['k8s_master_nodes'][0] in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
     - name: debug
       ansible.builtin.debug: var=k8s_master_kubeadm_init_output
@@ -92,7 +92,7 @@
     - name: Install Network Add-on
       ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
       changed_when: false
-      when: groups['k8s_master_nodes'][0] in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
     ##
     ## Execute to configure all the other master nodes
@@ -106,7 +106,7 @@
         echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
         sysctl -p
       changed_when: false
-      when: groups['k8s_master_nodes'] | length > 1 and groups['k8s_master_nodes'][0] not in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'] | length > 1 and groups['all_master_nodes'][0] not in kubeinit_deployment_node_name
 
     - name: Joining aditional master nodes using the PK
       ansible.builtin.shell: |
@@ -114,20 +114,20 @@
        sed "s/$/{{ k8s_master_kubeadm_init_master_join_key }}/g" k8s_token > ~/k8s_master_join_command.sh
        sh k8s_master_join_command.sh
       changed_when: false
-      when: groups['k8s_master_nodes'] | length > 1 and groups['k8s_master_nodes'][0] not in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'] | length > 1 and groups['all_master_nodes'][0] not in kubeinit_deployment_node_name
 
     - name: Create kube directory
       ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0777'
-      when: groups['k8s_master_nodes'] | length > 1 and groups['k8s_master_nodes'][0] not in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'] | length > 1 and groups['all_master_nodes'][0] not in kubeinit_deployment_node_name
 
     - name: Copying required files
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
       changed_when: false
-      when: groups['k8s_master_nodes'] | length > 1 and groups['k8s_master_nodes'][0] not in kubeinit_deployment_node_name
+      when: groups['all_master_nodes'] | length > 1 and groups['all_master_nodes'][0] not in kubeinit_deployment_node_name
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
