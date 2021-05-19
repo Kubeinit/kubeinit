@@ -1,49 +1,4 @@
 ---
-- name: Verify the certificate variables are set
-  ansible.builtin.fail:
-    msg:
-    - "Must specify kubeinit_registry_certificate_country"
-    - "kubeinit_registry_certificate_country: {{ kubeinit_registry_certificate_country }}"
-  when: ( kubeinit_registry_certificate_country is not defined )
-    or  ( kubeinit_registry_certificate_country is none )
-    or  ( kubeinit_registry_certificate_country | trim | length == 0 )
-
-- name: Verify the certificate variables are set
-  ansible.builtin.fail:
-    msg:
-    - "Must specify kubeinit_registry_certificate_state"
-    - "kubeinit_registry_certificate_state: {{ kubeinit_registry_certificate_state }}"
-  when: ( kubeinit_registry_certificate_state is not defined )
-    or  ( kubeinit_registry_certificate_state is none )
-    or  ( kubeinit_registry_certificate_state | trim | length == 0 )
-
-- name: Verify the certificate variables are set
-  ansible.builtin.fail:
-    msg:
-    - "Must specify kubeinit_registry_certificate_locality"
-    - "kubeinit_registry_certificate_locality: {{ kubeinit_registry_certificate_locality }}"
-  when: ( kubeinit_registry_certificate_locality is not defined )
-    or  ( kubeinit_registry_certificate_locality is none )
-    or  ( kubeinit_registry_certificate_locality | trim | length == 0 )
-
-- name: Verify the certificate variables are set
-  ansible.builtin.fail:
-    msg:
-    - "Must specify kubeinit_registry_certificate_organization"
-    - "kubeinit_registry_certificate_organization: {{ kubeinit_registry_certificate_organization }}"
-  when: ( kubeinit_registry_certificate_organization is not defined )
-    or  ( kubeinit_registry_certificate_organization is none )
-    or  ( kubeinit_registry_certificate_organization | trim | length == 0 )
-
-- name: Verify the certificate variables are set
-  ansible.builtin.fail:
-    msg:
-    - "Must specify kubeinit_registry_certificate_organizational_unit"
-    - "kubeinit_registry_certificate_organizational_unit: {{ kubeinit_registry_certificate_organizational_unit }}"
-  when: ( kubeinit_registry_certificate_organizational_unit is not defined )
-    or  ( kubeinit_registry_certificate_organizational_unit is none )
-    or  ( kubeinit_registry_certificate_organizational_unit | trim | length == 0 )
-
 - name: Generate the htpasswd entry
   community.general.htpasswd:
     path: "{{ kubeinit_registry_directory_auth }}/htpasswd"
@@ -101,11 +56,11 @@
     path: "{{ kubeinit_registry_directory_cert }}/domain.csr"
     privatekey_path: "{{ kubeinit_registry_directory_cert }}/domain.key"
     common_name: "{{ kubeinit_registry_fqdn }}"
-    country_name: "{{ kubeinit_registry_certificate_country }}"
-    state_or_province_name: "{{ kubeinit_registry_certificate_state }}"
-    locality_name: "{{ kubeinit_registry_certificate_locality }}"
-    organization_name: "{{ kubeinit_registry_certificate_organization }}"
-    organizational_unit_name: "{{ kubeinit_registry_certificate_organizational_unit }}"
+    country_name: "{{ kubeinit_common_certificate_country }}"
+    state_or_province_name: "{{ kubeinit_common_certificate_state }}"
+    locality_name: "{{ kubeinit_common_certificate_locality }}"
+    organization_name: "{{ kubeinit_common_certificate_organization }}"
+    organizational_unit_name: "{{ kubeinit_common_certificate_organizational_unit }}"
     basic_constraints_critical: yes
     create_subject_key_identifier: yes
     basic_constraints: ['CA:TRUE']
@@ -193,7 +148,7 @@
     image: docker.io/library/registry:2
     pod: "{{ kubeinit_services_pod_name }}"
     state: stopped
-    network: host
+    network: "{{ kubeinit_services_podman_network }}"
     volumes:
     - "{{ kubeinit_registry_directory_auth }}:/auth:z"
     - "{{ kubeinit_registry_directory_cert }}:/certs:z"
@@ -213,61 +168,15 @@
     container_registry_name: "{{ registry_podman_container_info.container.Name }}"
     container_registry_pidfile: "{{ registry_podman_container_info.container.ConmonPidFile }}"
 
-- name: Ensure user specific systemd instance are persistent
-  ansible.builtin.command: |
-    /usr/bin/loginctl enable-linger {{ kubeinit_service_user }}
-  register: systemd_instance_persist
-  changed_when: "systemd_instance_persist.rc == 0"
-
-- name: Create systemd user directory
-  ansible.builtin.file:
-    path: "{{ kubeinit_service_user_dir }}/.config/systemd/user"
-    state: directory
-    owner: "{{ kubeinit_service_user }}"
-    group: "{{ kubeinit_service_user }}"
-    mode: '0775'
-
-- name: Copy the podman systemd service file
-  ansible.builtin.copy:
-    content: |
-      [Unit]
-      Description=Podman {{ kubeinit_registry_service_name }}.service
-      [Service]
-      Restart=on-failure
-      ExecStart=/usr/bin/podman start {{ container_registry_name }}
-      ExecStop=/usr/bin/podman stop -t 10 {{ container_registry_name }}
-      KillMode=none
-      Type=forking
-      PIDFile={{ container_registry_pidfile }}
-      [Install]
-      WantedBy=default.target
-    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/{{ kubeinit_registry_service_name }}.service"
-    owner: "{{ kubeinit_service_user }}"
-    group: "{{ kubeinit_service_user }}"
-    mode: '0644'
-
-- name: Reload systemd service
-  ansible.builtin.systemd:
-    daemon_reexec: yes
-    scope: user
-  environment:
-    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
-
-- name: Enable {{ kubeinit_registry_service_name }}.service
-  ansible.builtin.systemd:
-    name: "{{ kubeinit_registry_service_name }}"
-    enabled: yes
-    scope: user
-  environment:
-    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
-
-- name: Start {{ kubeinit_registry_service_name }}.service
-  ansible.builtin.systemd:
-    name: "{{ kubeinit_registry_service_name }}"
-    state: started
-    scope: user
-  environment:
-    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+- name: Create systemd service for podman container
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: create_managed_service
+    public: true
+  vars:
+    kubeinit_services_systemd_service_name: "{{ kubeinit_registry_service_name }}"
+    kubeinit_services_podman_container_name: "{{ container_registry_name }}"
+    kubeinit_services_podman_container_pidfile: "{{ container_registry_pidfile }}"
 
 - name: Fetch the domain cert from the registry host
   ansible.builtin.fetch:

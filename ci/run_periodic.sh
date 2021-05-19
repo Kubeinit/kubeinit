@@ -142,7 +142,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         -v -i ./hosts/okd/inventory \
         --become \
         --become-user root \
-        -e kubeinit_libvirt_multicluster_dns_forward_enabled=True \
+        -e kubeinit_bind_multicluster_dns_forward_enabled=True \
         -e @scenario_variables.yml \
         ./playbooks/okd.yml
 
@@ -152,7 +152,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         -v -i ./hosts/rke/inventory \
         --become \
         --become-user root \
-        -e kubeinit_libvirt_multicluster_dns_forward_enabled=True \
+        -e kubeinit_bind_multicluster_dns_forward_enabled=True \
         -e kubeinit_libvirt_multicluster_keep_predefined_networks=True \
         -e @scenario_variables.yml \
         ./playbooks/rke.yml
