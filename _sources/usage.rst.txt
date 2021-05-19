@@ -114,7 +114,7 @@ from the project's root folder:
     cat << EOF > ./playbooks/clean.yml
     ---
     - name: Clean
-      hosts: hypervisor_nodes
+      hosts: hypervisor_hosts
       tasks:
         - name: Run the prepare tasks
           ansible.builtin.include_role:
