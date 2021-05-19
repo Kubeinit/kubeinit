@@ -20,6 +20,9 @@ chmod -R 755 ./$PIPELINE_ID
 # mv logo_white.svg ./$PIPELINE_ID/static/images/logo.svg
 # mv favicon.ico ./$PIPELINE_ID/static/images/favicon.ico
 
+find ./$PIPELINE_ID -type f -exec sed -i -e 's#../static/images/logo.svg#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo_white.svg#g' {} \;
+find ./$PIPELINE_ID -type f -exec sed -i -e 's#../static/images/favicon.ico#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/favicon.ico#g' {} \;
+
 find ./$PIPELINE_ID -type f -exec sed -i -e 's#static/images/logo.svg#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo_white.svg#g' {} \;
 find ./$PIPELINE_ID -type f -exec sed -i -e 's#static/images/favicon.ico#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/favicon.ico#g' {} \;
 
