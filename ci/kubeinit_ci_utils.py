@@ -8,8 +8,56 @@ import os
 from github import Github
 from github import InputGitTreeElement
 
+from google.cloud import storage
 
-def upload_logs(pipeline_id, gh_token):
+
+def upload_logs_to_google_cloud(pipeline_id, gc_token_path):
+    """Upload the CI results to Google cloud Cloud Storage."""
+    return_code = 0
+
+    try:
+        storage_client = storage.Client()
+        bucket_name = "kubeinit-ci"
+        bucket = storage_client.create_bucket(bucket_name)
+
+        print("----Uploading logs----")
+
+        print("Path at terminal when executing this file")
+        print(os.getcwd() + "\n")
+
+        print("This file path, relative to os.getcwd()")
+        print(__file__ + "\n")
+
+        file_list = []
+        path_to_upload = os.path.join(os.getcwd(), pipeline_id)
+        print("Path to upload: " + path_to_upload)
+
+        for r, _d, f in os.walk(path_to_upload):
+            for file in f:
+                file_list.append(os.path.join(r, file))
+
+        print("CI results to be stored")
+        print(file_list)
+
+        prefix_path = os.getcwd() + '/'
+        print('The initial path: ' + prefix_path + ' will be removed')
+
+        for entry in file_list:
+            try:
+                blob = bucket.blob(entry)
+                blob.upload_from_filename(entry)
+            except Exception as e:
+                print('An exception hapened adding the initial log files, some files could not be added')
+                print(e)
+                return_code = 1
+    except Exception as e:
+        print('An exception hapened uploading files to Google Cloud Storage')
+        print(e)
+        return_code = 1
+    return return_code
+
+
+def upload_logs_to_github(pipeline_id, gh_token):
     """Upload the CI results to GitHub."""
     return_code = 0
 

@@ -45,6 +45,7 @@ sudo pip3 install PyGithub
 sudo pip3 install ansible
 sudo pip3 install netaddr
 sudo pip3 install pybadges
+sudo pip3 install google-cloud-storage
 
 sudo python3 -m pip install --upgrade "ara[server]"==1.5.1
 

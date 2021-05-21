@@ -7,7 +7,7 @@ import subprocess
 import sys
 from datetime import datetime
 
-from kubeinit_ci_utils import upload_logs
+from kubeinit_ci_utils import upload_logs_to_github, upload_logs_to_google_cloud
 
 from pybadges import badge
 
@@ -15,6 +15,7 @@ from pybadges import badge
 def main(distros):
     """Run the main method."""
     gh_token = os.environ['GH_TOKEN']
+    gc_token_path = os.environ['CG_STORAGE_KEY']
 
     vars_file_path = os.getenv('VARS_FILE', "")
     pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
@@ -306,7 +307,13 @@ def main(distros):
             print("starting the uploader job")
             # No matter if the job passed or failed we always use go as the suffix
 
-            upload_error = upload_logs(str(job_name) + "-" + str(output), gh_token)
+            upload_error = upload_logs_to_github(str(job_name) + "-" + str(output), gh_token)
+            try:
+                upload_logs_to_google_cloud(str(job_name) + "-" + str(output), gc_token_path)
+            except Exception as e:
+                print('An exception hapened uploading to Google cloud')
+                print(e)
+
             print("finishing the uploader job")
 
             if upload_error == 1:
