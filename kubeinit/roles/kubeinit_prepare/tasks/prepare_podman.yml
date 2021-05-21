@@ -19,26 +19,13 @@
   ansible.builtin.package:
     state: present
     name: "podman"
-
-- name: Create the docker.io password file
-  ansible.builtin.template:
-    src: "docker_io_pass.j2"
-    dest: "~/docker_io_pass"
-    mode: "0755"
-  when: >
-    kubeinit_common_docker_username is defined and
-    kubeinit_common_docker_password is defined and
-    kubeinit_common_docker_username and
-    kubeinit_common_docker_password
+  ignore_errors: true
 
 - name: Podman login to docker.io
-  ansible.builtin.shell: |
-    set -o pipefail
-    podman login --username {{ kubeinit_common_docker_username }} --password-stdin < ~/docker_io_pass docker.io
-  args:
-    executable: /bin/bash
-  register: podman_login
-  changed_when: "podman_login.rc == 0"
+  containers.podman.podman_login:
+    username: "{{ kubeinit_common_docker_username }}"
+    password: "{{ kubeinit_common_docker_password }}"
+    registry: "docker.io"
   when: |
     kubeinit_common_docker_username is defined and
     kubeinit_common_docker_password is defined and

@@ -24,34 +24,14 @@
   with_items:
     - "{{ kubeinit_apache_directories }}"
 
-- name: Extract configuration from the container
-  containers.podman.podman_container:
-    name: "{{ kubeinit_apache_service_name }}-extract-config"
-    image: docker.io/httpd:2.4
-    state: started
-    detach: no
-    remove: yes
-    command: cp /usr/local/apache2/conf/httpd.conf /mnt/httpd.conf
-    volumes:
-      - "{{ kubeinit_apache_directory_conf }}/:/mnt/:Z"
-
-- name: Replace port 80 with 8080
-  ansible.builtin.lineinfile:
-    path: "{{ kubeinit_apache_directory_conf }}/httpd.conf"
-    regexp: "^Listen 80$"
-    line: "Listen 8080"
-    state: present
-    mode: '0644'
-
 - name: Create a podman container to serve the Apache server
   containers.podman.podman_container:
     name: "{{ kubeinit_apache_service_name }}"
     image: docker.io/httpd:2.4
     state: stopped
-    network: host
+    network: "{{ kubeinit_services_podman_network }}"
     pod: "{{ kubeinit_services_pod_name }}"
     volumes:
-      - "{{ kubeinit_apache_directory_conf }}/httpd.conf:/usr/local/apache2/conf/httpd.conf"
       - "{{ kubeinit_apache_directory_htdocs }}/:/usr/local/apache2/htdocs/:Z"
   register: apache_podman_container_info
 
@@ -60,58 +40,28 @@
     container_apache_name: "{{ apache_podman_container_info.container.Name }}"
     container_apache_pidfile: "{{ apache_podman_container_info.container.ConmonPidFile }}"
 
-- name: Ensure user specific systemd instance are persistent
-  ansible.builtin.command: |
-    /usr/bin/loginctl enable-linger {{ kubeinit_service_user }}
-  register: systemd_instance_persist
-  changed_when: "systemd_instance_persist.rc == 0"
+- name: Copy httpd configuration from the container
+  ansible.builtin.command:
+    podman cp "{{ kubeinit_apache_service_name }}:/usr/local/apache2/conf/httpd.conf" "./httpd.conf"
 
-- name: Create systemd user directory
-  ansible.builtin.file:
-    path: "{{ kubeinit_service_user_dir }}/.config/systemd/user"
-    state: directory
-    owner: "{{ kubeinit_service_user }}"
-    group: "{{ kubeinit_service_user }}"
-    mode: '0775'
-
-- name: Copy the podman systemd service file
-  ansible.builtin.copy:
-    content: |
-      [Unit]
-      Description=Podman {{ kubeinit_apache_service_name }}.service
-      [Service]
-      Restart=on-failure
-      ExecStart=/usr/bin/podman start {{ container_apache_name }}
-      ExecStop=/usr/bin/podman stop -t 10 {{ container_apache_name }}
-      KillMode=none
-      Type=forking
-      PIDFile={{ container_apache_pidfile }}
-      [Install]
-      WantedBy=default.target
-    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/{{ kubeinit_apache_service_name }}.service"
-    owner: "{{ kubeinit_service_user }}"
-    group: "{{ kubeinit_service_user }}"
+- name: Replace port 80 with 8080
+  ansible.builtin.lineinfile:
+    path: "./httpd.conf"
+    regexp: "^Listen 80$"
+    line: "Listen 8080"
+    state: present
     mode: '0644'
 
-- name: Reload systemd service
-  ansible.builtin.systemd:
-    daemon_reexec: yes
-    scope: user
-  environment:
-    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+- name: Copy updated configuration back into container
+  ansible.builtin.command:
+    podman cp "./httpd.conf" "{{ kubeinit_apache_service_name }}:/usr/local/apache2/conf/httpd.conf"
 
-- name: Enable {{ kubeinit_apache_service_name }}.service
-  ansible.builtin.systemd:
-    name: "{{ kubeinit_apache_service_name }}"
-    enabled: yes
-    scope: user
-  environment:
-    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
-
-- name: Start {{ kubeinit_apache_service_name }}.service
-  ansible.builtin.systemd:
-    name: "{{ kubeinit_apache_service_name }}"
-    state: started
-    scope: user
-  environment:
-    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+- name: Create systemd service for podman container
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: create_managed_service
+    public: true
+  vars:
+    kubeinit_services_systemd_service_name: "{{ kubeinit_apache_service_name }}"
+    kubeinit_services_podman_container_name: "{{ container_apache_name }}"
+    kubeinit_services_podman_container_pidfile: "{{ container_apache_pidfile }}"

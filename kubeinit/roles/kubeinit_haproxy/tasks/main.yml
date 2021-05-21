@@ -35,7 +35,7 @@
     image: docker.io/library/haproxy:2.3
     pod: "{{ kubeinit_services_pod_name }}"
     state: stopped
-    network: host
+    network: "{{ kubeinit_services_podman_network }}"
     volumes:
       - "{{ kubeinit_haproxy_config_file }}:/usr/local/etc/haproxy/haproxy.cfg"
       - "{{ kubeinit_haproxy_directory_lib }}:/var/lib/haproxy:Z"
@@ -46,58 +46,12 @@
     container_haproxy_name: "{{ haproxy_podman_container_info.container.Name }}"
     container_haproxy_pidfile: "{{ haproxy_podman_container_info.container.ConmonPidFile }}"
 
-- name: Ensure user specific systemd instance are persistent
-  ansible.builtin.command: |
-    /usr/bin/loginctl enable-linger {{ kubeinit_service_user }}
-  register: systemd_instance_persist
-  changed_when: "systemd_instance_persist.rc == 0"
-
-- name: Create systemd user directory
-  ansible.builtin.file:
-    path: "{{ kubeinit_service_user_dir }}/.config/systemd/user"
-    state: directory
-    owner: "{{ kubeinit_service_user }}"
-    group: "{{ kubeinit_service_user }}"
-    mode: '0775'
-
-- name: Copy the podman systemd service file
-  ansible.builtin.copy:
-    content: |
-      [Unit]
-      Description=Podman {{ kubeinit_haproxy_service_name }}.service
-      [Service]
-      Restart=on-failure
-      ExecStart=/usr/bin/podman start {{ container_haproxy_name }}
-      ExecStop=/usr/bin/podman stop -t 10 {{ container_haproxy_name }}
-      KillMode=none
-      Type=forking
-      PIDFile={{ container_haproxy_pidfile }}
-      [Install]
-      WantedBy=default.target
-    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/{{ kubeinit_haproxy_service_name }}.service"
-    owner: "{{ kubeinit_service_user }}"
-    group: "{{ kubeinit_service_user }}"
-    mode: '0644'
-
-- name: Reload systemd service
-  ansible.builtin.systemd:
-    daemon_reexec: yes
-    scope: user
-  environment:
-    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
-
-- name: Enable {{ kubeinit_haproxy_service_name }}.service
-  ansible.builtin.systemd:
-    name: "{{ kubeinit_haproxy_service_name }}"
-    enabled: yes
-    scope: user
-  environment:
-    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
-
-- name: Start {{ kubeinit_haproxy_service_name }}.service
-  ansible.builtin.systemd:
-    name: "{{ kubeinit_haproxy_service_name }}"
-    state: started
-    scope: user
-  environment:
-    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+- name: Create systemd service for podman container
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: create_managed_service
+    public: true
+  vars:
+    kubeinit_services_systemd_service_name: "{{ kubeinit_haproxy_service_name }}"
+    kubeinit_services_podman_container_name: "{{ container_haproxy_name }}"
+    kubeinit_services_podman_container_pidfile: "{{ container_haproxy_pidfile }}"

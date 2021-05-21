@@ -14,6 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+
 ##
 ## Hypervisor installing dependencies and rebooting.
 ##
@@ -280,10 +281,7 @@
         mode: '0644'
 
     - name: clean up the hosts before validations
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_libvirt"
-        tasks_from: 10_cleanup.yml
-        public: true
+      ansible.builtin.include_tasks: 10_cleanup.yml
 
     - name: Create directories for config files per node
       ansible.builtin.file:
@@ -298,16 +296,16 @@
     ##
 
     - name: include the OVN install tasks
-      ansible.builtin.include: 20_ovn_install.yml
+      ansible.builtin.include_tasks: 20_ovn_install.yml
       when: kubeinit_libvirt_ovn_enabled
 
     - name: include the linux bridge tasks
-      ansible.builtin.include: 30_linux_bridge_setup.yml
+      ansible.builtin.include_tasks: 30_linux_bridge_setup.yml
 
     - name: include the OVN setup
-      ansible.builtin.include: 40_ovn_setup.yml
+      ansible.builtin.include_tasks: 40_ovn_setup.yml
       when: kubeinit_libvirt_ovn_enabled
 
     - name: post configure steps for OVN
-      ansible.builtin.include: 50_ovn_post_setup.yml
+      ansible.builtin.include_tasks: 50_ovn_post_setup.yml
       when: kubeinit_libvirt_ovn_enabled and (kubeinit_bastion_host in kubeinit_deployment_node_name)

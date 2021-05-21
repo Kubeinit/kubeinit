@@ -30,16 +30,16 @@
 
     - name: "Install the CDK controller"
       ansible.builtin.shell: |
-        ssh-keyscan {{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }}
+        ssh-keyscan {{ hostvars[groups['all_service_nodes'][0]].ansible_host }}
         sleep 2
-        ssh-keyscan {{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }} >> ~/.ssh/known_hosts
+        ssh-keyscan {{ hostvars[groups['all_service_nodes'][0]].ansible_host }} >> ~/.ssh/known_hosts
         cd
         snap install juju --classic
         juju add-cloud --local {{ kubeinit_inventory_cluster_name }} -f cloud.yml
         echo "bootstrapping juju..."
         juju bootstrap --no-gui \
         --bootstrap-series=groovy \
-        --debug manual/root@{{ hostvars[groups['cdk_service_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
+        --debug manual/root@{{ hostvars[groups['all_service_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
         juju controllers
         juju status --format=yaml
       register: install_cdk
@@ -67,11 +67,11 @@
       retries: 60
       delay: 60
       # We should have all the master and worker nodes started
-      until: cmd_res.stdout_lines | list | count == ( groups['cdk_master_nodes'] | count + groups['cdk_worker_nodes'] | count )
+      until: cmd_res.stdout_lines | list | count == ( groups['all_master_nodes'] | count + groups['all_worker_nodes'] | count )
 
     - name: "Deploy CDK"
       ansible.builtin.shell: |
-        juju deploy ./bundle.yml --map-machines=existing{% for item in (groups['cdk_master_nodes'] + groups['cdk_worker_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
+        juju deploy ./bundle.yml --map-machines=existing{% for item in (groups['all_master_nodes'] + groups['all_worker_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
       register: install_cdk
       changed_when: "install_cdk.rc == 0"
 
@@ -92,7 +92,7 @@
       retries: 60
       delay: 60
       # We should have all the master and worker nodes started
-      until: etcd_res.stdout_lines | list | count == ( groups['cdk_master_nodes'] | count )
+      until: etcd_res.stdout_lines | list | count == ( groups['all_master_nodes'] | count )
 
     - name: Create kube directory
       ansible.builtin.file:
