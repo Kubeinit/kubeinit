@@ -62,8 +62,10 @@
     - name: "Get the required container images"
       ansible.builtin.shell: |
         set -o pipefail
-        wget https://raw.githubusercontent.com/aws/eks-distro/main/development/pull-all.sh
-        cat pull-all.sh | grep 'docker pull' | cut -d' ' -f3 > ~/kubeinit_deployment_images.txt
+        git clone https://github.com/aws/eks-distro.git
+        cd eks-distro
+        ./development/pull-all.sh
+        podman images | grep public.ecr.aws | awk '{ print $1 ":" $2}' > ~/kubeinit_deployment_images.txt
       args:
         executable: /bin/bash
       register: render_images_list
