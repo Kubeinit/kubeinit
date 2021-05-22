@@ -9,7 +9,7 @@ from datetime import datetime
 
 from github import Github
 
-from kubeinit_ci_utils import remove_label, upload_logs_to_github, upload_logs_to_google_cloud
+from kubeinit_ci_utils import remove_label, render_index, upload_logs_to_google_cloud
 
 #
 # We only execute the submariner job for a specific PR
@@ -19,8 +19,8 @@ from kubeinit_ci_utils import remove_label, upload_logs_to_github, upload_logs_t
 def main():
     """Run the main method."""
     gh = Github(os.environ['GH_SUBMARINER_TOKEN'])
-    gh_token = os.environ['GH_SUBMARINER_TOKEN']
-    gc_token_path = os.environ['CG_STORAGE_KEY']
+    # gh_token = os.environ['GH_SUBMARINER_TOKEN']
+    gc_token_path = os.environ['GC_STORAGE_KEY']
 
     vars_file_path = os.getenv('VARS_FILE', "")
     pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
@@ -106,12 +106,10 @@ def main():
                     output = 1
 
                 print("starting the uploader job")
-                upload_error = upload_logs_to_github(str(job_name) + "-" + str(output), gh_token)
-                try:
-                    upload_logs_to_google_cloud(str(job_name) + "-" + str(output), gc_token_path)
-                except Exception as e:
-                    print('An exception hapened uploading to Google cloud')
-                    print(e)
+                # No matter if the job passed or failed we always use go as the suffix
+                # upload_error = upload_logs_to_github(str(job_name) + "-" + str(output), gh_token)
+                upload_error = upload_logs_to_google_cloud(str(job_name) + "-" + str(output), gc_token_path)
+                render_index(gc_token_path)
                 print("finishing the uploader job")
 
                 if output == 0:
@@ -127,7 +125,7 @@ def main():
                 if upload_error == 1:
                     dest_url = url + str(pipeline_id)
                 else:
-                    dest_url = 'https://kubeinit-bot.github.io/kubeinit-ci-results/' + str(job_name) + "-" + str(output) + '/index.html'
+                    dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/pr/' + str(job_name) + "-" + str(output) + '/index.html'
 
                 print("The destination URL is: " + dest_url)
                 # We update the status with the job result

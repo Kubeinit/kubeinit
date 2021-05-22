@@ -4,11 +4,110 @@
 
 import base64
 import os
+import re
 
 from github import Github
 from github import InputGitTreeElement
 
 from google.cloud import storage
+
+from jinja2 import Environment, FileSystemLoader
+
+
+def render_index(gc_token_path):
+    """Render and upload the index file."""
+    # Google cloud Storage init
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gc_token_path
+    bucket_name = "kubeinit-ci"
+    client = storage.Client()
+
+    jobs = []
+
+    print('Periodic jobs to render')
+    prefix_periodic = 'jobs/periodic/'
+    prefix_pr = 'jobs/pr/'
+    delimiter = None
+
+    root_periodic_blobs = list(client.list_blobs(bucket_name,
+                                                 prefix=prefix_periodic,
+                                                 delimiter=delimiter))
+
+    filtered = list(dict.fromkeys([re.sub('/.*', '', sub.name.replace(prefix_periodic, '')) for sub in root_periodic_blobs]))
+
+    for idx, blob in enumerate(filtered):
+        fields = blob.split("-")
+        stat = fields[7]
+        if stat == '0':
+            status = 'Passed'
+            badge = 'success'
+        elif stat == '1':
+            status = 'Failed'
+            badge = 'danger'
+        elif stat == 'go':
+            status = 'Periodic'
+            badge = 'primary'
+        else:
+            status = 'Running'
+            badge = 'warning'
+
+        jobs.append({'status': status,
+                     'index': idx,
+                     'id': fields[0],
+                     'distro': fields[1],
+                     'driver': fields[2],
+                     'masters': fields[3],
+                     'workers': fields[4],
+                     'scenario': fields[5],
+                     'date': fields[6],
+                     'badge': badge,
+                     'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/pr/' + blob + '/index.html'})
+
+    print('PR jobs to render')
+    root_pr_blobs = list(client.list_blobs(bucket_name,
+                                           prefix=prefix_pr,
+                                           delimiter=delimiter))
+
+    filtered = list(dict.fromkeys([re.sub('/.*', '', sub.name.replace(prefix_pr, '')) for sub in root_pr_blobs]))
+
+    for idx, blob in enumerate(filtered):
+        fields = blob.split("-")
+        stat = fields[7]
+        if stat == '0':
+            status = 'Passed'
+            badge = 'success'
+        elif stat == '1':
+            status = 'Failed'
+            badge = 'danger'
+        elif stat == 'go':
+            status = 'Periodic'
+            badge = 'primary'
+        else:
+            status = 'Running'
+            badge = 'warning'
+
+        jobs.append({'status': status,
+                     'index': idx,
+                     'id': fields[0],
+                     'distro': fields[1],
+                     'driver': fields[2],
+                     'masters': fields[3],
+                     'workers': fields[4],
+                     'scenario': fields[5],
+                     'date': fields[6],
+                     'badge': badge,
+                     'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/pr/' + blob + '/index.html'})
+
+    path = os.path.join(os.path.dirname(__file__))
+    file_loader = FileSystemLoader(searchpath=path)
+    env = Environment(loader=file_loader)
+    template_index = "kubeinit_ci_logs.html.j2"
+    print("The path for the template is: " + path)
+    template = env.get_template(template_index)
+    output = template.render(jobs=jobs)
+
+    bucket = client.get_bucket(bucket_name)
+    blob = bucket.blob('index.html')
+    blob.upload_from_string(output, content_type='text/html')
 
 
 def upload_logs_to_google_cloud(pipeline_id, gc_token_path):
@@ -16,9 +115,9 @@ def upload_logs_to_google_cloud(pipeline_id, gc_token_path):
     return_code = 0
 
     try:
-        storage_client = storage.Client()
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gc_token_path
         bucket_name = "kubeinit-ci"
-        bucket = storage_client.create_bucket(bucket_name)
+        bucket = storage.Client().get_bucket(bucket_name)
 
         print("----Uploading logs----")
 
@@ -42,9 +141,14 @@ def upload_logs_to_google_cloud(pipeline_id, gc_token_path):
         prefix_path = os.getcwd() + '/'
         print('The initial path: ' + prefix_path + ' will be removed')
 
+        if 'periodic' in pipeline_id:
+            type = 'jobs/periodic'
+        else:
+            type = 'jobs/pr'
+
         for entry in file_list:
             try:
-                blob = bucket.blob(entry)
+                blob = bucket.blob(type + '/' + entry.replace(prefix_path, ''))
                 blob.upload_from_filename(entry)
             except Exception as e:
                 print('An exception hapened adding the initial log files, some files could not be added')
