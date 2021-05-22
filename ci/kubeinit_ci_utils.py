@@ -60,7 +60,7 @@ def render_index(gc_token_path):
                      'scenario': fields[5],
                      'date': fields[6],
                      'badge': badge,
-                     'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/pr/' + blob + '/index.html'})
+                     'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/periodic/' + blob + '/index.html'})
 
     print('PR jobs to render')
     root_pr_blobs = list(client.list_blobs(bucket_name,
