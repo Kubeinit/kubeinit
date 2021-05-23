@@ -10,7 +10,7 @@ RUN set -x && \
     \
     echo "==> Installing dependencies..."  && \
     apt-get update -y && apt-get install -y \
-        openssh-client && \
+        openssh-client iproute2 && \
     \
     echo "==> Setting up ssh options..."  && \
     mkdir /root/.ssh && \

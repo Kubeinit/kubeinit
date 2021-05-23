@@ -36,8 +36,12 @@
 #
 - name: add localhost group
   ansible.builtin.add_host:
-    name: localhost
-    group: localhost
+    name: kubeinit-localhost
+    group: local_host
+    ansible_connector: local
+    ansible_host: localhost
+    ansible_hostname: localhost
+    inventory_hostname: localhost
 
 - name: add all master nodes to the all_master_nodes group
   ansible.builtin.add_host:
@@ -133,7 +137,7 @@
 
 - name: gather localhost facts
   ansible.builtin.gather_facts:
-  delegate_to: "{{ groups['localhost'][0] }}"
+  delegate_to: "localhost"
   register: local_facts
 
 - name: gather bastion host facts
@@ -155,9 +159,6 @@
 #
 # Prepare localhost environment
 #
-- name: prepare to use podman
-  ansible.builtin.include_tasks: prepare_podman.yml
-
 - name: reset local ssh keys
   ansible.builtin.shell: |
     ssh-keygen -R  {{ item }}
@@ -200,38 +201,6 @@
       {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[kubeinit_bastion_host].ansible_host }}"
   with_items: "{{ groups['all_nodes'] }}"
   when: kubeinit_bastion_host_address not in localhost_ipv4_address
-
-- name: Ensure user specific systemd instance are persistent
-  ansible.builtin.command: |
-    loginctl enable-linger {{ kubeinit_service_user }}
-  register: systemd_instance_persist
-  changed_when: "systemd_instance_persist.rc == 0"
-  delegate_to: "{{ kubeinit_bastion_host }}"
-
-- name: Retrieve remote user runtime path
-  ansible.builtin.command: |
-    loginctl show-user {{ kubeinit_service_user }} -p RuntimePath --value
-  register: systemd_runtime_path
-  delegate_to: "{{ kubeinit_bastion_host }}"
-
-- name: Enable and start podman.socket
-  ansible.builtin.systemd:
-    name: podman.socket
-    enabled: yes
-    state: started
-    scope: user
-  delegate_to: "{{ kubeinit_bastion_host }}"
-
-- name: Start podman.service
-  ansible.builtin.systemd:
-    name: podman.service
-    state: started
-    scope: user
-  delegate_to: "{{ kubeinit_bastion_host }}"
-
-- name: Add remote system connection definition for bastion hypervisor
-  ansible.builtin.command: |
-    podman --remote system connection add "{{ kubeinit_bastion_host }}" --identity "~/.ssh/id_rsa" "ssh://{{ kubeinit_service_user }}@{{ kubeinit_bastion_host_address }}{{ systemd_runtime_path.stdout }}/podman/podman.sock"
 
 - name: Experimental warning
   ansible.builtin.debug:
