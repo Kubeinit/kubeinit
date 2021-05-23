@@ -81,6 +81,14 @@ The following example command will deploy a multi-master OKD 4.5 cluster with 1 
 in a single command and in approximately 30 minutes.
 
 ```bash
+# Install requirements
+#assumes python3 is installed
+pip3 install \
+        --upgrade \
+        pip \
+        shyaml \
+        ansible \
+        netaddr
 git clone https://github.com/Kubeinit/kubeinit.git
 cd kubeinit
 # Install Ansible collection requirements
