@@ -3,6 +3,7 @@
 """Main CI job script."""
 
 import os
+import re
 import subprocess
 import time
 from datetime import datetime
@@ -44,220 +45,21 @@ def main():
             print(committer_email)
 
             execute = False
-            scenario = "default"
             # We assign the executed label to avoid executing this agains the same PR over and over
             # We mark the PR as e2e-executed
 
-            #
-            # OVN multi HV deployment
-            #
-            if ("k8s.ovn-libvirt-3-master-2-worker-default" in labels):
-                distro = "k8s.ovn"
-                driver = "libvirt"
-                master = "3"
-                worker = "2"
-                execute = True
-                scenario = "default"
-                remove_label("k8s.ovn-libvirt-3-master-2-worker-default", pr, repo)
-            #
-            # Charmed Distribution of Kubernetes
-            #
-            if ("cdk-libvirt-3-master-1-worker-default" in labels):
-                distro = "cdk"
-                driver = "libvirt"
-                master = "3"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("cdk-libvirt-3-master-1-worker-default", pr, repo)
-            elif ("cdk-libvirt-3-master-0-worker-default" in labels):
-                distro = "cdk"
-                driver = "libvirt"
-                master = "3"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("cdk-libvirt-3-master-0-worker-default", pr, repo)
-            elif ("cdk-libvirt-1-master-1-worker-default" in labels):
-                distro = "cdk"
-                driver = "libvirt"
-                master = "1"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("cdk-libvirt-1-master-1-worker-default", pr, repo)
-            elif ("cdk-libvirt-1-master-0-worker-default" in labels):
-                distro = "cdk"
-                driver = "libvirt"
-                master = "1"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("cdk-libvirt-1-master-0-worker-default", pr, repo)
-
-            #
-            # Rancher Kubernetes Engine
-            #
-            elif ("rke-libvirt-3-master-1-worker-default" in labels):
-                distro = "rke"
-                driver = "libvirt"
-                master = "3"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("rke-libvirt-3-master-1-worker-default", pr, repo)
-            elif ("rke-libvirt-3-master-0-worker-default" in labels):
-                distro = "rke"
-                driver = "libvirt"
-                master = "3"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("rke-libvirt-3-master-0-worker-default", pr, repo)
-            elif ("rke-libvirt-1-master-1-worker-default" in labels):
-                distro = "rke"
-                driver = "libvirt"
-                master = "1"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("rke-libvirt-1-master-1-worker-default", pr, repo)
-            elif ("rke-libvirt-1-master-0-worker-default" in labels):
-                distro = "rke"
-                driver = "libvirt"
-                master = "1"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("rke-libvirt-1-master-0-worker-default", pr, repo)
-
-            #
-            # Origin Kubernetes Distribution
-            #
-            elif ("okd-libvirt-3-master-0-worker-default" in labels):
-                distro = "okd"
-                driver = "libvirt"
-                master = "3"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("okd-libvirt-3-master-0-worker-default", pr, repo)
-            elif ("okd-libvirt-3-master-1-worker-default" in labels):
-                distro = "okd"
-                driver = "libvirt"
-                master = "3"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("okd-libvirt-3-master-1-worker-default", pr, repo)
-            elif ("okd-libvirt-1-master-0-worker-default" in labels):
-                distro = "okd"
-                driver = "libvirt"
-                master = "1"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("okd-libvirt-1-master-0-worker-default", pr, repo)
-            elif ("okd-libvirt-1-master-1-worker-default" in labels):
-                distro = "okd"
-                driver = "libvirt"
-                master = "1"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("okd-libvirt-1-master-1-worker-default", pr, repo)
-
-            #
-            # Kubernetes
-            #
-            elif ("k8s-libvirt-3-master-1-worker-default" in labels):
-                distro = "k8s"
-                driver = "libvirt"
-                master = "3"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("k8s-libvirt-3-master-1-worker-default", pr, repo)
-            elif ("k8s-libvirt-3-master-0-worker-default" in labels):
-                distro = "k8s"
-                driver = "libvirt"
-                master = "3"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("k8s-libvirt-3-master-0-worker-default", pr, repo)
-            elif ("k8s-libvirt-1-master-1-worker-default" in labels):
-                distro = "k8s"
-                driver = "libvirt"
-                master = "1"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("k8s-libvirt-1-master-1-worker-default", pr, repo)
-            elif ("k8s-libvirt-1-master-0-worker-default" in labels):
-                distro = "k8s"
-                driver = "libvirt"
-                master = "1"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("k8s-libvirt-1-master-0-worker-default", pr, repo)
-
-            #
-            # EKS
-            #
-            elif ("eks-libvirt-3-master-1-worker-default" in labels):
-                distro = "eks"
-                driver = "libvirt"
-                master = "3"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("eks-libvirt-3-master-1-worker-default", pr, repo)
-            elif ("eks-libvirt-3-master-0-worker-default" in labels):
-                distro = "eks"
-                driver = "libvirt"
-                master = "3"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("eks-libvirt-3-master-0-worker-default", pr, repo)
-            elif ("eks-libvirt-1-master-1-worker-default" in labels):
-                distro = "eks"
-                driver = "libvirt"
-                master = "1"
-                worker = "1"
-                execute = True
-                scenario = "default"
-                remove_label("eks-libvirt-1-master-1-worker-default", pr, repo)
-            elif ("eks-libvirt-1-master-0-worker-default" in labels):
-                distro = "eks"
-                driver = "libvirt"
-                master = "1"
-                worker = "0"
-                execute = True
-                scenario = "default"
-                remove_label("eks-libvirt-1-master-0-worker-default", pr, repo)
-
-            #
-            # Misc jobs
-            #
-            elif ("okd.rke-libvirt-3-master-1-worker-submariner" in labels):
-                distro = "okd.rke"
-                driver = "libvirt"
-                master = "3"
-                worker = "1"
-                execute = True
-                scenario = "submariner"
-                remove_label("okd.rke-libvirt-3-master-1-worker-submariner", pr, repo)
-            elif ("okd.rke-libvirt-1-master-2-worker-submariner" in labels):
-                distro = "okd.rke"
-                driver = "libvirt"
-                master = "1"
-                worker = "2"
-                execute = True
-                scenario = "submariner"
-                remove_label("okd.rke-libvirt-1-master-2-worker-submariner", pr, repo)
+            for label in labels:
+                if re.match(r".*-.*-.*-.*-.*-.*-.*", label):
+                    print('Matching a PR label')
+                    params = label.split("-")
+                    distro = params[0]
+                    driver = params[1]
+                    master = params[2]
+                    worker = params[4]
+                    scenario = params[6]
+                    execute = True
+                    remove_label(label, pr, repo)
+                    break
 
             if execute:
                 now = datetime.now()

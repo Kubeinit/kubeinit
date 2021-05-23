@@ -3,6 +3,7 @@
 """Main CI job script."""
 
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime
@@ -26,30 +27,30 @@ def main(distros):
     url = os.getenv('CI_PIPELINE_URL', "")
     print("The job results will be published in runtime at: " + url)
 
-    ovn_configs = ["k8s.ovn-libvirt-3-master-2-worker-default"]
+    ovn_configs = ["k8s.ovn-libvirt-3-master-2-worker-periodic"]
 
-    cdk_configs = ["cdk-libvirt-3-master-1-worker-default",
-                   "cdk-libvirt-1-master-1-worker-default",
-                   "cdk-libvirt-1-master-0-worker-default"]
+    cdk_configs = ["cdk-libvirt-3-master-1-worker-periodic",
+                   "cdk-libvirt-1-master-1-worker-periodic",
+                   "cdk-libvirt-1-master-0-worker-periodic"]
 
-    okd_configs = ["okd-libvirt-3-master-1-worker-default",
-                   "okd-libvirt-1-master-1-worker-default",
-                   "okd-libvirt-1-master-0-worker-default"]
+    okd_configs = ["okd-libvirt-3-master-1-worker-periodic",
+                   "okd-libvirt-1-master-1-worker-periodic",
+                   "okd-libvirt-1-master-0-worker-periodic"]
 
-    rke_configs = ["rke-libvirt-3-master-1-worker-default",
-                   "rke-libvirt-1-master-1-worker-default",
-                   "rke-libvirt-1-master-0-worker-default"]
+    rke_configs = ["rke-libvirt-3-master-1-worker-periodic",
+                   "rke-libvirt-1-master-1-worker-periodic",
+                   "rke-libvirt-1-master-0-worker-periodic"]
 
-    k8s_configs = ["k8s-libvirt-3-master-1-worker-default",
-                   "k8s-libvirt-1-master-1-worker-default",
-                   "k8s-libvirt-1-master-0-worker-default"]
+    k8s_configs = ["k8s-libvirt-3-master-1-worker-periodic",
+                   "k8s-libvirt-1-master-1-worker-periodic",
+                   "k8s-libvirt-1-master-0-worker-periodic"]
 
-    eks_configs = ["eks-libvirt-3-master-1-worker-default",
-                   "eks-libvirt-1-master-1-worker-default",
-                   "eks-libvirt-1-master-0-worker-default"]
+    eks_configs = ["eks-libvirt-3-master-1-worker-periodic",
+                   "eks-libvirt-1-master-1-worker-periodic",
+                   "eks-libvirt-1-master-0-worker-periodic"]
 
-    okd_rke_configs = ["okd.rke-libvirt-1-master-2-worker-submariner",
-                       "okd.rke-libvirt-3-master-1-worker-submariner"]
+    okd_rke_configs = ["okd.rke-libvirt-1-master-2-worker-periodic",
+                       "okd.rke-libvirt-3-master-1-worker-periodic"]
 
     list_of_distros = distros.split(',')
 
@@ -75,198 +76,20 @@ def main(distros):
         print("-*-*-*-*-")
         print(config)
         execute = False
-        scenario = "default"
         # We assign the executed label to avoid executing this agains the same PR over and over
         # We mark the PR as e2e-executed
 
-        #
-        # OVN multi HV deployment
-        #
-        if ("k8s.ovn-libvirt-3-master-2-worker-default" == config):
-            distro = "k8s.ovn"
-            driver = "libvirt"
-            master = "3"
-            worker = "2"
+        if re.match(r".*-.*-.*-.*-.*-.*-.*", config):
+            print('Matching a PR label')
+            params = config.split("-")
+            distro = params[0]
+            driver = params[1]
+            master = params[2]
+            worker = params[4]
+            scenario = params[6]
             execute = True
-            scenario = "periodic"
-
-        #
-        # Charmed Distribution of Kubernetes
-        #
-        elif ("cdk-libvirt-3-master-1-worker-default" == config):
-            distro = "cdk"
-            driver = "libvirt"
-            master = "3"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-        elif ("cdk-libvirt-3-master-0-worker-default" == config):
-            distro = "cdk"
-            driver = "libvirt"
-            master = "3"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-        elif ("cdk-libvirt-1-master-1-worker-default" == config):
-            distro = "cdk"
-            driver = "libvirt"
-            master = "1"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-        elif ("cdk-libvirt-1-master-0-worker-default" == config):
-            distro = "cdk"
-            driver = "libvirt"
-            master = "1"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-
-        #
-        # Rancher Kubernetes Engine
-        #
-        elif ("rke-libvirt-3-master-1-worker-default" == config):
-            distro = "rke"
-            driver = "libvirt"
-            master = "3"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-        elif ("rke-libvirt-3-master-0-worker-default" == config):
-            distro = "rke"
-            driver = "libvirt"
-            master = "3"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-        elif ("rke-libvirt-1-master-1-worker-default" == config):
-            distro = "rke"
-            driver = "libvirt"
-            master = "1"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-        elif ("rke-libvirt-1-master-0-worker-default" == config):
-            distro = "rke"
-            driver = "libvirt"
-            master = "1"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-
-        #
-        # Origin Kubernetes Distribution
-        #
-        elif ("okd-libvirt-3-master-0-worker-default" == config):
-            distro = "okd"
-            driver = "libvirt"
-            master = "3"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-        elif ("okd-libvirt-3-master-1-worker-default" == config):
-            distro = "okd"
-            driver = "libvirt"
-            master = "3"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-        elif ("okd-libvirt-1-master-0-worker-default" == config):
-            distro = "okd"
-            driver = "libvirt"
-            master = "1"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-        elif ("okd-libvirt-1-master-1-worker-default" == config):
-            distro = "okd"
-            driver = "libvirt"
-            master = "1"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-
-        #
-        # Kubernetes
-        #
-        elif ("k8s-libvirt-3-master-1-worker-default" == config):
-            distro = "k8s"
-            driver = "libvirt"
-            master = "3"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-        elif ("k8s-libvirt-3-master-0-worker-default" == config):
-            distro = "k8s"
-            driver = "libvirt"
-            master = "3"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-        elif ("k8s-libvirt-1-master-1-worker-default" == config):
-            distro = "k8s"
-            driver = "libvirt"
-            master = "1"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-        elif ("k8s-libvirt-1-master-0-worker-default" == config):
-            distro = "k8s"
-            driver = "libvirt"
-            master = "1"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-
-        #
-        # EKS
-        #
-        elif ("eks-libvirt-3-master-1-worker-default" == config):
-            distro = "eks"
-            driver = "libvirt"
-            master = "3"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-        elif ("eks-libvirt-3-master-0-worker-default" == config):
-            distro = "eks"
-            driver = "libvirt"
-            master = "3"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-        elif ("eks-libvirt-1-master-1-worker-default" == config):
-            distro = "eks"
-            driver = "libvirt"
-            master = "1"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
-        elif ("eks-libvirt-1-master-0-worker-default" == config):
-            distro = "eks"
-            driver = "libvirt"
-            master = "1"
-            worker = "0"
-            execute = True
-            scenario = "periodic"
-
-        #
-        # Submariner
-        #
-        elif ("okd.rke-libvirt-1-master-2-worker-submariner" == config):
-            distro = "okd.rke"
-            driver = "libvirt"
-            master = "1"
-            worker = "2"
-            execute = True
-            scenario = "periodic"
-        elif ("okd.rke-libvirt-3-master-1-worker-submariner" == config):
-            distro = "okd.rke"
-            driver = "libvirt"
-            master = "3"
-            worker = "1"
-            execute = True
-            scenario = "periodic"
+        else:
+            print("There is a problem with the tags, they dont match a valid job")
 
         if execute:
             now = datetime.now()
