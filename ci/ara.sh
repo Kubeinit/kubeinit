@@ -20,6 +20,12 @@ chmod -R 755 ./$PIPELINE_ID
 # mv logo_white.svg ./$PIPELINE_ID/static/images/logo.svg
 # mv favicon.ico ./$PIPELINE_ID/static/images/favicon.ico
 
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e '#ara is a free and open source project under#d' {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#https://github.com/ansible-community/ara#https://github.com/kubeinit/kubeinit#g' {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#https://ara.recordsansible.org#https://kubeinit.org#g' {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#ARA Records Ansible and makes it easier to understand and troubleshoot. It is another recursive acronym.#KubeInit helps with the deployment of multiple Kubernetes distributions.#g' {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#ara#KubeInit#g' {} \;
+
 find ./$PIPELINE_ID -type f -exec sed -i -e 's#../static/images/logo.svg#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo_white.svg#g' {} \;
 find ./$PIPELINE_ID -type f -exec sed -i -e 's#../static/images/favicon.ico#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/favicon.ico#g' {} \;
 
