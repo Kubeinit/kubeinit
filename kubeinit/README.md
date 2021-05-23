@@ -65,10 +65,41 @@ KubeInit's documentation is hosted in [this same repository](https://docs.kubein
 ## Requirements
 
 * A fresh deployed server with enough RAM and disk space (120GB in RAM and 300GB in disk) and CentOS 8 (it should work also in Fedora/Debian/Ubuntu hosts).
-* We assume that the hypervisor node is called nyctea (defined in the inventory).
-* Have root passwordless access with certificates.
 * Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66)
  you will need in your cluster.
+* By default the hypervisor node is called nyctea (defined in the inventory). Replace it with the hostname you specified if you changed it.
+* Have root passwordless access with certificates. 
+
+
+### Requirements checks
+
+This is by no means distribution agnostic and is
+only added here to help you get your requirements in order.
+
+### Check if nyctea is reachable
+
+```bash
+ping nyctea
+nslookup nyctea
+```
+
+If you are not able to reach the hosts,
+edit your /etc/hosts, your DNS or your inventory files.
+
+### Passwordless root access
+
+```bash
+ssh root@nyctea
+```
+
+If it fails. check if you have a ssh key, and generate one if you don't
+
+```bash
+if [ -f /root/.ssh/id_rsa ]; then
+  ssh-keygen
+  ssh-copy-id /root/.ssh/id_rsa root@nyctea
+fi
+```
 
 # How to run
 
