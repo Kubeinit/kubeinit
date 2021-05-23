@@ -25,7 +25,7 @@ echo "The scenario is $SCENARIO"
 # Install and configure ara
 # There are problems with multithread ara, we keep the last
 # single thread version
-python3 -m pip install --upgrade "ara[server]"==1.5.1
+python3 -m pip install --upgrade "ara[server]"==1.5.6
 
 # This will nuke the ara database so in each run we have a clean env
 rm /root/.ara/server/ansible.sqlite
