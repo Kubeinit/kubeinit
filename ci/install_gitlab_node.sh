@@ -48,7 +48,7 @@ sudo pip3 install pybadges
 sudo pip3 install jinja2
 sudo pip3 install google-cloud-storage
 
-sudo python3 -m pip install --upgrade "ara[server]"==1.5.1
+sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
 
 echo "127.0.0.1 nyctea" >> /etc/hosts
 cd

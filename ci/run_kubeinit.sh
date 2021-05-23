@@ -25,7 +25,7 @@ echo "The scenario is $SCENARIO"
 # Install and configure ara
 # There are problems with multithread ara, we keep the last
 # single thread version
-python3 -m pip install --upgrade "ara[server]"==1.5.1
+python3 -m pip install --upgrade "ara[server]"==1.5.6
 
 # This will nuke the ara database so in each run we have a clean env
 rm /root/.ara/server/ansible.sqlite
@@ -260,6 +260,23 @@ elif [[ "$DISTRO" == "k8s.ovn" ]]; then
         --become-user root \
         -e @scenario_variables.yml \
         ./playbooks/k8s.yml
+
+elif [[ "$SCENARIO" == "container" ]]; then
+    # This will deploy a single kubernetes cluster based
+    # on the $DISTRO variable from a container
+
+    podman build -t kubeinit/kubeinit .
+
+    podman run --rm -it \
+        -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+        -v /etc/hosts:/etc/hosts \
+        kubeinit/kubeinit \
+            --user root \
+            -v -i ./hosts/$DISTRO/inventory \
+            --become \
+            --become-user root \
+            -e @scenario_variables.yml \
+            ./playbooks/$DISTRO.yml
 
 elif [[ "$SCENARIO" == "default" ]]; then
     # This will deploy a single kubernetes cluster based
