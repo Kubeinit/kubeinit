@@ -15,146 +15,12 @@
 # under the License.
 
 
-# "kubeinit_prepare" will search for and load any operating system variable file
-# found within the "vars/" path. If no OS files are found the task will skip.
-- name: Gather variables for each operating system
-  ansible.builtin.include_vars: "{{ item }}"
-  with_first_found:
-    - skip: true
-      files:
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
-        - "{{ ansible_distribution | lower }}.yml"
-        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_version.split('.')[0] }}.yml"
-        - "{{ ansible_os_family | lower }}.yml"
-  tags:
-    - always
-
-#
-# Define additional groups we will use
-#
-- name: add localhost group
-  ansible.builtin.add_host:
-    name: kubeinit-localhost
-    group: local_host
-    ansible_connector: local
-    ansible_host: localhost
-    ansible_hostname: localhost
-    inventory_hostname: localhost
-
-- name: add all master nodes to the all_master_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_master_nodes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list | default([]) }}"
-
-- name: add all worker nodes to the all_worker_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_worker_nodes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | default([]) }}"
-
-- name: add all bootstrap nodes the all_bootstrap_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_bootstrap_nodes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list | default([]) }}"
-
-- name: add all cluster nodes to the all_cluster_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_cluster_nodes
-  with_items:
-    - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] + groups['all_bootstrap_nodes'] }}"
-
-- name: add all service nodes to the all_service_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_service_nodes
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | default([]) }}"
-
-- name: add all service and cluster nodes to the all_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_nodes
-  with_items:
-    - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
-
-- name: add all hosts to the all_hosts group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_hosts
-  with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list | default([]) }}"
-
-- name: list all_hosts
-  ansible.builtin.debug:
-    msg: "Host {{ item }}"
-  with_items: "{{ groups['all_hosts'] }}"
-
-- name: list all_nodes
-  ansible.builtin.debug:
-    msg: "Node {{ item }}"
-  with_items: "{{ groups['all_nodes'] }}"
-
-- name: list all_service_nodes
-  ansible.builtin.debug:
-    msg: "Service Node {{ item }}"
-  with_items: "{{ groups['all_service_nodes'] }}"
-
-- name: list all_cluster_nodes
-  ansible.builtin.debug:
-    msg: "Cluster Node {{ item }}"
-  with_items: "{{ groups['all_cluster_nodes'] }}"
-
-- name: list all_master_nodes
-  ansible.builtin.debug:
-    msg: "Master Node {{ item }}"
-  with_items: "{{ groups['all_master_nodes'] }}"
-
-- name: list all_worker_nodes
-  ansible.builtin.debug:
-    msg: "Worker Node {{ item }}"
-  with_items: "{{ groups['all_worker_nodes'] }}"
-
-- name: list all_bootstrap_nodes
-  ansible.builtin.debug:
-    msg: "Bootstrap Node {{ item }}"
-  with_items: "{{ groups['all_bootstrap_nodes'] }}"
-
 #
 # Gather information
 #
-- name: check the type of the service nodes
-  ansible.builtin.set_fact:
-    kubeinit_services_node_type: "{{ hostvars[groups['all_service_nodes'][0]].type }}"
-    kubeinit_services_podman_network: "{{ 'host' if (hostvars[groups['all_service_nodes'][0]].type == 'virtual') else 'slirp4netns' }}"
-
-- name: gather localhost facts
-  ansible.builtin.gather_facts:
-  delegate_to: "localhost"
-  register: local_facts
-
-- name: gather bastion host facts
-  ansible.builtin.gather_facts:
-  delegate_to: "{{ groups['all_hosts'][0] }}"
-  register: bastion_facts
-
 - name: set localhost IPv4 address fact
   ansible.builtin.set_fact:
-    localhost_ipv4_address: "{{ local_facts.ansible_facts['ansible_default_ipv4']['address'] }}"
-
-- name: set kubeinit_bastion_host_address fact
-  ansible.builtin.set_fact:
-    kubeinit_bastion_host_address: "{{ bastion_facts.ansible_facts['ansible_default_ipv4']['address'] }}"
-
-- name: define host, node and ovn related facts
-  ansible.builtin.include_tasks: 00_set_facts.yml
+    localhost_ipv4_address: "{{ hostvars['kubeinit-localhost']['ansible_default_ipv4']['address'] }}"
 
 #
 # Prepare localhost environment
@@ -202,6 +68,39 @@
       {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[kubeinit_bastion_host].ansible_host }}"
   with_items: "{{ groups['all_nodes'] }}"
   when: kubeinit_bastion_host_address not in localhost_ipv4_address
+
+- name: Ensure user specific systemd instance are persistent
+  ansible.builtin.command: |
+    loginctl enable-linger {{ kubeinit_service_user }}
+  register: systemd_instance_persist
+  changed_when: "systemd_instance_persist.rc == 0"
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
+- name: Retrieve remote user runtime path
+  ansible.builtin.command: |
+    loginctl show-user {{ kubeinit_service_user }} -p RuntimePath --value
+  register: systemd_runtime_path
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
+- name: Enable and start podman.socket
+  ansible.builtin.systemd:
+    name: podman.socket
+    enabled: yes
+    state: started
+    scope: user
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
+- name: Start podman.service
+  ansible.builtin.systemd:
+    name: podman.service
+    state: started
+    scope: user
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
+- name: Add remote system connection definition for bastion hypervisor
+  ansible.builtin.command: |
+    podman --remote system connection add "{{ kubeinit_bastion_host }}" --identity "~/.ssh/id_rsa" "ssh://{{ kubeinit_service_user }}@{{ kubeinit_bastion_host_address }}{{ systemd_runtime_path.stdout }}/podman/podman.sock"
+  delegate_to: "{{ kubeinit_bastion_host }}"
 
 - name: Experimental warning
   ansible.builtin.debug:

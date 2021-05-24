@@ -13,3 +13,99 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
+
+
+# "kubeinit_prepare" will search for and load any operating system variable file
+# found within the "vars/" path. If no OS files are found the task will skip.
+- name: Gather variables for each operating system
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - skip: true
+      files:
+        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
+        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
+        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_major_version | lower }}.yml"
+        - "{{ ansible_distribution | lower }}.yml"
+        - "{{ ansible_os_family | lower }}-{{ ansible_distribution_version.split('.')[0] }}.yml"
+        - "{{ ansible_os_family | lower }}.yml"
+  tags:
+    - always
+
+
+- name: prepare groups
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    tasks_from: prepare_groups.yml
+    public: true
+
+- name: prepare hosts including localhost
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    tasks_from: prepare_hosts.yml
+    public: true
+  with_items:
+    - "{{ groups['all_hosts'] + groups['local_host'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: define host, node and ovn related facts
+  ansible.builtin.set_fact:
+    cacheable: true
+    kubeinit_facts: {
+      kubeinit_libvirt_ovn_enabled: "{{ True if (groups['all_hosts'] | length > 1) else kubeinit_common_ovn_enabled_default }}",
+      kubeinit_bastion_host: "{{ groups['all_hosts'][0] }}",
+      kubeinit_bastion_host_address: "{{ hostvars[groups['all_hosts'][0]]['ansible_default_ipv4']['address'] }}",
+      kubeinit_apache_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}",
+      kubeinit_bind_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}",
+      kubeinit_haproxy_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}",
+      kubeinit_nexus_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}",
+      kubeinit_nexus_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}",
+      kubeinit_nfs_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}",
+      kubeinit_registry_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}",
+      kubeinit_registry_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}",
+      kubeinit_services_service_address: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host }}",
+      kubeinit_services_service_hostname: "{{ hostvars[groups['all_service_nodes'][0]].inventory_hostname }}",
+      kubeinit_services_node_type: "{{ hostvars[groups['all_service_nodes'][0]].type }}",
+      kubeinit_services_podman_network: "{{ 'host' if (hostvars[groups['all_service_nodes'][0]].type == 'virtual') else 'slirp4netns' }}",
+      kubeinit_haproxy_service_manager: "{{ hostvars[groups['all_service_nodes'][0]].ansible_host if (hostvars[groups['all_service_nodes'][0]].type == 'virtual') else hostvars[groups['all_service_nodes'][0]].target }}",
+      kubeinit_services_pod_name: "kubeinit-service-pod",
+      kubeinit_service_user: "root",
+      kubeinit_service_user_dir: "/root",
+      kubeinit_ingress_hostname: "ingress"
+    }
+
+- name: add kubeinit facts to hostvars
+  ansible.builtin.add_host:
+    name: "kubeinit-localhost"
+    kubeinit_facts: "{{ kubeinit_facts }}"
+
+- name: set kubeinit facts
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    tasks_from: set_kubeinit_facts.yml
+    public: true
+
+- name: prepare localhost
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    tasks_from: prepare_localhost.yml
+    public: true
+
+- name: Update the /etc/hosts file on each hypervisor with ansible aliases
+  ansible.builtin.lineinfile:
+    path: "/etc/hosts"
+    regexp: ".*    {{ hostvars[host]['inventory_hostname'] }}    {{ hostvars[host]['ansible_hostname'] }}    {{ hostvars[host]['ansible_host'] }}"
+    line: "{{ hostvars[host]['ansible_default_ipv4']['address'] }}    {{ hostvars[host]['inventory_hostname'] }}    {{ hostvars[host]['ansible_hostname'] }}    {{ hostvars[host]['ansible_host'] }}"
+    state: present
+    backup: yes
+  register: etchostsupdate
+  with_items:
+    - "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    host: "{{ kubeinit_deployment_node_name }}"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

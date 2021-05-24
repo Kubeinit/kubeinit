@@ -14,60 +14,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Deploy the cluster nodes
+
+- name: Deploy the service nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 60_deploy_centos_guest.yml
-    public: yes
-  with_items:
-    - "{{ groups['all_cluster_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
-- name: Configure the cluster common config
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_eks"
-    tasks_from: 20_configure_common.yml
-    public: yes
-  with_items:
-    - "{{ groups['all_cluster_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
-- name: Configure the cluster master nodes
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_eks"
-    tasks_from: 30_configure_master_nodes.yml
-    public: yes
-  with_items:
-    - "{{ groups['all_master_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: master
-
-- name: Configure the cluster worker nodes
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_eks"
-    tasks_from: 40_configure_worker_nodes.yml
-    public: yes
-  with_items:
-    - "{{ groups['all_worker_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: worker
-
-- name: Finish the k8s post deployment tasks
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_eks"
-    tasks_from: 50_post_deployment_tasks.yml
+    tasks_from: 60_deploy_ubuntu_guest.yml
     public: yes
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
@@ -77,10 +28,36 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: service
 
-- name: Deploy EKS images
+- name: Configure the cluster common config
   ansible.builtin.include_role:
-    name: "../../roles/kubeinit_eks"
-    tasks_from: 60_deploy_eks_images.yml
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 10_configure_common.yml
+    public: yes
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: service
+
+- name: Configure the cluster service node
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 20_configure_service_nodes.yml
+    public: yes
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: service
+
+- name: Post configure the DNS in all service nodes
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 30_post_service_config.yml
     public: yes
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"

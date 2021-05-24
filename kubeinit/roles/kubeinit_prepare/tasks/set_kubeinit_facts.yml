@@ -1,0 +1,54 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+#
+# Restore kubeinit facts that were saved under the hostvars for kubeinit-localhost
+#
+
+- name: set shorthand fact from hostvars
+  ansible.builtin.set_fact:
+    cacheable: true
+    ki_facts: "{{ hostvars['kubeinit-localhost'].kubeinit_facts }}"
+
+- name: set ansible_facts from ki_facts
+  ansible.builtin.set_fact:
+    cacheable: true
+    kubeinit_libvirt_ovn_enabled: "{{ ki_facts['kubeinit_libvirt_ovn_enabled'] }}"
+    kubeinit_bastion_host: "{{ ki_facts['kubeinit_bastion_host'] }}"
+    kubeinit_bastion_host_address: "{{ ki_facts['kubeinit_bastion_host_address'] }}"
+    kubeinit_apache_service_address: "{{ ki_facts['kubeinit_apache_service_address'] }}"
+    kubeinit_bind_service_address: "{{ ki_facts['kubeinit_bind_service_address'] }}"
+    kubeinit_haproxy_service_address: "{{ ki_facts['kubeinit_haproxy_service_address'] }}"
+    kubeinit_nexus_service_address: "{{ ki_facts['kubeinit_nexus_service_address'] }}"
+    kubeinit_nexus_service_hostname: "{{ ki_facts['kubeinit_nexus_service_hostname'] }}"
+    kubeinit_nfs_service_address: "{{ ki_facts['kubeinit_nfs_service_address'] }}"
+    kubeinit_registry_service_hostname: "{{ ki_facts['kubeinit_registry_service_hostname'] }}"
+    kubeinit_registry_service_address: "{{ ki_facts['kubeinit_registry_service_address'] }}"
+    kubeinit_services_service_address: "{{ ki_facts['kubeinit_services_service_address'] }}"
+    kubeinit_services_service_hostname: "{{ ki_facts['kubeinit_services_service_hostname'] }}"
+    kubeinit_services_node_type: "{{ ki_facts['kubeinit_services_node_type'] }}"
+    kubeinit_services_podman_network: "{{ ki_facts['kubeinit_services_podman_network'] }}"
+    kubeinit_haproxy_service_manager: "{{ ki_facts['kubeinit_haproxy_service_manager'] }}"
+    kubeinit_services_pod_name: "{{ ki_facts['kubeinit_services_pod_name'] }}"
+    kubeinit_service_user: "{{ ki_facts['kubeinit_service_user'] }}"
+    kubeinit_service_user_dir: "{{ ki_facts['kubeinit_service_user_dir'] }}"
+    kubeinit_ingress_hostname: "{{ ki_facts['kubeinit_ingress_hostname'] }}"
+
+- name: clear shorthand fact from hostvars
+  ansible.builtin.set_fact:
+    cacheable: true
+    ki_facts: null
