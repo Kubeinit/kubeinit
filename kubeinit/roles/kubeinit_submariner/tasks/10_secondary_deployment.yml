@@ -124,26 +124,38 @@
       changed_when: "install_subctl.rc == 0"
       when: kubeinit_submariner_is_secondary|bool and kubeinit_submariner_deploy_stable|bool
 
+    - name: Check if profile exists
+      ansible.builtin.stat:
+        path: ~/.profile
+      register: profile_exists
+
     - name: Append subctl path to profile
       ansible.builtin.lineinfile:
         line: export PATH=$PATH:~/.local/bin
         dest: ~/.profile
-      ignore_errors: True
-      when: kubeinit_submariner_is_secondary|bool
+      when: profile_exists.stat.exists and kubeinit_submariner_is_secondary|bool
+
+    - name: Check if bash_profile exists
+      ansible.builtin.stat:
+        path: ~/.bash_profile
+      register: bash_profile_exists
 
     - name: Append subctl path to bash_profile
       ansible.builtin.lineinfile:
         line: export PATH=$PATH:~/.local/bin
         dest: ~/.bash_profile
-      ignore_errors: True
-      when: kubeinit_submariner_is_secondary|bool
+      when: bash_profile_exists.stat.exists and kubeinit_submariner_is_secondary|bool
+
+    - name: Check if bashrc exists
+      ansible.builtin.stat:
+        path: ~/.bashrc
+      register: bashrc_exists
 
     - name: Append subctl path to bashrc
       ansible.builtin.lineinfile:
         line: export PATH=$PATH:~/.local/bin
         dest: ~/.bashrc
-      ignore_errors: True
-      when: kubeinit_submariner_is_secondary|bool
+      when: bashrc_exists.stat.exists and kubeinit_submariner_is_secondary|bool
 
     - name: "Get the service cidr"
       ansible.builtin.shell: |

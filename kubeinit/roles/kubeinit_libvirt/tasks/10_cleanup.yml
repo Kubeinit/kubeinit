@@ -23,46 +23,54 @@
     ##
     ## Clean networks
     ##
+    - name: Get all the networks
+      community.libvirt.virt_net:
+        command: list_nets
+      register: running_nets
 
     - name: Destroy deployment networks
       community.libvirt.virt_net:
         command: destroy
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      ignore_errors: true
-      when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+      when: item in running_nets.list_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     - name: Undefine deployment networks
       community.libvirt.virt_net:
         command: undefine
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      ignore_errors: true
-      when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+      when: item in running_nets.list_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     ##
     ## Clean VMs
     ##
+
+    - name: Get all the VMs
+      community.libvirt.virt:
+        command: list_vms
+      register: running_vms
 
     - name: Destroy vms
       community.libvirt.virt:
         name: "{{ item }}"
         command: destroy
       with_items: "{{ groups['all_nodes'] }}"
-      ignore_errors: true
+      when: item in running_vms.list_vms
 
     - name: Undefine vms
       community.libvirt.virt:
         name: "{{ item }}"
         command: undefine
       with_items: "{{ groups['all_nodes'] }}"
-      ignore_errors: true
+      when: item in running_vms.list_vms
 
     - name: Remove VMs storage
       ansible.builtin.file:
         state: absent
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
       with_items: "{{ groups['all_nodes'] }}"
+      when: item in running_vms.list_vms
 
     ##
     ## Clean folders
@@ -80,6 +88,7 @@
     ##
     - name: Clean OVN/OVS resources
       ansible.builtin.shell: |
+        set -o pipefail
         ###############################################
         # WARNING: We can not remove the external     #
         # bridge interface kiextbr0, the connection   #
@@ -92,8 +101,8 @@
         ovn-nbctl lr-del lr0 || true
         ovn-nbctl ls-del public || true
         ip route del {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex || true
-      ignore_errors: true
-      changed_when: false
+      register: libvirt_clean_ovn
+      changed_when: "libvirt_clean_ovn.rc == 0"
 
     ##
     ## Clean keys
@@ -106,13 +115,14 @@
 
     - name: Reset ssh keys in hypervisor
       ansible.builtin.shell: |
-        ssh-keygen -R  {{ item }}
-        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
-        ssh-keygen -R  {{ hostvars[item].ansible_host }}
+        set -o pipefail
+        ssh-keygen -R  {{ item }} || true
+        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} || true
+        ssh-keygen -R  {{ hostvars[item].ansible_host }} || true
       with_items: "{{ groups['all_nodes'] }}"
       when: known_hosts_file.stat.exists | bool
-      ignore_errors: true
-      changed_when: false
+      register: libvirt_reset_ssh
+      changed_when: "libvirt_reset_ssh.rc == 0"
 
     - name: Delete keys in ~/.ssh/known_hosts
       ansible.builtin.lineinfile:

@@ -20,20 +20,11 @@
 - name: Set up Hypervisors with OVN
   block:
 
-    - name: Destroy deployment networks
+    - name: Remove the deployment networks
       community.libvirt.virt_net:
-        command: destroy
+        state: absent
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      ignore_errors: true
-      when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
-
-    - name: Undefine deployment networks
-      community.libvirt.virt_net:
-        command: undefine
-        name: "{{ item.name }}"
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      ignore_errors: true
       when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     ##
