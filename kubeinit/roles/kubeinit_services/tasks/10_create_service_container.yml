@@ -52,35 +52,57 @@
     mode: '0600'
 
 - name: Run buildah to create container image
-  ansible.builtin.command: buildah rm kubeinit-service
-  ignore_errors: true
+  ansible.builtin.shell: |
+    set -o pipefail
+    set -e
+    buildah rm kubeinit-service || true
+  register: services_buildah_rm_img
+  changed_when: "services_buildah_rm_img.rc == 0"
 
 - name: Run buildah to create container image
   ansible.builtin.command: buildah from --name kubeinit-service docker.io/centos:8
+  register: services_buildah_create_img
+  changed_when: "services_buildah_create_img.rc == 0"
 
 - name: Run buildah to create container image
   ansible.builtin.command: buildah run kubeinit-service -- dnf update -q -y
+  register: services_buildah_update_packages
+  changed_when: "services_buildah_update_packages.rc == 0"
 
 - name: Run buildah to create container image
   ansible.builtin.command: buildah run kubeinit-service -- dnf install -q -y openssh-server openssh-clients procps iproute python3 python3-pip jq
+  register: services_buildah_install_packages
+  changed_when: "services_buildah_install_packages.rc == 0"
 
 - name: Run buildah to create container image
   ansible.builtin.command: buildah run kubeinit-service -- python3 -m pip install -q cryptography==3.3.2
+  register: services_buildah_install_crypto
+  changed_when: "services_buildah_install_crypto.rc == 0"
 
 - name: Run buildah to create container image
   ansible.builtin.command: buildah run kubeinit-service -- bash -c "(cd /etc/ssh; ssh-keygen -A)"
+  register: services_buildah_add_key
+  changed_when: "services_buildah_add_key.rc == 0"
 
 - name: Run buildah to create container image
   ansible.builtin.command: buildah run kubeinit-service -- rm -f /run/nologin
+  register: services_buildah_rm_nologin
+  changed_when: "services_buildah_rm_nologin.rc == 0"
 
 - name: Run buildah to create container image
   ansible.builtin.command: buildah copy kubeinit-service "{{ kubeinit_services_directory }}/.ssh/authorized_keys" /root/.ssh/authorized_keys
+  register: services_buildah_cp_keys
+  changed_when: "services_buildah_cp_keys.rc == 0"
 
 - name: Run buildah to create container image
   ansible.builtin.command: buildah config --cmd '' --entrypoint '["/usr/sbin/sshd", "-D", "-e"]' kubeinit-service
+  register: services_buildah_entrypoint_create
+  changed_when: "services_buildah_entrypoint_create.rc == 0"
 
-- name: Run buildah to create container image
+- name: Run buildah to create the service container image
   ansible.builtin.command: buildah commit kubeinit-service kubeinit/kubeinit-service:latest
+  register: services_buildah_create_service
+  changed_when: "services_buildah_create_service.rc == 0"
 
 - name: Create a podman container for ssh access to the service pod
   containers.podman.podman_container:
@@ -164,6 +186,7 @@
   args:
     executable: /bin/bash
   register: cmd_boot_ok_res
+  changed_when: "cmd_boot_ok_res.rc == 0"
   retries: 30
   delay: 10
   until: "'connected' in cmd_boot_ok_res.stdout"

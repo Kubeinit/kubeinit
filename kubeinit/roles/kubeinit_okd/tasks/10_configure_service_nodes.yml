@@ -319,10 +319,11 @@
       when: kubeinit_okd_openshift_deploy
 
     - name: "Apply permissions to the apache folder"
-      ansible.builtin.shell: |
-        chmod -R 755 "{{ kubeinit_apache_directory_htdocs }}/"
-      register: apply_apache_permissions
-      changed_when: "apply_apache_permissions.rc == 0"
+      ansible.builtin.file:
+        path: "{{ kubeinit_apache_directory_htdocs }}/"
+        state: directory
+        recurse: yes
+        mode: '0755'
 
     - name: Create kube directory
       ansible.builtin.file:

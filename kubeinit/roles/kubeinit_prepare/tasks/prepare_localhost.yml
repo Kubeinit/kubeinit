@@ -161,12 +161,13 @@
 #
 - name: reset local ssh keys
   ansible.builtin.shell: |
-    ssh-keygen -R  {{ item }}
-    ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
-    ssh-keygen -R  {{ hostvars[item].ansible_host }}
-  ignore_errors: true
+    set -o pipefail
+    ssh-keygen -R  {{ item }} || true
+    ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} || true
+    ssh-keygen -R  {{ hostvars[item].ansible_host }} || true
   with_items: "{{ groups['all_nodes'] }}"
-  changed_when: false
+  register: prepare_reset_keys
+  changed_when: "prepare_reset_keys.rc == 0"
 
 - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
   community.crypto.openssh_keypair:

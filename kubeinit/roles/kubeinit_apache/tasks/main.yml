@@ -43,6 +43,8 @@
 - name: Copy httpd configuration from the container
   ansible.builtin.command:
     podman cp "{{ kubeinit_apache_service_name }}:/usr/local/apache2/conf/httpd.conf" "./httpd.conf"
+  register: apache_sync_config
+  changed_when: "apache_sync_config.rc == 0"
 
 - name: Replace port 80 with 8080
   ansible.builtin.lineinfile:
@@ -55,6 +57,8 @@
 - name: Copy updated configuration back into container
   ansible.builtin.command:
     podman cp "./httpd.conf" "{{ kubeinit_apache_service_name }}:/usr/local/apache2/conf/httpd.conf"
+  register: apache_copy_config
+  changed_when: "apache_copy_config.rc == 0"
 
 - name: Create systemd service for podman container
   ansible.builtin.include_role:
