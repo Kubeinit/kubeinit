@@ -76,11 +76,11 @@
   changed_when: "systemd_instance_persist.rc == 0"
   delegate_to: "{{ kubeinit_bastion_host }}"
 
-- name: Retrieve remote user runtime path
-  ansible.builtin.command: |
-    loginctl show-user {{ kubeinit_service_user }} -p RuntimePath --value
-  register: systemd_runtime_path
-  delegate_to: "{{ kubeinit_bastion_host }}"
+# - name: Retrieve remote user runtime path
+#  ansible.builtin.command: |
+#    loginctl show-user {{ kubeinit_service_user }} -p RuntimePath --value
+#  register: systemd_runtime_path
+#  delegate_to: "{{ kubeinit_bastion_host }}"
 
 - name: Enable and start podman.socket
   ansible.builtin.systemd:
@@ -97,10 +97,10 @@
     scope: user
   delegate_to: "{{ kubeinit_bastion_host }}"
 
-- name: Add remote system connection definition for bastion hypervisor
-  ansible.builtin.command: |
-    podman --remote system connection add "{{ kubeinit_bastion_host }}" --identity "~/.ssh/id_rsa" "ssh://{{ kubeinit_service_user }}@{{ kubeinit_bastion_host_address }}{{ systemd_runtime_path.stdout }}/podman/podman.sock"
-  delegate_to: "{{ kubeinit_bastion_host }}"
+# - name: Add remote system connection definition for bastion hypervisor
+#  ansible.builtin.command: |
+#    podman --remote system connection add "{{ kubeinit_bastion_host }}" --identity "~/.ssh/id_rsa" "ssh://{{ kubeinit_service_user }}@{{ kubeinit_bastion_host_address }}{{ systemd_runtime_path.stdout }}/podman/podman.sock"
+#  delegate_to: "{{ kubeinit_bastion_host }}"
 
 - name: Experimental warning
   ansible.builtin.debug:
