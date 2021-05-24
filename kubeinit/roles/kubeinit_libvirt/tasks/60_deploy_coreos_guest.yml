@@ -39,62 +39,6 @@
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2"
         state: absent
 
-    - name: Grow the partitions
-      ansible.builtin.shell: |
-        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2'
-        qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
-      register: grow_img
-      changed_when: "grow_img.rc == 0"
-      when: "'service' in kubeinit_deployment_node_name"
-
-    # This will inject the VM configuration in the case of a CentOS machine
-    - name: "Inject {{ kubeinit_libvirt_cloud_user }} virt-customize assets"
-      ansible.builtin.shell: |
-        virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 \
-          --install python3 \
-          --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
-          --run-command 'id -u {{ kubeinit_libvirt_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_libvirt_cloud_user }}' \
-          --run-command "sed -i s/^SELINUX=.*$/SELINUX=disabled/g /etc/selinux/config" \
-          --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
-          --ssh-inject root:file:/root/.ssh/authorized_keys \
-          --run-command "echo {{ kubeinit_provision_vms_public_key }} >> /root/.ssh/authorized_keys" \
-          --hostname {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} \
-          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
-          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.redhat.tmpl:/etc/cloud/templates \
-          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg:/etc/cloud \
-          --selinux-relabel --root-password password:{{ kubeinit_libvirt_vms_default_password }}
-      register: virt_inject
-      changed_when: "virt_inject.rc == 0"
-      when: "'service' in kubeinit_deployment_node_name"
-
-    - name: "Create VM definition for the service nodes"
-      ansible.builtin.shell: |
-        virt-install \
-            --connect qemu:///system \
-            --name={{ kubeinit_deployment_node_name }} \
-            --memory memory={{ hostvars[kubeinit_deployment_node_name].ram // 1024 }} \
-            --cpuset=auto \
-            --vcpus={{ hostvars[kubeinit_deployment_node_name].vcpus }},maxvcpus={{ hostvars[kubeinit_deployment_node_name].maxvcpus }} \
-            --os-type=linux \
-            --os-variant=rhel8.0 \
-            --autostart \
-            {% for net in kubeinit_libvirt_cluster_nets %}
-              {% if net.enabled %}
-                {% if kubeinit_libvirt_ovn_enabled %}
-                  --network network={{ net.name }}{% if net.main %},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }}{% endif %},target.dev=veth0-{{ kubeinit_deployment_node_name.split("-")[1][:2] }}{{ kubeinit_deployment_node_name.split("-")[2] }},model=virtio \
-                {% else %}
-                  --network network={{ net.name }}{% if net.main %},mac={{ hostvars[kubeinit_deployment_node_name].mac }}{% endif %},model=virtio \
-                {% endif %}
-              {% endif %}
-            {% endfor %}
-            --graphics none \
-            --noautoconsole \
-            --import \
-            --disk {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2,format=qcow2,bus=virtio
-      register: virt_install
-      changed_when: "virt_install.rc == 0"
-      when: "'service' in kubeinit_deployment_node_name"
-
     - name: Set guest images facts for OKD
       ansible.builtin.set_fact:
         kubeinit_libvirt_okd_image_initrd: "{{ kubeinit_libvirt_source_images.coreos.initrd }}"
@@ -153,7 +97,6 @@
             --location {{ kubeinit_libvirt_target_image_dir }}/ \
             --extra-args "${kernel_args}"
       changed_when: false
-      when: "'master' in kubeinit_deployment_node_name or 'worker' in kubeinit_deployment_node_name or 'bootstrap' in kubeinit_deployment_node_name"
 
     - name: wait until {{ kubeinit_deployment_node_name }} is running
       community.libvirt.virt:
