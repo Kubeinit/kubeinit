@@ -62,9 +62,20 @@
         xfs_growfs /dev/vda1
       changed_when: false
 
+    - name: Remove any existing html data podman volume
+      containers.podman.podman_volume:
+        name: "kubeinit-html-data"
+        state: absent
+
+    - name: Create a podman volume for html data
+      containers.podman.podman_volume:
+        name: "kubeinit-html-data"
+        state: present
+      register: html_data_volume_info
+
     - name: Create directory for apache
       ansible.builtin.file:
-        path: "{{ kubeinit_apache_directory_htdocs }}/okd4"
+        path: "/var/kubeinit/html/okd4"
         state: directory
         mode: 0775
         recurse: yes
@@ -209,6 +220,20 @@
       register: render_images_list
       changed_when: "render_images_list.rc == 0"
 
+    - name: debug kubeinit_okd_registry_pullsecret before overriding kubeinit_registry_pullsecret
+      ansible.builtin.debug:
+        var: kubeinit_okd_registry_pullsecret
+
+    # This task will override the default "empty" pullsecret from the registry playbook
+    # with the content of the pullsecret defined in the OKD playbook
+    - name: Assign a default pullsecret when we use a local registry and deploying OKD
+      ansible.builtin.set_fact:
+        kubeinit_registry_pullsecret: '  {{ kubeinit_okd_registry_pullsecret }}'
+
+    - name: debug kubeinit_registry_pullsecret after overriding it
+      ansible.builtin.debug:
+        var: kubeinit_registry_pullsecret
+
     - name: Configure a local container image registry
       # delegate_facts: true
       ansible.builtin.import_role:
@@ -216,10 +241,35 @@
         tasks_from: main
       when: kubeinit_registry_enabled|bool
 
-    - name: Mirror local registry
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_registry
-        tasks_from: 20_mirror_okd.yml
+    - name: Load images file
+      ansible.builtin.slurp:
+        src: ~/kubeinit_deployment_images.txt
+      register: load_images
+
+    - name: Set up variable with images list
+      ansible.builtin.set_fact:
+        kubeinit_registry_images: "{{ (load_images.content | b64decode).split('\n') | select() | list }}"
+
+    - name: Mirror OKD remote registry to local
+      ansible.builtin.shell: |
+        set -eo pipefail
+        oc adm \
+            release mirror \
+            --registry-config={{ kubeinit_registry_auth_file }} \
+            --from={{ kubeinit_okd_registry }}/{{ kubeinit_okd_registry_organization }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}{% if ( kubeinit_okd_openshift_deploy | default(False) ) %}-x86_64{% endif %} \
+            --to={{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }} \
+            --to-release-image={{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }} \
+            2>&1 | tee mirror-output.txt
+        oc adm \
+            release extract \
+            --registry-config={{ kubeinit_registry_auth_file }} \
+            --command=openshift-install "{{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}"
+        # This will override the current installer binary
+        cp openshift-install /usr/local/bin/
+      args:
+        executable: /bin/bash
+      register: mirror_registry
+      changed_when: "mirror_registry.rc == 0"
       when: kubeinit_registry_enabled|bool
 
     - name: Render the cluster template
@@ -269,7 +319,7 @@
         # We backup first the manifests
         tar -czvf install_manifests_backup.tar.gz ~/install_dir/
         openshift-install create ignition-configs --dir=install_dir/
-        cp -R install_dir/* "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        cp -R install_dir/* "/var/kubeinit/html/okd4/"
       register: render_ignition_files
       changed_when: "render_ignition_files.rc == 0"
 
@@ -279,28 +329,28 @@
     - name: Download coreos initrd image
       ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.initrd }}"
-        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        dest: "/var/kubeinit/html/okd4/"
         mode: 0775
       when: not kubeinit_okd_openshift_deploy
 
     - name: Download coreos rootfs image
       ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.rootfs }}"
-        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        dest: "/var/kubeinit/html/okd4/"
         mode: 0775
       when: not kubeinit_okd_openshift_deploy
 
     - name: Download coreos raw image
       ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.raw }}"
-        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        dest: "/var/kubeinit/html/okd4/"
         mode: 0775
       when: not kubeinit_okd_openshift_deploy
 
     - name: Download coreos sig image
       ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.sig }}"
-        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        dest: "/var/kubeinit/html/okd4/"
         mode: 0775
       when: not kubeinit_okd_openshift_deploy
 
@@ -310,30 +360,47 @@
     - name: Download rhcos initrd image
       ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.rhcos.uri }}{{ kubeinit_libvirt_source_images.rhcos.initrd }}"
-        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        dest: "/var/kubeinit/html/okd4/"
         mode: 0775
       when: kubeinit_okd_openshift_deploy
 
     - name: Download rhcos rootfs image
       ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.rhcos.uri }}{{ kubeinit_libvirt_source_images.rhcos.rootfs }}"
-        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        dest: "/var/kubeinit/html/okd4/"
         mode: 0775
       when: kubeinit_okd_openshift_deploy
 
     - name: Download rhcos raw image
       ansible.builtin.get_url:
         url: "{{ kubeinit_libvirt_source_images.rhcos.uri }}{{ kubeinit_libvirt_source_images.rhcos.raw }}"
-        dest: "{{ kubeinit_apache_directory_htdocs }}/okd4/"
+        dest: "/var/kubeinit/html/okd4/"
         mode: 0775
       when: kubeinit_okd_openshift_deploy
 
-    - name: "Apply permissions to the apache folder"
+    - name: Apply permissions to the apache folder
       ansible.builtin.file:
-        path: "{{ kubeinit_apache_directory_htdocs }}/"
+        path: "/var/kubeinit/html/"
         state: directory
         recurse: yes
         mode: '0755'
+
+    - name: Create container with html data mounted
+      containers.podman.podman_container:
+        name: "kubeinit-html-data-copy"
+        image: docker.io/busybox:latest
+        state: stopped
+        volumes:
+          - "kubeinit-html-data:/var/kubeinit/html/"
+      register: kubeinit_html_data_container_info
+
+    - name: Copy html files into html data volume
+      ansible.builtin.command: podman cp "/var/kubeinit/html/okd4/" "kubeinit-html-data-copy:/var/kubeinit/html/"
+
+    - name: Remove html data volume container
+      containers.podman.podman_container:
+        name: "kubeinit-html-data-copy"
+        state: absent
 
     - name: Create kube directory
       ansible.builtin.file:

@@ -15,15 +15,6 @@
 # under the License.
 
 
-- name: Create Apache folders
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    recurse: yes
-    mode: '0755'
-  with_items:
-    - "{{ kubeinit_apache_directories }}"
-
 - name: Create a podman container to serve the Apache server
   containers.podman.podman_container:
     name: "{{ kubeinit_apache_service_name }}"
@@ -32,7 +23,7 @@
     network: "{{ kubeinit_services_podman_network }}"
     pod: "{{ kubeinit_services_pod_name }}"
     volumes:
-      - "{{ kubeinit_apache_directory_htdocs }}/:/usr/local/apache2/htdocs/:Z"
+      - kubeinit-html-data:/usr/local/apache2/htdocs
   register: apache_podman_container_info
 
 - name: Setting Podman facts about the container that will run the Apache server
