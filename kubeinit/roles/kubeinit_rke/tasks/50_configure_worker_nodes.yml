@@ -21,4 +21,14 @@
        echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
       changed_when: false
 
+    - name: Enable insecure registry in Docker
+      ansible.builtin.shell: |
+        # This is mandatory so the cluster nodes can fetch the
+        # images from the local (insecure) registry
+        sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
+        systemctl daemon-reload
+        systemctl restart docker
+      changed_when: false
+      when: kubeinit_registry_enabled|bool
+
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

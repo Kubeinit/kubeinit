@@ -17,6 +17,21 @@
 - name: Configure the service node
   block:
 
+    - name: Prepare podman
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_prepare
+        tasks_from: prepare_podman
+        public: yes
+
+    - name: Create a minimal podman pod for the service containers running on service node VMs
+      containers.podman.podman_pod:
+        name: "{{ kubeinit_services_pod_name }}"
+        dns:
+          - "{{ kubeinit_services_service_address }}"
+          - "{{ kubeinit_common_dns_master }}"
+        dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+        state: created
+
     - name: install services requirements
       ansible.builtin.yum:
         name: "{{ kubeinit_k8s_service_dependencies }}"
@@ -34,16 +49,6 @@
         path: /etc/resolv.conf
         line: "nameserver {{ kubeinit_bind_service_address }}"
         insertbefore: nameserver.*
-
-    #
-    # Prepare podman
-    #
-
-    - name: Prepare podman
-      # delegate_facts: true
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_prepare
-        tasks_from: prepare_podman
 
     # #
     # # Configure local registry

@@ -22,10 +22,19 @@
   block:
 
     - name: Prepare podman
-      # delegate_facts: true
-      ansible.builtin.import_role:
+      ansible.builtin.include_role:
         name: ../../roles/kubeinit_prepare
         tasks_from: prepare_podman
+        public: yes
+
+    - name: Create a minimal podman pod for the service containers running on service node VMs
+      containers.podman.podman_pod:
+        name: "{{ kubeinit_services_pod_name }}"
+        dns:
+          - "{{ kubeinit_services_service_address }}"
+          - "{{ kubeinit_common_dns_master }}"
+        dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+        state: created
 
     - name: "Render net info"
       ansible.builtin.shell: |
@@ -76,19 +85,6 @@
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_registry
         tasks_from: 20_mirror_rke.yml
-      when: kubeinit_registry_enabled|bool
-
-    - name: Enable insecure registry in Docker
-      ansible.builtin.shell: |
-        # This is mandatory so the cluster nodes can fetch the
-        # images from the local (insecure) registry
-        sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
-        systemctl daemon-reload
-        systemctl restart docker
-      changed_when: false
-      delegate_to: "{{ hostvars[item].ansible_host }}"
-      with_items:
-        - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] | list }}"
       when: kubeinit_registry_enabled|bool
 
     #
