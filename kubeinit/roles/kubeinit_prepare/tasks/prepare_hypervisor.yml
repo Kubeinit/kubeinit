@@ -1,0 +1,88 @@
+---
+# Copyright 2019 KubeInit (kubeinit.com).
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+#
+# Prepare each hypervisor
+#
+
+- name: delegate to kubeinit_deployment_node_name
+  block:
+
+    - name: set kubeinit_bastion_host_address fact
+      ansible.builtin.set_fact:
+        kubeinit_bastion_host_address: "{{ hostvars[groups['all_hosts'][0]]['ansible_default_ipv4']['address'] }}"
+
+    - name: define host, node and ovn related facts
+      ansible.builtin.include_tasks: 00_set_facts.yml
+
+    - name: Fails if OS is not supported
+      ansible.builtin.fail:
+        msg: The hypervisor machine needs to be CentOS/RHEL
+      when: not (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora' or ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+    - name: Fails if CentOS 7 hypervisor
+      ansible.builtin.fail:
+        msg:
+          - "CentOS 7 is not supported as CentOS 8 guests are used."
+          - "Refer to: https://access.redhat.com/solutions/4073061"
+          - "This issue is caused by the forward compatibility of xfs"
+          - "file system between CentOS 7 and CentOS 8."
+          - "Xfs file system in CentOS 8 uses reflink and sparse files,"
+          - "but CentOS 7 kernel does not understand them and refuses to mount it."
+          - "This means that CentOS 8 guests won't work with CentOS 8 hosts."
+      when: (ansible_distribution == 'CentOS' and ansible_distribution_major_version == "7")
+
+    - name: Create a public key
+      ansible.builtin.shell: |
+        set -eo pipefail
+        ssh-keygen -q -b 2048 -t rsa -N "" -C "creating SSH" -f ~/.ssh/id_rsa
+        creates="~/.ssh/id_rsa"
+      args:
+        executable: /bin/bash
+      register: render_publickey
+      changed_when: "render_publickey.rc == 0"
+
+    - name: Fetch the public key
+      ansible.builtin.slurp:
+        src: "~/.ssh/id_rsa.pub"
+      register: slurp_publickey
+
+    - name: Add the key to authorized_keys
+      ansible.posix.authorized_key:
+        user: root
+        state: present
+        key: "{{ slurp_publickey.content | b64decode }}"
+
+    - name: Update the /etc/hosts file with node name
+      vars:
+        host: "{{ kubeinit_deployment_node_name }}"
+      ansible.builtin.lineinfile:
+        path: "/etc/hosts"
+        regexp: ".*    {{ hostvars[host]['inventory_hostname'] }}    {{ hostvars[host]['ansible_hostname'] }}    {{ hostvars[host]['ansible_host'] }}"
+        line: "{{ hostvars[host]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}    {{ hostvars[host]['inventory_hostname'] }}    {{ hostvars[host]['ansible_hostname'] }}    {{ hostvars[host]['ansible_host'] }}"
+        state: present
+        backup: yes
+      register: etchostsupdate
+
+    - name: provision the initial virtual infra
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_libvirt"
+        public: true
+
+  vars:
+    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

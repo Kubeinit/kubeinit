@@ -20,12 +20,6 @@
 ##
 - name: Set up the Hypervisors
   block:
-    - name: Restore kubeinit facts from earlier play
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_prepare"
-        tasks_from: set_kubeinit_facts
-        public: true
-
     - name: Check if Intel virtualization is supported
       ansible.builtin.shell: |
         set -e
@@ -86,16 +80,12 @@
         name: "{{ nested_virtualization_module_name }}"
         state: present
 
-    - name: Show ansible_distribution
-      ansible.builtin.debug:
-        var: hostvars[kubeinit_deployment_node_name].ansible_distribution
-
     - name: Disable IPv6
       ansible.builtin.shell: |
         echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
         echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
         sysctl --load /etc/sysctl.d/70-ipv6.conf
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+      when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
       changed_when: false
 
     # - name: Disable netfilter
@@ -113,13 +103,13 @@
     - name: Disable SELinux
       ansible.posix.selinux:
         state: disabled
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+      when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
     - name: install CentOS based requirements
       ansible.builtin.package:
         name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
         state: present
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+      when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
       register: installed_packages_centos
 
     - name: Disable Services (firewalld)
@@ -127,13 +117,13 @@
         name: "firewalld"
         state: stopped
         enabled: no
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+      when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora')
 
     - name: install Debian based requirements
       ansible.builtin.package:
         name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
         state: present
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+      when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
       register: installed_packages_debian
 
     - name: upgrade all packages
@@ -164,7 +154,7 @@
 
     - name: Set qemu user depending on the operative system
       ansible.builtin.set_fact:
-        kubeinit_qemu_user: "{{ 'qemu' if (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
+        kubeinit_qemu_user: "{{ 'qemu' if (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
 
     - name: download qcow2 images
       ansible.builtin.get_url:
@@ -304,6 +294,7 @@
     ##
     ## Configure OVN o a linux bridge in all the HVs
     ##
+
     - name: include the OVN install tasks
       ansible.builtin.include_tasks: 20_ovn_install.yml
       when: kubeinit_libvirt_ovn_enabled
@@ -318,7 +309,3 @@
     - name: post configure steps for OVN
       ansible.builtin.include_tasks: 50_ovn_post_setup.yml
       when: kubeinit_libvirt_ovn_enabled and (kubeinit_bastion_host in kubeinit_deployment_node_name)
-
-  vars:
-    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

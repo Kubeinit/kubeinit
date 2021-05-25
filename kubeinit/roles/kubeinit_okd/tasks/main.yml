@@ -14,11 +14,71 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Deploy the cluster service node
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 60_okd_deploy_nodes.yml
+    public: yes
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: service
+
+- name: Check that the service node is up and running
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 70_check_nodes_up.yml
+    public: yes
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: Upgrade packages and restart
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_okd"
+    tasks_from: 00_bounce_packages.yml
+    public: yes
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: Check that the service node is up and running
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: 70_check_nodes_up.yml
+    public: yes
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: Configure the cluster service node
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_okd"
+    tasks_from: 10_configure_service_nodes.yml
+    public: yes
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
 - name: Deploy the cluster bootstrap nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 60_deploy_coreos_guest.yml
+    tasks_from: 60_okd_deploy_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all_bootstrap_nodes'] | list }}"
@@ -31,7 +91,7 @@
 - name: Deploy the cluster master nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 60_deploy_coreos_guest.yml
+    tasks_from: 60_okd_deploy_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all_master_nodes'] | list }}"
@@ -84,7 +144,7 @@
 - name: Deploy the cluster worker nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 60_deploy_coreos_guest.yml
+    tasks_from: 60_okd_deploy_nodes.yml
     public: yes
   with_items:
     - "{{ groups['all_worker_nodes'] | list }}"

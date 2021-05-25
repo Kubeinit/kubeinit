@@ -27,77 +27,13 @@
       register: render_net_info
       changed_when: "render_net_info.rc == 0"
 
-    - name: Add the local DNS server as a local resolver
-      ansible.builtin.lineinfile:
-        path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_bind_service_address }}"
-        insertbefore: nameserver.*
-
-    - name: install services requirements
-      ansible.builtin.yum:
-        name: "{{ kubeinit_okd_service_dependencies }}"
-        state: present
-        use_backend: dnf
-
-    - name: Resize root partition
-      ansible.builtin.shell: |
-        echo 'Reclaim space for root partition'
-        growpart /dev/vda 1
-        xfs_growfs /dev/vda1
-      changed_when: false
-
-    - name: Prepare podman
-      # delegate_facts: true
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_prepare
-        tasks_from: prepare_podman
-
     - name: Create directory for apache
       ansible.builtin.file:
         path: "{{ kubeinit_apache_directory_htdocs }}/okd4"
         state: directory
         mode: 0775
         recurse: yes
-
-    #
-    # Configure bind
-    #
-
-    - name: Configure Bind
-      # delegate_facts: true
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_bind
-        tasks_from: main
-
-    #
-    # Configure HAproxy
-    #
-
-    - name: Configure HAProxy
-      # delegate_facts: true
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_haproxy
-        tasks_from: main
-
-    #
-    # Configure Nexus
-    #
-
-    # - name: Configure Nexus
-    #   # delegate_facts: true
-    #   ansible.builtin.import_role:
-    #     name: ../../roles/kubeinit_nexus
-    #     tasks_from: main
-
-    #
-    # Configure httpd
-    #
-
-    - name: Configure Apache
-      # delegate_facts: true
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_apache
-        tasks_from: main
+      delegate_to: "{{ kubeinit_bastion_host }}"
 
     #
     # Include the install configuration
@@ -106,7 +42,7 @@
     - name: "Render root keys in the service node"
       ansible.builtin.shell: |
         cd
-        mkdir -p ~/.ssh
+        mkdir ~/.ssh
         ssh-keygen -t rsa -N "" -f .ssh/id_rsa <<< y
       args:
         executable: /bin/bash
@@ -199,12 +135,18 @@
       register: render_images_list
       changed_when: "render_images_list.rc == 0"
 
-    - name: Configure a local container image registry
-      # delegate_facts: true
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_registry
-        tasks_from: main
-      when: kubeinit_registry_enabled|bool
+  delegate_to: "{{ kubeinit_services_service_address }}"
+
+- name: Configure a local container image registry
+  # delegate_facts: true
+  ansible.builtin.import_role:
+    name: ../../roles/kubeinit_registry
+    tasks_from: main
+  when: kubeinit_registry_enabled|bool
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
+- name: Configure the service node continued
+  block:
 
     - name: Mirror local registry
       ansible.builtin.import_role:
@@ -319,11 +261,10 @@
       when: kubeinit_okd_openshift_deploy
 
     - name: "Apply permissions to the apache folder"
-      ansible.builtin.file:
-        path: "{{ kubeinit_apache_directory_htdocs }}/"
-        state: directory
-        recurse: yes
-        mode: '0755'
+      ansible.builtin.shell: |
+        sudo chmod -R 755 "{{ kubeinit_apache_directory_htdocs }}/"
+      register: apply_apache_permissions
+      changed_when: "apply_apache_permissions.rc == 0"
 
     - name: Create kube directory
       ansible.builtin.file:
@@ -338,4 +279,4 @@
       register: autoload
       changed_when: "autoload.rc == 0"
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  delegate_to: "{{ kubeinit_services_service_address }}"

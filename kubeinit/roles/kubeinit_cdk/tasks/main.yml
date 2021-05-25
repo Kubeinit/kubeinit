@@ -17,10 +17,10 @@
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 60_deploy_ubuntu_guest.yml
+    tasks_from: 60_rke_deploy_nodes.yml
     public: yes
   with_items:
-    - "{{ groups['all_cluster_nodes'] | list }}"
+    - "{{ groups['all_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -32,19 +32,32 @@
     tasks_from: 10_configure_common.yml
     public: yes
   with_items:
-    - "{{ groups['all_cluster_nodes'] | list }}"
+    - "{{ groups['all_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
-- name: Post configure the DNS in all cluster nodes
+- name: Configure the cluster service node
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 20_configure_service_nodes.yml
+    public: yes
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: service
+
+- name: Post configure the DNS in all nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_cdk"
     tasks_from: 30_post_service_config.yml
     public: yes
   with_items:
-    - "{{ groups['all_cluster_nodes'] | list }}"
+    - "{{ groups['all_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:

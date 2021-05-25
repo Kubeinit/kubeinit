@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8-minimal
+FROM docker.io/library/python:slim
 
 LABEL maintainer="Carlos Camacho <carloscamachoucv@gmail.com>"
 LABEL quay.expires-after=30w
@@ -11,9 +11,8 @@ COPY . .
 RUN set -x && \
     \
     echo "==> Installing dependencies..."  && \
-    microdnf upgrade -y && microdnf install -y dnf && \
-    dnf upgrade -y && dnf install -y \
-        python3 openssh-clients iproute && \
+    apt-get update -y && apt-get install -y \
+        openssh-client iproute2 && \
     \
     echo "==> Setting up ssh options..."  && \
     mkdir /root/.ssh && \
@@ -22,11 +21,10 @@ RUN set -x && \
     echo "  IdentityFile /root/.ssh/id_rsa" >> /root/.ssh/config && \
     \
     echo "==> Adding Python runtime and deps..."  && \
-    python3 -m pip install \
+    pip3 install \
         --upgrade \
         pip \
         shyaml \
-        cryptography==3.3.2 \
         ansible \
         netaddr && \
     \

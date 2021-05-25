@@ -15,7 +15,7 @@
 # under the License.
 
 
-- name: Prepare the environment
+- name: Prepare localhost
   hosts: localhost
   become: false
   pre_tasks:
@@ -27,21 +27,22 @@
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
   tasks:
-    - name: prepare environment
+    - name: prepare localhost
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"
+        tasks_from: prepare_localhost
         public: true
 
-- name: Setup libvirt on all hypervisor hosts
+- name: Prepare all hypervisor hosts
   hosts: hypervisor_hosts
-  gather_facts: false
   tasks:
-    - name: provision the initial virtual infra
+    - name: prepare each hypervisor
       ansible.builtin.include_role:
-        name: "../../roles/kubeinit_libvirt"
+        name: "../../roles/kubeinit_prepare"
+        tasks_from: prepare_hypervisor
         public: true
 
-- name: Main deployment play for creating a cluster
+- name: Run validations
   hosts: localhost
   become: false
   tasks:
@@ -49,12 +50,12 @@
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_validations"
         public: true
-    - name: stand up services we need for the cluster
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-        tasks_from: prepare_services.yml
-        public: true
+
+- name: Main deployment role for cluster
+  hosts: localhost
+  become: false
+  tasks:
     - name: deploy {{ kubeinit_inventory_cluster_distro }}
       ansible.builtin.include_role:
-        name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+        name: "../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
         public: true
