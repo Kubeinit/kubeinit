@@ -71,11 +71,6 @@ KubeInit's documentation is hosted in [this same repository](https://docs.kubein
 * Have root passwordless access with certificates. 
 
 
-### Requirements checks
-
-This is by no means distribution agnostic and is
-only added here to help you get your requirements in order.
-
 ### Check if nyctea is reachable
 
 ```bash
