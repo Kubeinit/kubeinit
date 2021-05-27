@@ -301,23 +301,8 @@
         recurse: yes
       with_items: "{{ groups['all_nodes'] }}"
 
-    ##
-    ## Configure OVN o a linux bridge in all the HVs
-    ##
-    - name: include the OVN install tasks
-      ansible.builtin.include_tasks: 20_ovn_install.yml
-      when: kubeinit_libvirt_ovn_enabled
-
     - name: include the linux bridge tasks
       ansible.builtin.include_tasks: 30_linux_bridge_setup.yml
-
-    - name: include the OVN setup
-      ansible.builtin.include_tasks: 40_ovn_setup.yml
-      when: kubeinit_libvirt_ovn_enabled
-
-    - name: post configure steps for OVN
-      ansible.builtin.include_tasks: 50_ovn_post_setup.yml
-      when: kubeinit_libvirt_ovn_enabled and (kubeinit_bastion_host in kubeinit_deployment_node_name)
 
   vars:
     kubeinit_deployment_node_name: "{{ inventory_hostname }}"
