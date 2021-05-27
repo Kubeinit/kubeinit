@@ -142,10 +142,9 @@ elif [[ "$DISTRO" == "k8s.ovn" ]]; then
 
     # We rename nyctea to nycteaa
     sed -i -E "s/ansible_host=nyctea/ansible_host=nycteaa/g" ./hosts/k8s/inventory
-    # We enable the 4 HVs
+    # We enable the other 2 HVs
     sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" ./hosts/k8s/inventory
     sed -i -E "/# hypervisor-03 ansible_host=strix/ s/# //g" ./hosts/k8s/inventory
-    sed -i -E "/# hypervisor-04 ansible_host=otus/ s/# //g" ./hosts/k8s/inventory
 
     # We balance the cluster nodes across the HVs
     sed -i -E "/k8s-master-01 ansible_host/ s/hypervisor-01/hypervisor-01/g" ./hosts/k8s/inventory
@@ -156,9 +155,6 @@ elif [[ "$DISTRO" == "k8s.ovn" ]]; then
     sed -i -E "/k8s-worker-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" ./hosts/k8s/inventory
 
     sed -i -E "/k8s-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" ./hosts/k8s/inventory
-
-    sed -i -E "/k8s-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-04/g" ./hosts/k8s/inventory
-
 else
     if [[ "$MASTER" == "1" ]]; then
         sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/$DISTRO/inventory

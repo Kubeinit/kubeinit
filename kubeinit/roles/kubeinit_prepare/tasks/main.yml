@@ -109,3 +109,47 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     host: "{{ kubeinit_deployment_node_name }}"
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+
+##
+## Configure OVN o a linux bridge in all the HVs
+##
+
+- name: clean the netwokrs
+  ansible.builtin.include_tasks: 10_cleanup.yml
+  when: kubeinit_libvirt_ovn_enabled
+  with_items:
+    - "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: include the OVN install tasks
+  ansible.builtin.include_tasks: 20_ovn_install.yml
+  when: kubeinit_libvirt_ovn_enabled
+  with_items:
+    - "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: include the OVN setup
+  ansible.builtin.include_tasks: 40_ovn_setup.yml
+  when: kubeinit_libvirt_ovn_enabled
+  with_items:
+    - "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: post configure steps for OVN
+  ansible.builtin.include_tasks: 50_ovn_post_setup.yml
+  when: kubeinit_libvirt_ovn_enabled and (kubeinit_bastion_host in kubeinit_deployment_node_name)
+  with_items:
+    - "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
