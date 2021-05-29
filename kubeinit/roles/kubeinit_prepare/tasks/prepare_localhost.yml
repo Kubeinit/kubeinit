@@ -32,6 +32,8 @@
     ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} || true
     ssh-keygen -R  {{ hostvars[item].ansible_host }} || true
   with_items: "{{ groups['all_nodes'] }}"
+  args:
+    executable: /bin/bash
   register: prepare_reset_keys
   changed_when: "prepare_reset_keys.rc == 0"
 

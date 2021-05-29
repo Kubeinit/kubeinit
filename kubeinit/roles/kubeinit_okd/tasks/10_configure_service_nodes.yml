@@ -298,6 +298,8 @@
         key="mastersSchedulable"
         new_value="true"
         sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
+      args:
+        executable: /bin/bash
       register: enable_masters_sched
       changed_when: "enable_masters_sched.rc == 0"
       when: groups['all_worker_nodes'] | list | length == 0
@@ -310,6 +312,8 @@
         key="mastersSchedulable"
         new_value="false"
         sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
+      args:
+        executable: /bin/bash
       register: disable_masters_sched
       changed_when: "disable_masters_sched.rc == 0"
       when: groups['all_worker_nodes'] | list | length > 0

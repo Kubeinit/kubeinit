@@ -66,6 +66,8 @@
       ansible.builtin.shell: |
         set -o pipefail
         curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/etcd/tags/list --stderr - | grep '"name":"etcd"' | jq .tags[0]
+      args:
+        executable: /bin/bash
       register: eks_etcd_tag
       changed_when: "eks_etcd_tag.rc == 0"
       when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
@@ -109,6 +111,8 @@
         #    --control-plane-endpoint "api.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}:6443" \
         #    --upload-certs \
         #    --pod-network-cidr={{ kubeinit_eks_pod_network_cidr }}
+      args:
+        executable: /bin/bash
       register: eks_master_kubeadm_master_init_output
       changed_when: "eks_master_kubeadm_master_init_output.rc == 0"
       when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
