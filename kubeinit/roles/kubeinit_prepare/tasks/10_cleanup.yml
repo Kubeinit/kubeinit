@@ -37,6 +37,8 @@
         ovn-nbctl lr-del lr0 || true
         ovn-nbctl ls-del public || true
         ip route del {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex || true
+      args:
+        executable: /bin/bash
       register: libvirt_clean_ovn
       changed_when: "libvirt_clean_ovn.rc == 0"
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

@@ -99,6 +99,8 @@
         ssh-keygen -R  {{ hostvars[item].ansible_host }} || true
       with_items: "{{ groups['all_nodes'] }}"
       when: known_hosts_file.stat.exists | bool
+      args:
+        executable: /bin/bash
       register: libvirt_reset_ssh
       changed_when: "libvirt_reset_ssh.rc == 0"
 

@@ -31,11 +31,11 @@
     echo '/var/nfsshare {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }}(rw,sync,no_root_squash,no_all_squash,no_wdelay)' | tee /etc/exports
     setsebool -P nfs_export_all_rw 1
     systemctl restart nfs-server
+  args:
+    executable: /bin/bash
   register: nfs_share_config
   changed_when: "nfs_share_config.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks'
-  args:
-    executable: /bin/bash
 
 - name: "configure NFS shares of Ubuntu based guests"
   ansible.builtin.shell: |
@@ -46,11 +46,11 @@
     echo '/var/nfsshare {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }}(rw,sync,no_root_squash,no_all_squash,no_wdelay)' | tee /etc/exports
     exportfs -a
     systemctl restart nfs-kernel-server
+  args:
+    executable: /bin/bash
   register: nfs_share_config
   changed_when: "nfs_share_config.rc == 0"
   when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
-  args:
-    executable: /bin/bash
 
 #
 # add nfs dynamic provisioning
