@@ -23,21 +23,24 @@
     name: "{{ item }}"
     group: all_master_nodes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list | default([]) }}"
+    - "{{ groups['master_nodes'] | list | default([]) }}"
+  when: "'master_nodes' in groups"
 
 - name: Add all worker nodes to the all_worker_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_worker_nodes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | default([]) }}"
+    - "{{ groups['worker_nodes'] | list | default([]) }}"
+  when: "'worker_nodes' in groups"
 
 - name: Add all bootstrap nodes the all_bootstrap_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_bootstrap_nodes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list | default([]) }}"
+    - "{{ groups['bootstrap_nodes'] | list | default([]) }}"
+  when: "'bootstrap_nodes' in groups"
 
 - name: Add all cluster nodes to the all_cluster_nodes group
   ansible.builtin.add_host:
@@ -51,7 +54,8 @@
     name: "{{ item }}"
     group: all_service_nodes
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | default([]) }}"
+    - "{{ groups['service_nodes'] | list | default([]) }}"
+  when: "'service_nodes' in groups"
 
 - name: Add all service and cluster nodes to the all_nodes group
   ansible.builtin.add_host:
@@ -65,7 +69,7 @@
     name: "{{ item }}"
     group: all_hosts
   with_items:
-    - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list | default([]) }}"
+    - "{{ groups['hypervisor_hosts'] | list | default([]) }}"
 
 - name: Add localhost to the local_host group
   ansible.builtin.add_host:
