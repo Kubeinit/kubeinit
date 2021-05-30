@@ -19,10 +19,10 @@
 # Gather hosts information
 #
 
-- name: delegate to kubeinit_deployment_node_name
+- name: Delegate to kubeinit_deployment_node_name
   block:
 
-    - name: gather network facts
+    - name: Gather network facts
       ansible.builtin.gather_facts:
         gather_subset: "!all,!min,network"
       register: gather_results
@@ -44,7 +44,7 @@
           - "This means that CentOS 8 guests won't work with CentOS 8 hosts."
       when: (gather_results.ansible_facts.ansible_distribution == 'CentOS' and gather_results.ansible_facts.ansible_distribution_major_version == "7")
 
-    - name: add ansible facts to hostvars
+    - name: Add ansible facts to hostvars
       ansible.builtin.add_host:
         name: "{{ kubeinit_deployment_node_name }}"
         ansible_default_ipv4: "{{ gather_results.ansible_facts.ansible_default_ipv4 }}"

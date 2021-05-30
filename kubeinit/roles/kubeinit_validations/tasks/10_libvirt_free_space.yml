@@ -36,7 +36,7 @@
   delegate_to: "{{ item }}"
   changed_when: "kubeinit_validations_libvirt_free_space.rc == 0"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_free_space
 
@@ -45,7 +45,7 @@
     kubeinit_validations_hypervisors_free_disk_space: "{{ kubeinit_validations_hypervisors_free_disk_space|default([]) | combine( {item.item: item.stdout[:-1]|int} ) }}"
   with_items: "{{ kubeinit_validations_libvirt_free_space.results }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_hypervisors_free_disk_space
 
@@ -54,7 +54,7 @@
     kubeinit_validations_libvirt_disk_usage: "{{ kubeinit_validations_libvirt_disk_usage|default({})| combine( {item: {'id': item, 'disk': hostvars[item].disk[:-1]|int, 'target': hostvars[item].target} } ) }}"
   with_items: "{{ groups['all_nodes'] }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_disk_usage
 
@@ -71,7 +71,7 @@
       }}
   with_dict: "{{ kubeinit_validations_libvirt_disk_usage }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_combined_disk_usage
 
@@ -82,11 +82,11 @@
     my_attribute: "{{ kubeinit_validations_libvirt_combined_disk_usage[item] | map(attribute='disk') | list | sum }}"
   with_items: "{{ kubeinit_validations_libvirt_combined_disk_usage.keys() | list }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_summarized_disk_usage
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: item
   with_dict: "{{ kubeinit_validations_hypervisors_free_disk_space }}"

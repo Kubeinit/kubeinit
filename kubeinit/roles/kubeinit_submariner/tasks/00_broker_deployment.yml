@@ -23,7 +23,7 @@
 
 - name: Deploy broker/main cluster
   block:
-    - name: "Remove repo file"
+    - name: Remove repo file
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -42,7 +42,7 @@
         version: devel
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Get the PR ID"
+    - name: Get the PR ID
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -53,12 +53,12 @@
       changed_when: "get_repo_pr_id.rc == 0"
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: configure a variable with the PR ID
+    - name: Configure a variable with the PR ID
       ansible.builtin.set_fact:
         kubeinit_submariner_test_pr_id: '{{ get_repo_pr_id.stdout }}'
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Get submariner code based on a PR or from devel"
+    - name: Get submariner code based on a PR or from devel
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -83,7 +83,7 @@
       changed_when: "get_submariner_operator_code.rc == 0"
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Clean previous images"
+    - name: Clean previous images
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -98,31 +98,31 @@
       changed_when: "clean_all_local_images.rc == 0"
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Make clean"
+    - name: Make clean
       community.general.make:
         chdir: ~/submariner-operator
         target: clean
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Make the subctl binary"
+    - name: Make the subctl binary
       community.general.make:
         chdir: ~/submariner-operator
         target: bin/subctl
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Make build"
+    - name: Make build
       community.general.make:
         chdir: ~/submariner-operator
         target: build
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Make images"
+    - name: Make images
       community.general.make:
         chdir: ~/submariner-operator
         target: images
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Push the images to the local registry"
+    - name: Push the images to the local registry
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -138,7 +138,7 @@
       changed_when: "push_submariner_to_local_registry.rc == 0"
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Make the subctl binary available"
+    - name: Make the subctl binary available
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -152,7 +152,7 @@
       changed_when: "install_subctl.rc == 0"
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Make the subctl binary available from a stable release"
+    - name: Make the subctl binary available from a stable release
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -197,7 +197,7 @@
         dest: ~/.bashrc
       when: bashrc_exists.stat.exists and kubeinit_submariner_is_broker|bool
 
-    - name: "Make sure ~/.kube/config exists"
+    - name: Make sure ~/.kube/config exists
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -210,7 +210,7 @@
       changed_when: "install_subctl.rc == 0"
       when: kubeinit_submariner_is_broker|bool
 
-    - name: "Configure broker cluster"
+    - name: Configure broker cluster
       ansible.builtin.shell: |
         set -e
         export PATH=$PATH:~/.local/bin
@@ -223,7 +223,7 @@
       changed_when: "install_subctl.rc == 0"
       when: kubeinit_submariner_is_broker|bool
 
-    - name: "Get the service cidr"
+    - name: Get the service cidr
       ansible.builtin.shell: |
         set -e
         cat ~/service_cidr
@@ -238,7 +238,7 @@
         kubeinit_submariner_service_cidr: "{{ submariner_service_cidr.stdout }}"
       when: kubeinit_submariner_is_broker|bool
 
-    - name: "Join the main cluster to the broker overriding the images registry"
+    - name: Join the main cluster to the broker overriding the images registry
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -252,7 +252,7 @@
       changed_when: "join_cluster.rc == 0"
       when: kubeinit_submariner_is_broker|bool and not kubeinit_submariner_deploy_stable|bool
 
-    - name: "Join the main cluster to the broker pulling from the default registry"
+    - name: Join the main cluster to the broker pulling from the default registry
       ansible.builtin.shell: |
         set -o pipefail
         set -e
@@ -265,7 +265,7 @@
       changed_when: "join_cluster.rc == 0"
       when: kubeinit_submariner_is_broker|bool and kubeinit_submariner_deploy_stable|bool
 
-    - name: "Export the submariner images and the binary files"
+    - name: Export the submariner images and the binary files
       ansible.builtin.shell: |
         set -o pipefail
         set -e

@@ -27,7 +27,7 @@
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
   tasks:
-    - name: prepare environment
+    - name: Prepare environment
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"
         public: true
@@ -36,7 +36,7 @@
   hosts: hypervisor_hosts
   gather_facts: false
   tasks:
-    - name: provision the initial virtual infra
+    - name: Provision the initial virtual infra
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_libvirt"
         public: true
@@ -45,16 +45,16 @@
   hosts: localhost
   become: false
   tasks:
-    - name: run validations
+    - name: Run validations
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_validations"
         public: true
-    - name: stand up services we need for the cluster
+    - name: Stand up services we need for the cluster
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
         tasks_from: prepare_services.yml
         public: true
-    - name: deploy {{ kubeinit_inventory_cluster_distro }}
+    - name: Deploy {{ kubeinit_inventory_cluster_distro }}
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
         public: true

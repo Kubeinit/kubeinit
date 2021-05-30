@@ -56,7 +56,7 @@
 # add nfs dynamic provisioning
 #
 
-- name: add nfs provisioning role
+- name: Add nfs provisioning role
   ansible.builtin.shell: |
     cat << EOF > ~/nfs_rbac.yaml
     apiVersion: v1
@@ -125,7 +125,7 @@
   args:
     executable: /bin/bash
 
-- name: add nfs client provisioner deployment
+- name: Add nfs client provisioner deployment
   ansible.builtin.shell: |
     cat << EOF > ~/nfs_client_prov_deployment.yaml
     kind: Deployment
@@ -171,7 +171,7 @@
   args:
     executable: /bin/bash
 
-- name: add default nfs storage class
+- name: Add default nfs storage class
   ansible.builtin.shell: |
     cat << EOF > ~/nfs_storage_class.yaml
     apiVersion: storage.k8s.io/v1
@@ -191,7 +191,7 @@
   args:
     executable: /bin/bash
 
-- name: add security context constraint for nfs provisioner
+- name: Add security context constraint for nfs provisioner
   ansible.builtin.shell: |
     cat << EOF > ~/nfs_scc.yaml
     apiVersion: security.openshift.io/v1
@@ -239,7 +239,7 @@
   args:
     executable: /bin/bash
 
-- name: apply nfs security policy to nfs user
+- name: Apply nfs security policy to nfs user
   ansible.builtin.shell: |
     export KUBECONFIG=~/.kube/config
     oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
@@ -262,7 +262,7 @@
   args:
     executable: /bin/bash
 
-- name: patch imageregistry operator to claim storage
+- name: Patch imageregistry operator to claim storage
   ansible.builtin.shell: |
     # We patch the imageregistry operator to create a claim that managed-nfs-storage will satisfy
     export KUBECONFIG=~/.kube/config
@@ -273,7 +273,7 @@
   args:
     executable: /bin/bash
 
-- name: patch imageregistry operator to move to Managed state
+- name: Patch imageregistry operator to move to Managed state
   ansible.builtin.shell: |
     export KUBECONFIG=~/.kube/config
     oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'

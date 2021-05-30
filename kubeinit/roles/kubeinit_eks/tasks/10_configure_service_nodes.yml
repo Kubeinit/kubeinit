@@ -33,7 +33,7 @@
         dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
         state: created
 
-    - name: install common requirements
+    - name: Install common requirements
       ansible.builtin.yum:
         name: "{{ kubeinit_eks_common_dependencies }}"
         state: present
@@ -49,13 +49,13 @@
     # Kubernetes config
     #
 
-    - name: install requirements for kubectl
+    - name: Install requirements for kubectl
       ansible.builtin.package:
         name:
           - "kubectl-{{ kubeinit_eks_kubernetes_version }}"
         state: present
 
-    - name: install services requirements
+    - name: Install services requirements
       ansible.builtin.yum:
         name: "{{ kubeinit_eks_service_dependencies }}"
         state: present
@@ -65,7 +65,7 @@
     # Configure local registry
     #
 
-    - name: "Get the required container images"
+    - name: Get the required container images
       ansible.builtin.shell: |
         set -o pipefail
         git clone https://github.com/aws/eks-distro.git
@@ -171,7 +171,7 @@
     # Include the install configuration
     #
 
-    - name: "Render root keys in the service node"
+    - name: Render root keys in the service node
       ansible.builtin.shell: |
         cd
         mkdir ~/.ssh
@@ -179,12 +179,12 @@
       register: render_service_keys
       changed_when: "render_service_keys.rc == 0"
 
-    - name: get root service machine public key
+    - name: Get root service machine public key
       ansible.builtin.command: cat /root/.ssh/id_rsa.pub
       register: public_key_service_content
       changed_when: "public_key_service_content.rc == 0"
 
-    - name: register the public key of the root service machine public key
+    - name: Register the public key of the root service machine public key
       ansible.builtin.set_fact:
         kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
 

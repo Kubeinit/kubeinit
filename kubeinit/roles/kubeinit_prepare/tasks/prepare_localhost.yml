@@ -18,14 +18,14 @@
 #
 # Gather information
 #
-- name: set localhost IPv4 address fact
+- name: Set localhost IPv4 address fact
   ansible.builtin.set_fact:
     localhost_ipv4_address: "{{ hostvars['kubeinit-localhost']['ansible_default_ipv4']['address'] }}"
 
 #
 # Prepare localhost environment
 #
-- name: reset local ssh keys
+- name: Reset local ssh keys
   ansible.builtin.shell: |
     set -o pipefail
     ssh-keygen -R  {{ item }} || true
@@ -45,13 +45,13 @@
   with_items: "{{ groups['all_hosts'] }}"
   delegate_to: "{{ item }}"
 
-- name: get root host public key
+- name: Get root host public key
   ansible.builtin.command: cat /root/.ssh/id_rsa.pub
   register: public_key_content
   changed_when: "public_key_content.rc == 0"
   delegate_to: "{{ kubeinit_bastion_host }}"
 
-- name: register the public key of the root user from the host
+- name: Register the public key of the root user from the host
   ansible.builtin.set_fact:
     kubeinit_provision_vms_public_key: "{{ public_key_content.stdout }}"
   with_items:
@@ -59,11 +59,11 @@
     - localhost
   delegate_to: "{{ item }}"
 
-- name: ansible_host
+- name: Ansible_host
   ansible.builtin.debug:
     msg: "{{ kubeinit_bastion_host_address }}"
 
-- name: add ssh ProxyCommand option for all nodes
+- name: Add ssh ProxyCommand option for all nodes
   ansible.builtin.add_host:
     name: "{{ hostvars[item].ansible_host }}"
     ansible_ssh_common_args: >-
