@@ -18,56 +18,56 @@
 #
 # Define additional groups we will use
 #
-- name: add all master nodes to the all_master_nodes group
+- name: Add all master nodes to the all_master_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_master_nodes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(master).*$') | select('string') | list | default([]) }}"
 
-- name: add all worker nodes to the all_worker_nodes group
+- name: Add all worker nodes to the all_worker_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_worker_nodes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(worker).*$') | select('string') | list | default([]) }}"
 
-- name: add all bootstrap nodes the all_bootstrap_nodes group
+- name: Add all bootstrap nodes the all_bootstrap_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_bootstrap_nodes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(bootstrap).*$') | select('string') | list | default([]) }}"
 
-- name: add all cluster nodes to the all_cluster_nodes group
+- name: Add all cluster nodes to the all_cluster_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_cluster_nodes
   with_items:
     - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] + groups['all_bootstrap_nodes'] }}"
 
-- name: add all service nodes to the all_service_nodes group
+- name: Add all service nodes to the all_service_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_service_nodes
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(service).*$') | select('string') | list | default([]) }}"
 
-- name: add all service and cluster nodes to the all_nodes group
+- name: Add all service and cluster nodes to the all_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_nodes
   with_items:
     - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
 
-- name: add all hosts to the all_hosts group
+- name: Add all hosts to the all_hosts group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_hosts
   with_items:
     - "{{ groups['all'] | map('regex_search','^.*(hypervisor).*$') | select('string') | list | default([]) }}"
 
-- name: add localhost to the local_host group
+- name: Add localhost to the local_host group
   ansible.builtin.add_host:
     name: kubeinit-localhost
     group: local_host
@@ -75,37 +75,37 @@
     ansible_hostname: localhost
     inventory_hostname: localhost
 
-- name: list all_hosts
+- name: List all_hosts
   ansible.builtin.debug:
     msg: "Host {{ item }}"
   with_items: "{{ groups['all_hosts'] }}"
 
-- name: list all_nodes
+- name: List all_nodes
   ansible.builtin.debug:
     msg: "Node {{ item }}"
   with_items: "{{ groups['all_nodes'] }}"
 
-- name: list all_service_nodes
+- name: List all_service_nodes
   ansible.builtin.debug:
     msg: "Service Node {{ item }}"
   with_items: "{{ groups['all_service_nodes'] }}"
 
-- name: list all_cluster_nodes
+- name: List all_cluster_nodes
   ansible.builtin.debug:
     msg: "Cluster Node {{ item }}"
   with_items: "{{ groups['all_cluster_nodes'] }}"
 
-- name: list all_master_nodes
+- name: List all_master_nodes
   ansible.builtin.debug:
     msg: "Master Node {{ item }}"
   with_items: "{{ groups['all_master_nodes'] }}"
 
-- name: list all_worker_nodes
+- name: List all_worker_nodes
   ansible.builtin.debug:
     msg: "Worker Node {{ item }}"
   with_items: "{{ groups['all_worker_nodes'] }}"
 
-- name: list all_bootstrap_nodes
+- name: List all_bootstrap_nodes
   ansible.builtin.debug:
     msg: "Bootstrap Node {{ item }}"
   with_items: "{{ groups['all_bootstrap_nodes'] }}"

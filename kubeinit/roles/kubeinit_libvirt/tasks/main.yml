@@ -115,7 +115,7 @@
         state: disabled
       when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
 
-    - name: install CentOS based requirements
+    - name: Install CentOS based requirements
       ansible.builtin.package:
         name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
         state: present
@@ -129,20 +129,20 @@
         enabled: no
       when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
 
-    - name: install Debian based requirements
+    - name: Install Debian based requirements
       ansible.builtin.package:
         name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
         state: present
       when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
       register: installed_packages_debian
 
-    - name: upgrade all packages
+    - name: Upgrade all packages
       ansible.builtin.package:
         name: '*'
         state: latest
       register: upgraded_packages
 
-    - name: enable and start libvirtd
+    - name: Enable and start libvirtd
       ansible.builtin.service:
         name: libvirtd
         enabled: yes
@@ -166,7 +166,7 @@
       ansible.builtin.set_fact:
         kubeinit_qemu_user: "{{ 'qemu' if (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
 
-    - name: download qcow2 images
+    - name: Download qcow2 images
       ansible.builtin.get_url:
         validate_certs: False
         use_proxy: True
@@ -178,7 +178,7 @@
       with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
       when: "item.value.image"
 
-    - name: download kernel images
+    - name: Download kernel images
       ansible.builtin.get_url:
         validate_certs: False
         use_proxy: True
@@ -190,7 +190,7 @@
       with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
       when: "item.value.kernel"
 
-    - name: download initrd images
+    - name: Download initrd images
       ansible.builtin.get_url:
         validate_certs: False
         use_proxy: True
@@ -202,7 +202,7 @@
       with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
       when: "item.value.initrd"
 
-    - name: create the treeinfo directory FCOS
+    - name: Create the treeinfo directory FCOS
       ansible.builtin.shell: |
         cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
         [general]
@@ -218,7 +218,7 @@
       changed_when: "treeinfo.rc == 0"
       when: "'okd' in kubeinit_inventory_cluster_distro and not kubeinit_okd_openshift_deploy | default(false)"
 
-    - name: create the treeinfo directory for RHCOS
+    - name: Create the treeinfo directory for RHCOS
       ansible.builtin.shell: |
         cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
         [general]
@@ -290,7 +290,7 @@
         line: export LIBVIRT_DEFAULT_URI=qemu:///system
         mode: '0644'
 
-    - name: clean up the hosts before validations
+    - name: Clean up the hosts before validations
       ansible.builtin.include_tasks: 10_cleanup.yml
 
     - name: Create directories for config files per node
@@ -301,7 +301,7 @@
         recurse: yes
       with_items: "{{ groups['all_nodes'] }}"
 
-    - name: include the linux bridge tasks
+    - name: Include the linux bridge tasks
       ansible.builtin.include_tasks: 30_linux_bridge_setup.yml
 
   vars:

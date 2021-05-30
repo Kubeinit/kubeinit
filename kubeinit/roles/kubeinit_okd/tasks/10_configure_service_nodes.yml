@@ -33,7 +33,7 @@
         dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
         state: created
 
-    - name: "Render net info"
+    - name: Render net info
       ansible.builtin.shell: |
         set -o pipefail
         echo "{{ kubeinit_okd_pod_cidr }}" > ~/pod_cidr
@@ -49,7 +49,7 @@
         line: "nameserver {{ kubeinit_bind_service_address }}"
         insertbefore: nameserver.*
 
-    - name: install services requirements
+    - name: Install services requirements
       ansible.builtin.yum:
         name: "{{ kubeinit_okd_service_dependencies }}"
         state: present
@@ -124,7 +124,7 @@
     # Include the install configuration
     #
 
-    - name: "Render root keys in the service node"
+    - name: Render root keys in the service node
       ansible.builtin.shell: |
         cd
         mkdir -p ~/.ssh
@@ -134,12 +134,12 @@
       register: render_service_keys
       changed_when: "render_service_keys.rc == 0"
 
-    - name: get root service machine public key
+    - name: Get root service machine public key
       ansible.builtin.command: cat /root/.ssh/id_rsa.pub
       register: public_key_service_content
       changed_when: "public_key_service_content.rc == 0"
 
-    - name: register the public key of the root service machine public key
+    - name: Register the public key of the root service machine public key
       ansible.builtin.set_fact:
         kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
 
@@ -153,7 +153,7 @@
         url: "{{ kubeinit_okd_dependencies.client }}"
         dest: ~/
 
-    - name: "Install okd client and installer"
+    - name: Install okd client and installer
       ansible.builtin.shell: |
         set -o pipefail
         cd
@@ -186,7 +186,7 @@
         ocp_registry_token: '  { "cloud.openshift.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_cloud_openshift_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"quay.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_quay_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.connect.redhat.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_connect_redhat_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.redhat.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_redhat_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } }'
       when: kubeinit_okd_openshift_deploy
 
-    - name: append openshift auth to pullsecret
+    - name: Append openshift auth to pullsecret
       ansible.builtin.shell: |
         set -o pipefail
         echo '{{ kubeinit_okd_registry_pullsecret }}' | jq -c \
@@ -202,7 +202,7 @@
         kubeinit_okd_registry_pullsecret: '  {{ ocp_new_pullsecret.stdout }}'
       when: kubeinit_okd_openshift_deploy
 
-    - name: "Render the required container images"
+    - name: Render the required container images
       ansible.builtin.shell: |
         set -o pipefail
 
@@ -220,7 +220,7 @@
       register: render_images_list
       changed_when: "render_images_list.rc == 0"
 
-    - name: debug kubeinit_okd_registry_pullsecret before overriding kubeinit_registry_pullsecret
+    - name: Debug kubeinit_okd_registry_pullsecret before overriding kubeinit_registry_pullsecret
       ansible.builtin.debug:
         var: kubeinit_okd_registry_pullsecret
 
@@ -230,7 +230,7 @@
       ansible.builtin.set_fact:
         kubeinit_registry_pullsecret: '  {{ kubeinit_okd_registry_pullsecret }}'
 
-    - name: debug kubeinit_registry_pullsecret after overriding it
+    - name: Debug kubeinit_registry_pullsecret after overriding it
       ansible.builtin.debug:
         var: kubeinit_registry_pullsecret
 
@@ -278,19 +278,19 @@
         dest: "~/install_dir/install-config.yaml"
         mode: '0644'
 
-    - name: "Backup the install config file"
+    - name: Backup the install config file
       ansible.builtin.shell: |
         cp ~/install_dir/install-config.yaml ~/install-config.yaml
       register: backup_install_config
       changed_when: "backup_install_config.rc == 0"
 
-    - name: "Render the bootstrap details"
+    - name: Render the bootstrap details
       ansible.builtin.shell: |
         openshift-install create manifests --dir=install_dir/
       register: render_bootstrap_details
       changed_when: "render_bootstrap_details.rc == 0"
 
-    - name: "Enable master schedulable if there are no worker nodes"
+    - name: Enable master schedulable if there are no worker nodes
       ansible.builtin.shell: |
         set -o pipefail
         cd
@@ -304,7 +304,7 @@
       changed_when: "enable_masters_sched.rc == 0"
       when: groups['all_worker_nodes'] | list | length == 0
 
-    - name: "Disable master schedulable if there is at least one worker node"
+    - name: Disable master schedulable if there is at least one worker node
       ansible.builtin.shell: |
         set -o pipefail
         cd
@@ -318,7 +318,7 @@
       changed_when: "disable_masters_sched.rc == 0"
       when: groups['all_worker_nodes'] | list | length > 0
 
-    - name: "Render ignition files"
+    - name: Render ignition files
       ansible.builtin.shell: |
         # We backup first the manifests
         tar -czvf install_manifests_backup.tar.gz ~/install_dir/

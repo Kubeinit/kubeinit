@@ -31,7 +31,7 @@
   delegate_to: "{{ item }}"
   changed_when: "kubeinit_validations_libvirt_total_cores.rc == 0"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_total_cores
 
@@ -40,7 +40,7 @@
     kubeinit_validations_hypervisors_available_cores: "{{ kubeinit_validations_hypervisors_available_cores|default([]) | combine( {item.item: item.stdout|int} ) }}"
   with_items: "{{ kubeinit_validations_libvirt_total_cores.results }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_total_cores
 
@@ -49,7 +49,7 @@
     kubeinit_validations_libvirt_cores_usage: "{{ kubeinit_validations_libvirt_cores_usage|default({})| combine( {item: {'id': item, 'vcpus': hostvars[item].vcpus|int, 'target': hostvars[item].target} } ) }}"
   with_items: "{{ groups['all_nodes'] }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_cores_usage
 
@@ -66,7 +66,7 @@
       }}
   with_dict: "{{ kubeinit_validations_libvirt_cores_usage }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_combined_cores_usage
 
@@ -77,11 +77,11 @@
     my_attribute: "{{ kubeinit_validations_libvirt_combined_cores_usage[item] | map(attribute='vcpus') | list | sum }}"
   with_items: "{{ kubeinit_validations_libvirt_combined_cores_usage.keys() | list }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_summarized_cores_usage
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: item
   with_dict: "{{ kubeinit_validations_hypervisors_available_cores }}"

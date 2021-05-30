@@ -21,7 +21,7 @@
 - name: Post set up the OVN network details
   block:
 
-    - name: configure OVN in the first Hypervisor
+    - name: Configure OVN in the first Hypervisor
       ansible.builtin.shell: |
         # Below two commands only for master. For SSL, other steps are required.
         ovn-nbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_northbound_port }}
@@ -33,7 +33,7 @@
     # We create the OVN switch that will be binded to each chassis (hypervisor)
     # In this switch we will create a port per guest
     #
-    - name: remove and create the cluster switch if exists
+    - name: Remove and create the cluster switch if exists
       ansible.builtin.shell: |
         #
         # Create a logical switch
@@ -43,7 +43,7 @@
       when: >
         kubeinit_bastion_host in kubeinit_deployment_node_name
 
-    - name: create the DHCP options
+    - name: Create the DHCP options
       ansible.builtin.shell: |
         #
         # Create DHCP options
@@ -63,7 +63,7 @@
       when: >
         kubeinit_bastion_host in kubeinit_deployment_node_name
 
-    - name: register the dhcp options uuid
+    - name: Register the dhcp options uuid
       ansible.builtin.set_fact: kubeinit_provision_dhcp_options={{ dhcp_options.stdout }}
       with_items:
         - "{{ groups['all_hosts'] }}"
@@ -77,7 +77,7 @@
       when: >
         kubeinit_bastion_host in kubeinit_deployment_node_name
 
-    - name: create OVS/OVN bindings for the VMs ports
+    - name: Create OVS/OVN bindings for the VMs ports
       ansible.builtin.shell: |
         #
         # We create an OVN port using the interface ID and the mac address of the VM

@@ -32,13 +32,13 @@
     - always
 
 
-- name: prepare groups
+- name: Prepare groups
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_prepare"
     tasks_from: prepare_groups.yml
     public: true
 
-- name: prepare hosts including localhost
+- name: Prepare hosts including localhost
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_prepare"
     tasks_from: prepare_hosts.yml
@@ -50,7 +50,7 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
-- name: define host, node and ovn related facts
+- name: Define host, node and ovn related facts
   ansible.builtin.set_fact:
     cacheable: true
     kubeinit_facts: {
@@ -76,18 +76,18 @@
       kubeinit_ingress_hostname: "ingress"
     }
 
-- name: add kubeinit facts to hostvars
+- name: Add kubeinit facts to hostvars
   ansible.builtin.add_host:
     name: "kubeinit-localhost"
     kubeinit_facts: "{{ kubeinit_facts }}"
 
-- name: set kubeinit facts
+- name: Set kubeinit facts
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_prepare"
     tasks_from: set_kubeinit_facts.yml
     public: true
 
-- name: prepare localhost
+- name: Prepare localhost
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_prepare"
     tasks_from: prepare_localhost.yml
@@ -114,7 +114,7 @@
 ## Configure OVN o a linux bridge in all the HVs
 ##
 
-- name: clean the netwokrs
+- name: Clean the netwokrs
   ansible.builtin.include_tasks: 10_cleanup.yml
   when: kubeinit_libvirt_ovn_enabled
   with_items:
@@ -124,7 +124,7 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
-- name: include the OVN install tasks
+- name: Include the OVN install tasks
   ansible.builtin.include_tasks: 20_ovn_install.yml
   when: kubeinit_libvirt_ovn_enabled
   with_items:
@@ -134,7 +134,7 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
-- name: include the OVN setup
+- name: Include the OVN setup
   ansible.builtin.include_tasks: 40_ovn_setup.yml
   when: kubeinit_libvirt_ovn_enabled
   with_items:
@@ -144,7 +144,7 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
-- name: post configure steps for OVN
+- name: Post configure steps for OVN
   ansible.builtin.include_tasks: 50_ovn_post_setup.yml
   when: kubeinit_libvirt_ovn_enabled and (kubeinit_bastion_host in kubeinit_deployment_node_name)
   with_items:

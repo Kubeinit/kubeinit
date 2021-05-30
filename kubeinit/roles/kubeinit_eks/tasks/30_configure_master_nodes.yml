@@ -62,7 +62,7 @@
     ## Setup the first master node
     ##
 
-    - name: get etcd tag
+    - name: Get etcd tag
       ansible.builtin.shell: |
         set -o pipefail
         curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/etcd/tags/list --stderr - | grep '"name":"etcd"' | jq .tags[0]
@@ -72,7 +72,7 @@
       changed_when: "eks_etcd_tag.rc == 0"
       when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
-    - name: register the eks etcd service deployment tag
+    - name: Register the eks etcd service deployment tag
       ansible.builtin.set_fact:
         kubeinit_eks_etcd_tag={{ eks_etcd_tag.stdout }}
       when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
@@ -117,7 +117,7 @@
       changed_when: "eks_master_kubeadm_master_init_output.rc == 0"
       when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
-    - name: debug
+    - name: Debug
       ansible.builtin.debug: var=eks_master_kubeadm_master_init_output
 
     - name: Get the master join key
@@ -129,7 +129,7 @@
       with_items:
         - "{{ eks_master_kubeadm_master_init_output.stdout_lines }}"
 
-    - name: debug
+    - name: Debug
       ansible.builtin.debug: var=eks_master_kubeadm_init_master_join_key
 
     # This task will copy the join key across all the master nodes
@@ -162,12 +162,12 @@
       changed_when: "eks_master_kubeadm_init_output_aux.rc == 0"
       when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
-    - name: register the join command for other nodes
+    - name: Register the join command for other nodes
       ansible.builtin.set_fact:
         eks_master_kubeadm_init_output={{ eks_master_kubeadm_init_output_aux.stdout }}
       when: groups['all_master_nodes'][0] in kubeinit_deployment_node_name
 
-    - name: debug
+    - name: Debug
       ansible.builtin.debug: var=eks_master_kubeadm_init_output
 
     # This needs to be stored in all the master nodes

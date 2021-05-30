@@ -31,7 +31,7 @@
   delegate_to: "{{ item }}"
   changed_when: "kubeinit_validations_libvirt_total_ram.rc == 0"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_total_ram
 
@@ -40,7 +40,7 @@
     kubeinit_validations_hypervisors_free_ram: "{{ kubeinit_validations_hypervisors_free_ram|default([]) | combine( {item.item: item.stdout|int} ) }}"
   with_items: "{{ kubeinit_validations_libvirt_total_ram.results }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_total_ram
 
@@ -50,7 +50,7 @@
     kubeinit_validations_libvirt_ram_usage: "{{ kubeinit_validations_libvirt_ram_usage|default({})| combine( {item: {'id': item, 'ram': hostvars[item].ram|int, 'target': hostvars[item].target} } ) }}"
   with_items: "{{ groups['all_nodes'] }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_ram_usage
 
@@ -67,7 +67,7 @@
       }}
   with_dict: "{{ kubeinit_validations_libvirt_ram_usage }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_combined_ram_usage
 
@@ -78,11 +78,11 @@
     my_attribute: "{{ kubeinit_validations_libvirt_combined_ram_usage[item] | map(attribute='ram') | list | sum }}"
   with_items: "{{ kubeinit_validations_libvirt_combined_ram_usage.keys() | list }}"
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: kubeinit_validations_libvirt_summarized_ram_usage
 
-- name: debug
+- name: Debug
   ansible.builtin.debug:
     var: item
   with_dict: "{{ kubeinit_validations_hypervisors_free_ram }}"
