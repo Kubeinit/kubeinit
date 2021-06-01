@@ -124,7 +124,7 @@ machine a user can execute:
     # Get the cluster nodes
     root@rke-service-01:~# kubectl get nodes
     NAME            STATUS   ROLES               AGE   VERSION
-    rke-master-01   Ready    controlplane,etcd   11m   v1.19.3
+    rke-controller-01   Ready    controlplane,etcd   11m   v1.19.3
 
     # In the root folder there are files with some details about the deployment
     # like the kubeconfig file, the container images used in the deployment,

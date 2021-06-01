@@ -18,21 +18,21 @@
 #
 # Define additional groups we will use
 #
-- name: Add all master nodes to the all_master_nodes group
+- name: Add all master nodes to the all_control_plane_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
-    group: all_master_nodes
+    group: all_control_plane_nodes
   with_items:
-    - "{{ groups['master_nodes'] | list | default([]) }}"
-  when: "'master_nodes' in groups"
+    - "{{ groups['control_plane_nodes'] | list | default([]) }}"
+  when: "'control_plane_nodes' in groups"
 
-- name: Add all worker nodes to the all_worker_nodes group
+- name: Add all worker nodes to the all_compute_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
-    group: all_worker_nodes
+    group: all_compute_nodes
   with_items:
-    - "{{ groups['worker_nodes'] | list | default([]) }}"
-  when: "'worker_nodes' in groups"
+    - "{{ groups['compute_nodes'] | list | default([]) }}"
+  when: "'compute_nodes' in groups"
 
 - name: Add all bootstrap nodes the all_bootstrap_nodes group
   ansible.builtin.add_host:
@@ -47,7 +47,7 @@
     name: "{{ item }}"
     group: all_cluster_nodes
   with_items:
-    - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] + groups['all_bootstrap_nodes'] }}"
+    - "{{ groups['all_control_plane_nodes'] + groups['all_compute_nodes'] + groups['all_bootstrap_nodes'] }}"
 
 - name: Add all service nodes to the all_service_nodes group
   ansible.builtin.add_host:
@@ -99,15 +99,15 @@
     msg: "Cluster Node {{ item }}"
   with_items: "{{ groups['all_cluster_nodes'] }}"
 
-- name: List all_master_nodes
+- name: List all_control_plane_nodes
   ansible.builtin.debug:
     msg: "Master Node {{ item }}"
-  with_items: "{{ groups['all_master_nodes'] }}"
+  with_items: "{{ groups['all_control_plane_nodes'] }}"
 
-- name: List all_worker_nodes
+- name: List all_compute_nodes
   ansible.builtin.debug:
     msg: "Worker Node {{ item }}"
-  with_items: "{{ groups['all_worker_nodes'] }}"
+  with_items: "{{ groups['all_compute_nodes'] }}"
 
 - name: List all_bootstrap_nodes
   ansible.builtin.debug:

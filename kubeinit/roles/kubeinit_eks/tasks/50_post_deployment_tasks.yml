@@ -21,7 +21,7 @@
         src: ~/.kube/config
       register: kubeinit_eks_cluster_kubeconfig
       # We fetch the kubeconfig from the first master node
-      delegate_to: "{{ hostvars[groups['all_master_nodes'][0]].ansible_host }}"
+      delegate_to: "{{ hostvars[groups['all_control_plane_nodes'][0]].ansible_host }}"
 
     - name: Create kube directory
       ansible.builtin.file:
@@ -40,7 +40,7 @@
        kubectl label node {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
       changed_when: false
       with_items:
-        - "{{ groups['all_worker_nodes'] | list }}"
+        - "{{ groups['all_compute_nodes'] | list }}"
 
   # #
   # # Configure NFS

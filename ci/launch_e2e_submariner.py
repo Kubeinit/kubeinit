@@ -72,11 +72,11 @@ def main():
                 repo.get_commit(sha=sha).create_status(state="pending",
                                                        target_url=url + str(pipeline_id),
                                                        description="Running...",
-                                                       context="%s-%s-%s-master-%s-worker-%s" % (distro,
-                                                                                                 driver,
-                                                                                                 master,
-                                                                                                 worker,
-                                                                                                 scenario))
+                                                       context="%s-%s-%s-controller-%s-compute-%s" % (distro,
+                                                                                                      driver,
+                                                                                                      master,
+                                                                                                      worker,
+                                                                                                      scenario))
                 print("The pipeline ID is: " + str(pipeline_id))
                 print("The clouds.yml path is: " + str(vars_file_path))
                 # We trigger the e2e job
@@ -132,11 +132,11 @@ def main():
                 repo.get_commit(sha=sha).create_status(state=state,
                                                        target_url=dest_url,
                                                        description=desc,
-                                                       context="%s-%s-%s-master-%s-worker-%s" % (distro,
-                                                                                                 driver,
-                                                                                                 master,
-                                                                                                 worker,
-                                                                                                 scenario))
+                                                       context="%s-%s-%s-controller-%s-compute-%s" % (distro,
+                                                                                                      driver,
+                                                                                                      master,
+                                                                                                      worker,
+                                                                                                      scenario))
             else:
                 print("No need to do anything")
             if execute:

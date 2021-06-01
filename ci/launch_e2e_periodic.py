@@ -27,30 +27,30 @@ def main(distros):
     url = os.getenv('CI_PIPELINE_URL', "")
     print("The job results will be published in runtime at: " + url)
 
-    ovn_configs = ["k8s.ovn-libvirt-3-master-2-worker-periodic"]
+    ovn_configs = ["k8s.ovn-libvirt-3-controller-2-compute-periodic"]
 
-    cdk_configs = ["cdk-libvirt-3-master-1-worker-periodic",
-                   "cdk-libvirt-1-master-1-worker-periodic",
-                   "cdk-libvirt-1-master-0-worker-periodic"]
+    cdk_configs = ["cdk-libvirt-3-controller-1-compute-periodic",
+                   "cdk-libvirt-1-controller-1-compute-periodic",
+                   "cdk-libvirt-1-controller-0-compute-periodic"]
 
-    okd_configs = ["okd-libvirt-3-master-1-worker-periodic",
-                   "okd-libvirt-1-master-1-worker-periodic",
-                   "okd-libvirt-1-master-0-worker-periodic"]
+    okd_configs = ["okd-libvirt-3-controller-1-compute-periodic",
+                   "okd-libvirt-1-controller-1-compute-periodic",
+                   "okd-libvirt-1-controller-0-compute-periodic"]
 
-    rke_configs = ["rke-libvirt-3-master-1-worker-periodic",
-                   "rke-libvirt-1-master-1-worker-periodic",
-                   "rke-libvirt-1-master-0-worker-periodic"]
+    rke_configs = ["rke-libvirt-3-controller-1-compute-periodic",
+                   "rke-libvirt-1-controller-1-compute-periodic",
+                   "rke-libvirt-1-controller-0-compute-periodic"]
 
-    k8s_configs = ["k8s-libvirt-3-master-1-worker-periodic",
-                   "k8s-libvirt-1-master-1-worker-periodic",
-                   "k8s-libvirt-1-master-0-worker-periodic"]
+    k8s_configs = ["k8s-libvirt-3-controller-1-compute-periodic",
+                   "k8s-libvirt-1-controller-1-compute-periodic",
+                   "k8s-libvirt-1-controller-0-compute-periodic"]
 
-    eks_configs = ["eks-libvirt-3-master-1-worker-periodic",
-                   "eks-libvirt-1-master-1-worker-periodic",
-                   "eks-libvirt-1-master-0-worker-periodic"]
+    eks_configs = ["eks-libvirt-3-controller-1-compute-periodic",
+                   "eks-libvirt-1-controller-1-compute-periodic",
+                   "eks-libvirt-1-controller-0-compute-periodic"]
 
-    okd_rke_configs = ["okd.rke-libvirt-1-master-2-worker-periodic",
-                       "okd.rke-libvirt-3-master-1-worker-periodic"]
+    okd_rke_configs = ["okd.rke-libvirt-1-controller-2-compute-periodic",
+                       "okd.rke-libvirt-3-controller-1-compute-periodic"]
 
     list_of_distros = distros.split(',')
 
