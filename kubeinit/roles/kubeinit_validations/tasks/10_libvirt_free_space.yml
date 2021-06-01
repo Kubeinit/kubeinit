@@ -24,10 +24,20 @@
     set -o pipefail
     if [ -d "{{ kubeinit_validations_libvirt_path }}" ]
     then
-        df -BG --output=avail {{ kubeinit_validations_libvirt_path }} | grep -v Avail
+        file_space={{ kubeinit_validations_libvirt_path }}
     else
-        df -BG --output=avail {{ kubeinit_validations_libvirt_path_fallback }} | grep -v Avail
+        file_space={{ kubeinit_validations_libvirt_path_fallback }}
     fi
+    df -BG ${file_space} | \
+        jq -R -s '
+            split("\n") |
+            .[] |
+            if test("^/") then
+                gsub(" +"; " ") | split(" ") | {mount: .[0], spacetotal: .[1], spaceused: .[2], spaceavail: .[3]}
+            else
+                empty
+            end
+        ' | jq .spaceavail | tr -d '"'
   args:
     executable: /bin/bash
   register: kubeinit_validations_libvirt_free_space
