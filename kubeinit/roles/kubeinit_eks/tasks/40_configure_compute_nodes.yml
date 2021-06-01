@@ -21,7 +21,7 @@
         content: "{{ eks_master_kubeadm_init_output }}"
         dest: ~/eks_token
         mode: '0644'
-      when: groups['all_worker_nodes'] | length > 0
+      when: groups['all_compute_nodes'] | length > 0
 
     - name: Install root public from service node in worker nodes
       ansible.builtin.shell: |
@@ -73,7 +73,7 @@
         echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
         sysctl -p
       changed_when: false
-      when: groups['all_worker_nodes'] | length > 0
+      when: groups['all_compute_nodes'] | length > 0
 
     - name: Joining worker nodes with kubernetes master
       ansible.builtin.shell: |
@@ -81,6 +81,6 @@
        cat ~/eks_token > out.sh
        sh out.sh
       changed_when: false
-      when: groups['all_worker_nodes'] | length > 0
+      when: groups['all_compute_nodes'] | length > 0
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

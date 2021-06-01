@@ -21,11 +21,11 @@ $TTL    604800
 {% endfor %}
 
 ; KubeInit cluster Cluster - PTR records
-{% for host in groups['all_master_nodes'] | list %}
+{% for host in groups['all_control_plane_nodes'] | list %}
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR master{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
 {% endfor %}
 
-{% for host in groups['all_worker_nodes'] | list %}
+{% for host in groups['all_compute_nodes'] | list %}
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR worker{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
 {% endfor %}
 

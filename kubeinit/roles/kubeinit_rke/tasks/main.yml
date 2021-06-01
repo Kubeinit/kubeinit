@@ -53,10 +53,10 @@
 - name: Configure the cluster master nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_rke"
-    tasks_from: 40_configure_master_nodes.yml
+    tasks_from: 40_configure_control_plane_nodes.yml
     public: yes
   with_items:
-    - "{{ groups['all_master_nodes'] | list }}"
+    - "{{ groups['all_control_plane_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -66,10 +66,10 @@
 - name: Configure the cluster worker nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_rke"
-    tasks_from: 50_configure_worker_nodes.yml
+    tasks_from: 50_configure_compute_nodes.yml
     public: yes
   with_items:
-    - "{{ groups['all_worker_nodes'] | list }}"
+    - "{{ groups['all_compute_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:

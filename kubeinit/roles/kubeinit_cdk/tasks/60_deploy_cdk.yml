@@ -54,7 +54,7 @@
       register: add_cdk_machines
       changed_when: "add_cdk_machines.rc == 0"
       with_items:
-        - "{{ groups['all_master_nodes'] + groups['all_worker_nodes'] | list }}"
+        - "{{ groups['all_control_plane_nodes'] + groups['all_compute_nodes'] | list }}"
 
     - name: "verify that all cluster nodes are started"
       ansible.builtin.shell: |
@@ -67,11 +67,11 @@
       retries: 60
       delay: 60
       # We should have all the master and worker nodes started
-      until: cmd_res.stdout_lines | list | count == ( groups['all_master_nodes'] | count + groups['all_worker_nodes'] | count )
+      until: cmd_res.stdout_lines | list | count == ( groups['all_control_plane_nodes'] | count + groups['all_compute_nodes'] | count )
 
     - name: "Deploy CDK"
       ansible.builtin.shell: |
-        juju deploy ./bundle.yml --map-machines=existing{% for item in (groups['all_master_nodes'] + groups['all_worker_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
+        juju deploy ./bundle.yml --map-machines=existing{% for item in (groups['all_control_plane_nodes'] + groups['all_compute_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
       register: install_cdk
       changed_when: "install_cdk.rc == 0"
 
@@ -92,7 +92,7 @@
       retries: 60
       delay: 60
       # We should have all the master and worker nodes started
-      until: etcd_res.stdout_lines | list | count == ( groups['all_master_nodes'] | count )
+      until: etcd_res.stdout_lines | list | count == ( groups['all_control_plane_nodes'] | count )
 
     - name: Create kube directory
       ansible.builtin.file:

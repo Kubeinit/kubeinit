@@ -62,37 +62,37 @@ cat scenario_variables.yml
 # no matter the distro, i.e., okd-master or k8s-master
 if [[ "$DISTRO" == "okd.rke" ]]; then
     if [[ "$MASTER" == "1" ]]; then
-        sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/okd/inventory
-        sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/rke/inventory
-        sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/k8s/inventory
-        sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-controller-02/#-controller-02/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-controller-02/#-controller-02/g" ./hosts/rke/inventory
+        sed -i -E "s/.*-controller-02/#-controller-02/g" ./hosts/k8s/inventory
+        sed -i -E "s/.*-controller-02/#-controller-02/g" ./hosts/cdk/inventory
 
-        sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/okd/inventory
-        sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/rke/inventory
-        sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/k8s/inventory
-        sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-controller-03/#-controller-03/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-controller-03/#-controller-03/g" ./hosts/rke/inventory
+        sed -i -E "s/.*-controller-03/#-controller-03/g" ./hosts/k8s/inventory
+        sed -i -E "s/.*-controller-03/#-controller-03/g" ./hosts/cdk/inventory
     fi
 
     if [[ "$WORKER" == "0" ]]; then
-        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/okd/inventory
-        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/rke/inventory
-        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/k8s/inventory
-        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/cdk/inventory
-        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/eks/inventory
+        sed -i -E "s/.*-compute-01/#-compute-01/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-compute-01/#-compute-01/g" ./hosts/rke/inventory
+        sed -i -E "s/.*-compute-01/#-compute-01/g" ./hosts/k8s/inventory
+        sed -i -E "s/.*-compute-01/#-compute-01/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-compute-01/#-compute-01/g" ./hosts/eks/inventory
 
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/okd/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/rke/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/k8s/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/cdk/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/eks/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/rke/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/k8s/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/eks/inventory
     fi
 
     if [[ "$WORKER" == "1" ]]; then
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/okd/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/rke/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/k8s/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/cdk/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/eks/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/okd/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/rke/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/k8s/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/cdk/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/eks/inventory
     fi
 
     sed -i "s/10.0.0.1 /10.0.0.201 /g" ./hosts/rke/inventory
@@ -115,17 +115,17 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
 
 else
     if [[ "$MASTER" == "1" ]]; then
-        sed -i -E "s/.*-master-02/#-master-02/g" ./hosts/$DISTRO/inventory
-        sed -i -E "s/.*-master-03/#-master-03/g" ./hosts/$DISTRO/inventory
+        sed -i -E "s/.*-controller-02/#-controller-02/g" ./hosts/$DISTRO/inventory
+        sed -i -E "s/.*-controller-03/#-controller-03/g" ./hosts/$DISTRO/inventory
     fi
 
     if [[ "$WORKER" == "0" ]]; then
-        sed -i -E "s/.*-worker-01/#-worker-01/g" ./hosts/$DISTRO/inventory
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/$DISTRO/inventory
+        sed -i -E "s/.*-compute-01/#-compute-01/g" ./hosts/$DISTRO/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/$DISTRO/inventory
     fi
 
     if [[ "$WORKER" == "1" ]]; then
-        sed -i -E "s/.*-worker-02/#-worker-02/g" ./hosts/$DISTRO/inventory
+        sed -i -E "s/.*-compute-02/#-compute-02/g" ./hosts/$DISTRO/inventory
     fi
 fi
 # We need to remove any created VM in other jobs

@@ -21,7 +21,7 @@
         content: "{{ k8s_master_kubeadm_init_output }}"
         dest: ~/k8s_token
         mode: '0644'
-      when: groups['all_worker_nodes'] | length > 0
+      when: groups['all_compute_nodes'] | length > 0
 
     - name: Modprobe ip forward
       ansible.builtin.shell: |
@@ -31,7 +31,7 @@
         echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
         sysctl -p
       changed_when: false
-      when: groups['all_worker_nodes'] | length > 0
+      when: groups['all_compute_nodes'] | length > 0
 
     - name: Joining worker nodes with kubernetes master
       ansible.builtin.shell: |
@@ -39,14 +39,14 @@
        cat ~/k8s_token > out.sh
        sh out.sh
       changed_when: false
-      when: groups['all_worker_nodes'] | length > 0
+      when: groups['all_compute_nodes'] | length > 0
 
     - name: Label node
       ansible.builtin.shell: |
        kubectl label node {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
       changed_when: false
-      when: groups['all_worker_nodes'] | length > 0
+      when: groups['all_compute_nodes'] | length > 0
       # The kubeconfig file is in the master nodes otherwise we can not relabel
-      delegate_to: "{{ hostvars[groups['all_master_nodes'][0]].ansible_host }}"
+      delegate_to: "{{ hostvars[groups['all_control_plane_nodes'][0]].ansible_host }}"
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

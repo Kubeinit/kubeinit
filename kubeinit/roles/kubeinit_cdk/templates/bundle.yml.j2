@@ -4,7 +4,7 @@
 description: A highly-available, production-grade Kubernetes cluster.
 series: groovy
 machines:
-{% for item in groups['all_master_nodes'] + groups['all_worker_nodes'] %}
+{% for item in groups['all_control_plane_nodes'] + groups['all_compute_nodes'] %}
   "{{ loop.index0 }}":
 {% endfor %}
 services:
@@ -28,8 +28,8 @@ services:
     # In the first worker node as the numbering starts
     # at 0. So, the amount of master nodes index will be
     # the first worker node.
-{% if groups['all_worker_nodes'] | count > 0 %}
-    - "{{ groups['all_master_nodes'] | count }}"
+{% if groups['all_compute_nodes'] | count > 0 %}
+    - "{{ groups['all_control_plane_nodes'] | count }}"
 {% else %}
     - "0"
 {% endif %}
@@ -39,7 +39,7 @@ services:
       gui-y: '420'
     charm: cs:~containers/etcd-540
     constraints: root-disk=8G
-    num_units: {{ groups['all_master_nodes'] | count }}
+    num_units: {{ groups['all_control_plane_nodes'] | count }}
     options:
       channel: 3.4/stable
     resources:
@@ -47,7 +47,7 @@ services:
       etcd: 3
       snapshot: 0
     to:
-{% for item in groups['all_master_nodes'] %}
+{% for item in groups['all_control_plane_nodes'] %}
     - "{{ loop.index0 }}"
 {% endfor %}
   flannel:
@@ -73,8 +73,8 @@ services:
     # In the first worker node as the numbering starts
     # at 0. So, the amount of master nodes index will be
     # the first worker node.
-{% if groups['all_worker_nodes'] | count > 0 %}
-    - "{{ groups['all_master_nodes'] | count }}"
+{% if groups['all_compute_nodes'] | count > 0 %}
+    - "{{ groups['all_control_plane_nodes'] | count }}"
 {% else %}
     - "0"
 {% endif %}
@@ -84,7 +84,7 @@ services:
       gui-y: '850'
     charm: cs:~containers/kubernetes-master-891
     constraints: cores=2 mem=4G root-disk=16G
-    num_units: {{ groups['all_master_nodes'] | count }}
+    num_units: {{ groups['all_control_plane_nodes'] | count }}
     options:
       channel: 1.19/stable
     resources:
@@ -96,10 +96,10 @@ services:
       kube-scheduler: 0
       kubectl: 0
     to:
-{% for item in groups['all_master_nodes'] %}
+{% for item in groups['all_control_plane_nodes'] %}
     - "{{ loop.index0 }}"
 {% endfor %}
-{% if groups['all_worker_nodes'] | count > 0 %}
+{% if groups['all_compute_nodes'] | count > 0 %}
   kubernetes-worker:
     annotations:
       gui-x: '90'
@@ -107,7 +107,7 @@ services:
     charm: cs:~containers/kubernetes-worker-704
     constraints: cores=4 mem=4G root-disk=16G
     expose: true
-    num_units: {{ groups['all_worker_nodes'] | count }}
+    num_units: {{ groups['all_compute_nodes'] | count }}
     options:
       channel: 1.19/stable
     resources:
@@ -119,8 +119,8 @@ services:
       kubectl: 0
       kubelet: 0
     to:
-{% for item in groups['all_worker_nodes'] %}
-    - "{{ loop.index0 + groups['all_master_nodes'] | count }}"
+{% for item in groups['all_compute_nodes'] %}
+    - "{{ loop.index0 + groups['all_control_plane_nodes'] | count }}"
 {% endfor %}
 {% endif %}
 relations:
@@ -128,7 +128,7 @@ relations:
   - kubeapi-load-balancer:apiserver
 - - kubernetes-master:loadbalancer
   - kubeapi-load-balancer:loadbalancer
-{% if groups['all_worker_nodes'] | count > 0 %}
+{% if groups['all_compute_nodes'] | count > 0 %}
 - - kubernetes-master:kube-control
   - kubernetes-worker:kube-control
 {% endif %}
@@ -138,7 +138,7 @@ relations:
   - easyrsa:client
 - - kubernetes-master:etcd
   - etcd:db
-{% if groups['all_worker_nodes'] | count > 0 %}
+{% if groups['all_compute_nodes'] | count > 0 %}
 - - kubernetes-worker:certificates
   - easyrsa:client
 - - kubernetes-worker:kube-api-endpoint
@@ -150,7 +150,7 @@ relations:
   - etcd:db
 - - flannel:cni
   - kubernetes-master:cni
-{% if groups['all_worker_nodes'] | count > 0 %}
+{% if groups['all_compute_nodes'] | count > 0 %}
 - - flannel:cni
   - kubernetes-worker:cni
 - - containerd:containerd
