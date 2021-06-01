@@ -98,6 +98,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#running-the-deployment-command-from-a-container">Running the deployment command from a container</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#running-from-the-git-repository">Running from the GIT repository</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#running-from-a-release">Running from a release</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#accessing-the-cluster-resources">Accessing the cluster resources</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#cleaning-up-the-environment">Cleaning up the environment</a></li>
@@ -262,6 +263,40 @@ standard ansible-playbook parameters.</p>
 <span class="go">        --become \</span>
 <span class="go">        --become-user root \</span>
 <span class="go">        ./playbooks/okd.yml</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="accessing-the-cluster-resources">
+<h3>Accessing the cluster resources<a class="headerlink" href="#accessing-the-cluster-resources" title="Permalink to this headline">¶</a></h3>
+<p>Once the deployment is finished the service
+node has access to the cluster resources.
+For example, once logged in the service
+machine a user can execute:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>From the hypervisor node the user should
+<span class="gp"># </span>have passwordless access to the service machine
+<span class="gp">root@mocoloco kubeinit]# </span>ssh root@10.0.0.100
+<span class="go">Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-53-generic x86_64)</span>
+<span class="go">  System load:  0.0                Users logged in:               0</span>
+<span class="go">  Usage of /:   2.5% of 147.34GB   IPv4 address for docker0:      172.17.0.1</span>
+<span class="go">  Memory usage: 4%                 IPv4 address for enp1s0:       10.0.0.100</span>
+<span class="go">  Swap usage:   0%                 IPv4 address for vetha0e3a877: 172.16.16.1</span>
+<span class="go">  Processes:    186</span>
+
+<span class="gp"># </span>Get the cluster nodes
+<span class="gp">root@rke-service-01:~# </span>kubectl get nodes
+<span class="go">NAME            STATUS   ROLES               AGE   VERSION</span>
+<span class="go">rke-controller-01   Ready    controlplane,etcd   11m   v1.19.3</span>
+
+<span class="gp"># </span>In the root folder there are files with some details about the deployment
+<span class="gp"># </span>like the kubeconfig file, the container images used <span class="k">in</span> the deployment,
+<span class="gp"># </span>and the registry pull secret.
+<span class="gp">root@rke-service-01:~# </span>ls
+<span class="go">cluster.rkestate  httpd.conf               kubeinit_deployment_images.txt  pullsecret.json      rke           snap</span>
+<span class="go">cluster.yml       kube_config_cluster.yml  pod_cidr                        registry-auths.json  service_cidr</span>
+
+<span class="gp"># </span>The cluster config file is also copied to the default folder.
+<span class="gp">root@rke-service-01:~# </span>ls .kube/config
+<span class="go">.kube/config</span>
 </pre></div>
 </div>
 </div>

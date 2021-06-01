@@ -101,6 +101,42 @@ Running from a release
             --become-user root \
             ./playbooks/okd.yml
 
+Accessing the cluster resources
+-------------------------------
+
+Once the deployment is finished the service
+node has access to the cluster resources.
+For example, once logged in the service
+machine a user can execute:
+
+.. code-block:: console
+
+    # From the hypervisor node the user should
+    # have passwordless access to the service machine
+    root@mocoloco kubeinit]# ssh root@10.0.0.100
+    Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-53-generic x86_64)
+      System load:  0.0                Users logged in:               0
+      Usage of /:   2.5% of 147.34GB   IPv4 address for docker0:      172.17.0.1
+      Memory usage: 4%                 IPv4 address for enp1s0:       10.0.0.100
+      Swap usage:   0%                 IPv4 address for vetha0e3a877: 172.16.16.1
+      Processes:    186
+
+    # Get the cluster nodes
+    root@rke-service-01:~# kubectl get nodes
+    NAME            STATUS   ROLES               AGE   VERSION
+    rke-controller-01   Ready    controlplane,etcd   11m   v1.19.3
+
+    # In the root folder there are files with some details about the deployment
+    # like the kubeconfig file, the container images used in the deployment,
+    # and the registry pull secret.
+    root@rke-service-01:~# ls
+    cluster.rkestate  httpd.conf               kubeinit_deployment_images.txt  pullsecret.json      rke           snap
+    cluster.yml       kube_config_cluster.yml  pod_cidr                        registry-auths.json  service_cidr
+
+    # The cluster config file is also copied to the default folder.
+    root@rke-service-01:~# ls .kube/config 
+    .kube/config
+
 Cleaning up the environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
