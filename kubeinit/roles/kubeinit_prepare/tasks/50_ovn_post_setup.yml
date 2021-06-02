@@ -23,6 +23,8 @@
     # Below two commands only for master. For SSL, other steps are required.
     ovn-nbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_northbound_port }}
     ovn-sbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_southbound_port }}
+  register: config_ovn_connection
+  changed_when: "config_ovn_connection.rc == 0"
 
 #
 # We create the OVN switch that will be binded to each chassis (hypervisor)
@@ -35,6 +37,8 @@
     #
     ovn-nbctl ls-del sw0
     ovn-nbctl --wait=hv ls-add sw0
+  register: config_ovn_switch
+  changed_when: "config_ovn_switch.rc == 0"
 
 - name: Create the DHCP options
   ansible.builtin.shell: |
@@ -70,17 +74,15 @@
     # We create an OVN port using the interface ID and the mac address of the VM
     #
     ovn-nbctl --wait=hv lsp-add sw0 {{ hostvars[item].interfaceid }}
-
     #
     # The port name is the interface id of the VM, now we assign the mac address of the VM to the port
     #
     ovn-nbctl lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
-
     ovn-nbctl lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
-
     ovn-nbctl lsp-set-dhcpv4-options {{ hostvars[item].interfaceid }} {{ kubeinit_provision_dhcp_options }}
-
   with_items: "{{ groups['all_nodes'] }}"
+  register: config_ovn_bindings
+  changed_when: "config_ovn_bindings.rc == 0"
 
 - name: Configuring a router connected to the guests switch
   ansible.builtin.shell: |
@@ -127,7 +129,6 @@
     ovs-vsctl --may-exist add-br br-ex
     ip addr add 172.16.0.254/24 dev br-ex
     ip link set br-ex up
-
     #
     # Routes
     #
@@ -139,9 +140,12 @@
     # Disable rp_filter
     #
     sysctl net.ipv4.conf.all.rp_filter=2
+  register: config_ovn_routing
+  changed_when: "config_ovn_routing.rc == 0"
 
 - name: Configuring NAT when not using the external bridge interface
   ansible.builtin.shell: |
+    set -eo pipefail
     #
     # NAT from the external interface
     #
@@ -160,6 +164,8 @@
     iptables -P FORWARD ACCEPT
     iptables -P INPUT ACCEPT
     iptables -P OUTPUT ACCEPT
+  register: config_iptables
+  changed_when: "config_iptables.rc == 0"
 
 # When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
 # ovn-nbctl show
