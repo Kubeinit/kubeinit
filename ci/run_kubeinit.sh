@@ -51,13 +51,15 @@ git log -n 5 --pretty=oneline
 
 # Here we might define some different
 # variables depending on the scenario
-if [[ "$DISTRO" == "okd" && "$DRIVER" == "libvirt" ]]; then
+if [[ "$DISTRO" == "okd.rke" && "$DRIVER" == "libvirt" ]]; then
 sudo tee scenario_variables.yml > /dev/null <<EOF
 kubeinit_common_dns_master: 10.64.63.6
+kubeinit_libvirt_destroy_all_guests: False
 EOF
 else
 sudo tee scenario_variables.yml > /dev/null <<EOF
 kubeinit_common_dns_master: 10.64.63.6
+kubeinit_libvirt_destroy_all_guests: True
 EOF
 fi
 

@@ -54,22 +54,22 @@
       community.libvirt.virt:
         name: "{{ item }}"
         state: destroyed
-      with_items: "{{ groups['all_nodes'] }}"
-      when: item in running_vms.list_vms
+      with_items: "{{ running_vms.list_vms }}"
+      when: item in groups['all_nodes'] or kubeinit_libvirt_destroy_all_guests
 
     - name: Undefine vms
       community.libvirt.virt:
         name: "{{ item }}"
         command: undefine
-      with_items: "{{ groups['all_nodes'] }}"
-      when: item in running_vms.list_vms
+      with_items: "{{ running_vms.list_vms }}"
+      when: item in groups['all_nodes'] or kubeinit_libvirt_destroy_all_guests
 
     - name: Remove VMs storage
       ansible.builtin.file:
         state: absent
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-      with_items: "{{ groups['all_nodes'] }}"
-      when: item in running_vms.list_vms
+      with_items: "{{ running_vms.list_vms }}"
+      when: item in groups['all_nodes'] or kubeinit_libvirt_destroy_all_guests
 
     ##
     ## Clean folders

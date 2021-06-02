@@ -20,7 +20,29 @@
     state: present
     name: "podman"
 
-- name: Read docker password from file
+#
+# Currently there are two ways of configuring
+# the docker.io credentials using the variable
+# kubeinit_common_docker_password
+#
+# If the kubeinit_common_docker_password variable
+# is the path of the file containing the password
+# we get the password from that file, and in the case
+# this path do not exists, then we asume that the
+# variable contains the password itself.
+#
+- name: Check if kubeinit_common_docker_password path exists
+  ansible.builtin.stat:
+    path: "{{ kubeinit_common_docker_password }}"
+  register: docker_password_in_file
+  delegate_to: localhost
+  when: |
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password
+
+- name: Read docker password from file when the variable has the path
   ansible.builtin.slurp:
     src: "{{ kubeinit_common_docker_password }}"
   register: docker_password
@@ -30,7 +52,33 @@
     kubeinit_common_docker_username is defined and
     kubeinit_common_docker_password is defined and
     kubeinit_common_docker_username and
-    kubeinit_common_docker_password
+    kubeinit_common_docker_password and
+    docker_password_in_file.stat.exists
+
+- name: Dump docker.io password to a file if the password is in the variable
+  ansible.builtin.copy:
+    content: "{{ kubeinit_common_docker_password }}"
+    dest: /tmp/tmp_docker_io_pass
+  delegate_to: localhost
+  when: |
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password and
+    not docker_password_in_file.stat.exists
+
+- name: Read docker password from file when pass is in a variable
+  ansible.builtin.slurp:
+    src: /tmp/tmp_docker_io_pass
+  register: docker_password
+  delegate_to: localhost
+  no_log: true
+  when: |
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password and
+    not docker_password_in_file.stat.exists
 
 - name: Podman login to docker.io
   containers.podman.podman_login:
@@ -48,3 +96,4 @@
   ansible.builtin.set_fact:
     docker_password: null
   no_log: true
+  when: docker_password_in_file.stat.exists
