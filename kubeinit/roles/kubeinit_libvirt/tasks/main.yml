@@ -115,52 +115,11 @@
         state: disabled
       when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
 
-    - name: Install CentOS based requirements
-      ansible.builtin.package:
-        name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
-        state: present
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
-      register: installed_packages_centos
-
-    - name: Disable Services (firewalld)
-      ansible.builtin.service:
-        name: "firewalld"
-        state: stopped
-        enabled: no
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
-
-    - name: Install Debian based requirements
-      ansible.builtin.package:
-        name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
-        state: present
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
-      register: installed_packages_debian
-
-    - name: Upgrade all packages
-      ansible.builtin.package:
-        name: '*'
-        state: latest
-      register: upgraded_packages
-
     - name: Enable and start libvirtd
       ansible.builtin.service:
         name: libvirtd
         enabled: yes
         state: started
-
-    - name: Restart if required
-      ansible.builtin.set_fact:
-        kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
-
-    - name: Reboot host and wait for it to restart
-      ansible.builtin.reboot:
-        msg: "Reboot initiated by a package upgrade"
-        connect_timeout: 5
-        reboot_timeout: 600
-        pre_reboot_delay: 0
-        post_reboot_delay: 30
-        test_command: whoami
-      when: kubeinit_libvirt_restart | bool
 
     - name: Set qemu user depending on the operative system
       ansible.builtin.set_fact:

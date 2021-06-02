@@ -15,30 +15,18 @@
 # under the License.
 
 ##
-## Cleanup tasks
+## Clean OVN resources
 ##
-- name: Cleanup the networks
-  block:
-    ##
-    ## Clean OVN resources
-    ##
-    - name: Clean OVN/OVS resources
-      ansible.builtin.shell: |
-        set -o pipefail
-        ###############################################
-        # WARNING: We can not remove the external     #
-        # bridge interface kiextbr0, the connection   #
-        # will be lost if this is executed in the HVs #
-        ###############################################
-        ovs-vsctl del-br br-int || true
-        ovs-vsctl del-br br-ex || true
-        ovn-nbctl ls-del sw0 || true
-        ovn-nbctl ls-del sw1 || true
-        ovn-nbctl lr-del lr0 || true
-        ovn-nbctl ls-del public || true
-        ip route del {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex || true
-      args:
-        executable: /bin/bash
-      register: libvirt_clean_ovn
-      changed_when: "libvirt_clean_ovn.rc == 0"
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+- name: Clean OVN/OVS resources
+  ansible.builtin.shell: |
+    set -o pipefail
+    ovs-vsctl del-br br-int || true
+    ovs-vsctl del-br br-ex || true
+    ovn-nbctl ls-del sw0 || true
+    ovn-nbctl lr-del lr0 || true
+    ovn-nbctl ls-del public || true
+    ip route del {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex || true
+  args:
+    executable: /bin/bash
+  register: libvirt_clean_ovn
+  changed_when: "libvirt_clean_ovn.rc == 0"
