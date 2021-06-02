@@ -1,0 +1,105 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+#
+# Gather hosts information
+#
+
+- name: Delegate to kubeinit_deployment_node_name
+  block:
+
+    - name: Fix libvirt qemu bug
+      ansible.builtin.shell: |
+        set -eo pipefail
+        mkdir -p /etc/qemu/firmware
+        touch /etc/qemu/firmware/50-edk2-ovmf-cc.json
+      args:
+        executable: /bin/bash
+
+    - name: Update the /etc/hosts file on each hypervisor with ansible aliases
+      ansible.builtin.lineinfile:
+        path: "/etc/hosts"
+        regexp: ".*    {{ hostvars[host]['inventory_hostname'] }}    {{ hostvars[host]['ansible_hostname'] }}    {{ hostvars[host]['ansible_host'] }}"
+        line: "{{ hostvars[host]['ansible_default_ipv4']['address'] }}    {{ hostvars[host]['inventory_hostname'] }}    {{ hostvars[host]['ansible_hostname'] }}    {{ hostvars[host]['ansible_host'] }}"
+        state: present
+        backup: yes
+      register: etchostsupdate
+      vars:
+        host: "{{ kubeinit_deployment_node_name }}"
+
+    - name: Install CentOS based requirements
+      ansible.builtin.package:
+        name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
+        state: present
+      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+      register: installed_packages_centos
+
+    - name: Disable Services (firewalld)
+      ansible.builtin.service:
+        name: "firewalld"
+        state: stopped
+        enabled: no
+      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+
+    - name: Install Debian based requirements
+      ansible.builtin.package:
+        name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
+        state: present
+      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+      register: installed_packages_debian
+
+    - name: Upgrade all packages
+      ansible.builtin.package:
+        name: '*'
+        state: latest
+      register: upgraded_packages
+
+    - name: Restart if required
+      ansible.builtin.set_fact:
+        kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
+
+    - name: Reboot host and wait for it to restart
+      ansible.builtin.reboot:
+        msg: "Reboot initiated by a package upgrade"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        test_command: whoami
+      when: kubeinit_libvirt_restart | bool
+
+    ##
+    ## Configure OVN o a linux bridge in all the HVs
+    ##
+    
+    - name: Clean the netwokrs
+      ansible.builtin.include_tasks: 10_cleanup.yml
+      when: kubeinit_libvirt_ovn_enabled
+    
+    - name: Include the OVN install tasks
+      ansible.builtin.include_tasks: 20_ovn_install.yml
+      when: kubeinit_libvirt_ovn_enabled
+    
+    - name: Include the OVN setup
+      ansible.builtin.include_tasks: 40_ovn_setup.yml
+      when: kubeinit_libvirt_ovn_enabled
+    
+    - name: Post configure steps for OVN
+      ansible.builtin.include_tasks: 50_ovn_post_setup.yml
+      when: kubeinit_libvirt_ovn_enabled and (kubeinit_bastion_host in kubeinit_deployment_node_name)
+
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
