@@ -32,6 +32,10 @@
           - "{{ kubeinit_common_dns_master }}"
         dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
         state: created
+      register: services_pod_creation
+      retries: 5
+      delay: 10
+      until: not services_pod_creation.failed
 
     - name: Render net info
       ansible.builtin.shell: |
@@ -397,6 +401,9 @@
         volumes:
           - "kubeinit-html-data:/var/kubeinit/html/"
       register: kubeinit_html_data_container_info
+      retries: 5
+      delay: 10
+      until: not kubeinit_html_data_container_info.failed
 
     - name: Copy html files into html data volume
       ansible.builtin.command: podman cp "/var/kubeinit/html/okd4/" "kubeinit-html-data-copy:/var/kubeinit/html/"

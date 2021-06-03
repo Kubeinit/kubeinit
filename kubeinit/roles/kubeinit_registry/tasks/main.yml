@@ -228,6 +228,9 @@
       REGISTRY_HTTP_TLS_KEY: certs/domain.key
       REGISTRY_COMPATIBILITY_SCHEMA1_ENABLED: true
   register: registry_podman_container_info
+  retries: 5
+  delay: 10
+  until: not registry_podman_container_info.failed
 
 - name: Setting Podman facts about the container that will run the registry
   ansible.builtin.set_fact:

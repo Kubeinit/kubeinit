@@ -31,6 +31,10 @@
           - "{{ kubeinit_common_dns_master }}"
         dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
         state: created
+      register: services_pod_creation
+      retries: 5
+      delay: 10
+      until: not services_pod_creation.failed
 
     - name: Install services requirements
       ansible.builtin.yum:
