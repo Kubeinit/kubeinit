@@ -64,6 +64,22 @@
   with_items:
     - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
 
+- name: add all virtual nodes to the all_virtual_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_virtual_nodes
+  when: hostvars[item].type == 'virtual'
+  with_items:
+    - "{{ groups['all_nodes'] }}"
+
+- name: add all container nodes to the all_container_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_container_nodes
+  when: hostvars[item].type == 'container'
+  with_items:
+    - "{{ groups['all_nodes'] }}"
+
 - name: Add all hosts to the all_hosts group
   ansible.builtin.add_host:
     name: "{{ item }}"

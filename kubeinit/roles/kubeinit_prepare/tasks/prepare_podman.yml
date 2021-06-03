@@ -56,36 +56,10 @@
     kubeinit_common_docker_password and
     docker_password_in_file.stat.exists
 
-- name: Dump docker.io password to a file if the password is in the variable
-  ansible.builtin.copy:
-    content: "{{ kubeinit_common_docker_password }}"
-    dest: /tmp/tmp_docker_io_pass
-  delegate_to: localhost
-  no_log: true
-  when: |
-    kubeinit_common_docker_username is defined and
-    kubeinit_common_docker_password is defined and
-    kubeinit_common_docker_username and
-    kubeinit_common_docker_password and
-    not docker_password_in_file.stat.exists
-
-- name: Read docker password from file when pass is in a variable
-  ansible.builtin.slurp:
-    src: /tmp/tmp_docker_io_pass
-  register: docker_password
-  delegate_to: localhost
-  no_log: true
-  when: |
-    kubeinit_common_docker_username is defined and
-    kubeinit_common_docker_password is defined and
-    kubeinit_common_docker_username and
-    kubeinit_common_docker_password and
-    not docker_password_in_file.stat.exists
-
 - name: Podman login to docker.io
   containers.podman.podman_login:
     username: "{{ kubeinit_common_docker_username }}"
-    password: "{{ docker_password.content | b64decode | trim }}"
+    password: "{{ (docker_password.content | b64decode | trim) if (docker_password_in_file.stat.exists) else (kubeinit_common_docker_password) }}"
     registry: "docker.io"
   no_log: true
   when: |
@@ -94,8 +68,12 @@
     kubeinit_common_docker_username and
     kubeinit_common_docker_password
 
-- name: clear any reference to docker password
+- name: Clear any reference to docker password
   ansible.builtin.set_fact:
     docker_password: null
   no_log: true
-  when: docker_password_in_file.stat.exists
+  when: |
+    kubeinit_common_docker_username is defined and
+    kubeinit_common_docker_password is defined and
+    kubeinit_common_docker_username and
+    kubeinit_common_docker_password
