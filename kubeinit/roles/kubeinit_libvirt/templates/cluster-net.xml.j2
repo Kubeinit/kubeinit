@@ -1,31 +1,6 @@
-{% if kubeinit_libvirt_ovn_enabled %}
 <network>
   <name>{{ item.name }}</name>
   <forward mode='bridge'></forward>
   <bridge name='br-int'/>
   <virtualport type='openvswitch'/>
 </network>
-{% else %}
-<network>
-  <name>{{ item.name }}</name>
-  <forward mode='nat'>
-  <nat>
-    <port start='1024' end='65535'/>
-  </nat>
-  </forward>
-  <bridge name='{{ item.bridge }}' stp='on' delay='0'/>
-  <ip address='{{ item.gateway }}' netmask='{{ item.netmask }}'>
-      <dhcp>
-          <range start='{{ item.start }}' end='{{ item.end }}'/>
-          {% if item.main %}
-          {% for node in groups['all_nodes'] %}
-          <host mac="{{ hostvars[node].mac }}" name="{{ node }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}" ip="{{ hostvars[node].ansible_host }}"/>
-          {% endfor %}
-          {% endif %}
-      </dhcp>
-  </ip>
-  <dns>
-  <forwarder addr="{{ kubeinit_bind_service_address }}"/>
-  </dns>
-</network>
-{% endif %}

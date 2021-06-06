@@ -22,6 +22,12 @@
 - name: Delegate to kubeinit_deployment_node_name
   block:
 
+    - name: Restore kubeinit facts from earlier play
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_prepare"
+        tasks_from: set_kubeinit_facts
+        public: true
+
     - name: Fix libvirt qemu bug
       ansible.builtin.shell: |
         set -eo pipefail
@@ -83,23 +89,27 @@
       when: kubeinit_libvirt_restart | bool
 
     ##
-    ## Configure OVN o a linux bridge in all the HVs
+    ## Configure OVN on all the HVs
     ##
 
-    - name: Clean the netwokrs
+    - name: Clean the networks
       ansible.builtin.include_tasks: 10_cleanup.yml
-      when: kubeinit_libvirt_ovn_enabled
 
     - name: Include the OVN install tasks
       ansible.builtin.include_tasks: 20_ovn_install.yml
-      when: kubeinit_libvirt_ovn_enabled
 
     - name: Include the OVN setup
       ansible.builtin.include_tasks: 40_ovn_setup.yml
-      when: kubeinit_libvirt_ovn_enabled
 
     - name: Post configure steps for OVN
       ansible.builtin.include_tasks: 50_ovn_post_setup.yml
-      when: kubeinit_libvirt_ovn_enabled and (kubeinit_bastion_host in kubeinit_deployment_node_name)
+      when: kubeinit_bastion_host in kubeinit_deployment_node_name
 
+    - name: Provision the remaining virtual infra
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_libvirt"
+        public: true
+
+  vars:
+    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

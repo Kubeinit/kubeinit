@@ -20,10 +20,9 @@
     name: "{{ kubeinit_apache_service_name }}"
     image: docker.io/httpd:2.4
     state: stopped
-    network: "{{ kubeinit_services_podman_network }}"
-    pod: "{{ kubeinit_services_pod_name }}"
+    pod: "{{ kubeinit_deployment_node_name }}-pod"
     volumes:
-      - kubeinit-html-data:/usr/local/apache2/htdocs
+      - /var/kubeinit/html/:/usr/local/apache2/htdocs/
   register: apache_podman_container_info
 
 - name: Setting Podman facts about the container that will run the Apache server

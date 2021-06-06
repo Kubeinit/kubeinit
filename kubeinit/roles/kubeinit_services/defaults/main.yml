@@ -21,17 +21,43 @@
 kubeinit_services_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
 kubeinit_services_hide_sensitive_logs: true
 
-kubeinit_services_bridge_name: kubeinit-service-bridge
-kubeinit_services_pod_name: kubeinit-service-pod
-kubeinit_services_service_name: kubeinit-services
+kubeinit_services_service_name: kubeinit-provision
 
 kubeinit_services_directory: /var/kubeinit/services
 
 kubeinit_services_directories:
   - "{{ kubeinit_services_directory }}"
 
-kubeinit_services_bind_enabled: true
-kubeinit_services_haproxy_enabled: true
-kubeinit_services_apache_enabled: true
-kubeinit_services_registry_enabled: true
-kubeinit_services_nexus_enabled: false
+kubeinit_registry_directory: /var/kubeinit/registry
+kubeinit_registry_directory_auth: "{{ kubeinit_registry_directory }}/auth"
+kubeinit_registry_directory_cert: "{{ kubeinit_registry_directory }}/certs"
+kubeinit_registry_directory_data: "{{ kubeinit_registry_directory }}/data"
+
+kubeinit_registry_directories:
+  - "{{ kubeinit_registry_directory_auth }}"
+  - "{{ kubeinit_registry_directory_cert }}"
+  - "{{ kubeinit_registry_directory_data }}"
+
+kubeinit_registry_user: registryusername
+kubeinit_registry_password: registrypassword
+# The space after the first single quote is required, do not remove
+# Something in Ansible appears to be recognizing this as valid Python,
+# so it's getting transformed into a Python list and then serialized
+# using Python's str(), which is why we end up with the single-quoted values.
+kubeinit_registry_pullsecret: '  { "auths": {} }'
+
+kubeinit_registry_required_packages:
+  - python3
+  - python3-dns
+  - jq
+  - skopeo
+
+kubeinit_registry_service_name: kubeinit-registry
+
+kubeinit_registry_port: 5000
+kubeinit_registry_host: "{{ kubeinit_registry_service_hostname }}"
+kubeinit_registry_fqdn: "{{ kubeinit_registry_host }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+kubeinit_registry_fqdn_alt: "registry.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+kubeinit_registry_uri: "{{ kubeinit_registry_fqdn }}:{{ kubeinit_registry_port }}"
+
+kubeinit_registry_auth_file: registry-auths.json
