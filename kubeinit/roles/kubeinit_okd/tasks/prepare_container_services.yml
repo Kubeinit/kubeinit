@@ -15,63 +15,26 @@
 # under the License.
 
 
-- name: Deploy the cluster service node
-  ansible.builtin.include_role:
-    name: ../../roles/kubeinit_libvirt
-    tasks_from: 60_deploy_centos_guest.yml
-    public: yes
-
-- name: Delegate to cluster service node
+- name: delegate to cluster service node hypervisor
   block:
-
-    - name: "Render net info"
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo "{{ kubeinit_okd_pod_cidr }}" > ~/pod_cidr
-        echo "{{ kubeinit_okd_service_cidr }}" > ~/service_cidr
-      args:
-        executable: /bin/bash
-      register: render_net_info
-      changed_when: "render_net_info.rc == 0"
-
-    - name: Add the local DNS server as a local resolver
-      ansible.builtin.lineinfile:
-        path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_bind_service_address }}"
-        insertbefore: nameserver.*
-
-    - name: Install services requirements
-      ansible.builtin.yum:
-        name: "{{ kubeinit_okd_service_dependencies }}"
-        state: present
-        use_backend: dnf
-
-    - name: Resize root partition
-      ansible.builtin.shell: |
-        echo 'Reclaim space for root partition'
-        growpart /dev/vda 1
-        xfs_growfs /dev/vda1
-      changed_when: false
 
     - name: Prepare podman
       ansible.builtin.include_role:
         name: ../../roles/kubeinit_prepare
-        tasks_from: prepare_podman
+        tasks_from: prepare_podman.yml
         public: true
 
-    - name: Create a minimal podman pod for the service containers
-      containers.podman.podman_pod:
-        name: "{{ kubeinit_deployment_node_name }}-pod"
-        network: host
-        dns:
-          - "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
-          - "{{ kubeinit_common_dns_public }}"
-        dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
-        state: created
-      register: services_pod_creation
-      retries: 5
-      delay: 10
-      until: not services_pod_creation.failed
+    - name: Setup the services pod
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_services
+        tasks_from: 00_create_service_pod.yml
+        public: true
+
+    - name: Setup the services container
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_services
+        tasks_from: 10_create_provision_container.yml
+        public: true
 
     - name: Prepare credentials for services
       ansible.builtin.include_role:
@@ -83,7 +46,6 @@
     # Configure bind
     #
     - name: Configure Bind
-      # delegate_facts: true
       ansible.builtin.include_role:
         name: ../../roles/kubeinit_bind
         public: true
@@ -125,10 +87,10 @@
         public: true
       when: kubeinit_services_registry_enabled
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
 - name: Configure the cluster service node
   ansible.builtin.include_role:
     name: ../../roles/kubeinit_okd
     tasks_from: 10_configure_service_nodes.yml
-    public: yes
+    public: true

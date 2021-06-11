@@ -26,10 +26,11 @@
 
     - name: Create a minimal podman pod for the service containers running on service node VMs
       containers.podman.podman_pod:
-        name: "{{ kubeinit_services_pod_name }}"
+        name: "{{ kubeinit_deployment_node_name }}-pod"
+        network: host
         dns:
           - "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
-          - "{{ kubeinit_common_dns_master }}"
+          - "{{ kubeinit_common_dns_public }}"
         dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
         state: created
       register: services_pod_creation

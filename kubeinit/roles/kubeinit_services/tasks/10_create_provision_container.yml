@@ -1,0 +1,161 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+- name: Remove any previous services folders
+  ansible.builtin.file:
+    path: /var/kubeinit
+    state: absent
+
+- name: Create services folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    mode: '0700'
+  with_items:
+    - "{{ kubeinit_services_directory }}/.ssh"
+    - "/var/kubeinit/html"
+
+- name: get the public key we will use to access the service pod
+  become: false
+  delegate_to: localhost
+  ansible.builtin.command: cat ~/.ssh/id_rsa.pub
+  register: kubeinit_services_public_key
+  changed_when: "kubeinit_services_public_key.rc == 0"
+
+- name: set the fact for the service pod public key
+  ansible.builtin.set_fact:
+    services_public_key: "{{ kubeinit_services_public_key.stdout }}"
+
+- name: Create authorized_keys for service pod
+  ansible.builtin.copy:
+    content: |
+      {{ services_public_key }}
+      {{ kubeinit_provision_vms_public_key }}
+    dest: "{{ kubeinit_services_directory }}/.ssh/authorized_keys"
+    owner: "{{ kubeinit_service_user }}"
+    group: "{{ kubeinit_service_user }}"
+    mode: '0600'
+
+- name: Install buildah if required
+  ansible.builtin.package:
+    state: present
+    name: "buildah"
+
+- name: Remove any old buildah container
+  ansible.builtin.shell: |
+    set -eo pipefail
+    if [ "$(buildah ls --filter 'name=buildah-services' --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]
+    then
+      buildah rm buildah-services
+    fi
+  register: services_buildah_rm_img
+  changed_when: "services_buildah_rm_img.rc == 0"
+
+- name: Create a new working container image
+  ansible.builtin.command: buildah from --name buildah-services quay.io/centos/centos:stream8
+  register: services_buildah_create_img
+  changed_when: "services_buildah_create_img.rc == 0"
+
+- name: Update the container
+  ansible.builtin.command: buildah run buildah-services -- dnf update -q -y
+  register: services_buildah_update_packages
+  changed_when: "services_buildah_update_packages.rc == 0"
+
+- name: Install commands and services we will need
+  ansible.builtin.command: buildah run buildah-services -- dnf install -q -y openssh-server openssh-clients procps iproute python3 python3-pip jq
+  register: services_buildah_install_packages
+  changed_when: "services_buildah_install_packages.rc == 0"
+
+- name: Install python commands
+  ansible.builtin.command: buildah run buildah-services -- python3 -m pip install -q cryptography==3.3.2 nexus3-cli
+  register: services_buildah_pip_install
+  changed_when: "services_buildah_pip_install.rc == 0"
+
+- name: Generate system ssh keys
+  ansible.builtin.command: buildah run buildah-services -- bash -c "(cd /etc/ssh; ssh-keygen -A)"
+  register: services_buildah_keygen
+  changed_when: "services_buildah_keygen.rc == 0"
+
+- name: Remove nologin marker
+  ansible.builtin.command: buildah run buildah-services -- rm -f /run/nologin
+  register: services_buildah_rm_nologin
+  changed_when: "services_buildah_rm_nologin.rc == 0"
+
+- name: Copy in authorized keys
+  ansible.builtin.command: buildah copy buildah-services "{{ kubeinit_services_directory }}/.ssh/authorized_keys" /root/.ssh/authorized_keys
+  register: services_buildah_cp_keys
+  changed_when: "services_buildah_cp_keys.rc == 0"
+
+- name: Clear cmd
+  ansible.builtin.command: buildah config --cmd '' buildah-services
+  register: services_buildah_clear_cmd
+  changed_when: "services_buildah_clear_cmd.rc == 0"
+
+- name: Set entrypoint
+  ansible.builtin.command: buildah config --entrypoint '["/usr/sbin/sshd", "-D", "-e"]' buildah-services
+  register: services_buildah_set_entrypoint
+  changed_when: "services_buildah_set_entrypoint.rc == 0"
+
+- name: Commit the image
+  ansible.builtin.command: buildah commit buildah-services kubeinit/kubeinit-services:latest
+  register: services_buildah_commit_image
+  changed_when: "services_buildah_commit_image.rc == 0"
+
+- name: Create a podman container for ssh access to the service pod
+  containers.podman.podman_container:
+    name: "{{ kubeinit_services_service_name }}"
+    image: kubeinit/kubeinit-services:latest
+    pod: "{{ kubeinit_deployment_node_name }}-pod"
+    state: stopped
+    cap_add:
+      - "AUDIT_WRITE"
+    volumes:
+      - /var/kubeinit/:/var/kubeinit/
+  register: services_podman_container_info
+
+- name: Setting Podman facts about the container that will run the service pod
+  ansible.builtin.set_fact:
+    container_services_name: "{{ services_podman_container_info.container.Name }}"
+    container_services_pidfile: "{{ services_podman_container_info.container.ConmonPidFile }}"
+
+- name: Create systemd service for podman container
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: create_managed_service
+    public: true
+  vars:
+    kubeinit_services_systemd_service_name: "{{ kubeinit_services_service_name }}"
+    kubeinit_services_podman_container_name: "{{ container_services_name }}"
+    kubeinit_services_podman_container_pidfile: "{{ container_services_pidfile }}"
+
+# Confirm connectivity
+- name: "make sure we can execute remote commands on {{ kubeinit_deployment_node_name }} before we continue"
+  ansible.builtin.shell: |
+    set -o pipefail
+    ssh \
+        -o ConnectTimeout=5 \
+        -o BatchMode=yes \
+        -o StrictHostKeyChecking=no \
+        root@{{ hostvars[kubeinit_deployment_node_name].ansible_host }} 'echo connected' || true
+  args:
+    executable: /bin/bash
+  register: cmd_boot_ok_res
+  changed_when: "cmd_boot_ok_res.rc == 0"
+  retries: 30
+  delay: 10
+  until: "'connected' in cmd_boot_ok_res.stdout"

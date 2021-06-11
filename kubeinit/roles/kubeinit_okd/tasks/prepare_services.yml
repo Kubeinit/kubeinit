@@ -16,7 +16,7 @@
 
 
 - name: Deploy cluster services
-  ansible.builtin.include_tasks: "prepare_{{ kubeinit_services_node_type }}_services.yml"
+  ansible.builtin.include_tasks: "prepare_{{ kubeinit_deployment_node_type }}_services.yml"
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
@@ -24,3 +24,4 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: service
+    kubeinit_deployment_node_type: "{{ hostvars[cluster_role_item].type }}"

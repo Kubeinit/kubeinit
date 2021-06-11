@@ -1,0 +1,114 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+- name: Remove any previous kubeinit podman network
+  containers.podman.podman_network:
+    name: "{{ kubeinit_deployment_node_name }}-bridge"
+    state: absent
+
+- name: Create a podman network for the service containers
+  containers.podman.podman_network:
+    name: "{{ kubeinit_deployment_node_name }}-bridge"
+    opt:
+      mtu: 1442
+      vlan: 0
+    state: present
+
+- name: Remove any previous services podman pod
+  containers.podman.podman_pod:
+    name: "{{ kubeinit_deployment_node_name }}-pod"
+    state: absent
+
+- name: Create a podman pod for the service containers
+  containers.podman.podman_pod:
+    name: "{{ kubeinit_deployment_node_name }}-pod"
+    network: "{{ kubeinit_deployment_node_name }}-bridge"
+    hostname: "{{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    dns:
+      - "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+      - "{{ kubeinit_common_dns_public }}"
+    dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    state: started
+  register: services_podman_pod_info
+
+- name: Gather info about the infra container of the services pod
+  containers.podman.podman_container_info:
+    name: "{{ services_podman_pod_info.pod.Containers[0].Name }}"
+  register: services_pod_infra_info
+
+- name: Extract cni netns value for the pod
+  ansible.builtin.set_fact:
+    cni_netns_name: "{{ services_pod_infra_info.containers[0].NetworkSettings.SandboxKey | basename }}"
+
+- name: Set veth facts
+  ansible.builtin.set_fact:
+    ovs_veth_devname: "veth0-{{ kubeinit_deployment_node_name.split('-')[1][:3] }}{{ kubeinit_deployment_node_name.split('-')[2] }}"
+
+- name: Remove any previous veth dev
+  ansible.builtin.shell: |
+    set -eo pipefail
+    ip link del {{ ovs_veth_devname }} || true
+  register: remove_veth_dev
+  changed_when: "remove_veth_dev.rc == 0"
+
+- name: Create veth pair to connect the services pod to the cluster network
+  ansible.builtin.command: |
+    ip link add {{ ovs_veth_devname }} mtu 1442 type veth peer name ceth0 mtu 1442 address {{ hostvars[kubeinit_deployment_node_name].mac }}
+  register: create_veth_pair
+  changed_when: "create_veth_pair.rc == 0"
+
+- name: Create veth pair to connect the services pod to the cluster network
+  ansible.builtin.command: |
+    ip link set ceth0 netns {{ cni_netns_name }}
+  register: set_ceth_netns
+  changed_when: "set_ceth_netns.rc == 0"
+
+- name: Create veth pair to connect the services pod to the cluster network
+  ansible.builtin.command: |
+    ip netns exec {{ cni_netns_name }} ip link set dev ceth0 up
+  register: set_ceth_up
+  changed_when: "set_ceth_up.rc == 0"
+
+- name: Create veth pair to connect the services pod to the cluster network
+  ansible.builtin.command: |
+    ip netns exec {{ cni_netns_name }} ip addr add {{ hostvars[kubeinit_deployment_node_name].ansible_host }}/{{ kubeinit_inventory_network_cidr }} dev ceth0
+  register: set_ceth_ipaddr
+  changed_when: "set_ceth_ipaddr.rc == 0"
+
+- name: Create veth pair to connect the services pod to the cluster network
+  ansible.builtin.command: |
+    ovs-vsctl add-port br-int {{ ovs_veth_devname }}
+  register: add_veth_to_ovs
+  changed_when: "add_veth_to_ovs.rc == 0"
+
+- name: Create veth pair to connect the services pod to the cluster network
+  ansible.builtin.command: |
+    ip link set dev {{ ovs_veth_devname }} up
+  register: set_veth_up
+  changed_when: "set_veth_up.rc == 0"
+
+- name: Create veth pair to connect the services pod to the cluster network
+  ansible.builtin.command: |
+    ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:attached-mac="{{ hostvars[kubeinit_deployment_node_name].mac }}"
+  register: set_veth_ovs_macaddr
+  changed_when: "set_veth_ovs_macaddr.rc == 0"
+
+- name: Create veth pair to connect the services pod to the cluster network
+  ansible.builtin.command: |
+    ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:iface-id="{{ hostvars[kubeinit_deployment_node_name].interfaceid }}"
+  register: set_veth_ovs_ifaceid
+  changed_when: "set_veth_ovs_ifaceid.rc == 0"

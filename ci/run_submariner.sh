@@ -48,7 +48,7 @@ cd kubeinit
 
 sudo tee scenario_variables.yml > /dev/null <<EOF
 kubeinit_submariner_test_pr_url: "https://github.com/submariner-io/submariner-operator/pull/$PULL_REQUEST"
-kubeinit_common_dns_master: 10.64.63.6
+kubeinit_common_dns_public: 10.64.63.6
 EOF
 
 echo "The content of the scenario_variables.yml file is:"
