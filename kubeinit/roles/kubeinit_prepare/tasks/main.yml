@@ -82,11 +82,9 @@
     tasks_from: set_kubeinit_facts.yml
     public: true
 
-- name: Prepare localhost
-  ansible.builtin.include_role:
-    name: "{{ lookup('first_found', params) | relpath('kubeinit/x/y') | dirname | dirname }}"
-    tasks_from: "prepare_localhost.yml"
-    public: true
+- name: Find prepare_localhost tasks
+  ansible.builtin.set_fact:
+    prepare_localhost_role: "{{ lookup('first_found', params) | relpath('kubeinit/x/y') | dirname | dirname }}"
   vars:
     params:
       files:
@@ -94,3 +92,9 @@
       paths:
         - "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
         - "../../roles/kubeinit_prepare"
+
+- name: Prepare localhost
+  ansible.builtin.include_role:
+    name: "{{ prepare_localhost_role | default('../../roles/kubeinit_prepare') }}"
+    tasks_from: "prepare_localhost.yml"
+    public: true
