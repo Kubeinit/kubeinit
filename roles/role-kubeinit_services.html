@@ -209,20 +209,48 @@ for further information.</p><div class="section" id="r-o-l-e-d-e-f-a-u-l-t-s">
 <span class="nt">kubeinit_services_debug</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">(ansible_verbosity</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">int)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">bool</span><span class="nv"> </span><span class="s">}}&#39;</span>
 <span class="nt">kubeinit_services_hide_sensitive_logs</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
 
-<span class="nt">kubeinit_services_bridge_name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">kubeinit-service-bridge</span>
-<span class="nt">kubeinit_services_pod_name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">kubeinit-service-pod</span>
-<span class="nt">kubeinit_services_service_name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">kubeinit-services</span>
+<span class="nt">kubeinit_services_service_name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">kubeinit-provision</span>
 
 <span class="nt">kubeinit_services_directory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/var/kubeinit/services</span>
 
 <span class="nt">kubeinit_services_directories</span><span class="p">:</span>
 <span class="p p-Indicator">-</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_services_directory</span><span class="nv"> </span><span class="s">}}&#39;</span>
 
-<span class="nt">kubeinit_services_bind_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="nt">kubeinit_services_haproxy_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="nt">kubeinit_services_apache_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="nt">kubeinit_services_registry_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="nt">kubeinit_services_nexus_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="nt">kubeinit_registry_directory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/var/kubeinit/registry</span>
+<span class="nt">kubeinit_registry_directory_auth</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_directory</span><span class="nv"> </span><span class="s">}}/auth&#39;</span>
+<span class="nt">kubeinit_registry_directory_cert</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_directory</span><span class="nv"> </span><span class="s">}}/certs&#39;</span>
+<span class="nt">kubeinit_registry_directory_data</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_directory</span><span class="nv"> </span><span class="s">}}/data&#39;</span>
+
+<span class="nt">kubeinit_registry_directories</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_directory_auth</span><span class="nv"> </span><span class="s">}}&#39;</span>
+<span class="p p-Indicator">-</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_directory_cert</span><span class="nv"> </span><span class="s">}}&#39;</span>
+<span class="p p-Indicator">-</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_directory_data</span><span class="nv"> </span><span class="s">}}&#39;</span>
+
+<span class="nt">kubeinit_registry_user</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">registryusername</span>
+<span class="nt">kubeinit_registry_password</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">registrypassword</span>
+<span class="c1"># The space after the first single quote is required, do not remove</span>
+<span class="c1"># Something in Ansible appears to be recognizing this as valid Python,</span>
+<span class="c1"># so it&#39;s getting transformed into a Python list and then serialized</span>
+<span class="c1"># using Python&#39;s str(), which is why we end up with the single-quoted values.</span>
+<span class="nt">kubeinit_registry_pullsecret</span><span class="p">:</span> <span class="s">&#39;</span><span class="nv">  </span><span class="s">{</span><span class="nv"> </span><span class="s">&quot;auths&quot;:</span><span class="nv"> </span><span class="s">{}</span><span class="nv"> </span><span class="s">}&#39;</span>
+
+<span class="nt">kubeinit_registry_required_packages</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">python3</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">python3-dns</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">jq</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">skopeo</span>
+
+<span class="nt">kubeinit_registry_service_name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">kubeinit-registry</span>
+
+<span class="nt">kubeinit_registry_port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5000</span>
+<span class="nt">kubeinit_registry_host</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_service_hostname</span><span class="nv"> </span><span class="s">}}&#39;</span>
+<span class="nt">kubeinit_registry_fqdn</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_host</span><span class="nv"> </span><span class="s">}}.{{</span><span class="nv"> </span><span class="s">kubeinit_inventory_cluster_name</span>
+  <span class="s">}}.{{</span><span class="nv"> </span><span class="s">kubeinit_inventory_cluster_domain</span><span class="nv"> </span><span class="s">}}&#39;</span>
+<span class="nt">kubeinit_registry_fqdn_alt</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">registry.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain</span>
+  <span class="l l-Scalar l-Scalar-Plain">}}</span>
+<span class="nt">kubeinit_registry_uri</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_registry_fqdn</span><span class="nv"> </span><span class="s">}}:{{</span><span class="nv"> </span><span class="s">kubeinit_registry_port</span><span class="nv"> </span><span class="s">}}&#39;</span>
+
+<span class="nt">kubeinit_registry_auth_file</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">registry-auths.json</span>
 </pre></div>
 </div>
 </div>
