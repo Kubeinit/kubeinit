@@ -15,6 +15,15 @@
 # under the License.
 
 
+- name: Make sure the apache folder exists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    mode: '0700'
+  with_items:
+    - "/var/kubeinit/html"
+
 - name: Create a podman container to serve the Apache server
   containers.podman.podman_container:
     name: "{{ kubeinit_apache_service_name }}"
