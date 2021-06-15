@@ -33,25 +33,25 @@
         resize2fs /dev/vda1
       changed_when: false
 
-    - name: Install Docker
-      ansible.builtin.shell: |
-        sudo apt update
-        sudo apt install apt-transport-https ca-certificates curl gnupg-agent software-properties-common -y
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-        #TODO:FIXME: uncomment when docker 20.10 is supported
-        #sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" -y
-        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" -y
-        sudo apt install docker-ce={{ kubeinit_rke_docker_version }} docker-ce-cli={{ kubeinit_rke_docker_version }} containerd.io -y
-        sudo apt-mark hold docker-ce
-        # Check the available docker versions
-        # apt list -a docker-ce
-      changed_when: false
-
-    - name: Start and enable docker service
-      ansible.builtin.service:
-        name: docker
-        state: started
-        enabled: yes
+    # - name: Install Docker
+    #   ansible.builtin.shell: |
+    #     sudo apt update
+    #     sudo apt install apt-transport-https ca-certificates curl gnupg-agent software-properties-common -y
+    #     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    #     #TODO:FIXME: uncomment when docker 20.10 is supported
+    #     #sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" -y
+    #     sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" -y
+    #     sudo apt install docker-ce={{ kubeinit_rke_docker_version }} docker-ce-cli={{ kubeinit_rke_docker_version }} containerd.io -y
+    #     sudo apt-mark hold docker-ce
+    #     # Check the available docker versions
+    #     # apt list -a docker-ce
+    #   changed_when: false
+    #
+    # - name: Start and enable docker service
+    #   ansible.builtin.service:
+    #     name: docker
+    #     state: started
+    #     enabled: yes
 
     - name: Install kubectl
       ansible.builtin.shell: |
