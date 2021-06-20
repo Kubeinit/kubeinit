@@ -86,7 +86,6 @@
       changed_when: "render_images_list.rc == 0"
 
     - name: Configure a local container image registry
-      # delegate_facts: true
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_registry
         tasks_from: main
@@ -140,7 +139,6 @@
     #
 
     - name: Configure Bind
-      # delegate_facts: true
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_bind
         tasks_from: main
@@ -150,7 +148,6 @@
     #
 
     - name: Configure HAProxy
-      # delegate_facts: true
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_haproxy
         tasks_from: main
@@ -160,33 +157,8 @@
     #
 
     - name: Configure Apache
-      # delegate_facts: true
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_apache
         tasks_from: main
-
-    #
-    # Include the install configuration
-    #
-
-    - name: Render root keys in the service node
-      ansible.builtin.shell: |
-        set -o pipefail
-        cd
-        mkdir -p ~/.ssh
-        rm -f ~/.ssh/id_rsa && echo -e 'y\n' | ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
-      args:
-        executable: /bin/bash
-      register: render_service_keys
-      changed_when: "render_service_keys.rc == 0"
-
-    - name: Get root service machine public key
-      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
-      register: public_key_service_content
-      changed_when: "public_key_service_content.rc == 0"
-
-    - name: Register the public key of the root service machine public key
-      ansible.builtin.set_fact:
-        kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

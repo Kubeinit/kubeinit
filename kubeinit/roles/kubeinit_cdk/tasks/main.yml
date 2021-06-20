@@ -76,18 +76,18 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: worker
 
-# - name: Deploy CDK
-#   ansible.builtin.include_role:
-#     name: "../../roles/kubeinit_cdk"
-#     tasks_from: 60_deploy_cdk.yml
-#     public: yes
-#   with_items:
-#    - "{{ groups['all_service_nodes'] | list }}"
-#   loop_control:
-#     loop_var: cluster_role_item
-#   vars:
-#     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-#     kubeinit_deployment_role: service
+- name: Deploy CDK
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 60_deploy_cdk.yml
+    public: yes
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: service
 
 - name: Finish post deployment tasks
   ansible.builtin.include_role:

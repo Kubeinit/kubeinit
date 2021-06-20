@@ -34,11 +34,12 @@
         sleep 2
         ssh-keyscan {{ hostvars[groups['all_service_nodes'][0]].ansible_host }} >> ~/.ssh/known_hosts
         cd
+        cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
         snap install juju --classic
         juju add-cloud --local {{ kubeinit_inventory_cluster_name }} -f cloud.yml
         echo "bootstrapping juju..."
         juju bootstrap --no-gui \
-        --bootstrap-series=groovy \
+        --bootstrap-series=focal \
         --debug manual/root@{{ hostvars[groups['all_service_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
         juju controllers
         juju status --format=yaml
@@ -71,9 +72,11 @@
 
     - name: "Deploy CDK"
       ansible.builtin.shell: |
-        juju deploy ./bundle.yml --map-machines=existing{% for item in (groups['all_control_plane_nodes'] + groups['all_compute_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
+        juju deploy ./bundle.yml --force --map-machines=existing{% for item in (groups['all_control_plane_nodes'] + groups['all_compute_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
       register: install_cdk
       changed_when: "install_cdk.rc == 0"
+      retries: 20
+      until: install_cdk.rc == 0
 
     - name: "Get cluster status"
       ansible.builtin.shell: |
@@ -84,7 +87,7 @@
     - name: "verify that the etcd cluster is up and healthy"
       ansible.builtin.shell: |
         set -o pipefail
-        juju status | grep etcd | grep Healthy
+        juju status --format=json | sed 's/application-status/application_status/g' | jq -r .applications.etcd.application_status.message | grep Healthy
       args:
         executable: /bin/bash
       register: etcd_res
@@ -100,18 +103,21 @@
         state: directory
         mode: '0777'
 
-    - name: Make sure the kubeconfig file exists in the master node
-      ansible.builtin.stat:
-        path: ~/.kube/config
-      register: kconf_result
-      retries: 60
-      delay: 60
-      until: kconf_result.stat.exists
+    - name: Delegate to master node
+      block:
+        - name: Make sure the kubeconfig file exists in the master node
+          ansible.builtin.stat:
+            path: ~/.kube/config
+          register: kconf_result
+          retries: 60
+          delay: 60
+          until: kconf_result.stat.exists
 
-    - name: Copying the kubeconfig to a variable
-      ansible.builtin.slurp:
-        src: ~/.kube/config
-      register: kubeinit_cdk_cluster_kubeconfig
+        - name: Copying the kubeconfig to a variable
+          ansible.builtin.slurp:
+            src: ~/.kube/config
+          register: kubeinit_cdk_cluster_kubeconfig
+      delegate_to: "{{ hostvars[groups['all_control_plane_nodes'][0]].ansible_host }}"
 
     - name: Storing the master kubeconfig to the services machine.
       ansible.builtin.copy:
