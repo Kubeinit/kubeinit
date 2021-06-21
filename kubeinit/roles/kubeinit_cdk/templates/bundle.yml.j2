@@ -2,7 +2,7 @@
 # From: https://api.jujucharms.com/charmstore/v5/charmed-kubernetes/archive/bundle.yaml
 
 description: A highly-available, production-grade Kubernetes cluster.
-series: groovy
+series: focal
 machines:
 {% for item in groups['all_control_plane_nodes'] + groups['all_compute_nodes'] %}
   "{{ loop.index0 }}":
@@ -12,13 +12,13 @@ services:
     annotations:
       gui-x: '475'
       gui-y: '800'
-    charm: cs:~containers/containerd-94
+    charm: cs:~containers/containerd-130
     resources: {}
   easyrsa:
     annotations:
       gui-x: '90'
       gui-y: '420'
-    charm: cs:~containers/easyrsa-333
+    charm: cs:~containers/easyrsa-384
     constraints: root-disk=8G
     num_units: 1
     resources:
@@ -37,7 +37,7 @@ services:
     annotations:
       gui-x: '800'
       gui-y: '420'
-    charm: cs:~containers/etcd-540
+    charm: cs:~containers/etcd-594
     constraints: root-disk=8G
     num_units: {{ groups['all_control_plane_nodes'] | count }}
     options:
@@ -54,16 +54,16 @@ services:
     annotations:
       gui-x: '475'
       gui-y: '605'
-    charm: cs:~containers/flannel-506
+    charm: cs:~containers/flannel-558
     resources:
-      flannel-amd64: 646
-      flannel-arm64: 643
-      flannel-s390x: 630
+      flannel-amd64: 761
+      flannel-arm64: 758
+      flannel-s390x: 745
   kubeapi-load-balancer:
     annotations:
       gui-x: '450'
       gui-y: '250'
-    charm: cs:~containers/kubeapi-load-balancer-747
+    charm: cs:~containers/kubeapi-load-balancer-798
     constraints: mem=4G root-disk=8G
     expose: true
     num_units: 1
@@ -82,11 +82,11 @@ services:
     annotations:
       gui-x: '800'
       gui-y: '850'
-    charm: cs:~containers/kubernetes-master-891
+    charm: cs:~containers/kubernetes-master-1008
     constraints: cores=2 mem=4G root-disk=16G
     num_units: {{ groups['all_control_plane_nodes'] | count }}
     options:
-      channel: 1.19/stable
+      channel: 1.21/stable
     resources:
       cdk-addons: 0
       core: 0
@@ -104,16 +104,16 @@ services:
     annotations:
       gui-x: '90'
       gui-y: '850'
-    charm: cs:~containers/kubernetes-worker-704
+    charm: cs:~containers/kubernetes-worker-768
     constraints: cores=4 mem=4G root-disk=16G
     expose: true
     num_units: {{ groups['all_compute_nodes'] | count }}
     options:
-      channel: 1.19/stable
+      channel: 1.21/stable
     resources:
-      cni-amd64: 674
-      cni-arm64: 665
-      cni-s390x: 677
+      cni-amd64: 797
+      cni-arm64: 788
+      cni-s390x: 800
       core: 0
       kube-proxy: 0
       kubectl: 0

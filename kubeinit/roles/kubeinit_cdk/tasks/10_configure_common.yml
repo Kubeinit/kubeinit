@@ -20,10 +20,30 @@
 
 - name: Configure common requirements in guests
   block:
+
+    - name: Add the Podman debian package repository to Apt
+      ansible.builtin.shell: |
+        set -eo pipefail
+        version_id=$(sed -n -e 's/^VERSION_ID="\(.*\)"/\1/p' /etc/os-release)
+        echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+        wget -nv https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/xUbuntu_${version_id}/Release.key -O- | apt-key add -
+        apt-get update
+      args:
+        executable: /bin/bash
+      register: add_podman_repo
+      changed_when: "add_podman_repo.rc == 0"
+
     - name: Install common requirements
       ansible.builtin.package:
         name: "{{ kubeinit_cdk_common_dependencies }}"
         state: present
+
+    - name: Enable and start podman.socket
+      ansible.builtin.systemd:
+        name: podman.socket
+        enabled: yes
+        state: started
+        scope: user
 
     - name: Disable SWAP
       ansible.builtin.shell: |
@@ -36,20 +56,6 @@
         growpart /dev/vda 1
         resize2fs /dev/vda1
       changed_when: false
-
-    - name: Install Docker
-      ansible.builtin.shell: |
-        apt-get update -y
-        apt-get remove docker docker-engine docker.io -y
-        apt-get install docker.io -y
-        docker --version
-      changed_when: false
-
-    - name: Start and enable docker service
-      ansible.builtin.service:
-        name: docker
-        state: started
-        enabled: yes
 
     - name: Install kubectl
       ansible.builtin.shell: |

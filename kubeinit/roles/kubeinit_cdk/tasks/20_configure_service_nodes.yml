@@ -38,13 +38,18 @@
       delay: 10
       until: not services_pod_creation.failed
 
+    - name: Prepare credentials for services
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_services
+        tasks_from: prepare_credentials.yml
+        public: true
+
     # #
     # # Configure local registry
     # #
     #
     # - name: Configure a local container image registry
     #   delegate_to: "{{ groups['all_service_nodes'][0] }}"
-    #   # delegate_facts: true
     #   ansible.builtin.import_role:
     #     name: ../../roles/kubeinit_registry
     #     tasks_from: main
@@ -55,7 +60,6 @@
     #
 
     - name: Configure Bind
-      # delegate_facts: true
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_bind
         tasks_from: main
@@ -65,7 +69,6 @@
     #
 
     - name: Configure HAProxy
-      # delegate_facts: true
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_haproxy
         tasks_from: main
@@ -75,35 +78,8 @@
     #
 
     - name: Configure Apache
-      # delegate_facts: true
       ansible.builtin.import_role:
         name: ../../roles/kubeinit_apache
         tasks_from: main
-
-    #
-    # Include the install configuration
-    #
-
-    - name: Render root keys in the service node
-      ansible.builtin.shell: |
-        set -o pipefail
-        cd
-        mkdir -p ~/.ssh
-        rm -f ~/.ssh/id_rsa && echo -e 'y\n' | ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
-        cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-        ssh -oStrictHostKeyChecking=no 127.0.0.1 uptime
-      args:
-        executable: /bin/bash
-      register: render_service_keys
-      changed_when: "render_service_keys.rc == 0"
-
-    - name: Get root service machine public key
-      ansible.builtin.command: cat /root/.ssh/id_rsa.pub
-      register: public_key_service_content
-      changed_when: "public_key_service_content.rc == 0"
-
-    - name: Register the public key of the root service machine public key
-      ansible.builtin.set_fact:
-        kubeinit_provision_service_public_key={{ public_key_service_content.stdout }}
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
