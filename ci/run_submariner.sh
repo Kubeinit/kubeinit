@@ -2,7 +2,6 @@
 set -e
 
 echo "Executing run_submariner.sh"
-pip3 install ansible~=3.4 --upgrade
 
 BRANCH_NAME="$1"
 PULL_REQUEST="$2"
