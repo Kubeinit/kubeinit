@@ -42,6 +42,7 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
 fi
 
 sudo dnf install ansible -y
+sudo dnf install shyaml -y
 
 sudo pip3 install PyGithub
 sudo pip3 install netaddr
@@ -49,7 +50,14 @@ sudo pip3 install pybadges
 sudo pip3 install jinja2
 sudo pip3 install google-cloud-storage
 
+# Install and configure ara
+# There are problems with multithread ara, we keep the last
+# single thread version
 sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
+
+# This will nuke the ara database so in each run we have a clean env
+rm /root/.ara/server/ansible.sqlite
+ara-manage migrate
 
 echo "nyctea" > /etc/hostname
 echo "127.0.0.1 nyctea" >> /etc/hosts
