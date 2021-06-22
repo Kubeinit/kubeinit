@@ -42,6 +42,11 @@ git fetch origin pull/$PULL_REQUEST/head
 git checkout -b pr  FETCH_HEAD
 git log -n 5 --pretty=oneline
 
+echo "==> Installing KubeInit..."
+rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
+ansible-galaxy collection build -v --force --output-path releases/
+ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
+
 # TODO:Remove when merged
 # Keep as an example for cherry-picking workarounds
 # git remote add ccamacho https://github.com/ccamacho/kubeinit.git
