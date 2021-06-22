@@ -27,7 +27,7 @@ RUN set -x && \
         pip \
         shyaml \
         cryptography==3.3.2 \
-        ansible \
+        ansible==3.4.0 \
         netaddr && \
     \
     echo "==> Installing KubeInit..."  && \
