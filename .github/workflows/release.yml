@@ -41,7 +41,15 @@ jobs:
           sudo python3 -m pip install -r ./test-requirements.txt
           sudo python3 -m pip install tox shyaml
           sudo python3 -m pip install twine
-
+      - name: Mirror to GitLab
+        run: |
+          git clone https://github.com/Kubeinit/kubeinit.git kubeinit_mirror
+          cd kubeinit_mirror
+          git branch -r | grep -v -- ' -> ' | while read remote; do git branch --track "${remote#origin/}" "$remote" 2>&1 | grep -v ' already exists'; done || true
+          git fetch --all
+          git pull --all
+          sed -i 's/https:\/\/github\.com\/Kubeinit\/kubeinit\.git/https:\/\/github-access:${{ secrets.GITLAB_TOKEN }}@gitlab\.com\/kubeinit\/kubeinit.git/g' .git/config
+          git push --force --all origin
       - name: Create collection build and publish
         run: |
           chmod +x ./tools/release.sh
@@ -61,16 +69,6 @@ jobs:
               python3 -m pip install --force dist/*
               kubeinit -v
           fi
-      - name: Mirror to GitLab
-        run: |
-          git clone https://github.com/Kubeinit/kubeinit.git kubeinit_mirror
-          cd kubeinit_mirror
-          git branch -r | grep -v -- ' -> ' | while read remote; do git branch --track "${remote#origin/}" "$remote" 2>&1 | grep -v ' already exists'; done || true
-          git fetch --all
-          git pull --all
-          sed -i 's/https:\/\/github\.com\/Kubeinit\/kubeinit\.git/https:\/\/github-access:${{ secrets.GITLAB_TOKEN }}@gitlab\.com\/kubeinit\/kubeinit.git/g' .git/config
-          git push --force --all origin
-
   release_docs:
     needs: release_sw
     runs-on: ubuntu-latest

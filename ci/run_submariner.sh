@@ -21,11 +21,6 @@ echo "The amount of master nodes is $MASTER"
 echo "The amount of worker nodes is $WORKER"
 echo "The scenario is $SCENARIO"
 
-# Install and configure ara
-# There are problems with multithread ara, we keep the last
-# single thread version
-python3 -m pip install --upgrade "ara[server]"==1.5.6
-
 # This will nuke the ara database so in each run we have a clean env
 rm /root/.ara/server/ansible.sqlite
 ara-manage migrate
@@ -40,9 +35,11 @@ git clone https://github.com/kubeinit/kubeinit.git
 cd kubeinit
 
 echo "==> Installing KubeInit..."
+cd kubeinit
 rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
 ansible-galaxy collection build -v --force --output-path releases/
 ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
+cd ..
 
 # TODO:Remove when merged
 # Keep as an example for cherry-picking workarounds
