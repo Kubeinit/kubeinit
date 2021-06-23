@@ -55,8 +55,6 @@ sudo pip3 install google-cloud-storage
 # single thread version
 sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
 
-# This will nuke the ara database so in each run we have a clean env
-rm /root/.ara/server/ansible.sqlite
 ara-manage migrate
 
 echo "nyctea" > /etc/hostname
