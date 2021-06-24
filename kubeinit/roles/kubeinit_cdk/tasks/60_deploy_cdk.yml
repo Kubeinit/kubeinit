@@ -28,23 +28,35 @@
         dest: "~/bundle.yml"
         mode: '0644'
 
-    - name: "Install the CDK controller"
+    - name: "Install the CDK juju installer"
       ansible.builtin.shell: |
         ssh-keyscan {{ hostvars[groups['all_service_nodes'][0]].ansible_host }}
         sleep 2
         ssh-keyscan {{ hostvars[groups['all_service_nodes'][0]].ansible_host }} >> ~/.ssh/known_hosts
         cd
         cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+        # Make sure the private key has the correct perms
+        chmod 600 ~/.ssh/id_rsa
         snap install juju --classic
         juju add-cloud --local {{ kubeinit_inventory_cluster_name }} -f cloud.yml
-        echo "bootstrapping juju..."
+      register: install_juju
+      changed_when: "install_juju.rc == 0"
+
+    - name: "Bootstrap the CDK controller"
+      ansible.builtin.shell: |
         juju bootstrap --no-gui \
-        --bootstrap-series=focal \
-        --debug manual/root@{{ hostvars[groups['all_service_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
+            --debug \
+            --bootstrap-series=focal \
+            manual/root@{{ hostvars[groups['all_service_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
+      register: bootstrap_cdk
+      changed_when: "bootstrap_cdk.rc == 0"
+
+    - name: "Show juju info"
+      ansible.builtin.shell: |
         juju controllers
         juju status --format=yaml
-      register: install_cdk
-      changed_when: "install_cdk.rc == 0"
+      register: show_juju_info
+      changed_when: "show_juju_info.rc == 0"
 
     - name: "Add machines"
       ansible.builtin.shell: |
@@ -67,11 +79,8 @@
       changed_when: "cmd_res.rc == 0"
       retries: 60
       delay: 60
-      until: "'Healthy' in cmd_res.stdout"
       # We should have all the master and worker nodes started
-      # TODO:FIXME: Count and compare with
-      # "Healthy with x known peers" where x is:
-      # ( groups['all_control_plane_nodes'] | count + groups['all_compute_nodes'] | count )
+      until: cmd_res.stdout_lines | list | count == ( groups['all_control_plane_nodes'] | count + groups['all_compute_nodes'] | count )
 
     - name: "Deploy CDK"
       ansible.builtin.shell: |
@@ -97,8 +106,7 @@
       changed_when: "etcd_res.rc == 0"
       retries: 60
       delay: 60
-      # We should have all the master and worker nodes started
-      until: etcd_res.stdout_lines | list | count == ( groups['all_control_plane_nodes'] | count )
+      until: "'Healthy with {{ groups['all_control_plane_nodes'] | count | string }} known peers' in etcd_res.stdout"
 
     - name: Create kube directory
       ansible.builtin.file:

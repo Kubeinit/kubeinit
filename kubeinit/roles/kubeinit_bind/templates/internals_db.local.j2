@@ -6,7 +6,7 @@ $TTL    604800
 ; More information at: https://github.com/kubeinit/kubeinit
 
 {% for host in groups['all_service_nodes'] | list %}
-@       IN      SOA     {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}. admin.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.(
+@       IN      SOA     {{ host }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}. admin.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.(
 {% endfor %}
                   1     ; Serial
              604800     ; Refresh
@@ -17,46 +17,46 @@ $TTL    604800
 
 ; name servers - NS records
 {% for host in groups['all_service_nodes'] | list %}
-    IN      NS      {{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.
+    IN      NS      {{ host }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.
 {% endfor %}
 
 ; name servers - A records
 {% for host in groups['all_service_nodes'] | list %}
-{{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
+{{ host }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 ; KubeInit cluster Cluster - A records
 {% for host in groups['all_control_plane_nodes'] | list %}
-{{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
-master{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.       IN      A       {{ hostvars[host].ansible_host }}
+{{ host }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
+master{{ loop.index - 1 }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.       IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 {% for host in groups['all_compute_nodes'] | list %}
-{{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
-worker{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.       IN      A       {{ hostvars[host].ansible_host }}
+{{ host }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
+worker{{ loop.index - 1 }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.       IN      A       {{ hostvars[host].ansible_host }}
 
 {% endfor %}
 
 {% for host in groups['all_bootstrap_nodes'] | list %}
-{{ host }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
-bootstrap.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                        IN      A       {{ hostvars[host].ansible_host }}
+{{ host }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
+bootstrap.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                        IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - A records
 {% for host in groups['all_service_nodes'] | list %}
-registry.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                         IN      A       {{ hostvars[host].ansible_host }}
-api.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                              IN      A       {{ hostvars[host].ansible_host }}
-api-int.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                          IN      A       {{ hostvars[host].ansible_host }}
-*.apps.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.                           IN      A       {{ hostvars[host].ansible_host }}
-console-openshift-console.apps.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.   IN      A       {{ hostvars[host].ansible_host }}
-oauth-openshift.apps.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.             IN      A       {{ hostvars[host].ansible_host }}
+registry.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                         IN      A       {{ hostvars[host].ansible_host }}
+api.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                              IN      A       {{ hostvars[host].ansible_host }}
+api-int.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                          IN      A       {{ hostvars[host].ansible_host }}
+*.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                           IN      A       {{ hostvars[host].ansible_host }}
+console-openshift-console.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.   IN      A       {{ hostvars[host].ansible_host }}
+oauth-openshift.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.             IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 {% for host in groups['all_control_plane_nodes'] | list %}
-etcd-{{ loop.index - 1 }}.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.        IN      A       {{ hostvars[host].ansible_host }}
+etcd-{{ loop.index - 1 }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.        IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - SRV records
 {% for host in groups['all_control_plane_nodes'] | list %}
-_etcd-server-ssl._tcp.{{kubeinit_inventory_cluster_name}}.{{ kubeinit_inventory_cluster_domain }}.    86400   IN    SRV     0    10    2380    etcd-{{ loop.index - 1 }}
+_etcd-server-ssl._tcp.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.    86400   IN    SRV     0    10    2380    etcd-{{ loop.index - 1 }}
 {% endfor %}
