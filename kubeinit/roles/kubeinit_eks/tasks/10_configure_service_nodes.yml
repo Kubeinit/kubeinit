@@ -147,6 +147,16 @@
       changed_when: "mirror_registry.rc == 0"
       when: kubeinit_registry_enabled|bool
 
+    - name: Make sure the PK has the correct permissions
+      ansible.builtin.shell: |
+        set -o pipefail
+        # Make sure the private key has the correct perms
+        chmod 600 ~/.ssh/id_rsa
+      args:
+        executable: /bin/bash
+      register: ssh_correct_perms
+      changed_when: "ssh_correct_perms.rc == 0"
+
     #
     # Configure bind
     #
