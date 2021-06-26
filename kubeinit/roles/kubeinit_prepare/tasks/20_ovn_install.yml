@@ -108,7 +108,7 @@
 #   when: >
 #     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
 
-- name: Enable and start OVN services in the first hypervisor
+- name: Enable and start OVN services in the first hypervisor (CentOS based)
   ansible.builtin.service:
     name: "{{ item }}"
     state: started
@@ -118,9 +118,10 @@
     - ovn-northd
     - ovn-controller
   when: >
-    kubeinit_bastion_host in kubeinit_deployment_node_name
+    kubeinit_bastion_host in kubeinit_deployment_node_name and
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat')
 
-- name: Enable and start OVN services in the rest of the hypervisors
+- name: Enable and start OVN services in the rest of the hypervisors (CentOS based)
   ansible.builtin.service:
     name: "{{ item }}"
     state: started
@@ -129,4 +130,30 @@
     - openvswitch
     - ovn-controller
   when: >
-    (kubeinit_bastion_host not in kubeinit_deployment_node_name)
+    (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat')
+
+- name: Enable and start OVN services in the first hypervisor (Ubuntu based)
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  with_items:
+    - ovs-vswitchd
+    - ovn-northd
+    - ovn-controller
+  when: >
+    kubeinit_bastion_host in kubeinit_deployment_node_name and
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+
+- name: Enable and start OVN services in the rest of the hypervisors (Ubuntu based)
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  with_items:
+    - ovs-vswitchd
+    - ovn-controller
+  when: >
+    (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
