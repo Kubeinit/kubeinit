@@ -30,14 +30,14 @@
     - "{{ kubeinit_services_directory }}/.ssh"
     - "/var/kubeinit/html"
 
-- name: get the public key we will use to access the service pod
+- name: Get the public key we will use to access the service pod
   become: false
   delegate_to: localhost
   ansible.builtin.command: cat ~/.ssh/id_rsa.pub
   register: kubeinit_services_public_key
   changed_when: "kubeinit_services_public_key.rc == 0"
 
-- name: set the fact for the service pod public key
+- name: Set the fact for the service pod public key
   ansible.builtin.set_fact:
     services_public_key: "{{ kubeinit_services_public_key.stdout }}"
 
