@@ -14,10 +14,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Main deployment playbook for integrating submariner
-  hosts: hypervisor_hosts[0]
-  vars:
-    custom_var: asdf
+- name: Submariner pre-deployment playbook
+  hosts: localhost
+  become: false
   pre_tasks:
     - name: Check if Ansible meets version requirements.
       vars:
@@ -29,12 +28,16 @@
 
   tasks:
     - name: Run the prepare tasks
-      ansible.builtin.import_role:
+      ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"
-        tasks_from: main.yml
+        public: true
 
-    - name: Deploy submariner
+- name: Main playbook to deploy submariner
+  hosts: "{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}"
+  become: false
+  tasks:
+    - name: Verify submariner
       ansible.builtin.import_role:
         name: "../../roles/kubeinit_submariner"
         tasks_from: 30_subctl_verify
-      delegate_to: "{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}"
+        public: true
