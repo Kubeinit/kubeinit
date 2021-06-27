@@ -44,6 +44,12 @@
         tasks_from: prepare_credentials.yml
         public: true
 
+    - name: Start services containers
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_services
+        tasks_from: start_services_containers.yml
+        public: true
+
     - name: Install common requirements
       ansible.builtin.yum:
         name: "{{ kubeinit_eks_common_dependencies }}"
@@ -87,12 +93,6 @@
         executable: /bin/bash
       register: render_images_list
       changed_when: "render_images_list.rc == 0"
-
-    - name: Configure a local container image registry
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_registry
-        tasks_from: main
-      when: kubeinit_registry_enabled|bool
 
     - name: Load images file
       ansible.builtin.slurp:
@@ -156,32 +156,5 @@
         executable: /bin/bash
       register: ssh_correct_perms
       changed_when: "ssh_correct_perms.rc == 0"
-
-    #
-    # Configure bind
-    #
-
-    - name: Configure Bind
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_bind
-        tasks_from: main
-
-    #
-    # Configure HAproxy
-    #
-
-    - name: Configure HAProxy
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_haproxy
-        tasks_from: main
-
-    #
-    # Configure httpd
-    #
-
-    - name: Configure Apache
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_apache
-        tasks_from: main
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

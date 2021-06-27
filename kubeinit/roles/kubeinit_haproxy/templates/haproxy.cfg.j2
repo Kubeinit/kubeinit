@@ -47,13 +47,13 @@ listen stats
     stats uri /
     monitor-uri /healthz
 
-frontend okd4_k8s_api_fe
+frontend kube_api_fe
     bind :6443
-    default_backend okd4_k8s_api_be
+    default_backend kube_api_be
     mode tcp
     option tcplog
 
-backend okd4_k8s_api_be
+backend kube_api_be
     balance source
     mode tcp
 {% for host in groups['all_bootstrap_nodes'] | list %}
@@ -63,13 +63,13 @@ backend okd4_k8s_api_be
     server      {{ host }} {{ hostvars[host].ansible_host }}:6443 check
 {% endfor %}
 
-frontend okd4_machine_config_server_fe
+frontend machine_config_server_fe
     bind :22623
-    default_backend okd4_machine_config_server_be
+    default_backend machine_config_server_be
     mode tcp
     option tcplog
 
-backend okd4_machine_config_server_be
+backend machine_config_server_be
     balance source
     mode tcp
 {% for host in groups['all_bootstrap_nodes'] | list %}
@@ -79,13 +79,13 @@ backend okd4_machine_config_server_be
     server      {{ host }} {{ hostvars[host].ansible_host }}:22623 check
 {% endfor %}
 
-frontend okd4_http_ingress_traffic_fe
+frontend http_ingress_traffic_fe
     bind :80
-    default_backend okd4_http_ingress_traffic_be
+    default_backend http_ingress_traffic_be
     mode tcp
     option tcplog
 
-backend okd4_http_ingress_traffic_be
+backend http_ingress_traffic_be
     balance source
     mode tcp
 {% for host in groups['all_compute_nodes'] | list %}
@@ -97,13 +97,13 @@ backend okd4_http_ingress_traffic_be
 {% endif %}
 {% endfor %}
 
-frontend okd4_https_ingress_traffic_fe
+frontend https_ingress_traffic_fe
     bind :443
-    default_backend okd4_https_ingress_traffic_be
+    default_backend https_ingress_traffic_be
     mode tcp
     option tcplog
 
-backend okd4_https_ingress_traffic_be
+backend https_ingress_traffic_be
     balance source
     mode tcp
 {% for host in groups['all_compute_nodes'] | list %}

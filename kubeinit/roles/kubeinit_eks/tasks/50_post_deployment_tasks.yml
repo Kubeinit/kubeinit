@@ -42,13 +42,12 @@
       with_items:
         - "{{ groups['all_compute_nodes'] | list }}"
 
-  # #
-  # # Configure NFS
-  # #
-  #
-  # - name: Configure NFS
-  #   ansible.builtin.import_role:
-  #     name: ../../roles/kubeinit_nfs
-  #     tasks_from: main
-
+    #
+    # Configure NFS
+    #
+    - name: Configure NFS
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_nfs
+        public: true
+      when: kubeinit_services_nfs_enabled
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

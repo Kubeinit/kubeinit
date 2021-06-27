@@ -26,29 +26,56 @@
     kubeinit_okd_registry_pullsecret: '  { "auths": { "fakeregistry:5000": { "auth": "foo" } } }'
   when: not kubeinit_services_registry_enabled and kubeinit_okd_registry_pullsecret_empty in kubeinit_okd_registry_pullsecret
 
-- name: Create registry auth for pullsecret
-  ansible.builtin.set_fact:
-    # The spaces after the first single quote is required, do not remove
-    # Something in Ansible appears to be recognizing this as valid Python,
-    # so it's getting transformed into a Python list and then serialized
-    # using Python's str(), which is why we end up with the single-quoted values.
-    ocp_registry_token: '  { "cloud.openshift.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_cloud_openshift_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"quay.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_quay_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.connect.redhat.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_connect_redhat_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.redhat.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_redhat_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } }'
-  when: kubeinit_okd_openshift_deploy
+- name: Only use these tasks if we are deploying OCP and not OKD
+  block:
 
-- name: Append openshift auth to pullsecret
-  ansible.builtin.shell: |
-    set -o pipefail
-    echo '{{ kubeinit_okd_registry_pullsecret }}' | jq -c \
-      '.auths += {{ ocp_registry_token }}'
-  args:
-    executable: /bin/bash
-  register: ocp_new_pullsecret
-  changed_when: "ocp_new_pullsecret.rc == 0"
-  when: kubeinit_okd_openshift_deploy
+    - name: Read openshift pullsecret
+      ansible.builtin.slurp:
+        src: "{{ kubeinit_okd_openshift_pullsecret }}"
+      register: openshift_pullsecret
+      delegate_to: localhost
+      when: |
+        kubeinit_okd_openshift_pullsecret is defined and
+        kubeinit_okd_openshift_pullsecret
 
-- name: Override final openshift kubeinit_okd_registry_pullsecret with both auths
-  ansible.builtin.set_fact:
-    kubeinit_okd_registry_pullsecret: '  {{ ocp_new_pullsecret.stdout }}'
+    - name: Create registry auth for pullsecret using individual auth values
+      ansible.builtin.set_fact:
+        # The spaces after the first single quote is required, do not remove
+        # Something in Ansible appears to be recognizing this as valid Python,
+        # so it's getting transformed into a Python list and then serialized
+        # using Python's str(), which is why we end up with the single-quoted values.
+        ocp_registry_token: '  { "auths": { "cloud.openshift.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_cloud_openshift_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"quay.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_quay_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.connect.redhat.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_connect_redhat_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.redhat.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_redhat_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } } }'
+      when: |
+        not kubeinit_okd_openshift_pullsecret is defined or
+        not kubeinit_okd_openshift_pullsecret
+
+    - name: Create registry auth for pullsecret
+      ansible.builtin.shell: |
+        set -eo pipefail
+        {% if kubeinit_okd_openshift_pullsecret is defined and kubeinit_okd_openshift_pullsecret %}
+        echo '{{ openshift_pullsecret.content | b64decode | trim }}' | jq -c ".auths"
+        {% else %}
+        echo '{{ ocp_registry_token }}' | jq -c ".auths"
+        {% endif %}
+      args:
+        executable: /bin/bash
+      register: ocp_registry_pullsecret
+      changed_when: "ocp_registry_pullsecret.rc == 0"
+
+    - name: Append openshift auth to pullsecret
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo '{{ kubeinit_okd_registry_pullsecret }}' | jq -c \
+          '.auths += {{ ocp_registry_pullsecret.stdout }}'
+      args:
+        executable: /bin/bash
+      register: ocp_new_pullsecret
+      changed_when: "ocp_new_pullsecret.rc == 0"
+
+    - name: Override final openshift kubeinit_okd_registry_pullsecret with both auths
+      ansible.builtin.set_fact:
+        kubeinit_okd_registry_pullsecret: '  {{ ocp_new_pullsecret.stdout }}'
+
   when: kubeinit_okd_openshift_deploy
 
 - name: Debug kubeinit_okd_registry_pullsecret before overriding kubeinit_registry_pullsecret

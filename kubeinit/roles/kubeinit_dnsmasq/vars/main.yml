@@ -1,5 +1,5 @@
 ---
-# Copyright kubeinit.com
+# Copyright 2020 KubeInit.
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -14,20 +14,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Configure the services post deployment tasks
-  block:
-    #
-    # Configure NFS
-    #
-    - name: Configure NFS
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_nfs
-        public: true
-      when: kubeinit_services_nfs_enabled
 
-    - name: Touch a file
-      ansible.builtin.shell: |
-        touch ~/.kube/config
-      register: touch_kubeconfig
-      changed_when: "touch_kubeconfig.rc == 0"
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+# While options found within the vars/ path can be overridden using extra
+# vars, items within this path are considered part of the role and not
+# intended to be modified.
+
+# All variables within this role should have a prefix of "kubeinit_dnsmasq_"

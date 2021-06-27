@@ -120,73 +120,27 @@
       ansible.builtin.set_fact:
         kubeinit_qemu_user: "{{ 'qemu' if (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
 
-    - name: Download qcow2 images
+    - name: Download ubuntu cloudimg
       ansible.builtin.get_url:
         validate_certs: False
         use_proxy: True
-        url: "{{ item.value.uri }}{{ item.value.image }}"
-        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item.value.image }}"
+        url: "{{ kubeinit_libvirt_source_images.ubuntu.uri }}{{ kubeinit_libvirt_source_images.ubuntu.image }}"
+        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.ubuntu.image }}"
         force: no
         mode: '0666'
         owner: "{{ kubeinit_qemu_user }}"
-      with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
-      when: "item.value.image"
+      when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
-    - name: Download kernel images
+    - name: Download centos cloud qcow2
       ansible.builtin.get_url:
         validate_certs: False
         use_proxy: True
-        url: "{{ item.value.uri }}{{ item.value.kernel }}"
-        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item.value.kernel }}"
+        url: "{{ kubeinit_libvirt_source_images.centos.uri }}{{ kubeinit_libvirt_source_images.centos.image }}"
+        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}"
         force: no
         mode: '0666'
         owner: "{{ kubeinit_qemu_user }}"
-      with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
-      when: "item.value.kernel"
-
-    - name: Download initrd images
-      ansible.builtin.get_url:
-        validate_certs: False
-        use_proxy: True
-        url: "{{ item.value.uri }}{{ item.value.initrd }}"
-        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ item.value.initrd }}"
-        force: no
-        mode: '0666'
-        owner: "{{ kubeinit_qemu_user }}"
-      with_items: "{{ lookup('dict', kubeinit_libvirt_source_images) | list }}"
-      when: "item.value.initrd"
-
-    - name: Create the treeinfo directory FCOS
-      ansible.builtin.shell: |
-        cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
-        [general]
-        arch = x86_64
-        family = Fedora CoreOS
-        platforms = x86_64
-        version = kubeinit_libvirt_fcos_release.split(".")[0]
-        [images-x86_64]
-        initrd = {{ kubeinit_libvirt_source_images.coreos.initrd }}
-        kernel = {{ kubeinit_libvirt_source_images.coreos.kernel }}
-        EOF
-      register: treeinfo
-      changed_when: "treeinfo.rc == 0"
-      when: "'okd' in kubeinit_inventory_cluster_distro and not kubeinit_okd_openshift_deploy | default(false)"
-
-    - name: Create the treeinfo directory for RHCOS
-      ansible.builtin.shell: |
-        cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
-        [general]
-        arch = x86_64
-        family = Red Hat CoreOS
-        platforms = x86_64
-        version = {{ kubeinit_okd_registry_release_tag_aux | default(omit) }}
-        [images-x86_64]
-        initrd = {{ kubeinit_libvirt_source_images.rhcos.initrd }}
-        kernel = {{ kubeinit_libvirt_source_images.rhcos.kernel }}
-        EOF
-      register: treeinfo
-      changed_when: "treeinfo.rc == 0"
-      when: "'okd' in kubeinit_inventory_cluster_distro and kubeinit_okd_openshift_deploy | default(false)"
+      when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'eks'
 
     - name: "Make sure we have a '{{ kubeinit_libvirt_cloud_user }}' group"
       ansible.builtin.group:

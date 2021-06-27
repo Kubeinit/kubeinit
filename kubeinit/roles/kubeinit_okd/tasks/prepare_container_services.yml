@@ -42,50 +42,11 @@
         tasks_from: prepare_credentials.yml
         public: true
 
-    #
-    # Configure bind
-    #
-    - name: Configure Bind
+    - name: Start services containers
       ansible.builtin.include_role:
-        name: ../../roles/kubeinit_bind
+        name: ../../roles/kubeinit_services
+        tasks_from: start_services_containers.yml
         public: true
-      when: kubeinit_services_bind_enabled
-
-    #
-    # Configure HAproxy
-    #
-    - name: Configure HAProxy
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_haproxy
-        public: true
-      when: kubeinit_services_haproxy_enabled
-
-    #
-    # Configure Nexus
-    #
-    - name: Configure Nexus
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_nexus
-        public: true
-      when: kubeinit_services_nexus_enabled
-
-    #
-    # Configure httpd
-    #
-    - name: Configure Apache
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_apache
-        public: true
-      when: kubeinit_services_apache_enabled
-
-    #
-    # Configure container registry
-    #
-    - name: Configure a local container image registry
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_registry
-        public: true
-      when: kubeinit_services_registry_enabled
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 

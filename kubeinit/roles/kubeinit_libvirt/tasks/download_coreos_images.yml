@@ -18,6 +18,45 @@
 #
 # CoreOS images
 #
+- name: Download coreos kernel images
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.kernel }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.coreos.kernel }}"
+    force: no
+    mode: '0666'
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+  when: not kubeinit_okd_openshift_deploy
+
+- name: Download initrd images
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.initrd }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.coreos.initrd }}"
+    force: no
+    mode: '0666'
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+  when: not kubeinit_okd_openshift_deploy
+
+- name: Create the treeinfo directory FCOS
+  ansible.builtin.shell: |
+    cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
+    [general]
+    arch = x86_64
+    family = Fedora CoreOS
+    platforms = x86_64
+    version = kubeinit_libvirt_fcos_release.split(".")[0]
+    [images-x86_64]
+    initrd = {{ kubeinit_libvirt_source_images.coreos.initrd }}
+    kernel = {{ kubeinit_libvirt_source_images.coreos.kernel }}
+    EOF
+  register: treeinfo
+  changed_when: "treeinfo.rc == 0"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+  when: not kubeinit_okd_openshift_deploy
+
 - name: Download coreos initrd image
   ansible.builtin.get_url:
     url: "{{ kubeinit_libvirt_source_images.coreos.uri }}{{ kubeinit_libvirt_source_images.coreos.initrd }}"
@@ -49,6 +88,45 @@
 #
 # RHCOS images
 #
+- name: Download rhcos kernel images
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_libvirt_source_images.rhcos.uri }}{{ kubeinit_libvirt_source_images.rhcos.kernel }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.rhcos.kernel }}"
+    force: no
+    mode: '0666'
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+  when: kubeinit_okd_openshift_deploy
+
+- name: Download rhcos initrd images
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_libvirt_source_images.rhcos.uri }}{{ kubeinit_libvirt_source_images.rhcos.initrd }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.rhcos.initrd }}"
+    force: no
+    mode: '0666'
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+  when: kubeinit_okd_openshift_deploy
+
+- name: Create the treeinfo directory for RHCOS
+  ansible.builtin.shell: |
+    cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
+    [general]
+    arch = x86_64
+    family = Red Hat CoreOS
+    platforms = x86_64
+    version = {{ kubeinit_okd_registry_release_tag_aux | default(omit) }}
+    [images-x86_64]
+    initrd = {{ kubeinit_libvirt_source_images.rhcos.initrd }}
+    kernel = {{ kubeinit_libvirt_source_images.rhcos.kernel }}
+    EOF
+  register: treeinfo
+  changed_when: "treeinfo.rc == 0"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+  when: kubeinit_okd_openshift_deploy
+
 - name: Download rhcos initrd image
   ansible.builtin.get_url:
     url: "{{ kubeinit_libvirt_source_images.rhcos.uri }}{{ kubeinit_libvirt_source_images.rhcos.initrd }}"

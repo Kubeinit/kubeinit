@@ -102,12 +102,13 @@
     #
     # Configure NFS
     #
-
     - name: Configure NFS
       ansible.builtin.include_role:
         name: ../../roles/kubeinit_nfs
         public: true
-      when: hostvars[groups['all_service_nodes'][0]].type == 'virtual'
+      when: |
+        kubeinit_services_nfs_enabled and
+        hostvars[groups['all_service_nodes'][0]].type == 'virtual'
 
     - name: Display final debug info
       ansible.builtin.debug:

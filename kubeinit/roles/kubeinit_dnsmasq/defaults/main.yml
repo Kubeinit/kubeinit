@@ -17,27 +17,16 @@
 
 # All variables intended for modification should be placed in this file.
 
-# All variables within this role should have a prefix of "kubeinit_cdk_"
-kubeinit_cdk_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
-kubeinit_cdk_hide_sensitive_logs: true
+# All variables within this role should have a prefix of "kubeinit_dnsmasq_"
+kubeinit_dnsmasq_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
+kubeinit_dnsmasq_hide_sensitive_logs: true
 
-#
-# Define the services we want enabled for CDK clusters
-#
-kubeinit_services_bind_enabled: true
-kubeinit_services_dnsmasq_enabled: true
-kubeinit_services_haproxy_enabled: true
-kubeinit_services_nexus_enabled: false
-kubeinit_services_apache_enabled: true
-kubeinit_services_registry_enabled: false
-kubeinit_services_nfs_enabled: false
+kubeinit_dnsmasq_service_name: kubeinit-dnsmasq
 
-kubeinit_cdk_reboot_after_package_update: False
+kubeinit_dnsmasq_directory: /var/kubeinit/dnsmasq
+kubeinit_dnsmasq_directory_conf: "{{ kubeinit_dnsmasq_directory }}/conf"
 
-kubeinit_cdk_common_dependencies:
-  - wget
-  - jq
-  - resolvconf
-  - net-tools
-  - podman
-  - docker-compose
+kubeinit_dnsmasq_directories:
+  - "{{ kubeinit_dnsmasq_directory_conf }}"
+
+kubeinit_dnsmasq_config_file: "{{ kubeinit_dnsmasq_directory_conf }}/dnsmasq.cfg"
