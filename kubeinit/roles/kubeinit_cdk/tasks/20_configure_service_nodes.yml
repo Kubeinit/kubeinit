@@ -44,42 +44,10 @@
         tasks_from: prepare_credentials.yml
         public: true
 
-    # #
-    # # Configure local registry
-    # #
-    #
-    # - name: Configure a local container image registry
-    #   delegate_to: "{{ groups['all_service_nodes'][0] }}"
-    #   ansible.builtin.import_role:
-    #     name: ../../roles/kubeinit_registry
-    #     tasks_from: main
-    #   when: kubeinit_registry_enabled|bool
-
-    #
-    # Configure bind
-    #
-
-    - name: Configure Bind
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_bind
-        tasks_from: main
-
-    #
-    # Configure HAproxy
-    #
-
-    - name: Configure HAProxy
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_haproxy
-        tasks_from: main
-
-    #
-    # Configure httpd
-    #
-
-    - name: Configure Apache
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_apache
-        tasks_from: main
+    - name: Start services containers
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_services
+        tasks_from: start_services_containers.yml
+        public: true
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

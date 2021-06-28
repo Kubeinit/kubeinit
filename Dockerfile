@@ -13,7 +13,7 @@ RUN set -x && \
     echo "==> Installing dependencies..."  && \
     microdnf upgrade -y && microdnf install -y dnf && \
     dnf upgrade -y && dnf install -y \
-        python3 openssh-clients iproute && \
+        python3 openssh-clients iproute jq && \
     \
     echo "==> Setting up ssh options..."  && \
     mkdir /root/.ssh && \

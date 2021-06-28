@@ -25,10 +25,12 @@ kubeinit_okd_hide_sensitive_logs: true
 # Define the services we want enabled for OKD clusters
 #
 kubeinit_services_bind_enabled: true
+kubeinit_services_dnsmasq_enabled: true
 kubeinit_services_haproxy_enabled: true
+kubeinit_services_nexus_enabled: false
 kubeinit_services_apache_enabled: true
 kubeinit_services_registry_enabled: true
-kubeinit_services_nexus_enabled: false
+kubeinit_services_nfs_enabled: true
 
 kubeinit_okd_reboot_after_package_update: False
 
@@ -41,7 +43,8 @@ kubeinit_okd_wait_for_cluster_to_converge: True
 # If you need to deploy openshift instead #
 # This will override the OKD deployment   #
 ###########################################
-kubeinit_okd_openshift_deploy: False
+kubeinit_okd_openshift_deploy: "{{ kubeinit_common_openshift_deploy }}"
+kubeinit_okd_openshift_pullsecret: "{{ kubeinit_common_openshift_pullsecret }}"
 kubeinit_okd_openshift_registry_token_cloud_openshift_com: "THIS_IS_AN_EXAMPLE_TOKEN_FOR_CLOUD_OPENSHIFT_COM"
 kubeinit_okd_openshift_registry_token_quay_io: "THIS_IS_AN_EXAMPLE_TOKEN_FOR_QUAY_IO"
 kubeinit_okd_openshift_registry_token_registry_connect_redhat_com: "THIS_IS_AN_EXAMPLE_TOKEN_FOR_CONNECT_REDHAT_COM"
@@ -74,7 +77,7 @@ kubeinit_okd_registry_repository: "{{ kubeinit_okd_registry_repository_aux | rep
 kubeinit_okd_registry_release_tag_aux: "{% if ( kubeinit_okd_openshift_deploy | default(False) ) %}
                                               4.7.1
                                         {% else %}
-                                              4.6.0-0.okd-2021-02-14-205305
+                                              4.7.0-0.okd-2021-06-19-191547
                                         {% endif %}"
 kubeinit_okd_registry_release_tag: "{{ kubeinit_okd_registry_release_tag_aux | replace(' ','') }}"
 

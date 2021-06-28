@@ -41,34 +41,6 @@
   when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
   changed_when: "config_ovn_switch.rc == 0"
 
-- name: Create the DHCP options
-  ansible.builtin.shell: |
-    #
-    # Create DHCP options
-    #
-    Dhcp_opts=$(ovn-nbctl create DHCP_Options cidr={{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} \
-        options=" \
-                \"server_id\"=\"{{ kubeinit_inventory_network_gateway }}\" \
-                \"server_mac\"=\"00:00:00:65:77:09\" \
-                \"lease_time\"=\"3600\" \
-                \"router\"=\"{{ kubeinit_inventory_network_gateway }}\" \
-                \"dns_server\"=\"{{ kubeinit_inventory_cluster_dns_server }}\" \
-                \"mtu\"=\"1442\" \
-                ")
-    echo $Dhcp_opts
-  register: dhcp_options
-  changed_when: "dhcp_options.rc == 0"
-
-- name: Register the dhcp options uuid
-  ansible.builtin.set_fact: kubeinit_provision_dhcp_options={{ dhcp_options.stdout }}
-  with_items:
-    - "{{ groups['all_hosts'] }}"
-  delegate_to: "{{ item }}"
-
-- name: Display the registered dhcp options
-  ansible.builtin.debug:
-    var: kubeinit_provision_dhcp_options
-
 - name: Create OVS/OVN bindings for the VMs ports
   ansible.builtin.shell: |
     #
@@ -80,8 +52,6 @@
     #
     ovn-nbctl --wait=sb lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
     ovn-nbctl --wait=sb lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
-    ovn-nbctl --wait=sb lsp-set-dhcpv4-options {{ hostvars[item].interfaceid }} {{ kubeinit_provision_dhcp_options }}
-    ovn-nbctl --wait=sb lsp-set-options {{ hostvars[item].interfaceid }} hostname="{{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
   with_items: "{{ groups['all_nodes'] }}"
   register: config_ovn_bindings
   changed_when: "config_ovn_bindings.rc == 0"
@@ -175,4 +145,4 @@
 # ovn-nbctl show
 # ovn-sbctl show
 # ovs-vsctl show
-# ovs-vsctl list interface veth0-ser01
+# ovs-vsctl list interface veth0-okd-ser01

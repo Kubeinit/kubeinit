@@ -43,6 +43,12 @@
         tasks_from: prepare_credentials.yml
         public: true
 
+    - name: Start services containers
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_services
+        tasks_from: start_services_containers.yml
+        public: true
+
     - name: Install services requirements
       ansible.builtin.yum:
         name: "{{ kubeinit_k8s_service_dependencies }}"
@@ -60,42 +66,5 @@
         path: /etc/resolv.conf
         line: "nameserver {{ kubeinit_bind_service_address }}"
         insertbefore: nameserver.*
-
-    # #
-    # # Configure local registry
-    # #
-    #
-    # - name: Configure a local container image registry
-    #   ansible.builtin.import_role:
-    #     name: ../../roles/kubeinit_registry
-    #     tasks_from: main
-    #   when: kubeinit_registry_enabled|bool
-
-    #
-    # Configure bind
-    #
-
-    - name: Configure Bind
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_bind
-        tasks_from: main
-
-    #
-    # Configure HAproxy
-    #
-
-    - name: Configure HAProxy
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_haproxy
-        tasks_from: main
-
-    #
-    # Configure httpd
-    #
-
-    - name: Configure Apache
-      ansible.builtin.import_role:
-        name: ../../roles/kubeinit_apache
-        tasks_from: main
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
