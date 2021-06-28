@@ -96,6 +96,7 @@
 <li class="toctree-l2"><a class="reference internal" href="role-kubeinit_apache.html">Role - kubeinit_apache</a></li>
 <li class="toctree-l2"><a class="reference internal" href="role-kubeinit_bind.html">Role - kubeinit_bind</a></li>
 <li class="toctree-l2"><a class="reference internal" href="role-kubeinit_cdk.html">Role - kubeinit_cdk</a></li>
+<li class="toctree-l2"><a class="reference internal" href="role-kubeinit_dnsmasq.html">Role - kubeinit_dnsmasq</a></li>
 <li class="toctree-l2"><a class="reference internal" href="role-kubeinit_eks.html">Role - kubeinit_eks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="role-kubeinit_haproxy.html">Role - kubeinit_haproxy</a></li>
 <li class="toctree-l2"><a class="reference internal" href="role-kubeinit_k8s.html">Role - kubeinit_k8s</a></li>
@@ -213,10 +214,12 @@ for further information.</p><div class="section" id="r-o-l-e-d-e-f-a-u-l-t-s">
 <span class="c1"># Define the services we want enabled for OKD clusters</span>
 <span class="c1">#</span>
 <span class="nt">kubeinit_services_bind_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">kubeinit_services_dnsmasq_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="nt">kubeinit_services_haproxy_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">kubeinit_services_nexus_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="nt">kubeinit_services_apache_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="nt">kubeinit_services_registry_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="nt">kubeinit_services_nexus_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="nt">kubeinit_services_nfs_enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
 
 <span class="nt">kubeinit_okd_reboot_after_package_update</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
 
@@ -229,7 +232,8 @@ for further information.</p><div class="section" id="r-o-l-e-d-e-f-a-u-l-t-s">
 <span class="c1"># If you need to deploy openshift instead #</span>
 <span class="c1"># This will override the OKD deployment   #</span>
 <span class="c1">###########################################</span>
-<span class="nt">kubeinit_okd_openshift_deploy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="nt">kubeinit_okd_openshift_deploy</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_common_openshift_deploy</span><span class="nv"> </span><span class="s">}}&#39;</span>
+<span class="nt">kubeinit_okd_openshift_pullsecret</span><span class="p">:</span> <span class="s">&#39;{{</span><span class="nv"> </span><span class="s">kubeinit_common_openshift_pullsecret</span><span class="nv"> </span><span class="s">}}&#39;</span>
 <span class="nt">kubeinit_okd_openshift_registry_token_cloud_openshift_com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">THIS_IS_AN_EXAMPLE_TOKEN_FOR_CLOUD_OPENSHIFT_COM</span>
 <span class="nt">kubeinit_okd_openshift_registry_token_quay_io</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">THIS_IS_AN_EXAMPLE_TOKEN_FOR_QUAY_IO</span>
 <span class="nt">kubeinit_okd_openshift_registry_token_registry_connect_redhat_com</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">THIS_IS_AN_EXAMPLE_TOKEN_FOR_CONNECT_REDHAT_COM</span>
@@ -256,7 +260,7 @@ for further information.</p><div class="section" id="r-o-l-e-d-e-f-a-u-l-t-s">
 <span class="c1"># 4.6.0-0.okd-2021-01-23-132511 with the choosen OKD release.          #</span>
 <span class="c1">########################################################################</span>
 <span class="nt">kubeinit_okd_registry_release_tag_aux</span><span class="p">:</span> <span class="s">&#39;{%</span><span class="nv"> </span><span class="s">if</span><span class="nv"> </span><span class="s">(</span><span class="nv"> </span><span class="s">kubeinit_okd_openshift_deploy</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">default(False)</span>
-  <span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">4.7.1</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">4.6.0-0.okd-2021-02-14-205305</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif</span><span class="nv"> </span><span class="s">%}&#39;</span>
+  <span class="s">)</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">4.7.1</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">else</span><span class="nv"> </span><span class="s">%}</span><span class="nv"> </span><span class="s">4.7.0-0.okd-2021-06-19-191547</span><span class="nv"> </span><span class="s">{%</span><span class="nv"> </span><span class="s">endif</span><span class="nv"> </span><span class="s">%}&#39;</span>
 <span class="nt">kubeinit_okd_registry_release_tag</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">kubeinit_okd_registry_release_tag_aux</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">replace(&#39;\</span>
   <span class="s">\ &#39;,&#39;&#39;)</span><span class="nv"> </span><span class="s">}}&quot;</span>
 
