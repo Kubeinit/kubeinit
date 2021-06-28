@@ -31,3 +31,18 @@
   register: libvirt_clean_ovn
   when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
   changed_when: "libvirt_clean_ovn.rc == 0"
+
+- name: Delete existing OVS/OVN files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/openvswitch/
+    - /etc/ovn/
+    - /var/log/openvswitch/
+    - /var/log/ovn/
+    - /usr/share/openvswitch/
+    - /usr/share/ovn/
+    - /var/run/openvswitch/
+    - /var/run/openvswitch/openvswitch.useropts
+    - /var/run/ovn/
