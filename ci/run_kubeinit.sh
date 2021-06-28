@@ -201,7 +201,7 @@ if [[ "$SCENARIO" == "submariner" ]]; then
     # Deploy the fisrt cluster (okd)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/okd/inventory \
+        -vvv -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_bind_multicluster_dns_forward_enabled=True \
@@ -211,7 +211,7 @@ if [[ "$SCENARIO" == "submariner" ]]; then
     # Deploy the second cluster (rke)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/rke/inventory \
+        -vvv -i ./hosts/rke/inventory \
         --become \
         --become-user root \
         -e kubeinit_bind_multicluster_dns_forward_enabled=True \
@@ -222,7 +222,7 @@ if [[ "$SCENARIO" == "submariner" ]]; then
     # Deploy submariner as broker (rke)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/rke/inventory \
+        -vvv -i ./hosts/rke/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_broker=True \
@@ -232,7 +232,7 @@ if [[ "$SCENARIO" == "submariner" ]]; then
     # Deploy submariner as secondary (okd)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/okd/inventory \
+        -vvv -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_secondary=True \
@@ -242,7 +242,7 @@ if [[ "$SCENARIO" == "submariner" ]]; then
     # Run subctl verify to check cluster status in the sec cluster (okd)
     ansible-playbook \
         --user root \
-        -v -i ./hosts/okd/inventory \
+        -vvv -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_secondary=True \
@@ -254,7 +254,7 @@ elif [[ "$DISTRO" == "k8s.ovn" ]]; then
     # With OVN
     ansible-playbook \
         --user root \
-        -v -i ./hosts/k8s/inventory \
+        -vvv -i ./hosts/k8s/inventory \
         --become \
         --become-user root \
         -e @scenario_variables.yml \
@@ -271,7 +271,7 @@ elif [[ "$SCENARIO" == "container" ]]; then
         -v /etc/hosts:/etc/hosts \
         kubeinit/kubeinit \
             --user root \
-            -v -i ./hosts/$DISTRO/inventory \
+            -vvv -i ./hosts/$DISTRO/inventory \
             --become \
             --become-user root \
             -e @scenario_variables.yml \
@@ -283,7 +283,7 @@ elif [[ "$SCENARIO" == "default" ]]; then
 
     ansible-playbook \
         --user root \
-        -v -i ./hosts/$DISTRO/inventory \
+        -vvv -i ./hosts/$DISTRO/inventory \
         --become \
         --become-user root \
         -e @scenario_variables.yml \
