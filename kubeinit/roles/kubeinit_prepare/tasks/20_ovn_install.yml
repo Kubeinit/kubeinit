@@ -25,7 +25,10 @@
   ansible.builtin.shell: |
     # http://mirror.centos.org/centos/8/nfv/x86_64/openvswitch-2/Packages/o/
     dnf install -y centos-release-nfv-openvswitch
-    dnf install -y openvswitch2.13 ovn2.13 ovn2.13-central ovn2.13-host
+    dnf reinstall -y openvswitch2.13 \
+                     ovn2.13 \
+                     ovn2.13-central \
+                     ovn2.13-host
   when: >
     kubeinit_bastion_host in kubeinit_deployment_node_name and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat')
@@ -33,7 +36,10 @@
 
 - name: Install OVN packages in Fedora (Master Hypervisor)
   ansible.builtin.shell: |
-    yum install -y openvswitch ovn ovn-central ovn-host
+    dnf reinstall -y openvswitch \
+                     ovn \
+                     ovn-central \
+                     ovn-host
   when: >
     kubeinit_bastion_host in kubeinit_deployment_node_name and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
@@ -41,11 +47,11 @@
 
 - name: Install OVN packages in Ubuntu/Debian (Master Hypervisor)
   ansible.builtin.shell: |
-    apt-get install -y openvswitch-common \
-                       openvswitch-switch \
-                       ovn-common \
-                       ovn-host \
-                       ovn-central
+    apt-get install --reinstall -y openvswitch-common \
+                                   openvswitch-switch \
+                                   ovn-common \
+                                   ovn-host \
+                                   ovn-central
   when: >
     kubeinit_bastion_host in kubeinit_deployment_node_name and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
@@ -57,8 +63,10 @@
 - name: Install OVN packages in CentOS/RHEL (Slave Hypervisor)
   ansible.builtin.shell: |
     # http://mirror.centos.org/centos/8/nfv/x86_64/openvswitch-2/Packages/o/
-    dnf install -y centos-release-nfv-openvswitch
-    yum install -y openvswitch2.13 ovn2.13 ovn2.13-host
+    dnf reinstall -y centos-release-nfv-openvswitch
+    dnf reinstall -y openvswitch2.13 \
+                     ovn2.13 \
+                     ovn2.13-host
   when: >
     (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat')
@@ -66,7 +74,9 @@
 
 - name: Install OVN packages in Fedora (Slave Hypervisor)
   ansible.builtin.shell: |
-    yum install -y openvswitch ovn ovn-host
+    dnf reinstall -y openvswitch \
+                     ovn \
+                     ovn-host
   when: >
     (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
@@ -74,10 +84,10 @@
 
 - name: Install OVN packages in Ubuntu/Debian (Slave Hypervisor)
   ansible.builtin.shell: |
-    apt-get install -y openvswitch-common \
-                       openvswitch-switch \
-                       ovn-common \
-                       ovn-host
+    apt-get install --reinstall -y openvswitch-common \
+                                   openvswitch-switch \
+                                   ovn-common \
+                                   ovn-host
   when: >
     (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
@@ -111,9 +121,9 @@
 - name: Enable and start OVN services in the first hypervisor (CentOS based)
   ansible.builtin.service:
     name: "{{ item }}"
-    state: started
+    state: restarted
     enabled: yes
-  with_items:
+  loop:
     - openvswitch
     - ovn-northd
     - ovn-controller
@@ -124,9 +134,9 @@
 - name: Enable and start OVN services in the rest of the hypervisors (CentOS based)
   ansible.builtin.service:
     name: "{{ item }}"
-    state: started
+    state: restarted
     enabled: yes
-  with_items:
+  loop:
     - openvswitch
     - ovn-controller
   when: >
@@ -136,9 +146,9 @@
 - name: Enable and start OVN services in the first hypervisor (Ubuntu based)
   ansible.builtin.service:
     name: "{{ item }}"
-    state: started
+    state: restarted
     enabled: yes
-  with_items:
+  loop:
     - ovs-vswitchd
     - ovn-northd
     - ovn-controller
@@ -149,9 +159,9 @@
 - name: Enable and start OVN services in the rest of the hypervisors (Ubuntu based)
   ansible.builtin.service:
     name: "{{ item }}"
-    state: started
+    state: restarted
     enabled: yes
-  with_items:
+  loop:
     - ovs-vswitchd
     - ovn-controller
   when: >
