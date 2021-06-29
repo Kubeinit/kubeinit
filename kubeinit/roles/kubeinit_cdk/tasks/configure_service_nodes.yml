@@ -15,39 +15,8 @@
 # under the License.
 
 
-- name: Configure the service node
-  block:
-
-    - name: Prepare podman
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_prepare
-        tasks_from: prepare_podman
-        public: yes
-
-    - name: Create a minimal podman pod for the service containers running on service node VMs
-      containers.podman.podman_pod:
-        name: "{{ kubeinit_deployment_node_name }}-pod"
-        network: host
-        dns:
-          - "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
-          - "{{ kubeinit_common_dns_public }}"
-        dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
-        state: created
-      register: services_pod_creation
-      retries: 5
-      delay: 10
-      until: not services_pod_creation.failed
-
-    - name: Prepare credentials for services
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_services
-        tasks_from: prepare_credentials.yml
-        public: true
-
-    - name: Start services containers
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_services
-        tasks_from: start_services_containers.yml
-        public: true
-
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+- name: Post configure the DNS in all service nodes
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 30_post_service_config.yml
+    public: true
