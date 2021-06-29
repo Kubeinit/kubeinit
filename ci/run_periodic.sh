@@ -12,6 +12,8 @@ MASTER="$6"
 WORKER="$7"
 SCENARIO="$8"
 
+ANSIBLE_VERBOSITY="${ANSIBLE_VERBOSITY:-v}"
+
 echo "The branch is $BRANCH_NAME"
 echo "The pull request is $PULL_REQUEST"
 echo "The vars.yaml path is: $VARS_YAML_PATH"
@@ -142,7 +144,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
     # Deploy the fisrt cluster (okd)
     ansible-playbook \
         --user root \
-        -vvv -i ./hosts/okd/inventory \
+        -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_bind_multicluster_dns_forward_enabled=True \
@@ -152,7 +154,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
     # Deploy the second cluster (rke)
     ansible-playbook \
         --user root \
-        -vvv -i ./hosts/rke/inventory \
+        -${ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
         --become \
         --become-user root \
         -e kubeinit_bind_multicluster_dns_forward_enabled=True \
@@ -163,7 +165,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
     # Deploy submariner as broker (rke)
     ansible-playbook \
         --user root \
-        -vvv -i ./hosts/rke/inventory \
+        -${ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_broker=True \
@@ -173,7 +175,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
     # Deploy submariner as secondary (okd)
     ansible-playbook \
         --user root \
-        -vvv -i ./hosts/okd/inventory \
+        -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_secondary=True \
@@ -183,7 +185,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
     # Run subctl verify to check cluster status in the sec cluster (okd)
     ansible-playbook \
         --user root \
-        -vvv -i ./hosts/okd/inventory \
+        -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
         --become \
         --become-user root \
         -e kubeinit_submariner_is_secondary=True \
@@ -223,7 +225,7 @@ elif [[ "$DISTRO" == "k8s.ovn" ]]; then
 
     ansible-playbook \
         --user root \
-        -vvv -i ./hosts/k8s/inventory \
+        -${ANSIBLE_VERBOSITY} -i ./hosts/k8s/inventory \
         --become \
         --become-user root \
         -e @scenario_variables.yml \
@@ -245,7 +247,7 @@ else
 
     ansible-playbook \
         --user root \
-        -vvv -i ./hosts/$DISTRO/inventory \
+        -${ANSIBLE_VERBOSITY} -i ./hosts/$DISTRO/inventory \
         --become \
         --become-user root \
         -e @scenario_variables.yml \

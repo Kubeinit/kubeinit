@@ -25,10 +25,12 @@
   ansible.builtin.shell: |
     # http://mirror.centos.org/centos/8/nfv/x86_64/openvswitch-2/Packages/o/
     dnf install -y centos-release-nfv-openvswitch
-    dnf reinstall -y openvswitch2.13 \
-                     ovn2.13 \
-                     ovn2.13-central \
-                     ovn2.13-host
+    REQ_PACKAGES="openvswitch2.13 \
+                  ovn2.13 \
+                  ovn2.13-central \
+                  ovn2.13-host"
+    dnf install -y ${REQ_PACKAGES}
+    dnf reinstall -y ${REQ_PACKAGES}
   when: >
     kubeinit_bastion_host in kubeinit_deployment_node_name and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat')
@@ -36,10 +38,12 @@
 
 - name: Install OVN packages in Fedora (Master Hypervisor)
   ansible.builtin.shell: |
-    dnf reinstall -y openvswitch \
-                     ovn \
-                     ovn-central \
-                     ovn-host
+    REQ_PACKAGES="openvswitch \
+                  ovn \
+                  ovn-central \
+                  ovn-host"
+    dnf install -y ${REQ_PACKAGES}
+    dnf reinstall -y ${REQ_PACKAGES}
   when: >
     kubeinit_bastion_host in kubeinit_deployment_node_name and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
@@ -63,10 +67,12 @@
 - name: Install OVN packages in CentOS/RHEL (Slave Hypervisor)
   ansible.builtin.shell: |
     # http://mirror.centos.org/centos/8/nfv/x86_64/openvswitch-2/Packages/o/
-    dnf reinstall -y centos-release-nfv-openvswitch
-    dnf reinstall -y openvswitch2.13 \
-                     ovn2.13 \
-                     ovn2.13-host
+    dnf install -y centos-release-nfv-openvswitch
+    REQ_PACKAGES="openvswitch2.13 \
+                  ovn2.13 \
+                  ovn2.13-host"
+    dnf install -y ${REQ_PACKAGES}
+    dnf reinstall -y ${REQ_PACKAGES}
   when: >
     (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat')
@@ -74,9 +80,11 @@
 
 - name: Install OVN packages in Fedora (Slave Hypervisor)
   ansible.builtin.shell: |
-    dnf reinstall -y openvswitch \
-                     ovn \
-                     ovn-host
+    REQ_PACKAGES="openvswitch \
+                  ovn \
+                  ovn-host"
+    dnf install -y ${REQ_PACKAGES}
+    dnf reinstall -y ${REQ_PACKAGES}
   when: >
     (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
