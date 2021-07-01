@@ -134,6 +134,9 @@ fi
 # We need to remove any created VM in other jobs
 # TODO: Add cleanup tasks
 
+for i in $(podman --remote system connection list | sed -e 1d -e 's/[* ].*//'); do
+    podman --remote system connection remove $i
+done;
 for i in $(virsh -q list | awk '{ print $2 }'); do
     virsh destroy $i;
     virsh undefine $i --remove-all-storage;
