@@ -92,8 +92,14 @@
             release extract \
             --registry-config={{ kubeinit_registry_auth_file }} \
             --command=openshift-install "{{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}"
-        # This will override the current installer binary
-        cp openshift-install /usr/local/bin/
+        oc adm \
+            release extract \
+            --registry-config={{ kubeinit_registry_auth_file }} \
+            --command=oc "{{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}"
+        # This will override the current client and installer binaries
+        cp oc openshift-install /usr/local/bin/
+        oc version
+        openshift-install version
       args:
         executable: /bin/bash
       register: mirror_registry

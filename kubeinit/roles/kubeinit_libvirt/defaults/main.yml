@@ -29,7 +29,10 @@ kubeinit_libvirt_vms_default_password: asdfasdf
 
 kubeinit_libvirt_centos_release: 20210603.0
 kubeinit_libvirt_fcos_release: 33.20210217.3.0
+kubeinit_libvirt_rhcos_release: 4.7.13
 kubeinit_libvirt_ubuntu_release: "{{ 'focal' if (kubeinit_inventory_cluster_distro == 'cdk') else 'groovy' }}"
+
+kubeinit_libvirt_rhcos_release_major_minor: "{{ kubeinit_libvirt_rhcos_release.split('.')[0] }}.{{ kubeinit_libvirt_rhcos_release.split('.')[1] }}"
 
 kubeinit_libvirt_source_images:
   ubuntu:
@@ -60,14 +63,14 @@ kubeinit_libvirt_source_images:
     sig: "fedora-coreos-{{ kubeinit_libvirt_fcos_release }}-metal.x86_64.raw.xz.sig"
     rootfs: "fedora-coreos-{{ kubeinit_libvirt_fcos_release }}-live-rootfs.x86_64.img"
   rhcos:
-    uri: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.6/4.6.1/"
+    uri: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ kubeinit_libvirt_rhcos_release_major_minor }}/{{ kubeinit_libvirt_rhcos_release }}/"
     iso: ""
     image: ""
-    kernel: "rhcos-live-kernel-x86_64"
-    initrd: "rhcos-live-initramfs.x86_64.img"
-    raw: "rhcos-metal.x86_64.raw.gz"
+    kernel: "rhcos-{{ kubeinit_libvirt_rhcos_release }}-x86_64-live-kernel-x86_64"
+    initrd: "rhcos-{{ kubeinit_libvirt_rhcos_release }}-x86_64-live-initramfs.x86_64.img"
+    raw: "rhcos-{{ kubeinit_libvirt_rhcos_release }}-x86_64-metal.x86_64.raw.gz"
     sig: ""
-    rootfs: rhcos-live-rootfs.x86_64.img
+    rootfs: rhcos-{{ kubeinit_libvirt_rhcos_release }}-x86_64-live-rootfs.x86_64.img
 
 kubeinit_libvirt_destroy_all_guests: False
 

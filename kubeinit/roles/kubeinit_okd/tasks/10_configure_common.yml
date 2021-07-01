@@ -1,0 +1,50 @@
+---
+# Copyright 2020 KubeInit.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+- name: Delegate to cluster service node
+  block:
+
+    - name: "Render net info"
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "{{ kubeinit_okd_pod_cidr }}" > ~/pod_cidr
+        echo "{{ kubeinit_okd_service_cidr }}" > ~/service_cidr
+      args:
+        executable: /bin/bash
+      register: render_net_info
+      changed_when: "render_net_info.rc == 0"
+
+    - name: Add the local DNS server as a local resolver
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ kubeinit_bind_service_address }}"
+        insertbefore: nameserver.*
+
+    - name: Install services requirements
+      ansible.builtin.yum:
+        name: "{{ kubeinit_okd_service_dependencies }}"
+        state: present
+        use_backend: dnf
+
+    - name: Resize root partition
+      ansible.builtin.shell: |
+        echo 'Reclaim space for root partition'
+        growpart /dev/vda 1
+        xfs_growfs /dev/vda1
+      changed_when: false
+
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

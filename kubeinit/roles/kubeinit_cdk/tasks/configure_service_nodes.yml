@@ -1,5 +1,5 @@
 ---
-# Copyright 2020 KubeInit.
+# Copyright kubeinit.com
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -15,13 +15,8 @@
 # under the License.
 
 
-- name: Deploy cluster services
-  ansible.builtin.include_tasks: "prepare_{{ kubeinit_deployment_node_type }}_services.yml"
-  with_items:
-    - "{{ groups['all_service_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: service
-    kubeinit_deployment_node_type: "{{ hostvars[cluster_role_item].type }}"
+- name: Post configure the DNS in all service nodes
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_cdk"
+    tasks_from: 30_post_service_config.yml
+    public: true
