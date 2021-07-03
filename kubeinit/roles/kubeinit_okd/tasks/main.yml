@@ -68,7 +68,7 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
-- name: Remove the bootstrap node in a multimaster deployment
+- name: Remove the bootstrap node
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_okd"
     tasks_from: 40_remove_bootstrap_node.yml
@@ -79,7 +79,6 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  when: groups['all_control_plane_nodes'] | length > 1
 
 - name: Deploy the cluster worker nodes
   ansible.builtin.include_role:
@@ -105,19 +104,6 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
-- name: Remove the bootstrap node in a singlemaster deployment
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_okd"
-    tasks_from: 40_remove_bootstrap_node.yml
-    public: yes
-  with_items:
-    - "{{ groups['all_bootstrap_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-  when: groups['all_control_plane_nodes'] | length == 1
 
 - name: Deploy KubeVirt
   ansible.builtin.include_role:
