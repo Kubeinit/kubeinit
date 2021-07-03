@@ -27,3 +27,40 @@
   delay: 60
   until: cmd_res_nodes_ok.stdout_lines | default([]) | list | count == groups['all_control_plane_nodes'] | count
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+
+- name: "use single node cluster"
+  ansible.builtin.shell: |
+    set -o pipefail
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    oc get nodes
+
+    oc patch clusterversion/version --type='merge' -p "$(cat <<- EOF
+    spec:
+      overrides:
+        - group: apps/v1
+          kind: Deployment
+          name: etcd-quorum-guard
+          namespace: openshift-machine-config-operator
+          unmanaged: true
+    EOF
+    )"
+    oc scale --replicas=1 deployment/etcd-quorum-guard -n openshift-machine-config-operator || true
+    oc scale --replicas=1 ingresscontroller/default -n openshift-ingress-operator || true
+    oc scale --replicas=1 deployment.apps/console -n openshift-console || true
+    oc scale --replicas=1 deployment.apps/downloads -n openshift-console || true
+    oc scale --replicas=1 deployment.apps/oauth-openshift -n openshift-authentication || true
+    oc scale --replicas=1 deployment.apps/packageserver -n openshift-operator-lifecycle-manager || true
+    # Optional
+    oc scale --replicas=1 deployment.apps/prometheus-adapter -n openshift-monitoring || true
+    oc scale --replicas=1 deployment.apps/thanos-querier -n openshift-monitoring || true
+    oc scale --replicas=1 statefulset.apps/prometheus-k8s -n openshift-monitoring || true
+    oc scale --replicas=1 statefulset.apps/alertmanager-main -n openshift-monitoring || true
+
+    oc patch etcd cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableEtcd": true }}}' --type=merge
+    oc patch authentications.operator.openshift.io cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableOAuthServer": true }}}' --type=merge
+  args:
+    executable: /bin/bash
+  register: single_node_cluster
+  changed_when: "single_node_cluster.rc == 0"
+  when: (groups['all_control_plane_nodes'] | count) == 1
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
