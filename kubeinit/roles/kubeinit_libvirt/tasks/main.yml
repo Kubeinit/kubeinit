@@ -131,6 +131,17 @@
         owner: "{{ kubeinit_qemu_user }}"
       when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
 
+    - name: Download Debian cloud image
+      ansible.builtin.get_url:
+        validate_certs: False
+        use_proxy: True
+        url: "{{ kubeinit_libvirt_source_images.debian.uri }}{{ kubeinit_libvirt_source_images.debian.image }}"
+        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.debian.image }}"
+        force: no
+        mode: '0666'
+        owner: "{{ kubeinit_qemu_user }}"
+      when: kubeinit_inventory_cluster_distro == 'kid'
+
     - name: Download centos cloud qcow2
       ansible.builtin.get_url:
         validate_certs: False

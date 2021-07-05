@@ -1,0 +1,49 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+#
+# Initial config
+#
+
+- name: Configure common requirements in guests
+  block:
+
+    - name: Add the local DNS server as a local resolver
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ kubeinit_bind_service_address }}"
+        insertbefore: nameserver.*
+
+    - name: Install common requirements
+      ansible.builtin.package:
+        name: "{{ kubeinit_kid_common_dependencies }}"
+        state: present
+
+    - name: Enable and start podman.socket
+      ansible.builtin.systemd:
+        name: podman.socket
+        enabled: yes
+        state: started
+        scope: user
+
+    - name: Resize root partition
+      ansible.builtin.shell: |
+        echo 'Reclaim space for root partition'
+        growpart /dev/vda 1
+        resize2fs /dev/vda1
+      changed_when: false
+
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
