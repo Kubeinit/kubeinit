@@ -23,9 +23,14 @@
 ## Periodic jobs
 
 <p style="text-align: center" align="center">
+    <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>
+    <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-1-1-periodic-weekly-go/badge_status.svg"/></a>
+    <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-1-0-periodic-weekly-go/badge_status.svg"/></a>
+
     <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>
     <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-1-1-periodic-weekly-go/badge_status.svg"/></a>
     <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-1-0-periodic-weekly-go/badge_status.svg"/></a>
+
     <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s.ovn-libvirt-3-2-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s.ovn-libvirt-3-2-periodic-weekly-go/badge_status.svg"/></a>
     <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>
     <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-1-1-periodic-weekly-go/badge_status.svg"/></a>
@@ -68,7 +73,7 @@ KubeInit's documentation is hosted in [this same repository](https://docs.kubein
 * Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66)
  you will need in your cluster.
 * By default the hypervisor node is called nyctea (defined in the inventory). Replace it with the hostname you specified if you changed it.
-* Have root passwordless access with certificates. 
+* Have root passwordless access with certificates.
 
 
 ### Check if nyctea is reachable
