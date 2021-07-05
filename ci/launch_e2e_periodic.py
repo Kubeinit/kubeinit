@@ -49,6 +49,10 @@ def main(distros):
                    "eks-libvirt-1-controller-1-compute-periodic",
                    "eks-libvirt-1-controller-0-compute-periodic"]
 
+    kid_configs = ["kid-libvirt-3-controller-1-compute-periodic",
+                   "kid-libvirt-1-controller-1-compute-periodic",
+                   "kid-libvirt-1-controller-0-compute-periodic"]
+
     okd_rke_configs = ["okd.rke-libvirt-1-controller-2-compute-periodic",
                        "okd.rke-libvirt-3-controller-1-compute-periodic"]
 
@@ -59,6 +63,8 @@ def main(distros):
     for dist in list_of_distros:
         if dist == 'okd':
             configs = configs + okd_configs
+        if dist == 'kid':
+            configs = configs + kid_configs
         if dist == 'eks':
             configs = configs + eks_configs
         if dist == 'rke':
