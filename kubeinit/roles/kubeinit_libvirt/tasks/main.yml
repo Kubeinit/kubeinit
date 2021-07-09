@@ -129,7 +129,7 @@
         force: no
         mode: '0666'
         owner: "{{ kubeinit_qemu_user }}"
-      when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
+      when: "'ubuntu' in hostvars[groups['service_nodes'][0]].os"
 
     - name: Download Debian cloud image
       ansible.builtin.get_url:
@@ -140,7 +140,7 @@
         force: no
         mode: '0666'
         owner: "{{ kubeinit_qemu_user }}"
-      when: kubeinit_inventory_cluster_distro == 'kid'
+      when: "'debian' in hostvars[groups['service_nodes'][0]].os"
 
     - name: Download centos cloud qcow2
       ansible.builtin.get_url:
@@ -151,7 +151,7 @@
         force: no
         mode: '0666'
         owner: "{{ kubeinit_qemu_user }}"
-      when: kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'eks'
+      when: "'centos' in hostvars[groups['service_nodes'][0]].os"
 
     - name: "Make sure we have a '{{ kubeinit_libvirt_cloud_user }}' group"
       ansible.builtin.group:

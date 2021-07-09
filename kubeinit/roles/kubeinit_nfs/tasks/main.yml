@@ -35,7 +35,7 @@
     executable: /bin/bash
   register: nfs_share_config
   changed_when: "nfs_share_config.rc == 0"
-  when: kubeinit_inventory_cluster_distro == 'okd' or kubeinit_inventory_cluster_distro == 'k8s' or kubeinit_inventory_cluster_distro == 'eks'
+  when: hostvars[kubeinit_deployment_node_name].os == 'centos'
 
 - name: "configure NFS shares of Ubuntu based guests"
   ansible.builtin.shell: |
@@ -50,7 +50,7 @@
     executable: /bin/bash
   register: nfs_share_config
   changed_when: "nfs_share_config.rc == 0"
-  when: kubeinit_inventory_cluster_distro == 'rke' or kubeinit_inventory_cluster_distro == 'cdk'
+  when: hostvars[kubeinit_deployment_node_name].os == 'ubuntu' or hostvars[kubeinit_deployment_node_name].os == 'debian'
 
 #
 # add nfs dynamic provisioning
