@@ -14,6 +14,20 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: "Install podman repositories if Ubuntu = 20.04"
+  ansible.builtin.shell: |
+    set -o pipefail
+    set -e
+    . /etc/os-release
+    if [[ $VERSION_ID =~ "20.04" ]]; then
+        echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+        curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo apt-key add -
+        apt-get update
+    fi
+  args:
+    executable: /bin/bash
+  register: install_podman_repos
+  changed_when: "install_podman_repos.rc == 0"
 
 - name: Install common requirements
   ansible.builtin.package:

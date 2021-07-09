@@ -105,11 +105,134 @@
     tasks_from: 70_check_nodes_up.yml
     public: yes
 
-- name: Upgrade cluster node packages and restart
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-    tasks_from: 00_bounce_packages.yml
-    public: yes
+- name: Configure common requirements in guests
+  block:
+    - name: Get resolv lines
+      ansible.builtin.slurp:
+        src: /etc/resolv.conf
+      register: count_resolv_lines
+
+    - name: Add the local DNS server as a local resolver when not empty
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ kubeinit_common_dns_public }}"
+        insertbefore: nameserver.*
+      when: (count_resolv_lines.content | b64decode).splitlines() | length > 0
+
+    - name: Add the local DNS server as a local resolver when empty
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ kubeinit_common_dns_public }}"
+      when: (count_resolv_lines.content | b64decode).splitlines() | length == 0
+
+    - name: "Disable IPv6"
+      ansible.builtin.shell: |
+        set -o pipefail
+        # Disable IPv6
+        echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
+        echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
+        sysctl --load /etc/sysctl.d/70-ipv6.conf
+      args:
+        executable: /bin/bash
+      register: disable_ipv6
+      changed_when: "disable_ipv6.rc == 0"
+
+    - name: Resize root partition
+      ansible.builtin.shell: |
+        echo 'Reclaim space for root partition'
+        growpart /dev/vda 1
+        xfs_growfs /dev/vda1
+      changed_when: false
+
+    - name: Disable SELinux
+      ansible.posix.selinux:
+        state: disabled
+
+    - name: Enable kernel modules and IP forward
+      ansible.builtin.shell: |
+        modprobe br_netfilter
+        echo br_netfilter > /etc/modules-load.d/br_netfilter.conf
+        modprobe overlay
+        echo overlay > /etc/modules-load.d/overlay.conf
+        echo '1' > /proc/sys/net/ipv4/ip_forward
+        mkdir -p /proc/sys/net/bridge/
+        echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+        sysctl -p
+      changed_when: false
+
+    - name: Remove repo before adding it
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/crio.repo
+        state: absent
+
+    - name: Creating a repository file for cri-o
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/crio.repo
+        state: touch
+        mode: '0644'
+
+    - name: Adding repository details in the cri-o repo file.
+      ansible.builtin.blockinfile:
+        path: /etc/yum.repos.d/crio.repo
+        block: |
+          [devel_kubic_libcontainers_stable]
+          name=Stable Releases of Upstream github.com/containers packages (CentOS_8_Stream)
+          type=rpm-md
+          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8_Stream/
+          gpgcheck=1
+          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8_Stream/repodata/repomd.xml.key
+          enabled=1
+
+          [devel_kubic_libcontainers_stable_cri-o_{{ kubeinit_libvirt_centos_k8s_version }}]
+          name=Last release available in {{ kubeinit_libvirt_centos_k8s_version }} branch (CentOS_8_Stream)
+          type=rpm-md
+          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ kubeinit_libvirt_centos_k8s_version }}/CentOS_8_Stream/
+          gpgcheck=1
+          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ kubeinit_libvirt_centos_k8s_version }}/CentOS_8_Stream/repodata/repomd.xml.key
+          enabled=1
+
+    #
+    # k8s repos
+    #
+
+    - name: Remove repo before adding it
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: absent
+
+    - name: Creating a repository file for Kubernetes
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: touch
+        mode: '0644'
+
+    - name: Adding repository details in Kubernetes repo file.
+      ansible.builtin.blockinfile:
+        path: /etc/yum.repos.d/kubernetes.repo
+        block: |
+         [kubernetes]
+         name=Kubernetes
+         baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+         enabled=1
+         gpgcheck=1
+         repo_gpgcheck=1
+         gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+                https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+    - name: Update packages
+      ansible.builtin.yum:
+        name: "*"
+        state: latest
+        use_backend: dnf
+      register: update_packages
+
+    - name: Reboot immediately after the package update
+      ansible.builtin.shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+      when: update_packages is changed and kubeinit_libvirt_reboot_guests_after_package_update
+
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
 
 - name: Configure common requirements in guests
   block:

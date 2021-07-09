@@ -183,16 +183,6 @@
     ## Execute to configure all the other master nodes
     ##
 
-    - name: Modprobe ip forward
-      ansible.builtin.shell: |
-        modprobe br_netfilter
-        echo '1' > /proc/sys/net/ipv4/ip_forward
-        mkdir -p /proc/sys/net/bridge/
-        echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
-        sysctl -p
-      changed_when: false
-      when: groups['all_control_plane_nodes'] | length > 1 and groups['all_control_plane_nodes'][0] not in kubeinit_deployment_node_name
-
     - name: Joining aditional master nodes using the PK
       ansible.builtin.shell: |
        kubeadm reset -f || true
