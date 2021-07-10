@@ -28,23 +28,10 @@
       register: render_net_info
       changed_when: "render_net_info.rc == 0"
 
-    - name: Add the local DNS server as a local resolver
-      ansible.builtin.lineinfile:
-        path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_bind_service_address }}"
-        insertbefore: nameserver.*
-
     - name: Install services requirements
       ansible.builtin.yum:
         name: "{{ kubeinit_okd_service_dependencies }}"
         state: present
         use_backend: dnf
-
-    - name: Resize root partition
-      ansible.builtin.shell: |
-        echo 'Reclaim space for root partition'
-        growpart /dev/vda 1
-        xfs_growfs /dev/vda1
-      changed_when: false
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

@@ -13,36 +13,3 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-
-- name: Configure the post deployment tasks
-  block:
-    - name: Remove resolv file
-      ansible.builtin.file:
-        path: /etc/resolv.conf
-        state: absent
-
-    - name: Create a symbolic link to the resolv.conf file
-      ansible.builtin.file:
-        src: /etc/resolvconf/resolv.conf.d/head
-        dest: /etc/resolv.conf
-        state: link
-
-    - name: Add the local DNS server as a local resolver
-      ansible.builtin.lineinfile:
-        path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_bind_service_address }}"
-        insertbefore: nameserver.*
-
-    - name: Restart the resolvconf service
-      ansible.builtin.service:
-        name: "resolvconf"
-        state: restarted
-        enabled: yes
-
-    - name: Restart the systemd-resolved service
-      ansible.builtin.service:
-        name: "systemd-resolved"
-        state: restarted
-        enabled: yes
-
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

@@ -35,7 +35,7 @@
         scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ kubeinit_deployment_node_name }}:/etc/pki/ca-trust/source/anchors/
       register: install_all_certs_in_workers
       changed_when: "install_all_certs_in_workers.rc == 0"
-      when: kubeinit_registry_enabled | bool
+      when: "'registry' in hostvars[groups['service_nodes'][0]].services"
       delegate_to: "{{ kubeinit_registry_service_address }}"
 
     - name: Insert the local registry auth details
@@ -53,13 +53,13 @@
         EOF
       register: insert_worker_local_registry_auth
       changed_when: "insert_worker_local_registry_auth.rc == 0"
-      when: kubeinit_registry_enabled | bool
+      when: "'registry' in hostvars[groups['service_nodes'][0]].services"
 
     - name: Update the CA certs files
       ansible.builtin.command: update-ca-trust extract
       register: update_master_ca_trust_files
       changed_when: "update_master_ca_trust_files.rc == 0"
-      when: kubeinit_registry_enabled | bool
+      when: "'registry' in hostvars[groups['service_nodes'][0]].services"
 
     - name: Modprobe ip forward
       ansible.builtin.shell: |

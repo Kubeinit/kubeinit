@@ -16,7 +16,12 @@
 
 - name: Configure the wokidr nodes
   block:
-    - name: Install root public from service node in wokidr nodes
+    - name: Install compute nodes requirements
+      ansible.builtin.package:
+        name: "{{ kubeinit_kid_compute_dependencies }}"
+        state: present
+
+    - name: Install root public from service node in compute nodes
       ansible.builtin.shell: |
         echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
       changed_when: false

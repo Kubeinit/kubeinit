@@ -113,6 +113,20 @@
 
 - name: Configure common requirements in guests
   block:
+    - name: Make NetworkManager stop updating resolv.conf
+      ansible.builtin.lineinfile:
+        dest: "/etc/NetworkManager/NetworkManager.conf"
+        insertafter: "{{ item.inserts }}"
+        state: present
+        line: "{{ item.lines }}"
+      with_items:
+        - {inserts: '^\[main\]', lines: 'dns=none'}
+
+    - name: Restart NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: restarted
+
     - name: Get resolv lines
       ansible.builtin.slurp:
         src: /etc/resolv.conf
@@ -130,6 +144,12 @@
         path: /etc/resolv.conf
         line: "nameserver {{ kubeinit_common_dns_public }}"
       when: (count_resolv_lines.content | b64decode).splitlines() | length == 0
+
+    - name: Add the local DNS server as a local resolver
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver {{ kubeinit_bind_service_address }}"
+        insertafter: nameserver.*
 
     - name: "Disable IPv6"
       ansible.builtin.shell: |
