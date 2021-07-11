@@ -16,6 +16,11 @@
 
 - name: Configure the master nodes
   block:
+    - name: Install controller requirements
+      ansible.builtin.package:
+        name: "{{ kubeinit_kid_controller_dependencies }}"
+        state: present
+
     - name: Install root public from service node in masters
       ansible.builtin.shell: |
         echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys

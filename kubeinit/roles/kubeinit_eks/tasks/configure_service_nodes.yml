@@ -24,12 +24,6 @@
         state: present
         use_backend: dnf
 
-    - name: Add the local DNS server as a local resolver
-      ansible.builtin.lineinfile:
-        path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_bind_service_address }}"
-        insertbefore: nameserver.*
-
     #
     # Kubernetes config
     #
@@ -113,7 +107,7 @@
       with_items: "{{ kubeinit_registry_images }}"
       register: mirror_registry
       changed_when: "mirror_registry.rc == 0"
-      when: kubeinit_registry_enabled|bool
+      when: "'registry' in hostvars[groups['service_nodes'][0]].services"
 
     - name: Make sure the PK has the correct permissions
       ansible.builtin.shell: |

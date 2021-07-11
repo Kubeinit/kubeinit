@@ -27,19 +27,6 @@
         state: present
         use_backend: dnf
 
-    - name: Add the local DNS server as a local resolver
-      ansible.builtin.lineinfile:
-        path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_bind_service_address }}"
-        insertbefore: nameserver.*
-
-    - name: Resize root partition
-      ansible.builtin.shell: |
-        echo 'Reclaim space for root partition'
-        growpart /dev/vda 1
-        xfs_growfs /dev/vda1
-      changed_when: false
-
     - name: Enable kernel modules and IP forward
       ansible.builtin.shell: |
         modprobe br_netfilter
@@ -51,10 +38,6 @@
         echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
         sysctl -p
       changed_when: false
-
-    - name: Disable SELinux
-      ansible.posix.selinux:
-        state: disabled
 
     #
     # Configuring repositories
@@ -243,7 +226,7 @@
         value: ['{{ kubeinit_registry_uri }}']
         mode: '0600'
         backup: yes
-      when: kubeinit_registry_enabled | bool
+      when: "'registry' in hostvars[groups['service_nodes'][0]].services"
 
     - name: Enable/start/status cri-o
       ansible.builtin.shell: |

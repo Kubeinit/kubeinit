@@ -21,12 +21,6 @@
 - name: Configure common requirements in guests
   block:
 
-    - name: Add the local DNS server as a local resolver
-      ansible.builtin.lineinfile:
-        path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_bind_service_address }}"
-        insertbefore: nameserver.*
-
     - name: Install common requirements
       ansible.builtin.package:
         name: "{{ kubeinit_kid_common_dependencies }}"
@@ -38,12 +32,5 @@
         enabled: yes
         state: started
         scope: user
-
-    - name: Resize root partition
-      ansible.builtin.shell: |
-        echo 'Reclaim space for root partition'
-        growpart /dev/vda 1
-        resize2fs /dev/vda1
-      changed_when: false
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

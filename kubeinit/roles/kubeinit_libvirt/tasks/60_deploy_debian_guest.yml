@@ -120,23 +120,47 @@
 
 - name: Configure common requirements in guests
   block:
+    - name: Make sure base file exists
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/resolvconf/resolv.conf.d/base
+        force: no
+
     - name: Get resolv lines
       ansible.builtin.slurp:
-        src: /etc/resolv.conf
+        src: /etc/resolvconf/resolv.conf.d/base
       register: count_resolv_lines
 
     - name: Add the local DNS server as a local resolver when not empty
       ansible.builtin.lineinfile:
-        path: /etc/resolv.conf
+        path: /etc/resolvconf/resolv.conf.d/base
         line: "nameserver {{ kubeinit_common_dns_public }}"
         insertbefore: nameserver.*
       when: (count_resolv_lines.content | b64decode).splitlines() | length > 0
 
     - name: Add the local DNS server as a local resolver when empty
       ansible.builtin.lineinfile:
-        path: /etc/resolv.conf
+        path: /etc/resolvconf/resolv.conf.d/base
         line: "nameserver {{ kubeinit_common_dns_public }}"
       when: (count_resolv_lines.content | b64decode).splitlines() | length == 0
+
+    - name: Add the local DNS server as a local resolver
+      ansible.builtin.lineinfile:
+        path: /etc/resolvconf/resolv.conf.d/base
+        line: "nameserver {{ kubeinit_bind_service_address }}"
+        insertafter: nameserver.*
+
+    - name: Restart the resolvconf service
+      ansible.builtin.service:
+        name: "resolvconf"
+        state: restarted
+        enabled: yes
+
+    - name: Restart the systemd-resolved service
+      ansible.builtin.service:
+        name: "systemd-resolved"
+        state: restarted
+        enabled: yes
 
     - name: "Disable IPv6"
       ansible.builtin.shell: |
