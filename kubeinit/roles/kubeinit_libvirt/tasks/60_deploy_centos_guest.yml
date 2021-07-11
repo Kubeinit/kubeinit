@@ -135,20 +135,20 @@
     - name: Add the local DNS server as a local resolver when not empty
       ansible.builtin.lineinfile:
         path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_common_dns_public }}"
+        line: "nameserver {{ kubeinit_bind_service_address }}"
         insertbefore: nameserver.*
       when: (count_resolv_lines.content | b64decode).splitlines() | length > 0
 
     - name: Add the local DNS server as a local resolver when empty
       ansible.builtin.lineinfile:
         path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_common_dns_public }}"
+        line: "nameserver {{ kubeinit_bind_service_address }}"
       when: (count_resolv_lines.content | b64decode).splitlines() | length == 0
 
     - name: Add the local DNS server as a local resolver
       ansible.builtin.lineinfile:
         path: /etc/resolv.conf
-        line: "nameserver {{ kubeinit_bind_service_address }}"
+        line: "nameserver {{ kubeinit_common_dns_public }}"
         insertafter: nameserver.*
 
     - name: "Disable IPv6"
