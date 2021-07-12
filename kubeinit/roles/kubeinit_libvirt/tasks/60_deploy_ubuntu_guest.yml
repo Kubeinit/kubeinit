@@ -120,35 +120,83 @@
 
 - name: Configure common requirements in guests
   block:
+
+    - name: Add the Podman debian package repository to Apt
+      ansible.builtin.shell: |
+        set -eo pipefail
+        version_id=$(sed -n -e 's/^VERSION_ID="\(.*\)"/\1/p' /etc/os-release)
+        echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+        wget -nv https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/xUbuntu_${version_id}/Release.key -O- | apt-key add -
+        apt-get update
+      args:
+        executable: /bin/bash
+      register: add_podman_repo
+      changed_when: "add_podman_repo.rc == 0"
+
+    - name: Update packages list
+      ansible.builtin.shell: |
+        set -o pipefail
+        apt-get update
+      args:
+        executable: /bin/bash
+      register: update_packages
+      changed_when: "update_packages.rc == 0"
+
+    - name: Install resolvconf
+      ansible.builtin.package:
+        name: resolvconf
+        state: present
+
+    - name: Make sure base file exists
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/resolvconf/resolv.conf.d/tail
+        force: no
+
     - name: Get resolv lines
       ansible.builtin.slurp:
-        src: /run/systemd/resolve/stub-resolv.conf
+        src: /etc/resolvconf/resolv.conf.d/tail
       register: count_resolv_lines
 
     - name: Add the local DNS server as a local resolver when not empty
       ansible.builtin.lineinfile:
-        path: /run/systemd/resolve/stub-resolv.conf
-        line: "nameserver {{ kubeinit_common_dns_public }}"
+        path: /etc/resolvconf/resolv.conf.d/tail
+        line: "nameserver {{ kubeinit_bind_service_address }}"
         insertbefore: nameserver.*
       when: (count_resolv_lines.content | b64decode).splitlines() | length > 0
 
     - name: Add the local DNS server as a local resolver when empty
       ansible.builtin.lineinfile:
-        path: /run/systemd/resolve/stub-resolv.conf
-        line: "nameserver {{ kubeinit_common_dns_public }}"
+        path: /etc/resolvconf/resolv.conf.d/tail
+        line: "nameserver {{ kubeinit_bind_service_address }}"
       when: (count_resolv_lines.content | b64decode).splitlines() | length == 0
 
     - name: Add the local DNS server as a local resolver
       ansible.builtin.lineinfile:
-        path: /run/systemd/resolve/stub-resolv.conf
-        line: "nameserver {{ kubeinit_bind_service_address }}"
+        path: /etc/resolvconf/resolv.conf.d/tail
+        line: "nameserver {{ kubeinit_common_dns_public }}"
         insertafter: nameserver.*
+
+    - name: Restart the resolvconf service
+      ansible.builtin.service:
+        name: "resolvconf"
+        state: restarted
+        enabled: yes
 
     - name: Restart the systemd-resolved service
       ansible.builtin.service:
         name: "systemd-resolved"
         state: restarted
         enabled: yes
+
+    - name: Regenerate the resolv.conf
+      ansible.builtin.shell: |
+        set -o pipefail
+        resolvconf -u
+      args:
+        executable: /bin/bash
+      register: render_resolv
+      changed_when: "render_resolv.rc == 0"
 
     - name: "Disable IPv6"
       ansible.builtin.shell: |

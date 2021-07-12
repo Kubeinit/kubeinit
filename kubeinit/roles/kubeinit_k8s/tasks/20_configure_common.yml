@@ -40,70 +40,6 @@
       changed_when: false
 
     #
-    # cri-o repos
-    #
-
-    - name: Remove repo before adding it
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/crio.repo
-        state: absent
-
-    - name: Creating a repository file for cri-o
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/crio.repo
-        state: touch
-        mode: '0644'
-
-    - name: Adding repository details in the cri-o repo file.
-      ansible.builtin.blockinfile:
-        path: /etc/yum.repos.d/crio.repo
-        block: |
-          [devel_kubic_libcontainers_stable]
-          name=Stable Releases of Upstream github.com/containers packages ({{ kubeinit_k8s_os }})
-          type=rpm-md
-          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ kubeinit_k8s_os }}/
-          gpgcheck=1
-          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ kubeinit_k8s_os }}/repodata/repomd.xml.key
-          enabled=1
-
-          [devel_kubic_libcontainers_stable_cri-o_{{ kubeinit_k8s_version }}]
-          name=Last release available in {{ kubeinit_k8s_version }} branch ({{ kubeinit_k8s_os }})
-          type=rpm-md
-          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ kubeinit_k8s_version }}/{{ kubeinit_k8s_os }}/
-          gpgcheck=1
-          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ kubeinit_k8s_version }}/{{ kubeinit_k8s_os }}/repodata/repomd.xml.key
-          enabled=1
-
-    #
-    # k8s repos
-    #
-
-    - name: Remove repo before adding it
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/kubernetes.repo
-        state: absent
-
-    - name: Creating a repository file for Kubernetes
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/kubernetes.repo
-        state: touch
-        mode: '0644'
-
-    - name: Adding repository details in Kubernetes repo file.
-      ansible.builtin.blockinfile:
-        path: /etc/yum.repos.d/kubernetes.repo
-        block: |
-         [kubernetes]
-         name=Kubernetes
-         baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
-         enabled=1
-         gpgcheck=1
-         repo_gpgcheck=1
-         gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
-                https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-         # exclude=kubelet kubeadm kubectl
-
-    #
     # cri-o config
     #
 
@@ -234,9 +170,9 @@
           - yum-utils
           - device-mapper-persistent-data
           - lvm2
-          - kubelet-{{ kubeinit_k8s_version }}.*
-          - kubeadm-{{ kubeinit_k8s_version }}.*
-          - kubectl-{{ kubeinit_k8s_version }}.*
+          - kubelet-{{ kubeinit_inventory_k8s_version }}.*
+          - kubeadm-{{ kubeinit_inventory_k8s_version }}.*
+          - kubectl-{{ kubeinit_inventory_k8s_version }}.*
         state: present
 
     - name: Enable kubelet
