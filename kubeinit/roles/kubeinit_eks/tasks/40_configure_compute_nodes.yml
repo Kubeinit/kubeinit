@@ -61,16 +61,6 @@
       changed_when: "update_master_ca_trust_files.rc == 0"
       when: "'registry' in hostvars[groups['service_nodes'][0]].services"
 
-    - name: Modprobe ip forward
-      ansible.builtin.shell: |
-        modprobe br_netfilter
-        echo '1' > /proc/sys/net/ipv4/ip_forward
-        mkdir -p /proc/sys/net/bridge/
-        echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
-        sysctl -p
-      changed_when: false
-      when: groups['all_compute_nodes'] | length > 0
-
     - name: Joining worker nodes with kubernetes master
       ansible.builtin.shell: |
        kubeadm reset -f || true
