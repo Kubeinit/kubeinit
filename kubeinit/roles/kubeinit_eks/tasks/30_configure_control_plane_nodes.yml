@@ -134,7 +134,7 @@
         content: "{{ eks_master_kubeadm_init_master_join_key }}"
         dest: ~/eks_master_join_key
         mode: '0644'
-      when: kubeinit_controller_count > 1
+      when: (kubeinit_controller_count | int) > 1
 
     - name: Create kube directory
       ansible.builtin.file:
@@ -172,7 +172,7 @@
         content: "{{ eks_master_kubeadm_init_output }}"
         dest: ~/eks_token
         mode: '0644'
-      when: kubeinit_controller_count > 1
+      when: (kubeinit_controller_count | int) > 1
 
     - name: Install Network Add-on
       ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
@@ -189,20 +189,20 @@
        sed "s/$/{{ eks_master_kubeadm_init_master_join_key }}/g" eks_token > ~/eks_master_join_command.sh
        sh eks_master_join_command.sh
       changed_when: false
-      when: kubeinit_controller_count > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
+      when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
     - name: Create kube directory
       ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0777'
-      when: kubeinit_controller_count > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
+      when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
     - name: Copying required files
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
       changed_when: false
-      when: kubeinit_controller_count > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
+      when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
