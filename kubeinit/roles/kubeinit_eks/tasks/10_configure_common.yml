@@ -27,18 +27,6 @@
         state: present
         use_backend: dnf
 
-    - name: Enable kernel modules and IP forward
-      ansible.builtin.shell: |
-        modprobe br_netfilter
-        echo br_netfilter > /etc/modules-load.d/br_netfilter.conf
-        modprobe overlay
-        echo overlay > /etc/modules-load.d/overlay.conf
-        echo '1' > /proc/sys/net/ipv4/ip_forward
-        mkdir -p /proc/sys/net/bridge/
-        echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
-        sysctl -p
-      changed_when: false
-
     #
     # cri-o config
     #
