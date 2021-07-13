@@ -121,6 +121,9 @@
     export KUBECONFIG=~/.kube/config
     kubectl apply -f ~/nfs_rbac.yaml --request-timeout=1800s
   register: add_provisioning_role
+  retries: 5
+  delay: 20
+  until: add_provisioning_role.rc == 0
   changed_when: "add_provisioning_role.rc == 0"
   args:
     executable: /bin/bash
@@ -191,94 +194,94 @@
   args:
     executable: /bin/bash
 
-- name: Add security context constraint for nfs provisioner
-  ansible.builtin.shell: |
-    cat << EOF > ~/nfs_scc.yaml
-    apiVersion: security.openshift.io/v1
-    kind: SecurityContextConstraints
-    metadata:
-      name: nfs-provisioner
-    allowHostDirVolumePlugin: true
-    allowHostIPC: false
-    allowHostNetwork: false
-    allowHostPID: false
-    allowHostPorts: false
-    allowPrivilegedContainer: false
-    allowedCapabilities:
-    - DAC_READ_SEARCH
-    - SYS_RESOURCE
-    defaultAddCapabilities: null
-    fsGroup:
-      type: MustRunAs
-    priority: null
-    readOnlyRootFilesystem: false
-    requiredDropCapabilities:
-    - KILL
-    - MKNOD
-    - SYS_CHROOT
-    runAsUser:
-      type: RunAsAny
-    seLinuxContext:
-      type: MustRunAs
-    supplementalGroups:
-      type: RunAsAny
-    volumes:
-    - configMap
-    - downwardAPI
-    - emptyDir
-    - hostPath
-    - nfs
-    - persistentVolumeClaim
-    - secret
-    EOF
-    export KUBECONFIG=~/.kube/config
-    kubectl apply -f ~/nfs_scc.yaml --request-timeout=1800s
-  register: add_sec_context
-  changed_when: "add_sec_context.rc == 0"
-  when: kubeinit_inventory_cluster_distro == 'okd'
-  args:
-    executable: /bin/bash
+- name: Tasks only needed for Openshift
+  block:
 
-- name: Apply nfs security policy to nfs user
-  ansible.builtin.shell: |
-    export KUBECONFIG=~/.kube/config
-    oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
-  register: apply_nfs_sec
-  changed_when: "apply_nfs_sec.rc == 0"
-  when: kubeinit_inventory_cluster_distro == 'okd'
-  args:
-    executable: /bin/bash
+    - name: Add security context constraint for nfs provisioner
+      ansible.builtin.shell: |
+        cat << EOF > ~/nfs_scc.yaml
+        apiVersion: security.openshift.io/v1
+        kind: SecurityContextConstraints
+        metadata:
+          name: nfs-provisioner
+        allowHostDirVolumePlugin: true
+        allowHostIPC: false
+        allowHostNetwork: false
+        allowHostPID: false
+        allowHostPorts: false
+        allowPrivilegedContainer: false
+        allowedCapabilities:
+        - DAC_READ_SEARCH
+        - SYS_RESOURCE
+        defaultAddCapabilities: null
+        fsGroup:
+          type: MustRunAs
+        priority: null
+        readOnlyRootFilesystem: false
+        requiredDropCapabilities:
+        - KILL
+        - MKNOD
+        - SYS_CHROOT
+        runAsUser:
+          type: RunAsAny
+        seLinuxContext:
+          type: MustRunAs
+        supplementalGroups:
+          type: RunAsAny
+        volumes:
+        - configMap
+        - downwardAPI
+        - emptyDir
+        - hostPath
+        - nfs
+        - persistentVolumeClaim
+        - secret
+        EOF
+        export KUBECONFIG=~/.kube/config
+        kubectl apply -f ~/nfs_scc.yaml --request-timeout=1800s
+      register: add_sec_context
+      changed_when: "add_sec_context.rc == 0"
+      args:
+        executable: /bin/bash
 
-- name: Wait for the image registry operator to start its components
-  ansible.builtin.shell: |
-    export KUBECONFIG=~/.kube/config
-    oc get configs.imageregistry.operator.openshift.io cluster
-  register: iregistry_result
-  retries: 60
-  delay: 20
-  until: iregistry_result.rc == 0
-  changed_when: "iregistry_result.rc == 0"
-  when: kubeinit_inventory_cluster_distro == 'okd'
-  args:
-    executable: /bin/bash
+    - name: Apply nfs security policy to nfs user
+      ansible.builtin.shell: |
+        export KUBECONFIG=~/.kube/config
+        oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
+      register: apply_nfs_sec
+      changed_when: "apply_nfs_sec.rc == 0"
+      args:
+        executable: /bin/bash
 
-- name: Patch imageregistry operator to claim storage
-  ansible.builtin.shell: |
-    # We patch the imageregistry operator to create a claim that managed-nfs-storage will satisfy
-    export KUBECONFIG=~/.kube/config
-    oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"storage": {"pvc": {"claim": "" }}}}'
-  register: patch_imageregistry_operator
-  changed_when: "patch_imageregistry_operator.rc == 0"
-  when: kubeinit_inventory_cluster_distro == 'okd'
-  args:
-    executable: /bin/bash
+    - name: Wait for the image registry operator to start its components
+      ansible.builtin.shell: |
+        export KUBECONFIG=~/.kube/config
+        oc get configs.imageregistry.operator.openshift.io cluster
+      register: iregistry_result
+      retries: 60
+      delay: 20
+      until: iregistry_result.rc == 0
+      changed_when: "iregistry_result.rc == 0"
+      args:
+        executable: /bin/bash
 
-- name: Patch imageregistry operator to move to Managed state
-  ansible.builtin.shell: |
-    export KUBECONFIG=~/.kube/config
-    oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
-  register: patch_imageregistry_operator
-  changed_when: "patch_imageregistry_operator.rc == 0"
+    - name: Patch imageregistry operator to claim storage
+      ansible.builtin.shell: |
+        # We patch the imageregistry operator to create a claim that managed-nfs-storage will satisfy
+        export KUBECONFIG=~/.kube/config
+        oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"storage": {"pvc": {"claim": "" }}}}'
+      register: patch_imageregistry_operator
+      changed_when: "patch_imageregistry_operator.rc == 0"
+      args:
+        executable: /bin/bash
+
+    - name: Patch imageregistry operator to move to Managed state
+      ansible.builtin.shell: |
+        export KUBECONFIG=~/.kube/config
+        oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
+      register: patch_imageregistry_operator
+      changed_when: "patch_imageregistry_operator.rc == 0"
+      args:
+        executable: /bin/bash
+
   when: kubeinit_inventory_cluster_distro == 'okd'
-  args:
-    executable: /bin/bash

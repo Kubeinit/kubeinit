@@ -16,6 +16,7 @@
 
 - name: Configure the services post deployment tasks
   block:
+
     #
     # Configure NFS
     #
@@ -23,11 +24,12 @@
       ansible.builtin.include_role:
         name: ../../roles/kubeinit_nfs
         public: true
-      when: "'nfs' in hostvars[groups['service_nodes'][0]].services"
+      when: "'nfs' in kubeinit_cluster_hostvars.services"
 
     - name: Touch a file
       ansible.builtin.shell: |
         touch ~/.kube/config
       register: touch_kubeconfig
       changed_when: "touch_kubeconfig.rc == 0"
+
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

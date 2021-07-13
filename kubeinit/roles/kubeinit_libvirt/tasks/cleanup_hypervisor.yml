@@ -16,25 +16,25 @@
 
 
 #
-# Prepare the hypervisor
+# Cleanup all libvirt resources left over from previous cluster deployment
 #
 
-- name: Gather network and hosts facts from hypervisor
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_prepare"
-    tasks_from: "gather_host_facts.yml"
-    public: true
-  vars:
-    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
-
-- name: Delegate to kubeinit_deployment_node_name (inventory_hostname)
+- name: Delegate to kubeinit_deployment_node_name
   block:
 
-    - name: Provision the libvirt services on the hypervisor
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_libvirt"
-        public: true
+    - name: Clean the OVN network
+      ansible.builtin.include_tasks: 10_ovn_cleanup.yml
 
-  vars:
-    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
+    - name: Clean up the libvirt networks and hosts before validations
+      ansible.builtin.include_tasks: 10_cleanup.yml
+
+    - name: Create new directories for config files per node
+      ansible.builtin.file:
+        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}"
+        state: directory
+        mode: 0775
+        recurse: yes
+      with_items: "{{ groups['all_guest_vms'] }}"
+      when: hostvars[item].target in kubeinit_deployment_node_name
+
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

@@ -15,56 +15,61 @@
 # under the License.
 
 
-#
-# Configure bind
-#
-- name: Configure Bind
-  ansible.builtin.include_role:
-    name: ../../roles/kubeinit_bind
-    public: true
-  when: "'bind' in hostvars[groups['service_nodes'][0]].services"
+- name: Delegate to service node VM
+  block:
 
-#
-# Configure Dnsmasq
-#
-- name: Configure Dnsmasq
-  ansible.builtin.include_role:
-    name: ../../roles/kubeinit_dnsmasq
-    public: true
-  when: "'dnsmasq' in hostvars[groups['service_nodes'][0]].services"
+    #
+    # Configure bind
+    #
+    - name: Configure Bind
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_bind
+        public: true
+      when: "'bind' in hostvars[kubeinit_deployment_node_name].services"
 
-#
-# Configure HAproxy
-#
-- name: Configure HAProxy
-  ansible.builtin.include_role:
-    name: ../../roles/kubeinit_haproxy
-    public: true
-  when: "'haproxy' in hostvars[groups['service_nodes'][0]].services"
+    #
+    # Configure Dnsmasq
+    #
+    - name: Configure Dnsmasq
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_dnsmasq
+        public: true
+      when: "'dnsmasq' in hostvars[kubeinit_deployment_node_name].services"
 
-#
-# Configure Nexus
-#
-- name: Configure Nexus
-  ansible.builtin.include_role:
-    name: ../../roles/kubeinit_nexus
-    public: true
-  when: "'nexus' in hostvars[groups['service_nodes'][0]].services"
+    #
+    # Configure HAproxy
+    #
+    - name: Configure HAProxy
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_haproxy
+        public: true
+      when: "'haproxy' in hostvars[kubeinit_deployment_node_name].services"
 
-#
-# Configure httpd
-#
-- name: Configure Apache
-  ansible.builtin.include_role:
-    name: ../../roles/kubeinit_apache
-    public: true
-  when: "'apache' in hostvars[groups['service_nodes'][0]].services"
+    #
+    # Configure Nexus
+    #
+    - name: Configure Nexus
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_nexus
+        public: true
+      when: "'nexus' in hostvars[kubeinit_deployment_node_name].services"
 
-#
-# Configure container registry
-#
-- name: Configure a local container image registry
-  ansible.builtin.include_role:
-    name: ../../roles/kubeinit_registry
-    public: true
-  when: "'registry' in hostvars[groups['service_nodes'][0]].services"
+    #
+    # Configure httpd
+    #
+    - name: Configure Apache
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_apache
+        public: true
+      when: "'apache' in hostvars[kubeinit_deployment_node_name].services"
+
+    #
+    # Configure container registry
+    #
+    - name: Configure a local container image registry
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_registry
+        public: true
+      when: "'registry' in hostvars[kubeinit_deployment_node_name].services"
+
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

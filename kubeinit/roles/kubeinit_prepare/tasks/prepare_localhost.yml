@@ -20,7 +20,7 @@
 #
 - name: Set localhost IPv4 address fact
   ansible.builtin.set_fact:
-    localhost_ipv4_address: "{{ hostvars['kubeinit-localhost']['ansible_default_ipv4']['address'] }}"
+    localhost_ipv4_address: "{{ hostvars['kubeinit-localhost'].ansible_default_ipv4_address }}"
 
 #
 # Prepare localhost environment
@@ -68,7 +68,7 @@
   ansible.builtin.add_host:
     name: "{{ hostvars[item].ansible_host }}"
     ansible_ssh_common_args: >-
-      {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ hostvars[kubeinit_bastion_host].ansible_host }}"
+      {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ kubeinit_bastion_host_name }}"
   with_items: "{{ groups['all_nodes'] }}"
   when: kubeinit_bastion_host_address not in localhost_ipv4_address
 

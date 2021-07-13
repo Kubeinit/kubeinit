@@ -7,7 +7,7 @@ compute:
 controlPlane:
   hyperthreading: Enabled
   name: master
-  replicas: {{ groups['all_control_plane_nodes'] | count }}
+  replicas: {{ kubeinit_controller_count }}
 metadata:
   name: {{ kubeinit_inventory_cluster_name }}
 networking:
@@ -20,7 +20,7 @@ networking:
 platform:
   none: {}
 fips: false
-{% if 'registry' in hostvars[groups['service_nodes'][0]].services %}
+{% if 'registry' in kubeinit_cluster_hostvars.services %}
 pullSecret: '  {{ kubeinit_registry_pullsecret }}'
 {% else %}
 pullSecret: '  {{ kubeinit_okd_registry_pullsecret }}'
@@ -28,7 +28,7 @@ pullSecret: '  {{ kubeinit_okd_registry_pullsecret }}'
 sshKey: |
   {{ kubeinit_provision_vms_public_key }}
   {{ kubeinit_provision_service_public_key }}
-{% if 'registry' in hostvars[groups['service_nodes'][0]].services %}
+{% if 'registry' in kubeinit_cluster_hostvars.services %}
 additionalTrustBundle: |
   {{ trustbundle | regex_replace('\n', '\n  ') }}
 imageContentSources:

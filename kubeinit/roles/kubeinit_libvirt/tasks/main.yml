@@ -18,212 +18,270 @@
 ##
 ## Hypervisor installing dependencies and rebooting.
 ##
-- name: Set up the Hypervisors
-  block:
 
-    - name: Check if Intel virtualization is supported
-      ansible.builtin.shell: |
-        set -e
-        grep vmx /proc/cpuinfo
-      ignore_errors: yes
-      register: intel_proccesor
-      changed_when: "intel_proccesor.rc == 0"
+- name: Fix libvirt qemu bug
+  ansible.builtin.shell: |
+    set -eo pipefail
+    mkdir -p /etc/qemu/firmware
+    touch /etc/qemu/firmware/50-edk2-ovmf-cc.json
+  args:
+    executable: /bin/bash
+  register: libvirt_bugfix
+  changed_when: "libvirt_bugfix.rc == 0"
 
-    - name: Check if AMD virtualization is supported
-      ansible.builtin.shell: |
-        set -e
-        grep svm /proc/cpuinfo
-      ignore_errors: yes
-      register: amd_proccesor
-      changed_when: "amd_proccesor.rc == 0"
+- name: Show ansible_distribution
+  ansible.builtin.debug:
+    var: hostvars[kubeinit_deployment_node_name].ansible_distribution
 
-    - name: Fail in case no Intel or AMD virtualization support is not detected.
-      ansible.builtin.fail:
-        msg: "The system doesn't seem to have Intel nor AMD virtualization support."
-      when: intel_proccesor.rc != 0 and amd_proccesor.rc != 0
+- name: Show distribution_family
+  ansible.builtin.debug:
+    var: hostvars[kubeinit_deployment_node_name].distribution_family
 
-    - name: Set fact for Intel virtualization
-      ansible.builtin.set_fact:
-        nested_virtualization_module_name: "kvm_intel"
-      when: intel_proccesor.rc == 0
+- name: Fails if CentOS 7 hypervisor
+  ansible.builtin.fail:
+    msg:
+      - "CentOS 7 is not supported as CentOS 8 guests are used."
+      - "Refer to: https://access.redhat.com/solutions/4073061"
+      - "This issue is caused by the forward compatibility of xfs"
+      - "file system between CentOS 7 and CentOS 8."
+      - "Xfs file system in CentOS 8 uses reflink and sparse files,"
+      - "but CentOS 7 kernel does not understand them and refuses to mount it."
+      - "This means that CentOS 8 guests won't work with CentOS 8 hosts."
+  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' and hostvars[kubeinit_deployment_node_name].ansible_distribution_major_version == "7")
 
-    - name: Set fact for AMD virtualization
-      ansible.builtin.set_fact:
-        nested_virtualization_module_name: "kvm_amd"
-      when: amd_proccesor.rc == 0
-
-    - name: Set fact for nested virtualization test path
-      ansible.builtin.set_fact:
-        nested_virtualization_test_path: "/sys/module/{{ nested_virtualization_module_name }}/parameters/nested"
-
-    - name: "Ensure {{ nested_virtualization_module_name }} module is available and loaded"
-      community.general.modprobe:
-        name: "{{ nested_virtualization_module_name }}"
-        state: present
-
-    - name: Test status of nested virtualization
-      ansible.builtin.shell: |
-        set -e
-        cat {{ nested_virtualization_test_path }}
-      register: actual_status
-      changed_when: "actual_status.rc == 0"
-
-    - name: "Persist configuration in /etc/modprobe.d/kvm.conf"
-      ansible.builtin.lineinfile:
-        path: "/etc/modprobe.d/kvm.conf"
-        regexp: "^options {{ nested_virtualization_module_name }}.*$"
-        line: "options {{ nested_virtualization_module_name }} nested=1"
-        create: yes
-        mode: '0644'
-
-    - name: "Load {{ nested_virtualization_module_name }} module"
-      community.general.modprobe:
-        name: "{{ nested_virtualization_module_name }}"
-        state: present
-
-    - name: Show ansible_distribution
-      ansible.builtin.debug:
-        var: hostvars[kubeinit_deployment_node_name].ansible_distribution
-
-    - name: Disable IPv6
-      ansible.builtin.shell: |
-        echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
-        echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
-        sysctl --load /etc/sysctl.d/70-ipv6.conf
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
-      changed_when: false
-
-    # - name: Disable netfilter
-    #   ansible.builtin.shell: |
-    #     modprobe br_netfilter
-    #     echo "br_netfilter" > /etc/modules-load.d/br_netfilter.conf
-    #     sudo tee -a /etc/sysctl.conf <<EOF
-    #     net.bridge.bridge-nf-call-ip6tables = 0
-    #     net.bridge.bridge-nf-call-iptables = 0
-    #     net.bridge.bridge-nf-call-arptables = 0
-    #     EOF
-    #     sysctl -p /etc/sysctl.conf
-    #   changed_when: false
-
-    - name: Disable SELinux
-      ansible.posix.selinux:
-        state: disabled
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
-
-    - name: Enable and start libvirtd
-      ansible.builtin.service:
-        name: libvirtd
-        enabled: yes
-        state: started
-
-    - name: Set qemu user depending on the operative system
-      ansible.builtin.set_fact:
-        kubeinit_qemu_user: "{{ 'qemu' if (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
-
-    - name: Download Ubuntu cloud image
-      ansible.builtin.get_url:
-        validate_certs: False
-        use_proxy: True
-        url: "{{ kubeinit_libvirt_source_images.ubuntu.uri }}{{ kubeinit_libvirt_source_images.ubuntu.image }}"
-        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.ubuntu.image }}"
-        force: no
-        mode: '0666'
-        owner: "{{ kubeinit_qemu_user }}"
-      when: "'ubuntu' in hostvars[groups['service_nodes'][0]].os"
-
-    - name: Download Debian cloud image
-      ansible.builtin.get_url:
-        validate_certs: False
-        use_proxy: True
-        url: "{{ kubeinit_libvirt_source_images.debian.uri }}{{ kubeinit_libvirt_source_images.debian.image }}"
-        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.debian.image }}"
-        force: no
-        mode: '0666'
-        owner: "{{ kubeinit_qemu_user }}"
-      when: "'debian' in hostvars[groups['service_nodes'][0]].os"
-
-    - name: Download CentOS cloud image
-      ansible.builtin.get_url:
-        validate_certs: False
-        use_proxy: True
-        url: "{{ kubeinit_libvirt_source_images.centos.uri }}{{ kubeinit_libvirt_source_images.centos.image }}"
-        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}"
-        force: no
-        mode: '0666'
-        owner: "{{ kubeinit_qemu_user }}"
-      when: "'centos' in hostvars[groups['service_nodes'][0]].os"
-
-    - name: "Make sure we have a '{{ kubeinit_libvirt_cloud_user }}' group"
-      ansible.builtin.group:
-        name: "{{ kubeinit_libvirt_cloud_user }}"
-        state: present
-
-    - name: "Allow '{{ kubeinit_libvirt_cloud_user }}' group to have passwordless sudo"
-      ansible.builtin.lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: "^%{{ kubeinit_libvirt_cloud_user }}"
-        line: "%{{ kubeinit_libvirt_cloud_user }} ALL=(ALL) NOPASSWD: ALL"
-        validate: 'visudo -cf %s'
-        mode: '0644'
-
-    - name: "Add sudoers users to {{ kubeinit_libvirt_cloud_user }} group"
-      ansible.builtin.user:
-        name: "{{ kubeinit_libvirt_cloud_user }}"
-        groups: "{{ kubeinit_libvirt_cloud_user }}"
-        append: yes
-        state: present
-        createhome: yes
-
-    - name: Add Users to libvirt
-      ansible.builtin.user:
-        name: "{{ item }}"
-        groups: "kvm,libvirt"
-        append: yes
-      with_items:
-        - "{{ kubeinit_libvirt_cloud_user }}"
-        - root
-
-    - name: Create ssh folder
-      ansible.builtin.file:
-        path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/"
-        state: directory
-        mode: '0600'
-
-    - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
-      community.crypto.openssh_keypair:
-        path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa"
-        owner: "{{ kubeinit_libvirt_cloud_user }}"
-        group: "{{ kubeinit_libvirt_cloud_user }}"
-        regenerate: 'never'
-
-    - name: Fix owner of the generated pub key
-      ansible.builtin.file:
-        path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa.pub"
-        owner: "{{ kubeinit_libvirt_cloud_user }}"
-        group: "{{ kubeinit_libvirt_cloud_user }}"
-        mode: '0600'
-
-    - name: Insert the default libvirt uri in user's home
-      ansible.builtin.lineinfile:
-        path: "/home/{{ kubeinit_libvirt_cloud_user }}/.bashrc"
-        line: export LIBVIRT_DEFAULT_URI=qemu:///system
-        mode: '0644'
-
-    - name: Clean up the hosts before validations
-      ansible.builtin.include_tasks: 10_cleanup.yml
-
-    - name: Create directories for config files per node
-      ansible.builtin.file:
-        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}"
-        state: directory
-        mode: 0775
-        recurse: yes
-      with_items: "{{ groups['all_nodes'] }}"
-
-    - name: Include the linux bridge tasks
-      ansible.builtin.include_tasks: 30_linux_bridge_setup.yml
-
+- name: Update the /etc/hosts file on each hypervisor with ansible aliases
+  ansible.builtin.lineinfile:
+    path: "/etc/hosts"
+    regexp: ".*    {{ hostvars[host]['inventory_hostname'] }}    {{ hostvars[host]['ansible_hostname'] }}    {{ hostvars[host]['ansible_host'] }}"
+    line: "{{ hostvars[host]['ansible_default_ipv4']['address'] }}    {{ hostvars[host]['inventory_hostname'] }}    {{ hostvars[host]['ansible_hostname'] }}    {{ hostvars[host]['ansible_host'] }}"
+    state: present
+    backup: yes
+  register: etchostsupdate
   vars:
-    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+    host: "{{ kubeinit_deployment_node_name }}"
+
+- name: Install CentOS based requirements
+  ansible.builtin.package:
+    name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
+    state: present
+  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+  register: installed_packages_centos
+
+- name: Disable Services (firewalld)
+  ansible.builtin.service:
+    name: "firewalld"
+    state: stopped
+    enabled: no
+  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+
+- name: Install Debian based requirements
+  ansible.builtin.package:
+    name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
+    state: present
+  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+  register: installed_packages_debian
+
+- name: Upgrade all packages
+  ansible.builtin.package:
+    name: '*'
+    state: latest
+  register: upgraded_packages
+
+- name: Restart if required
+  ansible.builtin.set_fact:
+    kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
+
+- name: Reboot host and wait for it to restart
+  ansible.builtin.reboot:
+    msg: "Reboot initiated by a package upgrade"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: whoami
+  when: kubeinit_libvirt_restart | bool
+
+- name: Check if Intel virtualization is supported
+  ansible.builtin.shell: |
+    set -e
+    grep vmx /proc/cpuinfo
+  ignore_errors: yes
+  register: intel_processor
+  changed_when: "intel_processor.rc == 0"
+
+- name: Check if AMD virtualization is supported
+  ansible.builtin.shell: |
+    set -e
+    grep svm /proc/cpuinfo
+  ignore_errors: yes
+  register: amd_processor
+  changed_when: "amd_processor.rc == 0"
+
+- name: Fail in case no Intel or AMD virtualization support is not detected.
+  ansible.builtin.fail:
+    msg: "The system doesn't seem to have Intel nor AMD virtualization support."
+  when: intel_processor.rc != 0 and amd_processor.rc != 0
+
+- name: Set fact for Intel virtualization
+  ansible.builtin.set_fact:
+    nested_virtualization_module_name: "kvm_intel"
+  when: intel_processor.rc == 0
+
+- name: Set fact for AMD virtualization
+  ansible.builtin.set_fact:
+    nested_virtualization_module_name: "kvm_amd"
+  when: amd_processor.rc == 0
+
+- name: Set fact for nested virtualization test path
+  ansible.builtin.set_fact:
+    nested_virtualization_test_path: "/sys/module/{{ nested_virtualization_module_name }}/parameters/nested"
+
+- name: "Ensure {{ nested_virtualization_module_name }} module is available and loaded"
+  community.general.modprobe:
+    name: "{{ nested_virtualization_module_name }}"
+    state: present
+
+- name: Test status of nested virtualization
+  ansible.builtin.shell: |
+    set -e
+    cat {{ nested_virtualization_test_path }}
+  register: actual_status
+  changed_when: "actual_status.rc == 0"
+
+- name: "Persist configuration in /etc/modprobe.d/kvm.conf"
+  ansible.builtin.lineinfile:
+    path: "/etc/modprobe.d/kvm.conf"
+    regexp: "^options {{ nested_virtualization_module_name }}.*$"
+    line: "options {{ nested_virtualization_module_name }} nested=1"
+    create: yes
+    mode: '0644'
+
+- name: "Load {{ nested_virtualization_module_name }} module"
+  community.general.modprobe:
+    name: "{{ nested_virtualization_module_name }}"
+    state: present
+
+- name: Disable IPv6
+  ansible.builtin.shell: |
+    echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
+    echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
+    sysctl --load /etc/sysctl.d/70-ipv6.conf
+  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+  changed_when: false
+
+# - name: Disable netfilter
+#   ansible.builtin.shell: |
+#     modprobe br_netfilter
+#     echo "br_netfilter" > /etc/modules-load.d/br_netfilter.conf
+#     sudo tee -a /etc/sysctl.conf <<EOF
+#     net.bridge.bridge-nf-call-ip6tables = 0
+#     net.bridge.bridge-nf-call-iptables = 0
+#     net.bridge.bridge-nf-call-arptables = 0
+#     EOF
+#     sysctl -p /etc/sysctl.conf
+#   changed_when: false
+
+- name: Disable SELinux
+  ansible.posix.selinux:
+    state: disabled
+  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+
+- name: Enable and start libvirtd
+  ansible.builtin.service:
+    name: libvirtd
+    enabled: yes
+    state: started
+
+- name: Set qemu user depending on the operative system
+  ansible.builtin.set_fact:
+    kubeinit_qemu_user: "{{ 'qemu' if (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
+
+- name: Download Ubuntu cloud image
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_libvirt_source_images.ubuntu.uri }}{{ kubeinit_libvirt_source_images.ubuntu.image }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.ubuntu.image }}"
+    force: no
+    mode: '0666'
+    owner: "{{ kubeinit_qemu_user }}"
+  when: "'ubuntu' in hostvars[groups['service_nodes'][0]].os"
+
+- name: Download Debian cloud image
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_libvirt_source_images.debian.uri }}{{ kubeinit_libvirt_source_images.debian.image }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.debian.image }}"
+    force: no
+    mode: '0666'
+    owner: "{{ kubeinit_qemu_user }}"
+  when: "'debian' in hostvars[groups['service_nodes'][0]].os"
+
+- name: Download CentOS cloud image
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_libvirt_source_images.centos.uri }}{{ kubeinit_libvirt_source_images.centos.image }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}"
+    force: no
+    mode: '0666'
+    owner: "{{ kubeinit_qemu_user }}"
+  when: "'centos' in hostvars[groups['service_nodes'][0]].os"
+
+- name: "Make sure we have a '{{ kubeinit_libvirt_cloud_user }}' group"
+  ansible.builtin.group:
+    name: "{{ kubeinit_libvirt_cloud_user }}"
+    state: present
+
+- name: "Allow '{{ kubeinit_libvirt_cloud_user }}' group to have passwordless sudo"
+  ansible.builtin.lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: "^%{{ kubeinit_libvirt_cloud_user }}"
+    line: "%{{ kubeinit_libvirt_cloud_user }} ALL=(ALL) NOPASSWD: ALL"
+    validate: 'visudo -cf %s'
+    mode: '0644'
+
+- name: "Add sudoers users to {{ kubeinit_libvirt_cloud_user }} group"
+  ansible.builtin.user:
+    name: "{{ kubeinit_libvirt_cloud_user }}"
+    groups: "{{ kubeinit_libvirt_cloud_user }}"
+    append: yes
+    state: present
+    createhome: yes
+
+- name: Add Users to libvirt
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: "kvm,libvirt"
+    append: yes
+  with_items:
+    - "{{ kubeinit_libvirt_cloud_user }}"
+    - root
+
+- name: Create ssh folder
+  ansible.builtin.file:
+    path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/"
+    state: directory
+    mode: '0600'
+
+- name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
+  community.crypto.openssh_keypair:
+    path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa"
+    owner: "{{ kubeinit_libvirt_cloud_user }}"
+    group: "{{ kubeinit_libvirt_cloud_user }}"
+    regenerate: 'never'
+
+- name: Fix owner of the generated pub key
+  ansible.builtin.file:
+    path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/id_rsa.pub"
+    owner: "{{ kubeinit_libvirt_cloud_user }}"
+    group: "{{ kubeinit_libvirt_cloud_user }}"
+    mode: '0600'
+
+- name: Insert the default libvirt uri in user's home
+  ansible.builtin.lineinfile:
+    path: "/home/{{ kubeinit_libvirt_cloud_user }}/.bashrc"
+    line: export LIBVIRT_DEFAULT_URI=qemu:///system
+    mode: '0644'

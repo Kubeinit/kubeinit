@@ -15,26 +15,25 @@
 # under the License.
 
 
-#
-# Prepare the hypervisor
-#
+- name: Check to see if the environment facts are set
+  ansible.builtin.set_fact:
+    environment_facts_set: "{{ kubeinit_bastion_host is defined }}"
 
-- name: Gather network and hosts facts from hypervisor
+- name: Prepare environment
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_prepare"
-    tasks_from: "gather_host_facts.yml"
     public: true
+  when: not environment_facts_set
+
+- name: Configure each cluster service node
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+    tasks_from: configure_service_nodes.yml
+    public: true
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
   vars:
-    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
-
-- name: Delegate to kubeinit_deployment_node_name (inventory_hostname)
-  block:
-
-    - name: Provision the libvirt services on the hypervisor
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_libvirt"
-        public: true
-
-  vars:
-    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: service

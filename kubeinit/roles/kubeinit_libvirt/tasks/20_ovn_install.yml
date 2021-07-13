@@ -32,7 +32,7 @@
     dnf install -y ${REQ_PACKAGES}
     dnf reinstall -y ${REQ_PACKAGES}
   when: >
-    kubeinit_bastion_host in kubeinit_deployment_node_name and
+    (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat')
   changed_when: false
 
@@ -45,7 +45,7 @@
     dnf install -y ${REQ_PACKAGES}
     dnf reinstall -y ${REQ_PACKAGES}
   when: >
-    kubeinit_bastion_host in kubeinit_deployment_node_name and
+    (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
   changed_when: false
 
@@ -57,7 +57,7 @@
                                    ovn-host \
                                    ovn-central
   when: >
-    kubeinit_bastion_host in kubeinit_deployment_node_name and
+    (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
   changed_when: false
 
@@ -74,7 +74,7 @@
     dnf install -y ${REQ_PACKAGES}
     dnf reinstall -y ${REQ_PACKAGES}
   when: >
-    (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
+    (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat')
   changed_when: false
 
@@ -86,7 +86,7 @@
     dnf install -y ${REQ_PACKAGES}
     dnf reinstall -y ${REQ_PACKAGES}
   when: >
-    (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
+    (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
   changed_when: false
 
@@ -97,7 +97,7 @@
                                    ovn-common \
                                    ovn-host
   when: >
-    (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
+    (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
   changed_when: false
 
@@ -114,7 +114,7 @@
 #     state: enabled
 #     immediate: yes
 #   when: >
-#     kubeinit_bastion_host in kubeinit_deployment_node_name and
+#     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
 #     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
 #
 # - name: Enable OVN controller in firewalld
@@ -136,7 +136,7 @@
     - ovn-northd
     - ovn-controller
   when: >
-    kubeinit_bastion_host in kubeinit_deployment_node_name and
+    (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
 
 - name: Enable and start OVN services in the rest of the hypervisors (CentOS based)
@@ -148,7 +148,7 @@
     - openvswitch
     - ovn-controller
   when: >
-    (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
+    (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
 
 - name: Enable and start OVN services in the first hypervisor (Ubuntu based)
@@ -158,10 +158,10 @@
     enabled: yes
   loop:
     - ovs-vswitchd
-    - ovn-northd
+    - ovn-central
     - ovn-controller
   when: >
-    kubeinit_bastion_host in kubeinit_deployment_node_name and
+    (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
 
 - name: Enable and start OVN services in the rest of the hypervisors (Ubuntu based)
@@ -173,5 +173,5 @@
     - ovs-vswitchd
     - ovn-controller
   when: >
-    (kubeinit_bastion_host not in kubeinit_deployment_node_name) and
+    (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')

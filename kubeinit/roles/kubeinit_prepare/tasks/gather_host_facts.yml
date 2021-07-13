@@ -1,0 +1,66 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+- name: Delegate to kubeinit_deployment_node_host
+  block:
+
+    - name: Gather network facts
+      ansible.builtin.gather_facts:
+        gather_subset: "!all,network"
+      register: gather_results
+
+    - name: Debug gather_results
+      ansible.builtin.debug:
+        var:
+          gather_results
+
+    - name: Set distro_family for CentOS
+      ansible.builtin.set_fact:
+        distro_family: "CentOS"
+      when: (gather_results.ansible_facts.ansible_distribution == 'CentOS' or gather_results.ansible_facts.ansible_distribution == 'RedHat')
+
+    - name: Set distro_family for Fedora
+      ansible.builtin.set_fact:
+        distro_family: "Fedora"
+      when: (gather_results.ansible_facts.ansible_distribution == 'Fedora')
+
+    - name: Set distro_family for Debian
+      ansible.builtin.set_fact:
+        distro_family: "Debian"
+      when: (gather_results.ansible_facts.ansible_distribution == 'Debian' or gather_results.ansible_facts.ansible_distribution == 'Ubuntu')
+
+    - name: Fails if OS is not supported
+      ansible.builtin.fail:
+        msg: "The host \"{{ kubeinit_deployment_node_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
+      when: not distro_family is defined
+
+    - name: Add ansible facts to hostvars
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_deployment_node_name }}"
+        ansible_default_ipv4_address: "{{ gather_results.ansible_facts.ansible_default_ipv4.address }}"
+        ansible_hostname: "{{ gather_results.ansible_facts.ansible_hostname }}"
+        ansible_distribution: "{{ gather_results.ansible_facts.ansible_distribution }}"
+        ansible_distribution_major_version: "{{ gather_results.ansible_facts.ansible_distribution_major_version }}"
+        distribution_family: "{{ distro_family }}"
+
+    - name: Clear gather_results
+      ansible.builtin.set_fact:
+        gather_results: null
+
+  vars:
+    kubeinit_deployment_node_host: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  delegate_to: "{{ kubeinit_deployment_node_host }}"

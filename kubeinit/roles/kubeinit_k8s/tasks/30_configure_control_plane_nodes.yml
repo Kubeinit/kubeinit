@@ -28,7 +28,7 @@
             --pod-network-cidr={{ kubeinit_k8s_pod_network_cidr }}
       register: k8s_master_kubeadm_master_init_output
       changed_when: "k8s_master_kubeadm_master_init_output.rc == 0"
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Debug
       ansible.builtin.debug: var=k8s_master_kubeadm_master_init_output
@@ -37,7 +37,7 @@
       ansible.builtin.set_fact:
         k8s_master_kubeadm_init_master_join_key: "{{ item }}"
       when: >
-        groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name and
+        kubeinit_deployment_node_name in kubeinit_first_controller_node and
         '--control-plane --certificate-key' in item
       with_items:
         - "{{ k8s_master_kubeadm_master_init_output.stdout_lines }}"
@@ -51,33 +51,33 @@
         content: "{{ k8s_master_kubeadm_init_master_join_key }}"
         dest: ~/k8s_master_join_key
         mode: '0644'
-      when: groups['all_control_plane_nodes'] | length > 1
+      when: kubeinit_controller_count > 1
 
     - name: Create kube directory
       ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0644'
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Copying required files
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
       changed_when: false
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Get the join command
       ansible.builtin.shell: |
         kubeadm token create --print-join-command
       register: k8s_master_kubeadm_init_output_aux
       changed_when: "k8s_master_kubeadm_init_output_aux.rc == 0"
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Register the join command for other nodes
       ansible.builtin.set_fact:
         k8s_master_kubeadm_init_output={{ k8s_master_kubeadm_init_output_aux.stdout }}
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Debug
       ansible.builtin.debug: var=k8s_master_kubeadm_init_output
@@ -92,7 +92,7 @@
     - name: Install Network Add-on
       ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
       changed_when: false
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     ##
     ## Execute to configure all the other master nodes
@@ -104,20 +104,20 @@
        sed "s/$/{{ k8s_master_kubeadm_init_master_join_key }}/g" k8s_token > ~/k8s_master_join_command.sh
        sh k8s_master_join_command.sh
       changed_when: false
-      when: groups['all_control_plane_nodes'] | length > 1 and groups['all_control_plane_nodes'][0] not in kubeinit_deployment_node_name
+      when: kubeinit_controller_count > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
     - name: Create kube directory
       ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0777'
-      when: groups['all_control_plane_nodes'] | length > 1 and groups['all_control_plane_nodes'][0] not in kubeinit_deployment_node_name
+      when: kubeinit_controller_count > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
     - name: Copying required files
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
       changed_when: false
-      when: groups['all_control_plane_nodes'] | length > 1 and groups['all_control_plane_nodes'][0] not in kubeinit_deployment_node_name
+      when: kubeinit_controller_count > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

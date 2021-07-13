@@ -60,12 +60,11 @@
     kubeinit_services_podman_container_name: "{{ container_registry_name }}"
     kubeinit_services_podman_container_pidfile: "{{ container_registry_pidfile }}"
 
-- name: Check if the registry is up and running
+- name: Wait for service to be available
   ansible.builtin.shell: |
     set -eo pipefail
-    curl --cacert "{{ kubeinit_service_user_dir }}/domain.crt" -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/_catalog --stderr - | grep '\{"repositories":'
+    while [[ "$(curl --cacert /var/kubeinit/registry/certs/domain.crt -s -o /dev/null -w '%{http_code}' --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/_catalog)" != "200" ]]; do sleep 5; done
   args:
     executable: /bin/bash
-  register: check_registry
-  changed_when: "check_registry.rc == 0"
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  register: registry_service_wait
+  changed_when: "registry_service_wait.rc == 0"

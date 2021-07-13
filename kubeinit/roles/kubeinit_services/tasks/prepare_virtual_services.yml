@@ -56,16 +56,10 @@
         tasks_from: prepare_credentials.yml
         public: true
 
-    - name: Start services containers
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_services
-        tasks_from: start_services_containers.yml
-        public: true
-
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
 
-- name: Configure the cluster service node
+- name: Start services containers
   ansible.builtin.include_role:
-    name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-    tasks_from: configure_service_nodes.yml
+    name: ../../roles/kubeinit_services
+    tasks_from: start_services_containers.yml
     public: true
