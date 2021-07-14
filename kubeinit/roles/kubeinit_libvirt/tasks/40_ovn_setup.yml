@@ -20,8 +20,8 @@
 
 - name: Configure OVS on the Hypervisors
   ansible.builtin.shell: |
-    CENTRAL_IP={{ kubeinit_bastion_host_address }} # This is the IP of the first HV
-    LOCAL_IP={{ hostvars[kubeinit_deployment_node_name]['ansible_default_ipv4']['address'] }} # This is the IP of the current HV
+    CENTRAL_IP={{ kubeinit_ovn_central_host_address }} # This is the IP of the first HV
+    LOCAL_IP={{ hostvars[kubeinit_deployment_node_name].ansible_default_ipv4_address }} # This is the IP of the current HV
     ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
     ovs-vsctl set Open_vSwitch . \
         external_ids:ovn-remote="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_southbound_port }}" \

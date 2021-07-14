@@ -30,9 +30,9 @@
 
     - name: "Install the CDK juju installer"
       ansible.builtin.shell: |
-        ssh-keyscan {{ hostvars[groups['all_service_nodes'][0]].ansible_host }}
+        ssh-keyscan {{ kubeinit_services_provision_address }}
         sleep 2
-        ssh-keyscan {{ hostvars[groups['all_service_nodes'][0]].ansible_host }} >> ~/.ssh/known_hosts
+        ssh-keyscan {{ kubeinit_services_provision_address }} >> ~/.ssh/known_hosts
         cd
         cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
         # Make sure the private key has the correct perms
@@ -47,7 +47,7 @@
         juju bootstrap --no-gui \
             --debug \
             --bootstrap-series=focal \
-            manual/root@{{ hostvars[groups['all_service_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
+            manual/root@{{ kubeinit_services_provision_address }} > juju-bootstrap.log 2>&1
       register: bootstrap_cdk
       changed_when: "bootstrap_cdk.rc == 0"
 
@@ -128,7 +128,7 @@
           ansible.builtin.slurp:
             src: ~/.kube/config
           register: kubeinit_cdk_cluster_kubeconfig
-      delegate_to: "{{ hostvars[groups['all_control_plane_nodes'][0]].ansible_host }}"
+      delegate_to: "{{ hostvars[kubeinit_first_controller_node].ansible_host }}"
 
     - name: Storing the master kubeconfig to the services machine.
       ansible.builtin.copy:

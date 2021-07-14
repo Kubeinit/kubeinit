@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+. /etc/os-release
+
 # This file is rendered using a template from a KubeInit role
 # This file will be overriden each time the playbook runs
 # No not edit directly
@@ -10,7 +12,12 @@ KUBEINIT_INGRESS_IP=$(ip route get "8.8.8.8" | grep -Po '(?<=(src )).*(?= uid)')
 KUBEINIT_HAPROXY_IP={{ kubeinit_haproxy_service_address }}
 
 # Install buildah and podman
-dnf install -y buildah podman
+if [ "$ID" == "centos" ]; then
+  dnf install -y buildah podman
+else
+  apt update
+  apt-get -y install --reinstall runc podman buildah
+fi
 
 # Build a container for external ingress and populate local directory with
 # configuration assets from the docker hub container image

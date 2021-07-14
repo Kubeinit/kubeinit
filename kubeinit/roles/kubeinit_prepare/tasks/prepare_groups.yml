@@ -18,7 +18,14 @@
 #
 # Define additional groups we will use
 #
-- name: Add all master nodes to the all_control_plane_nodes group
+- name: Create a group to hold the facts for the cluster as a whole
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    group: kubeinit_cluster_vars
+    hypervisors: []
+    services: []
+
+- name: Add all control plane nodes to the all_control_plane_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_control_plane_nodes
@@ -26,7 +33,7 @@
     - "{{ groups['control_plane_nodes'] | list | default([]) }}"
   when: "'control_plane_nodes' in groups"
 
-- name: Add all worker nodes to the all_compute_nodes group
+- name: Add all compute nodes to the all_compute_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_compute_nodes
@@ -49,6 +56,19 @@
   with_items:
     - "{{ groups['all_control_plane_nodes'] + groups['all_compute_nodes'] + groups['all_bootstrap_nodes'] }}"
 
+- name: Collect all cluster node hypervisors
+  ansible.builtin.set_fact:
+    all_cluster_hypervisors: "{{ all_cluster_hypervisors | default([]) | union([hypervisor]) }}"
+  with_items:
+    - "{{ groups['all_cluster_nodes'] }}"
+  vars:
+    hypervisor: "{{ hostvars[item].target }}"
+
+- name: Set all cluster hypervisors fact
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    hypervisors: "{{ all_cluster_hypervisors }}"
+
 - name: Add all service nodes to the all_service_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
@@ -57,28 +77,25 @@
     - "{{ groups['service_nodes'] | list | default([]) }}"
   when: "'service_nodes' in groups"
 
+- name: Collect all service node services
+  ansible.builtin.set_fact:
+    all_services: "{{ ((all_services | default([])) + services) | unique }}"
+  with_items:
+    - "{{ groups['all_service_nodes'] }}"
+  vars:
+    services: "{{ hostvars[item].services.split(',') | list }}"
+
+- name: Set all services cluster fact
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    services: "{{ all_services }}"
+
 - name: Add all service and cluster nodes to the all_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_nodes
   with_items:
     - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
-
-- name: Add all virtual nodes to the all_virtual_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_virtual_nodes
-  when: hostvars[item].type == 'virtual'
-  with_items:
-    - "{{ groups['all_nodes'] }}"
-
-- name: Add all container nodes to the all_container_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_container_nodes
-  when: hostvars[item].type == 'container'
-  with_items:
-    - "{{ groups['all_nodes'] }}"
 
 - name: Add all hosts to the all_hosts group
   ansible.builtin.add_host:
@@ -87,45 +104,16 @@
   with_items:
     - "{{ groups['hypervisor_hosts'] | list | default([]) }}"
 
-- name: Add localhost to the local_host group
+- name: Add all service and cluster nodes to the all_guest_vms group
   ansible.builtin.add_host:
-    name: kubeinit-localhost
-    group: local_host
-    ansible_host: localhost
-    ansible_hostname: localhost
-    inventory_hostname: localhost
+    name: "{{ item }}"
+    group: all_guest_vms
+  with_items:
+    - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
 
-- name: List all_hosts
-  ansible.builtin.debug:
-    msg: "Host {{ item }}"
-  with_items: "{{ groups['all_hosts'] }}"
-
-- name: List all_nodes
-  ansible.builtin.debug:
-    msg: "Node {{ item }}"
-  with_items: "{{ groups['all_nodes'] }}"
-
-- name: List all_service_nodes
-  ansible.builtin.debug:
-    msg: "Service Node {{ item }}"
-  with_items: "{{ groups['all_service_nodes'] }}"
-
-- name: List all_cluster_nodes
-  ansible.builtin.debug:
-    msg: "Cluster Node {{ item }}"
-  with_items: "{{ groups['all_cluster_nodes'] }}"
-
-- name: List all_control_plane_nodes
-  ansible.builtin.debug:
-    msg: "Master Node {{ item }}"
-  with_items: "{{ groups['all_control_plane_nodes'] }}"
-
-- name: List all_compute_nodes
-  ansible.builtin.debug:
-    msg: "Worker Node {{ item }}"
-  with_items: "{{ groups['all_compute_nodes'] }}"
-
-- name: List all_bootstrap_nodes
-  ansible.builtin.debug:
-    msg: "Bootstrap Node {{ item }}"
-  with_items: "{{ groups['all_bootstrap_nodes'] }}"
+- name: Add all OVN hosts to the all_ovn_hosts group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_ovn_hosts
+  with_items:
+    - "{{ groups['all_hosts'] }}"

@@ -19,6 +19,16 @@
 # Include Libvirt validations
 #
 
+- name: Check to see if the environment facts are set
+  ansible.builtin.set_fact:
+    environment_facts_set: "{{ kubeinit_bastion_host is defined }}"
+
+- name: Prepare environment
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    public: true
+  when: not environment_facts_set
+
 - name: Check that the hypervisor has enough disk space
   ansible.builtin.include_tasks: 10_libvirt_free_space.yml
 

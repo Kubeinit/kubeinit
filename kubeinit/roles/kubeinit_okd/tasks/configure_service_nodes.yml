@@ -35,7 +35,7 @@
     - name: Install okd client and installer
       ansible.builtin.shell: |
         set -o pipefail
-        yum install -y libvirt
+        dnf install -y libvirt
         cd
         rm -rf install_dir
         mkdir install_dir
@@ -105,6 +105,6 @@
         executable: /bin/bash
       register: mirror_registry
       changed_when: "mirror_registry.rc == 0"
-      when: "'registry' in hostvars[groups['service_nodes'][0]].services"
+      when: "'registry' in kubeinit_cluster_hostvars.services"
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

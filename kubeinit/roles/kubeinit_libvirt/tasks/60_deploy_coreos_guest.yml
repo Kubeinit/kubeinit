@@ -16,23 +16,6 @@
 
 - name: Deploy an OKD guest
   block:
-    - name: Create the network interface template for networking details
-      ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/ifcfg-eth0.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth0"
-        mode: "0644"
-
-    - name: Create the hosts template
-      ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.redhat.tmpl"
-        mode: "0644"
-
-    - name: Create the network cloudinit templates for networking details
-      ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg"
-        mode: "0644"
 
     - name: Remove old disk images
       ansible.builtin.file:
@@ -78,7 +61,7 @@
         virt-install \
             --connect qemu:///system \
             --name={{ kubeinit_deployment_node_name }} \
-            --memory memory={{ hostvars[kubeinit_deployment_node_name].ram // 1024 }} \
+            --memory memory={{ (hostvars[kubeinit_deployment_node_name].ram | int) // 1024 }} \
             --cpuset=auto \
             --vcpus={{ hostvars[kubeinit_deployment_node_name].vcpus }},maxvcpus={{ hostvars[kubeinit_deployment_node_name].maxvcpus }} \
             --os-type=linux \

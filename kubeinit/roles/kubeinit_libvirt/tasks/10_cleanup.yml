@@ -32,14 +32,14 @@
         command: destroy
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item in running_nets.list_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+      when: item.name in running_nets.list_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     - name: Undefine deployment networks
       community.libvirt.virt_net:
         command: undefine
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item in running_nets.list_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+      when: item.name in running_nets.list_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
     ##
     ## Clean VMs
@@ -55,21 +55,21 @@
         name: "{{ item }}"
         state: destroyed
       with_items: "{{ running_vms.list_vms }}"
-      when: item in groups['all_nodes'] or kubeinit_libvirt_destroy_all_guests
+      when: item in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
 
     - name: Undefine vms
       community.libvirt.virt:
         name: "{{ item }}"
         command: undefine
       with_items: "{{ running_vms.list_vms }}"
-      when: item in groups['all_nodes'] or kubeinit_libvirt_destroy_all_guests
+      when: item in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
 
     - name: Remove VMs storage
       ansible.builtin.file:
         state: absent
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
       with_items: "{{ running_vms.list_vms }}"
-      when: item in groups['all_nodes'] or kubeinit_libvirt_destroy_all_guests
+      when: item in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
 
     ##
     ## Clean folders
@@ -79,7 +79,7 @@
       ansible.builtin.file:
         state: absent
         path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/"
-      with_items: "{{ groups['all_nodes'] }}"
+      with_items: "{{ groups['all_guest_vms'] }}"
 
 
     ##
@@ -97,7 +97,7 @@
         ssh-keygen -R  {{ item }} || true
         ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} || true
         ssh-keygen -R  {{ hostvars[item].ansible_host }} || true
-      with_items: "{{ groups['all_nodes'] }}"
+      with_items: "{{ groups['all_guest_vms'] }}"
       when: known_hosts_file.stat.exists | bool
       args:
         executable: /bin/bash
@@ -109,6 +109,6 @@
         dest: ~/.ssh/known_hosts
         state: absent
         regexp: '{{ hostvars[item].ansible_host }}'
-      with_items: "{{ groups['all_nodes'] }}"
+      with_items: "{{ groups['all_guest_vms'] }}"
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

@@ -16,25 +16,28 @@
 
 
 #
-# Prepare the hypervisor
+# Gather hosts information
 #
 
-- name: Gather network and hosts facts from hypervisor
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_prepare"
-    tasks_from: "gather_host_facts.yml"
-    public: true
-  vars:
-    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
-
-- name: Delegate to kubeinit_deployment_node_name (inventory_hostname)
+- name: Delegate to kubeinit_deployment_node_name
   block:
 
-    - name: Provision the libvirt services on the hypervisor
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_libvirt"
-        public: true
+    ##
+    ## Configure OVN on all the HVs
+    ##
 
-  vars:
-    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
+    - name: Include the OVN install tasks
+      ansible.builtin.include_tasks: 20_ovn_install.yml
+
+    - name: Include the OVN setup
+      ansible.builtin.include_tasks: 40_ovn_setup.yml
+
+    - name: Post configure steps for OVN
+      ansible.builtin.include_tasks: 50_ovn_post_setup.yml
+      when: (kubeinit_deployment_node_name in kubeinit_ovn_central_host)
+
+    - name: Include the linux bridge tasks
+      ansible.builtin.include_tasks: 30_linux_bridge_setup.yml
+      when: (kubeinit_deployment_node_name in groups['all_hosts'])
+
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

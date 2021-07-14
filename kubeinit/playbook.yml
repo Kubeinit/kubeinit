@@ -15,9 +15,10 @@
 # under the License.
 
 
-- name: Prepare the environment
+- name: Check Ansible version
   hosts: localhost
   become: false
+  gather_subset: "!all,network"
   pre_tasks:
     - name: Check if Ansible meets version requirements.
       vars:
@@ -26,11 +27,6 @@
         that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
-  tasks:
-    - name: Prepare environment
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_prepare"
-        public: true
 
 - name: Prepare all hypervisor hosts
   hosts: hypervisor_hosts
@@ -45,14 +41,20 @@
 - name: Main deployment play for creating a cluster
   hosts: localhost
   become: false
+  gather_facts: false
   tasks:
     - name: Run validations
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_validations"
         public: true
-    - name: Stand up services we need for the cluster
+    - name: Create services
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_services"
+        public: true
+    - name: Configure services
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_services"
+        tasks_from: configure_services.yml
         public: true
     - name: Prepare cluster
       ansible.builtin.include_role:

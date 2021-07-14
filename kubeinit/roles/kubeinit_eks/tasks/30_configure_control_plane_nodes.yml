@@ -28,7 +28,7 @@
         scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ kubeinit_deployment_node_name }}:/etc/pki/ca-trust/source/anchors/
       register: install_all_certs_in_masters
       changed_when: "install_all_certs_in_masters.rc == 0"
-      when: "'registry' in hostvars[groups['service_nodes'][0]].services"
+      when: "'registry' in kubeinit_cluster_hostvars.services"
       delegate_to: "{{ kubeinit_registry_service_address }}"
 
     - name: Insert the local registry auth details
@@ -46,13 +46,13 @@
         EOF
       register: insert_master_local_registry_auth
       changed_when: "insert_master_local_registry_auth.rc == 0"
-      when: "'registry' in hostvars[groups['service_nodes'][0]].services"
+      when: "'registry' in kubeinit_cluster_hostvars.services"
 
     - name: Update the CA certs files
       ansible.builtin.command: update-ca-trust extract
       register: update_master_ca_trust_files
       changed_when: "update_master_ca_trust_files.rc == 0"
-      when: "'registry' in hostvars[groups['service_nodes'][0]].services"
+      when: "'registry' in kubeinit_cluster_hostvars.services"
 
     ##
     ## Setup the first master node
@@ -66,12 +66,12 @@
         executable: /bin/bash
       register: eks_etcd_tag
       changed_when: "eks_etcd_tag.rc == 0"
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Register the eks etcd service deployment tag
       ansible.builtin.set_fact:
         kubeinit_eks_etcd_tag={{ eks_etcd_tag.stdout }}
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Clean kubeadm and initializing Kubernetes cluster
       ansible.builtin.shell: |
@@ -111,7 +111,7 @@
         executable: /bin/bash
       register: eks_master_kubeadm_master_init_output
       changed_when: "eks_master_kubeadm_master_init_output.rc == 0"
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Debug
       ansible.builtin.debug: var=eks_master_kubeadm_master_init_output
@@ -120,7 +120,7 @@
       ansible.builtin.set_fact:
         eks_master_kubeadm_init_master_join_key: "{{ item }}"
       when: >
-        groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name and
+        kubeinit_deployment_node_name in kubeinit_first_controller_node and
         '--control-plane --certificate-key' in item
       with_items:
         - "{{ eks_master_kubeadm_master_init_output.stdout_lines }}"
@@ -134,21 +134,21 @@
         content: "{{ eks_master_kubeadm_init_master_join_key }}"
         dest: ~/eks_master_join_key
         mode: '0644'
-      when: groups['all_control_plane_nodes'] | length > 1
+      when: (kubeinit_controller_count | int) > 1
 
     - name: Create kube directory
       ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0644'
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Copying required files
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
       changed_when: false
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Get the join command
       ansible.builtin.shell: |
@@ -156,12 +156,12 @@
         kubeadm token create --print-join-command
       register: eks_master_kubeadm_init_output_aux
       changed_when: "eks_master_kubeadm_init_output_aux.rc == 0"
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Register the join command for other nodes
       ansible.builtin.set_fact:
         eks_master_kubeadm_init_output={{ eks_master_kubeadm_init_output_aux.stdout }}
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Debug
       ansible.builtin.debug: var=eks_master_kubeadm_init_output
@@ -172,12 +172,12 @@
         content: "{{ eks_master_kubeadm_init_output }}"
         dest: ~/eks_token
         mode: '0644'
-      when: groups['all_control_plane_nodes'] | length > 1
+      when: (kubeinit_controller_count | int) > 1
 
     - name: Install Network Add-on
       ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
       changed_when: false
-      when: groups['all_control_plane_nodes'][0] in kubeinit_deployment_node_name
+      when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     ##
     ## Execute to configure all the other master nodes
@@ -189,20 +189,20 @@
        sed "s/$/{{ eks_master_kubeadm_init_master_join_key }}/g" eks_token > ~/eks_master_join_command.sh
        sh eks_master_join_command.sh
       changed_when: false
-      when: groups['all_control_plane_nodes'] | length > 1 and groups['all_control_plane_nodes'][0] not in kubeinit_deployment_node_name
+      when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
     - name: Create kube directory
       ansible.builtin.file:
         path: ~/.kube
         state: directory
         mode: '0777'
-      when: groups['all_control_plane_nodes'] | length > 1 and groups['all_control_plane_nodes'][0] not in kubeinit_deployment_node_name
+      when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
     - name: Copying required files
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
       changed_when: false
-      when: groups['all_control_plane_nodes'] | length > 1 and groups['all_control_plane_nodes'][0] not in kubeinit_deployment_node_name
+      when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"

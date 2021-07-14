@@ -1,0 +1,103 @@
+---
+# Copyright kubeinit.com
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+##
+## Clean OVN resources
+##
+- name: Clean OVN/OVS resources
+  ansible.builtin.shell: |
+    set -o pipefail
+    ovs-vsctl del-br br-int || true
+    ovs-vsctl del-br br-ex || true
+    ovn-nbctl ls-del sw0 || true
+    ovn-nbctl lr-del lr0 || true
+    ovn-nbctl ls-del public || true
+    ip route del {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex || true
+  args:
+    executable: /bin/bash
+  register: libvirt_clean_ovn
+  when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+  changed_when: "libvirt_clean_ovn.rc == 0"
+
+- name: Stop and disable OVN services in the first hypervisor (CentOS based)
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - openvswitch
+    - ovn-northd
+    - ovn-controller
+  when: >
+    (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+  failed_when: false
+
+- name: Stop and disable OVN services in the rest of the hypervisors (CentOS based)
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - openvswitch
+    - ovn-controller
+  when: >
+    (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+  failed_when: false
+
+- name: Stop and disable OVN services in the first hypervisor (Ubuntu based)
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - ovs-vswitchd
+    - ovn-central
+    - ovn-controller
+  when: >
+    (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+  failed_when: false
+
+- name: Stop and disable OVN services in the rest of the hypervisors (Ubuntu based)
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - ovs-vswitchd
+    - ovn-controller
+  when: >
+    (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+  failed_when: false
+
+- name: Delete existing OVS/OVN files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/openvswitch/
+    - /etc/ovn/
+    - /var/lib/openvswitch/
+    - /var/lib/ovn/
+    - /var/log/openvswitch/
+    - /var/log/ovn/
+    - /usr/share/openvswitch/
+    - /usr/share/ovn/
+    - /var/run/openvswitch/
+    - /var/run/ovn/
