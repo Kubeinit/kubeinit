@@ -5,7 +5,6 @@ LABEL quay.expires-after=30w
 
 WORKDIR /kubeinit
 
-COPY . .
 
 # Overrides SSH Hosts Checking
 RUN set -x && \
@@ -28,7 +27,12 @@ RUN set -x && \
         shyaml \
         cryptography==3.3.2 \
         ansible==3.4.0 \
-        netaddr && \
+        netaddr
+
+
+COPY . .
+
+RUN set -x && \
     \
     echo "==> Installing KubeInit..."  && \
     cd ./kubeinit && \
