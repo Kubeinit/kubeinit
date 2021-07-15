@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.join(os.path.abspath('.'), '_exts'))
 # -- Project information -----------------------------------------------------
 
 project = 'KubeInit'
-copyright = '2020, KubeInit'
+copyright = 'kubeinit contributors'
 author = 'Carlos Camacho'
 
 
