@@ -52,19 +52,21 @@
       register: grow_img
       changed_when: "grow_img.rc == 0"
 
-    - name: "Inject {{ kubeinit_libvirt_cloud_user }} virt-customize assets"
+    - name: "Inject virt-customize assets"
       ansible.builtin.shell: |
         virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 \
-          --run-command 'useradd -s /bin/bash -u 1000 -p "$(openssl passwd -1 {{ kubeinit_libvirt_vms_default_password }})" {{ kubeinit_libvirt_cloud_user }}' \
-          --run-command 'echo "{{ kubeinit_libvirt_cloud_user }} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/{{ kubeinit_libvirt_cloud_user }}' \
-          --run-command 'mkdir -p {{ kubeinit_libvirt_source_keystore_dir }}' \
           --run-command "sed -i 's/PermitRootLogin no/PermitRootLogin yes/g' /etc/ssh/sshd_config" \
           --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
           --run-command "dpkg-reconfigure openssh-server" \
-          --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
           --ssh-inject root:file:/root/.ssh/authorized_keys \
           --run-command "echo {{ kubeinit_provision_vms_public_key }} >> /root/.ssh/authorized_keys" \
           --hostname {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} \
+          {% if kubeinit_libvirt_create_cloud_user %}
+            --run-command 'useradd -s /bin/bash -u 1000 -p "$(openssl passwd -1 {{ kubeinit_libvirt_vms_default_password }})" {{ kubeinit_libvirt_cloud_user }}' \
+            --run-command 'echo "{{ kubeinit_libvirt_cloud_user }} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/{{ kubeinit_libvirt_cloud_user }}' \
+            --run-command 'mkdir -p {{ kubeinit_libvirt_source_keystore_dir }}' \
+            --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
+          {% endif %}
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/enp1s0:/etc/network/interfaces.d \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.debian.tmpl:/etc/cloud/templates \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/90_dpkg.cfg:/etc/cloud/cloud.cfg.d \
@@ -107,10 +109,7 @@
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
 - name: Check cluster nodes are up and running
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: 70_check_nodes_up.yml
-    public: yes
+  ansible.builtin.include_tasks: 70_check_nodes_up.yml
 
 - name: Configure common requirements in guests
   block:
@@ -175,18 +174,6 @@
       register: render_resolv
       changed_when: "render_resolv.rc == 0"
 
-    - name: "Disable IPv6"
-      ansible.builtin.shell: |
-        set -o pipefail
-        # Disable IPv6
-        echo "net.ipv6.conf.all.disable_ipv6 = 1" > /etc/sysctl.d/70-ipv6.conf
-        echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.d/70-ipv6.conf
-        sysctl --load /etc/sysctl.d/70-ipv6.conf
-      args:
-        executable: /bin/bash
-      register: disable_ipv6
-      changed_when: "disable_ipv6.rc == 0"
-
     - name: Force apt-get update
       ansible.builtin.shell: |
         apt-get update
@@ -225,7 +212,10 @@
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
 
 - name: Check cluster nodes are up and running
+  ansible.builtin.include_tasks: 70_check_nodes_up.yml
+
+- name: Perform any distro-specific post-deployment guest configuration
   ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: 70_check_nodes_up.yml
-    public: yes
+    name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+    tasks_from: post_configure_guest.yml
+    public: true

@@ -18,13 +18,7 @@
 - name: Deploy the cluster service node
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: "60_deploy_{{ hostvars[kubeinit_deployment_node_name].os }}_guest.yml"
-    public: true
-
-- name: Configure the cluster common config
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-    tasks_from: 10_configure_common.yml
+    tasks_from: "deploy_{{ hostvars[kubeinit_deployment_node_name].os }}_guest.yml"
     public: true
 
 - name: Delegate to cluster service node
@@ -32,8 +26,8 @@
 
     - name: Prepare podman
       ansible.builtin.include_role:
-        name: ../../roles/kubeinit_prepare
-        tasks_from: prepare_podman
+        name: "../../roles/kubeinit_prepare"
+        tasks_from: prepare_podman.yml
         public: true
 
     - name: Create a minimal podman pod for the service containers
@@ -51,15 +45,9 @@
       until: not services_pod_creation.failed
 
     - name: Prepare credentials for services
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_services
-        tasks_from: prepare_credentials.yml
-        public: true
+      ansible.builtin.include_tasks: prepare_credentials.yml
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
 
 - name: Start services containers
-  ansible.builtin.include_role:
-    name: ../../roles/kubeinit_services
-    tasks_from: start_services_containers.yml
-    public: true
+  ansible.builtin.include_tasks: start_services_containers.yml

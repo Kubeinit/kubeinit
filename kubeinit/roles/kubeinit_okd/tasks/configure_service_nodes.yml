@@ -70,15 +70,6 @@
       register: render_images_list
       changed_when: "render_images_list.rc == 0"
 
-    - name: Load images file
-      ansible.builtin.slurp:
-        src: ~/kubeinit_deployment_images.txt
-      register: load_images
-
-    - name: Set up variable with images list
-      ansible.builtin.set_fact:
-        kubeinit_registry_images: "{{ (load_images.content | b64decode).split('\n') | select() | list }}"
-
     - name: Mirror OKD remote registry to local
       ansible.builtin.shell: |
         set -eo pipefail

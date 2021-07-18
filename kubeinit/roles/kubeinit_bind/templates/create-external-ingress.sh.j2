@@ -94,10 +94,24 @@ podman run --rm --name kubeinit-set-bind-cache-owner -v kubeinit-bind-cache:/var
 if podman pod exists kubeinit-ingress-pod; then podman pod rm kubeinit-ingress-pod; fi
 podman pod create --name kubeinit-ingress-pod --dns ${KUBEINIT_INGRESS_IP} --dns 8.8.8.8 --dns-search {{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
 
+# Use overlay for .ssh folder when available
+if [ "$ID" == "centos" ]; then
+  overlay=O
+else
+  overlay=ro
+fi
+
 # Run the ingress container on the host network mounting required volumes
-podman run --rm -d --pod kubeinit-ingress-pod --name kubeinit-ingress-bind --network host -v /root/.ssh:/root/.ssh:ro -v /var/kubeinit/bind:/etc/bind:ro -v kubeinit-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind
+podman run --rm -d --pod kubeinit-ingress-pod --name kubeinit-ingress-bind --network host -v /root/.ssh:/root/.ssh:${overlay} -v /var/kubeinit/bind:/etc/bind:Z -v kubeinit-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind
 
 # Create ssh tunnels in the running container for all the ports served by the cluster haproxy service
 podman exec kubeinit-ingress-bind ssh -N -f -L ${KUBEINIT_INGRESS_IP}:80:${KUBEINIT_HAPROXY_IP}:80 -L ${KUBEINIT_INGRESS_IP}:443:${KUBEINIT_HAPROXY_IP}:443 -L ${KUBEINIT_INGRESS_IP}:6443:${KUBEINIT_HAPROXY_IP}:6443 -L ${KUBEINIT_INGRESS_IP}:8443:${KUBEINIT_HAPROXY_IP}:8443 -L ${KUBEINIT_INGRESS_IP}:9000:${KUBEINIT_HAPROXY_IP}:9000 -L ${KUBEINIT_INGRESS_IP}:22623:${KUBEINIT_HAPROXY_IP}:22623 root@${KUBEINIT_HAPROXY_IP}
+
+# Open firewall ports for external access
+if [ "$ID" == "centos" ]; then
+  firewall-cmd --permanent --add-service http --add-service https --add-service dns
+  firewall-cmd --permanent --add-port 6443/tcp --add-port 8443/tcp --add-port 9000/tcp --add-port 22623/tcp
+  firewall-cmd --reload
+fi
 
 # Anything else you would like to add

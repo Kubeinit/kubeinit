@@ -18,7 +18,7 @@
 - name: Deploy the cluster bootstrap nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 60_deploy_coreos_guest.yml
+    tasks_from: deploy_coreos_guest.yml
     public: yes
   with_items:
     - "{{ groups['all_bootstrap_nodes'] | list }}"
@@ -31,7 +31,7 @@
 - name: Deploy the cluster master nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 60_deploy_coreos_guest.yml
+    tasks_from: deploy_coreos_guest.yml
     public: yes
   with_items:
     - "{{ groups['all_control_plane_nodes'] | list }}"
@@ -42,12 +42,7 @@
     kubeinit_deployment_role: master
 
 - name: Configure the cluster master nodes
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_okd"
-    tasks_from: 20_check_nodes_ready.yml
-    public: yes
-  # We always delegate this to the service node and
-  # check the deployment_role variable
+  ansible.builtin.include_tasks: 20_configure_control_plane_nodes.yml
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
@@ -57,10 +52,7 @@
     kubeinit_deployment_role: master
 
 - name: Wait until bootstrap completes
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_okd"
-    tasks_from: 30_check_bootstrap_complete.yml
-    public: yes
+  ansible.builtin.include_tasks: 30_check_bootstrap_complete.yml
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
@@ -69,10 +61,7 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
 - name: Remove the bootstrap node
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_okd"
-    tasks_from: 40_remove_bootstrap_node.yml
-    public: yes
+  ansible.builtin.include_tasks: 40_remove_bootstrap_node.yml
   with_items:
     - "{{ groups['all_bootstrap_nodes'] | list }}"
   loop_control:
@@ -83,7 +72,7 @@
 - name: Deploy the cluster worker nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 60_deploy_coreos_guest.yml
+    tasks_from: deploy_coreos_guest.yml
     public: yes
   with_items:
     - "{{ groups['all_compute_nodes'] | list }}"
@@ -94,10 +83,7 @@
     kubeinit_deployment_role: worker
 
 - name: Finish post deployment tasks
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_okd"
-    tasks_from: 50_post_deployment_tasks.yml
-    public: yes
+  ansible.builtin.include_tasks: 50_post_deployment_tasks.yml
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:

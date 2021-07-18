@@ -14,11 +14,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "verify that {{ kubeinit_deployment_role }} nodes are ok"
+- name: "Verify that control plane nodes are ok"
   ansible.builtin.shell: |
     set -o pipefail
     export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-    oc get nodes | grep {{ kubeinit_deployment_role }} | grep " Ready"
+    oc get nodes | grep master | grep " Ready"
   args:
     executable: /bin/bash
   register: cmd_res_nodes_ok
@@ -28,7 +28,7 @@
   until: cmd_res_nodes_ok.stdout_lines | default([]) | list | count == groups['all_control_plane_nodes'] | count
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
 
-- name: "use single node cluster"
+- name: "Use single node cluster"
   ansible.builtin.shell: |
     set -o pipefail
     export KUBECONFIG=~/install_dir/auth/kubeconfig

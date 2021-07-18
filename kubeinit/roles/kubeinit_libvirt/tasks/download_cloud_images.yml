@@ -1,0 +1,62 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+#
+# Download distribution specific images
+#
+
+- name: Delegate to kubeinit_deployment_node_name
+  block:
+
+    - name: Set qemu user depending on the hypervisor linux distribution
+      ansible.builtin.set_fact:
+        kubeinit_qemu_user: "{{ 'qemu' if (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
+
+    - name: Download Ubuntu cloud image
+      ansible.builtin.get_url:
+        validate_certs: False
+        use_proxy: True
+        url: "{{ kubeinit_libvirt_source_images.ubuntu.uri }}{{ kubeinit_libvirt_source_images.ubuntu.image }}"
+        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.ubuntu.image }}"
+        force: no
+        mode: '0666'
+        owner: "{{ kubeinit_qemu_user }}"
+      when: "'ubuntu' in hostvars[kubeinit_services_node].os"
+
+    - name: Download Debian cloud image
+      ansible.builtin.get_url:
+        validate_certs: False
+        use_proxy: True
+        url: "{{ kubeinit_libvirt_source_images.debian.uri }}{{ kubeinit_libvirt_source_images.debian.image }}"
+        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.debian.image }}"
+        force: no
+        mode: '0666'
+        owner: "{{ kubeinit_qemu_user }}"
+      when: "'debian' in hostvars[kubeinit_services_node].os"
+
+    - name: Download CentOS cloud image
+      ansible.builtin.get_url:
+        validate_certs: False
+        use_proxy: True
+        url: "{{ kubeinit_libvirt_source_images.centos.uri }}{{ kubeinit_libvirt_source_images.centos.image }}"
+        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}"
+        force: no
+        mode: '0666'
+        owner: "{{ kubeinit_qemu_user }}"
+      when: "'centos' in hostvars[kubeinit_services_node].os"
+
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
