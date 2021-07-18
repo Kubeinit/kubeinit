@@ -105,7 +105,7 @@
   ansible.builtin.shell: |
     firewall-cmd --reload
   when: >
-    (hostvars[kubeinit_deployment_node_name].distribution_family != 'Debian')
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'Centos')
 
 - name: Enable OVN central in firewalld
   ansible.posix.firewalld:
@@ -115,7 +115,7 @@
     immediate: true
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
-    (hostvars[kubeinit_deployment_node_name].distribution_family != 'Debian')
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'Centos')
 
 - name: Enable OVN NAT in firewalld
   ansible.posix.firewalld:
@@ -125,7 +125,7 @@
     immediate: true
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
-    (hostvars[kubeinit_deployment_node_name].distribution_family != 'Debian')
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'Centos')
 
 - name: Enable OVN host in firewalld
   ansible.posix.firewalld:
@@ -134,13 +134,13 @@
     state: enabled
     immediate: true
   when: >
-    (hostvars[kubeinit_deployment_node_name].distribution_family != 'Debian')
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'Centos')
 
 - name: Refresh firewalld services list
   ansible.builtin.shell: |
     firewall-cmd --reload
   when: >
-    (hostvars[kubeinit_deployment_node_name].distribution_family != 'Debian')
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'Centos')
 
 - name: Enable and start OVN services in the first hypervisor (CentOS based)
   ansible.builtin.service:
