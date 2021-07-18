@@ -115,7 +115,12 @@
   register: config_ovn_routing
   changed_when: "config_ovn_routing.rc == 0"
 
-- name: Configuring NAT (Debian)
+#
+# The NAT rules are mandatory to allow guests to have external connectivity
+# there might be cases where they are not needed, but this change needs testing
+# ----------- THESE ARE REQUIRED AT LEAST IN DEBIAN AND FEDORA CHASSIS -----------
+#
+- name: Configuring NAT
   ansible.builtin.shell: |
     set -eo pipefail
     #
@@ -140,7 +145,6 @@
     executable: /bin/bash
   register: config_iptables
   changed_when: "config_iptables.rc == 0"
-  when: hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian'
 
 # When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
 # ovn-nbctl show

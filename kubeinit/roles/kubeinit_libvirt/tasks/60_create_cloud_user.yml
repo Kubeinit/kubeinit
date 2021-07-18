@@ -36,18 +36,19 @@
     state: present
     createhome: yes
 
-- name: Add Users to libvirt
+- name: Add cloud user to libvirt
   ansible.builtin.user:
     name: "{{ item }}"
     groups: "kvm,libvirt"
     append: yes
   with_items:
     - "{{ kubeinit_libvirt_cloud_user }}"
-    - root
 
 - name: Create ssh folder
   ansible.builtin.file:
     path: "/home/{{ kubeinit_libvirt_cloud_user }}/.ssh/"
+    owner: "{{ kubeinit_libvirt_cloud_user }}"
+    group: "{{ kubeinit_libvirt_cloud_user }}"
     state: directory
     mode: '0600'
 
