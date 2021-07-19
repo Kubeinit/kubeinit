@@ -130,7 +130,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
     sed -i "s/10.0.0.100 /10.0.0.250 /g" ./hosts/rke/inventory
     sed -i "s/10.0.0.100/10.0.0.250/g" ./hosts/rke/inventory
 
-elif [[ "$DISTRO" == "k8s.ovn" ]]; then
+elif [[ "$DISTRO" == "multinode" ]]; then
     if [[ "$MASTER" == "1" ]]; then
         sed -i -E "s/.*-controller-02/#-controller-02/g" ./hosts/k8s/inventory
         sed -i -E "s/.*-controller-03/#-controller-03/g" ./hosts/k8s/inventory
@@ -254,7 +254,7 @@ if [[ "$SCENARIO" == "submariner" ]]; then
         -e @scenario_variables.yml \
         ./playbooks/submariner-subctl-verify.yml
 
-elif [[ "$DISTRO" == "k8s.ovn" ]]; then
+elif [[ "$DISTRO" == "multinode" ]]; then
     # We will deploy a multi HV cluster
     # With OVN
     ansible-playbook \

@@ -27,7 +27,7 @@ def main(distros):
     url = os.getenv('CI_PIPELINE_URL', "")
     print("The job results will be published in runtime at: " + url)
 
-    ovn_configs = ["k8s.ovn-libvirt-3-controller-2-compute-periodic"]
+    ovn_configs = ["multinode-libvirt-3-controller-2-compute-periodic"]
 
     cdk_configs = ["cdk-libvirt-3-controller-1-compute-periodic",
                    "cdk-libvirt-1-controller-1-compute-periodic",
@@ -75,7 +75,7 @@ def main(distros):
             configs = configs + k8s_configs
         if dist == 'okd.rke':
             configs = configs + okd_rke_configs
-        if dist == 'k8s.ovn':
+        if dist == 'multinode':
             configs = configs + ovn_configs
 
     for config in configs:
