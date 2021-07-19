@@ -27,6 +27,22 @@
         that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
+  tasks:
+    - name: task-gather-hypervisor-facts
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_prepare"
+        tasks_from: gather_host_facts.yml
+        public: true
+      with_items:
+        - "{{ groups['hypervisor_hosts'] | list }}"
+      loop_control:
+        loop_var: cluster_role_item
+      vars:
+        kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    - name: Check to see if we should stop here
+      ansible.builtin.fail:
+        msg: "Stopping after 'task-gather-hypervisor-facts'"
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-gather-hypervisor-facts'
 
 - name: Prepare all hypervisor hosts to deploy service and cluster nodes
   hosts: hypervisor_hosts
@@ -37,10 +53,6 @@
         name: "../../roles/kubeinit_prepare"
         tasks_from: prepare_hypervisor.yml
         public: true
-    - name: Check to see if we should stop here
-      ansible.builtin.fail:
-        msg: "Stopping after 'task-prepare-hypervisor'"
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-prepare-hypervisor'
 
 - name: Main deployment play for creating a cluster
   hosts: localhost
