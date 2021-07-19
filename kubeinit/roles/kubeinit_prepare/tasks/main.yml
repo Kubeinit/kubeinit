@@ -32,10 +32,15 @@
 
     - name: Check to see if we should stop here
       ansible.builtin.fail:
-        msg: "Stopping after 'task-prepare-hypervisor'"
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-prepare-hypervisor'
+        msg: "Stopping after 'task-gather-hypervisor-facts'"
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-gather-hypervisor-facts'
 
   when: not hypervisor_facts_set
+
+- name: Check to see if we should stop here
+  ansible.builtin.fail:
+    msg: "Stopping after 'task-prepare-hypervisor'"
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-prepare-hypervisor'
 
 - name: Add localhost to the local_host group
   ansible.builtin.add_host:
