@@ -18,17 +18,23 @@
   ansible.builtin.set_fact:
     hypervisor_facts_set: "{{ hostvars[groups['hypervisor_hosts'][0]].ansible_distribution is defined }}"
 
-- name: Gather hypervisor facts
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_prepare"
-    tasks_from: "gather_host_facts.yml"
-    public: true
-  with_items:
-    - "{{ groups['hypervisor_hosts'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+- name: We need to gather those facts
+  block:
+
+    - name: Gather hypervisor facts
+      ansible.builtin.include_tasks: gather_host_facts.yml
+      with_items:
+        - "{{ groups['hypervisor_hosts'] | list }}"
+      loop_control:
+        loop_var: cluster_role_item
+      vars:
+        kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+    - name: Check to see if we should stop here
+      ansible.builtin.fail:
+        msg: "Stopping after 'task-prepare-hypervisor'"
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-prepare-hypervisor'
+
   when: not hypervisor_facts_set
 
 - name: Add localhost to the local_host group
@@ -40,18 +46,12 @@
     inventory_hostname: localhost
 
 - name: Gather localhost facts
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_prepare"
-    tasks_from: "gather_host_facts.yml"
-    public: true
+  ansible.builtin.include_tasks: gather_host_facts.yml
   vars:
     kubeinit_deployment_node_name: "kubeinit-localhost"
 
 - name: Prepare groups
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_prepare"
-    tasks_from: prepare_groups.yml
-    public: true
+  ansible.builtin.include_tasks: prepare_groups.yml
 
 - name: Define group facts
   ansible.builtin.set_fact:
@@ -83,27 +83,18 @@
     kubeinit_ingress_hostname: "ingress"
     kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_name] }}"
 
-- name: Find prepare_localhost tasks
-  ansible.builtin.set_fact:
-    prepare_localhost_role: "{{ lookup('first_found', params) | relpath('kubeinit/x/y') | dirname | dirname }}"
-  vars:
-    params:
-      files:
-        - "tasks/prepare_localhost.yml"
-      paths:
-        - "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-        - "../../roles/kubeinit_prepare"
-
 - name: Prepare localhost
-  ansible.builtin.include_role:
-    name: "{{ prepare_localhost_role | default('../../roles/kubeinit_prepare') }}"
-    tasks_from: "prepare_localhost.yml"
-    public: true
+  ansible.builtin.include_tasks: prepare_localhost.yml
 
-- name: Cleanup nodes for libvirt guests from previous install
+- name: Check to see if we should stop here
+  ansible.builtin.fail:
+    msg: "Stopping after 'task-prepare-environment'"
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-prepare-environment'
+
+- name: Download images for libvirt guests
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: "cleanup_hypervisor.yml"
+    tasks_from: "download_cloud_images.yml"
     public: true
   with_items:
     - "{{ groups['all_hosts'] | list }}"
@@ -111,3 +102,20 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: Cleanup nodes for libvirt guests from previous install
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: cleanup_hypervisor.yml
+    public: true
+  with_items:
+    - "{{ groups['all_hosts'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: Check to see if we should stop here
+  ansible.builtin.fail:
+    msg: "Stopping after 'task-cleanup-hypervisors'"
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-cleanup-hypervisors'

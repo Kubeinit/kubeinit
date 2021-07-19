@@ -115,7 +115,7 @@
   register: config_ovn_routing
   changed_when: "config_ovn_routing.rc == 0"
 
-- name: Configuring NAT when not using the external bridge interface
+- name: Configuring NAT (Debian)
   ansible.builtin.shell: |
     set -eo pipefail
     #
@@ -140,6 +140,7 @@
     executable: /bin/bash
   register: config_iptables
   changed_when: "config_iptables.rc == 0"
+  when: hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian'
 
 # When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
 # ovn-nbctl show

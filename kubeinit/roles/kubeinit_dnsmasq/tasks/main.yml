@@ -41,6 +41,7 @@
     state: stopped
     cap_add:
       - "NET_ADMIN"
+      - "NET_RAW"
     volumes:
       - "{{ kubeinit_dnsmasq_config_file }}:/etc/dnsmasq.conf"
     command: -d -q -C /etc/dnsmasq.conf
@@ -57,7 +58,7 @@
 - name: Create systemd service for podman container
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_services"
-    tasks_from: create_managed_service
+    tasks_from: create_managed_service.yml
     public: true
   vars:
     kubeinit_services_systemd_service_name: "{{ kubeinit_dnsmasq_service_name }}"

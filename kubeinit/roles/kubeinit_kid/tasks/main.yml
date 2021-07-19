@@ -17,19 +17,7 @@
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: 60_deploy_debian_guest.yml
-    public: yes
-  with_items:
-    - "{{ groups['all_cluster_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
-- name: Configure the cluster common config
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_kid"
-    tasks_from: 10_configure_common.yml
+    tasks_from: deploy_debian_guest.yml
     public: yes
   with_items:
     - "{{ groups['all_cluster_nodes'] | list }}"
@@ -39,10 +27,7 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
 - name: Post configure the DNS in all nodes
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_kid"
-    tasks_from: 30_post_service_config.yml
-    public: yes
+  ansible.builtin.include_tasks: 30_post_service_config.yml
   with_items:
     - "{{ groups['all_cluster_nodes'] | list }}"
   loop_control:
@@ -51,10 +36,7 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
 - name: Configure the cluster master nodes
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_kid"
-    tasks_from: 40_configure_control_plane_nodes.yml
-    public: yes
+  ansible.builtin.include_tasks: 40_configure_control_plane_nodes.yml
   with_items:
     - "{{ groups['all_control_plane_nodes'] | list }}"
   loop_control:
@@ -64,10 +46,7 @@
     kubeinit_deployment_role: master
 
 - name: Configure the cluster worker nodes
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_kid"
-    tasks_from: 50_configure_compute_nodes.yml
-    public: yes
+  ansible.builtin.include_tasks: 50_configure_compute_nodes.yml
   with_items:
     - "{{ groups['all_compute_nodes'] | list }}"
   loop_control:
@@ -77,10 +56,7 @@
     kubeinit_deployment_role: worker
 
 - name: Deploy RKE
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_kid"
-    tasks_from: 60_deploy_kid.yml
-    public: yes
+  ansible.builtin.include_tasks: 60_deploy_kid.yml
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
@@ -90,10 +66,7 @@
     kubeinit_deployment_role: service
 
 - name: Finish post services deployment tasks
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_kid"
-    tasks_from: 70_post_deployment_services_tasks.yml
-    public: yes
+  ansible.builtin.include_tasks: 70_post_deployment_services_tasks.yml
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:

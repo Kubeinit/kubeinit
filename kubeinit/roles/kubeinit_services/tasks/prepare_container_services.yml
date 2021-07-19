@@ -20,35 +20,23 @@
 
     - name: Prepare podman
       ansible.builtin.include_role:
-        name: ../../roles/kubeinit_prepare
+        name: "../../roles/kubeinit_prepare"
         tasks_from: prepare_podman.yml
         public: true
 
     - name: Setup the services pod
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_services
-        tasks_from: 00_create_service_pod.yml
-        public: true
+      ansible.builtin.include_tasks: 00_create_service_pod.yml
 
     - name: Setup the services container
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_services
-        tasks_from: 10_create_provision_container.yml
-        public: true
+      ansible.builtin.include_tasks: 10_create_provision_container.yml
 
     - name: Prepare credentials for services
-      ansible.builtin.include_role:
-        name: ../../roles/kubeinit_services
-        tasks_from: prepare_credentials.yml
-        public: true
+      ansible.builtin.include_tasks: prepare_credentials.yml
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
 - name: Start services containers
-  ansible.builtin.include_role:
-    name: ../../roles/kubeinit_services
-    tasks_from: start_services_containers.yml
-    public: true
+  ansible.builtin.include_tasks: start_services_containers.yml
 
 - name: Configure the cluster service node
   ansible.builtin.include_role:

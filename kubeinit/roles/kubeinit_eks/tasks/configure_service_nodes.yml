@@ -56,15 +56,6 @@
       register: render_images_list
       changed_when: "render_images_list.rc == 0"
 
-    - name: Load images file
-      ansible.builtin.slurp:
-        src: ~/kubeinit_deployment_images.txt
-      register: load_images
-
-    - name: Set up variable with images list
-      ansible.builtin.set_fact:
-        kubeinit_registry_images: "{{ (load_images.content | b64decode).split('\n') | select() | list }}"
-
     - name: Mirror EKS remote registry to local
       ansible.builtin.shell: |
         set -o pipefail
@@ -86,25 +77,13 @@
                 }
         }
         EOF
-        #
-        # In old versions of skopeo there is no sync...
-        # TODO:FIXME: How the images should be pushed...
-        # The whole namespace
-        #
-        skopeo copy \
-          docker://{{ item }} \
-          docker://{{ kubeinit_registry_uri }}/{{ item | replace('public.ecr.aws/','') }} \
-          --dest-creds {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }}
-        #
-        # Or in the root
-        #
-        skopeo copy \
-          docker://{{ item }} \
-          docker://{{ kubeinit_registry_uri }}/{{ item.split('/')[-1] }} \
-          --dest-creds {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }}
+        echo "function skopeo_copy {" > skopeo_copy.bash
+        echo "  skopeo copy docker://\$1 docker://{{ kubeinit_registry_uri }}/\$2 --dest-creds {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }}" >> ~/skopeo_copy.bash
+        echo "}" >> ~/skopeo_copy.bash
+        sed -e 's;^\(public.ecr.aws/\)\(.*/\)\(.*\);skopeo_copy "\1\2\3" "\2\3"\nskopeo_copy "\1\2\3" "\3";' ~/kubeinit_deployment_images.txt >> ~/skopeo_copy.bash
+        bash ~/skopeo_copy.bash
       args:
         executable: /bin/bash
-      with_items: "{{ kubeinit_registry_images }}"
       register: mirror_registry
       changed_when: "mirror_registry.rc == 0"
       when: "'registry' in kubeinit_cluster_hostvars.services"

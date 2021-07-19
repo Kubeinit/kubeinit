@@ -28,40 +28,44 @@
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
 
-- name: Prepare all hypervisor hosts
+- name: Prepare all hypervisor hosts to deploy service and cluster nodes
   hosts: hypervisor_hosts
   gather_facts: false
   tasks:
-    - name: Prepare hypervisor to deploy a cluster
+    - name: task-prepare-hypervisor
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"
         tasks_from: prepare_hypervisor.yml
         public: true
+    - name: Check to see if we should stop here
+      ansible.builtin.fail:
+        msg: "Stopping after 'task-prepare-hypervisor'"
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-prepare-hypervisor'
 
 - name: Main deployment play for creating a cluster
   hosts: localhost
   become: false
   gather_facts: false
   tasks:
-    - name: Run validations
+    - name: task-run-validations
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_validations"
         public: true
-    - name: Create services
+    - name: task-create-services
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_services"
         public: true
-    - name: Configure services
+    - name: task-configure-services
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_services"
         tasks_from: configure_services.yml
         public: true
-    - name: Prepare cluster
+    - name: task-prepare-cluster
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
         tasks_from: prepare_cluster.yml
         public: true
-    - name: Deploy {{ kubeinit_inventory_cluster_distro }}
+    - name: task-deploy-{{ kubeinit_inventory_cluster_distro }}
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
         public: true
