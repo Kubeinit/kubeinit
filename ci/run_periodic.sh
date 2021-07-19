@@ -195,7 +195,7 @@ if [[ "$DISTRO" == "okd.rke" ]]; then
         -e @scenario_variables.yml \
         ./playbooks/submariner-subctl-verify.yml
 
-elif [[ "$DISTRO" == "k8s.ovn" ]]; then
+elif [[ "$DISTRO" == "multinode" ]]; then
     if [[ "$MASTER" == "1" ]]; then
         sed -i -E "s/.*-controller-02/#-controller-02/g" ./hosts/k8s/inventory
         sed -i -E "s/.*-controller-03/#-controller-03/g" ./hosts/k8s/inventory
