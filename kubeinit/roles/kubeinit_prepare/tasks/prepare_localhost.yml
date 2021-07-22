@@ -39,15 +39,13 @@
 
 - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
   community.crypto.openssh_keypair:
-    path: "/root/.ssh/id_rsa"
-    owner: root
-    group: root
+    path: "~/.ssh/id_rsa"
     regenerate: 'never'
   with_items: "{{ groups['all_hosts'] }}"
   delegate_to: "{{ item }}"
 
-- name: Get root host public key
-  ansible.builtin.command: cat /root/.ssh/id_rsa.pub
+- name: Get Ansible user host public key
+  ansible.builtin.command: cat ~/.ssh/id_rsa.pub
   register: public_key_content
   changed_when: "public_key_content.rc == 0"
   delegate_to: "{{ kubeinit_bastion_host }}"
@@ -71,13 +69,3 @@
       {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ kubeinit_bastion_host_name }}"
   with_items: "{{ groups['all_nodes'] }}"
   when: kubeinit_bastion_host_address not in localhost_ipv4_address
-
-- name: Experimental warning
-  ansible.builtin.debug:
-    msg:
-      - '|-------------------------------------------------------|'
-      - '| Deploying in multiple hosts is experimental, parts of |'
-      - '| the deployment might be broken or some distributions  |'
-      - '| might not work as expected.                           |'
-      - '|-------------------------------------------------------|'
-  when: (groups['all_hosts'] | length > 1)

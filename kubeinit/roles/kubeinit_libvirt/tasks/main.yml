@@ -19,16 +19,6 @@
 ## Hypervisor installing dependencies and rebooting.
 ##
 
-- name: Fix libvirt qemu bug
-  ansible.builtin.shell: |
-    set -eo pipefail
-    mkdir -p /etc/qemu/firmware
-    touch /etc/qemu/firmware/50-edk2-ovmf-cc.json
-  args:
-    executable: /bin/bash
-  register: libvirt_bugfix
-  changed_when: "libvirt_bugfix.rc == 0"
-
 - name: Show ansible_distribution
   ansible.builtin.debug:
     var: hostvars[kubeinit_deployment_node_name].ansible_distribution
@@ -49,25 +39,49 @@
       - "This means that CentOS 8 guests won't work with CentOS 8 hosts."
   when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' and hostvars[kubeinit_deployment_node_name].ansible_distribution_major_version == "7")
 
-- name: Install CentOS based requirements
-  ansible.builtin.package:
-    name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
-    state: present
-  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
-  register: installed_packages_centos
+- name: Run tasks that requires elevated privileges
+  block:
+    - name: Fix libvirt qemu bug
+      ansible.builtin.shell: |
+        set -eo pipefail
+        mkdir -p /etc/qemu/firmware
+        touch /etc/qemu/firmware/50-edk2-ovmf-cc.json
+      args:
+        executable: /bin/bash
+      register: libvirt_bugfix
+      changed_when: "libvirt_bugfix.rc == 0"
 
-- name: Install Debian based requirements
-  ansible.builtin.package:
-    name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
-    state: present
-  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
-  register: installed_packages_debian
+    - name: Install CentOS based requirements
+      ansible.builtin.package:
+        name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
+        state: present
+      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+      register: installed_packages_centos
 
-- name: Upgrade all packages
-  ansible.builtin.package:
-    name: '*'
-    state: latest
-  register: upgraded_packages
+    - name: Install Debian based requirements
+      ansible.builtin.package:
+        name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
+        state: present
+      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+      register: installed_packages_debian
+
+    - name: Upgrade all packages
+      ansible.builtin.package:
+        name: '*'
+        state: latest
+      register: upgraded_packages
+
+    - name: Add users to libvirt
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: "kvm,libvirt"
+        append: yes
+      with_items:
+        - root
+        - "{{ ansible_ssh_user | default(lookup('env', 'USER'), True) }}"
+
+  become: true
+  become_user: root
 
 - name: Restart if required
   ansible.builtin.set_fact:
@@ -99,10 +113,10 @@
   register: amd_processor
   changed_when: "amd_processor.rc == 0"
 
-- name: Fail in case no Intel or AMD virtualization support is not detected.
+- name: Fail in case no Intel or AMD virtualization support is not detected and is not a hosted deployment.
   ansible.builtin.fail:
-    msg: "The system doesn't seem to have Intel nor AMD virtualization support."
-  when: intel_processor.rc != 0 and amd_processor.rc != 0
+    msg: "The system doesn't seem to have Intel nor AMD virtualization support or is not a hosted deployment."
+  when: intel_processor.rc != 0 and amd_processor.rc != 0 and not kubeinit_inventory_hosted_deployment
 
 - name: Set fact for Intel virtualization
   ansible.builtin.set_fact:
@@ -117,11 +131,13 @@
 - name: Set fact for nested virtualization test path
   ansible.builtin.set_fact:
     nested_virtualization_test_path: "/sys/module/{{ nested_virtualization_module_name }}/parameters/nested"
+  when: intel_processor.rc == 0 or amd_processor.rc == 0
 
 - name: "Ensure {{ nested_virtualization_module_name }} module is available and loaded"
   community.general.modprobe:
     name: "{{ nested_virtualization_module_name }}"
     state: present
+  when: intel_processor.rc == 0 or amd_processor.rc == 0
 
 - name: Test status of nested virtualization
   ansible.builtin.shell: |
@@ -129,6 +145,7 @@
     cat {{ nested_virtualization_test_path }}
   register: actual_status
   changed_when: "actual_status.rc == 0"
+  when: intel_processor.rc == 0 or amd_processor.rc == 0
 
 - name: "Persist configuration in /etc/modprobe.d/kvm.conf"
   ansible.builtin.lineinfile:
@@ -137,11 +154,13 @@
     line: "options {{ nested_virtualization_module_name }} nested=1"
     create: yes
     mode: '0644'
+  when: intel_processor.rc == 0 or amd_processor.rc == 0
 
 - name: "Load {{ nested_virtualization_module_name }} module"
   community.general.modprobe:
     name: "{{ nested_virtualization_module_name }}"
     state: present
+  when: intel_processor.rc == 0 or amd_processor.rc == 0
 
 - name: Enable and start libvirtd
   ansible.builtin.service:
@@ -152,3 +171,7 @@
 - name: Create cloud user if requested
   ansible.builtin.include_tasks: 60_create_cloud_user.yml
   when: kubeinit_libvirt_create_cloud_user
+  args:
+    apply:
+      become: true
+      become_user: root
