@@ -232,20 +232,26 @@ To connect to the nodes from the hypervisor use the IP addresses from the invent
 The following commands build a container image with the project inside of it, and then
 launches the container executing the ansible-playbook command with all the
 standard ansible-playbook parameters.</p>
+<p>Note: When running the deployment from a container,
+<cite>nyctea</cite> can not be 127.0.0.1, it needs to be
+the hypervisor’s IP address. Also when running the
+deployment as a user different than root, the
+keys needs to be also updated.</p>
 <div class="section" id="running-from-the-git-repository">
 <h3>Running from the GIT repository<a class="headerlink" href="#running-from-the-git-repository" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">git clone https://github.com/Kubeinit/kubeinit.git</span>
 <span class="go">cd kubeinit</span>
 <span class="go">podman build -t kubeinit/kubeinit .</span>
-
+<span class="go">run_as=&#39;root&#39;</span>
 <span class="go">podman run --rm -it \</span>
-<span class="go">    -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \</span>
+<span class="go">    -v ~/.ssh/id_rsa:/${run_as}/.ssh/id_rsa:z \</span>
 <span class="go">    -v /etc/hosts:/etc/hosts \</span>
 <span class="go">    kubeinit/kubeinit \</span>
-<span class="go">        --user root \</span>
+<span class="go">        --user ${run_as} \</span>
 <span class="go">        -v -i ./hosts/okd/inventory \</span>
+<span class="go">        -e ansible_ssh_user=${run_as} \</span>
 <span class="go">        --become \</span>
-<span class="go">        --become-user root \</span>
+<span class="go">        --become-user ${run_as} \</span>
 <span class="go">        ./playbooks/okd.yml</span>
 </pre></div>
 </div>
