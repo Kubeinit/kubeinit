@@ -280,6 +280,7 @@ elif [[ "$SCENARIO" == "container" ]]; then
             --become \
             --become-user root \
             -e @scenario_variables.yml \
+            -e ansible_ssh_user=root \
             ./playbooks/$DISTRO.yml
 
 elif [[ "$SCENARIO" == "default" ]]; then
