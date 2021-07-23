@@ -59,7 +59,8 @@ jobs:
         ls -la ~/.ssh
     - name: Prepare connection to nyctea
       run: |
-        sudo echo "127.0.0.1 nyctea.local nyctea localhost" | sudo tee -a /etc/hosts
+        iface_ip=$(hostname -i)
+        sudo echo "${iface_ip} nyctea.local nyctea" | sudo tee -a /etc/hosts
     - name: Test SSH connection to localhost/nyctea
       run: >
         echo "Test to nyctea"
@@ -79,15 +80,19 @@ jobs:
         sed -i '/^\[service_nodes:vars\]$/,/^\[/ s/^disk=150G/disk=10G/' ./hosts/cdk/inventory
         sed -i '/^\[service_nodes:vars\]$/,/^\[/ s/^ram=12582912/ram=3165824/' ./hosts/cdk/inventory
         sed -i '/^\[service_nodes:vars\]$/,/^\[/ s/^vcpus=8/vcpus=1/' ./hosts/cdk/inventory
-    - name: Run the deployment
+    - name: Run the deployment for a container
       run: |
-        # Install the Ansible collection requirements
-        ansible-galaxy collection install --force -r kubeinit/requirements.yml
-        # Run the playbook
-        ansible-playbook \
-            -v \
-            -e kubeinit_stop_after_task='task-run-validations' \
-            -e kubeinit_libvirt_create_cloud_user=true \
-            -e kubeinit_inventory_hosted_deployment=true \
-            -i ./hosts/cdk/inventory \
-            ./playbooks/cdk.yml
+        run_as='runner'
+        podman build -t kubeinit/kubeinit .
+        podman run --rm -it \
+            -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+            -v /etc/hosts:/etc/hosts \
+            kubeinit/kubeinit \
+                -vvv \
+                --user ${run_as} \
+                -e ansible_ssh_user=${run_as} \
+                -e kubeinit_stop_after_task='task-run-validations' \
+                -e kubeinit_libvirt_create_cloud_user=true \
+                -e kubeinit_inventory_hosted_deployment=true \
+                -i ./hosts/cdk/inventory \
+                ./playbooks/cdk.yml

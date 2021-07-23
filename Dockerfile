@@ -5,8 +5,6 @@ LABEL quay.expires-after=30w
 
 WORKDIR /kubeinit
 
-
-# Overrides SSH Hosts Checking
 RUN set -x && \
     \
     echo "==> Installing dependencies..."  && \
@@ -28,7 +26,6 @@ RUN set -x && \
         cryptography==3.3.2 \
         ansible==3.4.0 \
         netaddr
-
 
 COPY . .
 
