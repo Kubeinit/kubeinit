@@ -58,7 +58,8 @@ sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
 ara-manage migrate
 
 echo "nyctea" > /etc/hostname
-echo "127.0.0.1 nyctea" >> /etc/hosts
+iface_ip=$(hostname -i)
+echo "${iface_ip} nyctea" >> /etc/hosts
 cd
 mkdir -p ~/.ssh
 ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
