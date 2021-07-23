@@ -144,6 +144,12 @@ The following commands build a container image with the project inside of it, an
 launches the container executing the ansible-playbook command with all the
 standard ansible-playbook parameters.
 
+Note: When running the deployment from a container,
+`nyctea` can not be 127.0.0.1, it needs to be
+the hypervisor's IP address. Also when running the
+deployment as a user different than root, the
+keys needs to be also updated.
+
 ### Running from the GIT repository
 
 ```
@@ -151,14 +157,15 @@ git clone https://github.com/Kubeinit/kubeinit.git
 cd kubeinit
 podman build -t kubeinit/kubeinit .
 
+run_as='root'
 podman run --rm -it \
-    -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+    -v ~/.ssh/id_rsa:/${run_as}/.ssh/id_rsa:z \
     -v /etc/hosts:/etc/hosts \
     kubeinit/kubeinit \
-        --user root \
+        --user ${run_as} \
         -v -i ./hosts/okd/inventory \
         --become \
-        --become-user root \
+        --become-user ${run_as} \
         ./playbooks/okd.yml
 ```
 
