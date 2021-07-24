@@ -30,6 +30,10 @@ jobs:
         sudo python3 -m pip install --upgrade virtualenv
         sudo python3 -m pip install --upgrade setuptools
         sudo python3 -m pip install -r ./test-requirements.txt
+    - name: Prepare connection to nyctea
+      run: |
+        iface_ip=$(hostname -i)
+        sudo echo "${iface_ip} nyctea.local nyctea" | sudo tee -a /etc/hosts
     - name: Check SSH config
       run: |
         cat > sshd_config <<EOF
@@ -45,28 +49,20 @@ jobs:
         EOF
         sudo mv sshd_config /etc/ssh/sshd_config
         sudo systemctl restart ssh
-    - name: Create ssh key
+    - name: Create ssh key and enable passwordless access
       run: >
-        ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa
-    - name: Add key to auth file
-      run: >
-        cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
-    - name: Ensure the owner of the key is correct
-      run: |
-        chmod 600 ~/.ssh/authorized_keys
-        chmod 700 ~/.ssh
-        sudo chmod -c 0755 ~/
-        ls -la ~/.ssh
-    - name: Prepare connection to nyctea
-      run: |
-        iface_ip=$(hostname -i)
-        sudo echo "${iface_ip} nyctea.local nyctea" | sudo tee -a /etc/hosts
-    - name: Test SSH connection to localhost/nyctea
-      run: >
-        echo "Test to nyctea"
-        ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no $(whoami)@nyctea
-        echo "Test to localhost"
-        ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no $(whoami)@localhost
+        sudo su <<EOF
+            ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa
+            cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
+            chmod 600 ~/.ssh/authorized_keys
+            chmod 700 ~/.ssh
+            sudo chmod -c 0755 ~/
+            ls -la ~/.ssh
+            # echo "Test to nyctea"
+            # ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no $(whoami)@nyctea
+            # echo "Test to localhost"
+            # ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no $(whoami)@localhost
+        EOF
     - name: Adjust CDK inventory
       run: |
         sed -i -E "s/.*-controller-02/#-controller-02/g" ./hosts/cdk/inventory
@@ -82,17 +78,19 @@ jobs:
         sed -i '/^\[service_nodes:vars\]$/,/^\[/ s/^vcpus=8/vcpus=1/' ./hosts/cdk/inventory
     - name: Run the deployment for a container
       run: |
-        run_as='runner'
-        podman build -t kubeinit/kubeinit .
-        podman run --rm -it \
-            -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
-            -v /etc/hosts:/etc/hosts \
-            kubeinit/kubeinit \
-                -vvv \
-                --user ${run_as} \
-                -e ansible_ssh_user=${run_as} \
-                -e kubeinit_stop_after_task='task-run-validations' \
-                -e kubeinit_libvirt_create_cloud_user=true \
-                -e kubeinit_inventory_hosted_deployment=true \
-                -i ./hosts/cdk/inventory \
-                ./playbooks/cdk.yml
+        sudo su <<EOF
+            whoami
+            podman build -t kubeinit/kubeinit .
+            podman run --rm -it \
+                -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+                -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
+                -v /etc/hosts:/etc/hosts \
+                kubeinit/kubeinit \
+                    -v \
+                    -e ansible_ssh_user=root \
+                    -e kubeinit_stop_after_task='task-run-validations' \
+                    -e kubeinit_libvirt_create_cloud_user=true \
+                    -e kubeinit_inventory_hosted_deployment=true \
+                    -i ./hosts/cdk/inventory \
+                    ./playbooks/cdk.yml
+        EOF

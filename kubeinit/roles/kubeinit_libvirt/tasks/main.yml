@@ -39,49 +39,45 @@
       - "This means that CentOS 8 guests won't work with CentOS 8 hosts."
   when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' and hostvars[kubeinit_deployment_node_name].ansible_distribution_major_version == "7")
 
-- name: Run tasks that requires elevated privileges
-  block:
-    - name: Fix libvirt qemu bug
-      ansible.builtin.shell: |
-        set -eo pipefail
-        mkdir -p /etc/qemu/firmware
-        touch /etc/qemu/firmware/50-edk2-ovmf-cc.json
-      args:
-        executable: /bin/bash
-      register: libvirt_bugfix
-      changed_when: "libvirt_bugfix.rc == 0"
 
-    - name: Install CentOS based requirements
-      ansible.builtin.package:
-        name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
-        state: present
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
-      register: installed_packages_centos
+- name: Fix libvirt qemu bug
+  ansible.builtin.shell: |
+    set -eo pipefail
+    mkdir -p /etc/qemu/firmware
+    touch /etc/qemu/firmware/50-edk2-ovmf-cc.json
+  args:
+    executable: /bin/bash
+  register: libvirt_bugfix
+  changed_when: "libvirt_bugfix.rc == 0"
 
-    - name: Install Debian based requirements
-      ansible.builtin.package:
-        name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
-        state: present
-      when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
-      register: installed_packages_debian
+- name: Install CentOS based requirements
+  ansible.builtin.package:
+    name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
+    state: present
+  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+  register: installed_packages_centos
 
-    - name: Upgrade all packages
-      ansible.builtin.package:
-        name: '*'
-        state: latest
-      register: upgraded_packages
+- name: Install Debian based requirements
+  ansible.builtin.package:
+    name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
+    state: present
+  when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+  register: installed_packages_debian
 
-    - name: Add users to libvirt
-      ansible.builtin.user:
-        name: "{{ item }}"
-        groups: "kvm,libvirt"
-        append: yes
-      with_items:
-        - root
-        - "{{ ansible_ssh_user | default(lookup('env', 'USER'), True) }}"
+- name: Upgrade all packages
+  ansible.builtin.package:
+    name: '*'
+    state: latest
+  register: upgraded_packages
 
-  become: true
-  become_user: root
+- name: Add users to libvirt
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: "kvm,libvirt"
+    append: yes
+  with_items:
+    - root
+    - "{{ ansible_ssh_user | default(lookup('env', 'USER'), True) }}"
 
 - name: Restart if required
   ansible.builtin.set_fact:
@@ -171,7 +167,3 @@
 - name: Create cloud user if requested
   ansible.builtin.include_tasks: 60_create_cloud_user.yml
   when: kubeinit_libvirt_create_cloud_user
-  args:
-    apply:
-      become: true
-      become_user: root
