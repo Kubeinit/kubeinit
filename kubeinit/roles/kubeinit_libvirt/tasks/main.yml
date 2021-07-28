@@ -158,6 +158,16 @@
     state: present
   when: intel_processor.rc == 0 or amd_processor.rc == 0
 
+- name: Make sure firewalld is started and enabled in CentOS/Fedora/RHEL
+  ansible.builtin.service:
+    name: firewalld
+    enabled: yes
+    state: started
+  when: >
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+
 - name: Enable and start libvirtd
   ansible.builtin.service:
     name: libvirtd
