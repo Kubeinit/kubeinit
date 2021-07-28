@@ -24,7 +24,7 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     fi
 
     # Common requirements
-    sudo yum install git lvm2 lvm2-devel -y
+    sudo yum install git lvm2 -y
     sudo yum install python3-libvirt python3-lxml libvirt -y
     sudo yum install python3 python3-pip -y
     sudo yum install nano git podman -y
@@ -41,14 +41,17 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     fi
 fi
 
-sudo dnf install ansible -y
-sudo dnf install shyaml -y
-
-sudo pip3 install PyGithub
-sudo pip3 install netaddr
-sudo pip3 install pybadges
-sudo pip3 install jinja2
-sudo pip3 install google-cloud-storage
+sudo python3 -m pip install --upgrade pip
+sudo python3 -m pip install --upgrade setuptools
+sudo python3 -m pip install requests
+sudo python3 -m pip install setuptools_rust
+sudo python3 -m pip install shyaml
+sudo python3 -m pip install ansible
+sudo python3 -m pip install PyGithub
+sudo python3 -m pip install netaddr
+sudo python3 -m pip install pybadges
+sudo python3 -m pip install jinja2
+sudo python3 -m pip install google-cloud-storage
 
 # Install and configure ara
 # There are problems with multithread ara, we keep the last

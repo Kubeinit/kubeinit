@@ -34,7 +34,10 @@
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS')
-  changed_when: false
+  args:
+    executable: /bin/bash
+  register: ovn_install
+  changed_when: "ovn_install.rc == 0"
 
 - name: Install OVN packages in Fedora (Master Hypervisor)
   ansible.builtin.shell: |
@@ -47,7 +50,10 @@
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
-  changed_when: false
+  args:
+    executable: /bin/bash
+  register: ovn_install
+  changed_when: "ovn_install.rc == 0"
 
 - name: Install OVN packages in Ubuntu/Debian (Master Hypervisor)
   ansible.builtin.shell: |
@@ -59,7 +65,10 @@
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
-  changed_when: false
+  args:
+    executable: /bin/bash
+  register: ovn_install
+  changed_when: "ovn_install.rc == 0"
 
 #
 # We DO NOT install ovn-central (OVN requirement) in the other hypervisors
@@ -76,7 +85,10 @@
   when: >
     (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS')
-  changed_when: false
+  args:
+    executable: /bin/bash
+  register: ovn_install_slaves
+  changed_when: "ovn_install_slaves.rc == 0"
 
 - name: Install OVN packages in Fedora (Slave Hypervisor)
   ansible.builtin.shell: |
@@ -88,7 +100,10 @@
   when: >
     (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
-  changed_when: false
+  args:
+    executable: /bin/bash
+  register: ovn_install_slaves
+  changed_when: "ovn_install_slaves.rc == 0"
 
 - name: Install OVN packages in Ubuntu/Debian (Slave Hypervisor)
   ansible.builtin.shell: |
@@ -99,13 +114,22 @@
   when: >
     (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
-  changed_when: false
+  args:
+    executable: /bin/bash
+  register: ovn_install_slaves
+  changed_when: "ovn_install_slaves.rc == 0"
 
 - name: Refresh firewalld services list to pick up ovn services
   ansible.builtin.shell: |
     firewall-cmd --reload
   when: >
-    (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS')
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+  args:
+    executable: /bin/bash
+  register: refresh_firewalld
+  changed_when: "refresh_firewalld.rc == 0"
 
 - name: Enable OVN central in firewalld
   ansible.posix.firewalld:
@@ -115,7 +139,9 @@
     immediate: true
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
-    (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS')
+    ((hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora'))
 
 - name: Enable OVN NAT in firewalld
   ansible.posix.firewalld:
@@ -125,7 +151,9 @@
     immediate: true
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
-    (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS')
+    ((hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora'))
 
 - name: Enable OVN host in firewalld
   ansible.posix.firewalld:
@@ -134,13 +162,17 @@
     state: enabled
     immediate: true
   when: >
-    (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS')
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
 
 - name: Refresh firewalld services list
   ansible.builtin.shell: |
     firewall-cmd --reload
   when: >
-    (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS')
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat') or
+    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
 
 - name: Enable and start OVN services in the first hypervisor (CentOS based)
   ansible.builtin.service:
