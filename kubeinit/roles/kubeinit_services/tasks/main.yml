@@ -19,15 +19,51 @@
 # "kubeinit_services" tasks
 #
 
-- name: Check to see if the environment facts are set
-  ansible.builtin.set_fact:
-    environment_facts_set: "{{ kubeinit_bastion_host is defined }}"
-
-- name: Prepare environment
+- name: Prepare environment if not prepared
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_prepare"
     public: true
+  vars:
+    environment_facts_set: "{{ kubeinit_cluster_facts_name is defined }}"
   when: not environment_facts_set
+
+- name: Cleanup nodes for libvirt guests from previous install
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: cleanup_hypervisor.yml
+    public: true
+  with_items:
+    - "{{ groups['all_hosts'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after 'task-cleanup-hypervisors'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-cleanup-hypervisors'
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before 'task-create-services'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-services'
+
+- name: Download images for libvirt guests
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: "download_cloud_images.yml"
+    public: true
+  with_items:
+    - "{{ groups['all_hosts'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
 - name: Create OVN network
   ansible.builtin.include_role:
@@ -40,6 +76,7 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: network
 
 - name: Deploy cluster services
   ansible.builtin.include_tasks: "prepare_{{ kubeinit_deployment_node_type }}_services.yml"
@@ -51,3 +88,10 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: service
     kubeinit_deployment_node_type: "{{ hostvars[cluster_role_item].type }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after 'task-create-services'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-create-services'

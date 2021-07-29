@@ -22,6 +22,15 @@
 - name: Delegate to kubeinit_deployment_node_name
   block:
 
+    - name: Create new directories for config files per node
+      ansible.builtin.file:
+        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}"
+        state: directory
+        mode: 0775
+        recurse: yes
+      with_items: "{{ groups['all_guest_vms'] }}"
+      when: hostvars[item].target in kubeinit_deployment_node_name
+
     - name: Set qemu user depending on the hypervisor linux distribution
       ansible.builtin.set_fact:
         kubeinit_qemu_user: "{{ 'qemu' if (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
@@ -59,4 +68,4 @@
         owner: "{{ kubeinit_qemu_user }}"
       when: "'centos' in hostvars[kubeinit_services_node].os"
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

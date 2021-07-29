@@ -30,21 +30,10 @@
     - "{{ kubeinit_services_directory }}/.ssh"
     - "/var/kubeinit/html"
 
-- name: Get the public key we will use to access the service pod
-  become: false
-  delegate_to: localhost
-  ansible.builtin.command: cat ~/.ssh/id_rsa.pub
-  register: kubeinit_services_public_key
-  changed_when: "kubeinit_services_public_key.rc == 0"
-
-- name: Set the fact for the service pod public key
-  ansible.builtin.set_fact:
-    services_public_key: "{{ kubeinit_services_public_key.stdout }}"
-
 - name: Create authorized_keys for service pod
   ansible.builtin.copy:
     content: |
-      {{ services_public_key }}
+      {{ kubeinit_services_public_key }}
       {{ kubeinit_provision_vms_public_key }}
     dest: "{{ kubeinit_services_directory }}/.ssh/authorized_keys"
     owner: "{{ kubeinit_service_user }}"
@@ -127,7 +116,7 @@
     cap_add:
       - "AUDIT_WRITE"
     volumes:
-      - /var/kubeinit/:/var/kubeinit/
+      - /var/kubeinit/:/var/kubeinit/:Z
   register: services_podman_container_info
 
 - name: Setting Podman facts about the container that will run the service pod
@@ -161,3 +150,4 @@
   retries: 30
   delay: 10
   until: "'connected' in cmd_boot_ok_res.stdout"
+  delegate_to: "{{ kubeinit_bastion_host }}"

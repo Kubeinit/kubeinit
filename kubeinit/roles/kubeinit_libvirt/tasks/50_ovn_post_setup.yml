@@ -141,14 +141,11 @@
     iptables -P FORWARD ACCEPT
     iptables -P INPUT ACCEPT
     iptables -P OUTPUT ACCEPT
-  when: >
-    not ((hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS') or
-    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat') or
-    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora'))
   args:
     executable: /bin/bash
   register: config_iptables
   changed_when: "config_iptables.rc == 0"
+  when: not hostvars[kubeinit_deployment_node_name].firewalld_is_active
 
 # When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
 # ovn-nbctl show

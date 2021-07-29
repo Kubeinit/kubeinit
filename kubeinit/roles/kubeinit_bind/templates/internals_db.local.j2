@@ -26,7 +26,7 @@ $TTL    604800
 {% endfor %}
 
 ; KubeInit cluster Cluster - A records
-{% for host in groups['all_control_plane_nodes'] | list %}
+{% for host in groups['all_controller_nodes'] | list %}
 {{ host }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
 master{{ loop.index - 1 }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.       IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
@@ -37,7 +37,7 @@ worker{{ loop.index - 1 }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inv
 
 {% endfor %}
 
-{% for host in groups['all_bootstrap_nodes'] | list %}
+{% for host in groups['bootstrap_node'] | default([]) | list %}
 {{ host }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                       IN      A       {{ hostvars[host].ansible_host }}
 bootstrap.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                        IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
@@ -52,11 +52,11 @@ console-openshift-console.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit
 oauth-openshift.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.             IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
-{% for host in groups['all_control_plane_nodes'] | list %}
+{% for host in groups['all_controller_nodes'] | list %}
 etcd-{{ loop.index - 1 }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.        IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - SRV records
-{% for host in groups['all_control_plane_nodes'] | list %}
+{% for host in groups['all_controller_nodes'] | list %}
 _etcd-server-ssl._tcp.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.    86400   IN    SRV     0    10    2380    etcd-{{ loop.index - 1 }}
 {% endfor %}

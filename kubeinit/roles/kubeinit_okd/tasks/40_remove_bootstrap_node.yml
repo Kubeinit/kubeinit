@@ -14,17 +14,23 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Remove bootstrap node from haproxy config
+  ansible.builtin.command: |
+    podman --remote --connection {{ kubeinit_haproxy_service_node }} exec kubeinit-haproxy sed -i '/bootstrap/s/^/#/' /usr/local/etc/haproxy/haproxy.cfg
+  delegate_to: localhost
+  register: remove_bootstrap_from_haproxy
+  changed_when: "remove_bootstrap_from_haproxy.rc == 0"
+
+- name: Restart haproxy container
+  ansible.builtin.systemd:
+    name: kubeinit-haproxy
+    state: restarted
+    enabled: yes
+    scope: user
+  delegate_to: "{{ kubeinit_haproxy_service_manager }}"
+
 - name: Remove boostrap node
   block:
-
-    - name: "remove bootstrap node from haproxy"
-      ansible.builtin.shell: |
-        sed -i '/bootstrap/s/^/#/' /var/kubeinit/haproxy/conf/haproxy.cfg
-        systemctl --user restart kubeinit-haproxy
-      register: remove_bootstrap_from_cluster
-      changed_when: "remove_bootstrap_from_cluster.rc == 0"
-      ignore_errors: yes
-      delegate_to: "{{ kubeinit_haproxy_service_manager }}"
 
     # To run in the hypervisor where
     # the bootstrap machine is deployed

@@ -17,12 +17,12 @@
 - name: Configure the post deployment tasks
   block:
 
+    # We fetch the kubeconfig from the first controller node
     - name: Copying the kubeconfig to a variable
       ansible.builtin.slurp:
         src: ~/.kube/config
       register: kubeinit_k8s_cluster_kubeconfig
-      # We fetch the kubeconfig from the first master node
-      delegate_to: "{{ hostvars[kubeinit_first_controller_node].ansible_host }}"
+      delegate_to: "{{ kubeinit_first_controller_node }}"
 
     - name: Create kube directory
       ansible.builtin.file:
@@ -45,4 +45,4 @@
         public: true
       when: "'nfs' in kubeinit_cluster_hostvars.services"
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

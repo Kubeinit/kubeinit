@@ -15,13 +15,13 @@
 # under the License.
 
 
-- name: Deploy the cluster bootstrap nodes
+- name: Deploy the cluster bootstrap node
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
     tasks_from: deploy_coreos_guest.yml
     public: yes
   with_items:
-    - "{{ groups['all_bootstrap_nodes'] | list }}"
+    - "{{ groups['bootstrap_node'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -34,7 +34,7 @@
     tasks_from: deploy_coreos_guest.yml
     public: yes
   with_items:
-    - "{{ groups['all_control_plane_nodes'] | list }}"
+    - "{{ groups['all_controller_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -42,7 +42,7 @@
     kubeinit_deployment_role: master
 
 - name: Configure the cluster master nodes
-  ansible.builtin.include_tasks: 20_configure_control_plane_nodes.yml
+  ansible.builtin.include_tasks: 20_configure_controller_nodes.yml
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
@@ -63,7 +63,7 @@
 - name: Remove the bootstrap node
   ansible.builtin.include_tasks: 40_remove_bootstrap_node.yml
   with_items:
-    - "{{ groups['all_bootstrap_nodes'] | list }}"
+    - "{{ groups['bootstrap_node'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:

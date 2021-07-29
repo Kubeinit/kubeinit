@@ -39,9 +39,11 @@
         loop_var: cluster_role_item
       vars:
         kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    - name: Check to see if we should stop here
-      ansible.builtin.fail:
-        msg: "Stopping after 'task-gather-hypervisor-facts'"
+    - block:
+        - name: Check to see if we should stop here
+          ansible.builtin.debug: msg="Stopping after 'task-gather-hypervisor-facts'"
+        - name: End play
+          ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-gather-hypervisor-facts'
 
 - name: Prepare all hypervisor hosts to deploy service and cluster nodes

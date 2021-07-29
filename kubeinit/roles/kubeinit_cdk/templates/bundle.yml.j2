@@ -5,7 +5,7 @@
 description: A highly-available, production-grade Kubernetes cluster.
 series: focal
 machines:
-{% for item in groups['all_control_plane_nodes'] + groups['all_compute_nodes'] %}
+{% for item in groups['all_controller_nodes'] + groups['all_compute_nodes'] %}
   "{{ loop.index0 }}":
 {% endfor %}
 services:
@@ -30,7 +30,7 @@ services:
     # at 0. So, the amount of master nodes index will be
     # the first worker node.
 {% if groups['all_compute_nodes'] | count > 0 %}
-    - "{{ groups['all_control_plane_nodes'] | count }}"
+    - "{{ groups['all_controller_nodes'] | count }}"
 {% else %}
     - "0"
 {% endif %}
@@ -40,7 +40,7 @@ services:
       gui-y: '420'
     charm: cs:~containers/etcd-594
     constraints: root-disk=8G
-    num_units: {{ groups['all_control_plane_nodes'] | count }}
+    num_units: {{ groups['all_controller_nodes'] | count }}
     options:
       channel: 3.4/stable
     resources:
@@ -48,7 +48,7 @@ services:
       etcd: 3
       snapshot: 0
     to:
-{% for item in groups['all_control_plane_nodes'] %}
+{% for item in groups['all_controller_nodes'] %}
     - "{{ loop.index0 }}"
 {% endfor %}
   flannel:
@@ -75,7 +75,7 @@ services:
     # at 0. So, the amount of master nodes index will be
     # the first worker node.
 {% if groups['all_compute_nodes'] | count > 0 %}
-    - "{{ groups['all_control_plane_nodes'] | count }}"
+    - "{{ groups['all_controller_nodes'] | count }}"
 {% else %}
     - "0"
 {% endif %}
@@ -85,7 +85,7 @@ services:
       gui-y: '850'
     charm: cs:~containers/kubernetes-master-1008
     constraints: cores=2 mem=4G root-disk=16G
-    num_units: {{ groups['all_control_plane_nodes'] | count }}
+    num_units: {{ groups['all_controller_nodes'] | count }}
     options:
       channel: 1.21/stable
     resources:
@@ -97,7 +97,7 @@ services:
       kube-scheduler: 0
       kubectl: 0
     to:
-{% for item in groups['all_control_plane_nodes'] %}
+{% for item in groups['all_controller_nodes'] %}
     - "{{ loop.index0 }}"
 {% endfor %}
 {% if groups['all_compute_nodes'] | count > 0 %}
@@ -121,7 +121,7 @@ services:
       kubelet: 0
     to:
 {% for item in groups['all_compute_nodes'] %}
-    - "{{ loop.index0 + groups['all_control_plane_nodes'] | count }}"
+    - "{{ loop.index0 + groups['all_controller_nodes'] | count }}"
 {% endfor %}
 {% endif %}
 relations:

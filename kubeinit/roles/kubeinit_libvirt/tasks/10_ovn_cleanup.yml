@@ -43,7 +43,7 @@
     - ovn-controller
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
-    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS' or hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
   failed_when: false
 
 - name: Stop and disable OVN services in the rest of the hypervisors (CentOS based)
@@ -56,7 +56,7 @@
     - ovn-controller
   when: >
     (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
-    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora')
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS' or hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
   failed_when: false
 
 - name: Stop and disable OVN services in the first hypervisor (Ubuntu based)
@@ -70,7 +70,7 @@
     - ovn-controller
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
-    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
   failed_when: false
 
 - name: Stop and disable OVN services in the rest of the hypervisors (Ubuntu based)
@@ -83,7 +83,7 @@
     - ovn-controller
   when: >
     (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
-    (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Debian' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Ubuntu')
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
   failed_when: false
 
 - name: Delete existing OVS/OVN files
