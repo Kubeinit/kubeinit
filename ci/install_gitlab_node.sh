@@ -61,7 +61,7 @@ sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
 ara-manage migrate
 
 echo "nyctea" > /etc/hostname
-iface_ip=$(hostname -i)
+iface_ip=$(ip route get "8.8.8.8" | grep -Po '(?<=(src )).*(?= uid| proto)')
 echo "${iface_ip} nyctea" >> /etc/hosts
 cd
 mkdir -p ~/.ssh

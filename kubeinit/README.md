@@ -32,6 +32,13 @@ a single command a curated list of prescribed architectures.
 
 KubeInit's documentation is hosted in [this same repository](https://docs.kubeinit.com).
 
+## Periodic jobs status
+
+There is a set of predefined scenarios that are tested on
+a weekly basis, the result of those executions is
+presented in the [periodic job execution page](periodic_jobs.md).
+
+
 ## KubeInit supported scenarios
 
 **K8s distribution:** OKD (testing K8S, RKE, EKS, RKE)
@@ -47,7 +54,7 @@ KubeInit's documentation is hosted in [this same repository](https://docs.kubein
  you will need in your cluster.
 * By default the hypervisor node is called nyctea (defined in the inventory). Replace it with the hostname you specified if you changed it.
 * Have root passwordless access with certificates.
-
+* Having podman installed in the machine where you are running ansible-playbook.
 
 ### Check if nyctea is reachable
 
@@ -135,6 +142,7 @@ podman build -t kubeinit/kubeinit .
 run_as='root'
 podman run --rm -it \
     -v ~/.ssh/id_rsa:/${run_as}/.ssh/id_rsa:z \
+    -v ~/.ssh/id_rsa.pub:/${run_as}/.ssh/id_rsa.pub:z \
     -v /etc/hosts:/etc/hosts \
     kubeinit/kubeinit \
         --user ${run_as} \
@@ -151,6 +159,7 @@ podman run --rm -it \
 TAG=$(curl --silent "https://api.github.com/repos/kubeinit/kubeinit/releases/latest" | jq -r .tag_name)
 podman run --rm -it \
     -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+    -v ~/.ssh/id_rsa.pub:/${run_as}/.ssh/id_rsa.pub:z \
     -v /etc/hosts:/etc/hosts \
     quay.io/kubeinit/kubeinit:$TAG \
         --user root \
@@ -169,29 +178,3 @@ podman run --rm -it \
 * [Persistent Volumes And Claims In KubeInit](https://www.anstack.com/blog/2020/09/28/Persistent-volumes-and-claims-in-KubeInit.html)
 * [Deploying Multiple KubeInit Clusters In The Same Hypervisor](https://www.anstack.com/blog/2020/10/04/Multiple-KubeInit-clusters-in-the-same-hypervisor.html)
 * [KubeInit 4-In-1 - Deploying Multiple Kubernetes Distributions (K8S, OKD, RKE, And CDK) With The Same Platform](https://www.anstack.com/blog/2020/10/19/KubeInit-4-in-1-Deploying-multiple-Kubernetes-distributions-K8S-OKD-RKE-and-CDK-with-the-same-platform.html)
-
-## Periodic jobs
-
-| Distribution                  | Scenario/State | HVs. | Ctrls. | Cmpts. | Svc. type | Add'l. svcs. |
-|-------------------------------|----------------|------|--------|--------|-----------|--------------|
-| KubeInit distro               | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 3 | 1 | virtual | |
-| KubeInit distro               | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-1-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 1 | virtual | |
-| KubeInit distro               | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-kid-libvirt-1-0-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 0 | virtual | |
-| Vanilla K8s                   | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 3 | 1 | virtual | |
-| Vanilla K8s                   | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-1-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 1 | virtual | |
-| Vanilla K8s                   | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-k8s-libvirt-1-0-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 0 | virtual | |
-| Vanilla K8s                   | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-multinode-libvirt-3-2-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-multinode-libvirt-3-2-periodic-weekly-go/badge_status.svg"/></a> | 3 | 3 | 2 | virtual | |
-| Amazon EKS Distro             | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 3 | 1 | virtual | |
-| Amazon EKS Distro             | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-1-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 1 | virtual | |
-| Amazon EKS Distro             | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-eks-libvirt-1-0-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 0 | virtual | |
-| Canonical Distribution of K8s | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-cdk-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-cdk-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 3 | 1 | virtual | |
-| Canonical Distribution of K8s | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-cdk-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-cdk-libvirt-1-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 1 | virtual | |
-| Canonical Distribution of K8s | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-cdk-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-cdk-libvirt-1-0-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 0 | virtual | |
-| Origin Distribution of K8s    | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 3 | 1 | virtual | |
-| Origin Distribution of K8s    | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd-libvirt-1-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 1 | virtual | |
-| Origin Distribution of K8s    | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd-libvirt-1-0-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 0 | virtual | |
-| Rancher K8s Engine            | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-rke-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-rke-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 3 | 1 | virtual | |
-| Rancher K8s Engine            | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-rke-libvirt-1-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-rke-libvirt-1-1-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 1 | virtual | |
-| Rancher K8s Engine            | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-rke-libvirt-1-0-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-rke-libvirt-1-0-periodic-weekly-go/badge_status.svg"/></a>             | 1 | 1 | 0 | virtual | |
-| OKD/RKE/Submariner            | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd.rke-libvirt-1-2-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd.rke-libvirt-1-2-periodic-weekly-go/badge_status.svg"/></a>     | 1 | 1 | 2 | virtual | |
-| OKD/RKE/Submariner            | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd.rke-libvirt-3-1-periodic-weekly-go/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/periodic/periodic-okd.rke-libvirt-3-1-periodic-weekly-go/badge_status.svg"/></a>     | 1 | 3 | 1 | virtual | |
