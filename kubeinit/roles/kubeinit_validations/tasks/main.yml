@@ -19,15 +19,20 @@
 # Include Libvirt validations
 #
 
-- name: Check to see if the environment facts are set
-  ansible.builtin.set_fact:
-    environment_facts_set: "{{ kubeinit_bastion_host is defined }}"
-
-- name: Prepare environment
+- name: Prepare environment if not prepared
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_prepare"
     public: true
+  vars:
+    environment_facts_set: "{{ kubeinit_cluster_facts_name is defined }}"
   when: not environment_facts_set
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before 'task-run-validations'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-run-validations'
 
 - name: Check that the hypervisor has enough disk space
   ansible.builtin.include_tasks: 10_libvirt_free_space.yml
@@ -41,6 +46,9 @@
 - name: Check that the cluster names are syntactly correct
   ansible.builtin.include_tasks: 40_check_cluster_nodes_naming_convention.yml
 
-- name: "Stopping after 'task-run-validations'"
-  ansible.builtin.meta: end_play
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after 'task-run-validations'"
+    - name: End play
+      ansible.builtin.meta: end_play
   when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-run-validations'

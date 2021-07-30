@@ -18,9 +18,45 @@
 #
 # Gather information
 #
-- name: Set localhost IPv4 address fact
+
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+  no_log: true
+
+- name: Install podman if required
+  ansible.builtin.package:
+    state: present
+    name: "podman"
+  when: "'podman' not in ansible_facts.packages"
+
+- name: Get list of existing remote system connection definitions
+  ansible.builtin.shell: |
+    set -eo pipefail
+    podman --remote system connection list | sed -e 1d -e 's/[* ].*//'
+  args:
+    executable: /bin/bash
+  register: list_remote_connections
+  changed_when: "list_remote_connections.rc == 0"
+
+- name: Remove any existing remote system connection definition for bastion hypervisor
+  ansible.builtin.shell: |
+    set -eo pipefail
+    podman --remote system connection remove {{ item }}
+  args:
+    executable: /bin/bash
+  loop: "{{ list_remote_connections.stdout_lines | list }}"
+  register: remove_remote_connection
+  changed_when: "remove_remote_connection.rc == 0"
+
+- name: Get the public key we will use to access the service pod
+  become: false
+  ansible.builtin.command: cat ~/.ssh/id_rsa.pub
+  register: services_public_key
+  changed_when: "services_public_key.rc == 0"
+
+- name: Set the fact for the service pod public key
   ansible.builtin.set_fact:
-    localhost_ipv4_address: "{{ hostvars['kubeinit-localhost'].ansible_default_ipv4_address }}"
+    kubeinit_services_public_key: "{{ services_public_key.stdout }}"
 
 #
 # Prepare localhost environment
@@ -37,13 +73,6 @@
   register: prepare_reset_keys
   changed_when: "prepare_reset_keys.rc == 0"
 
-- name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
-  community.crypto.openssh_keypair:
-    path: "~/.ssh/id_rsa"
-    regenerate: 'never'
-  with_items: "{{ groups['all_hosts'] }}"
-  delegate_to: "{{ item }}"
-
 - name: Get Ansible user host public key
   ansible.builtin.command: cat ~/.ssh/id_rsa.pub
   register: public_key_content
@@ -58,14 +87,14 @@
     - localhost
   delegate_to: "{{ item }}"
 
-- name: Ansible_host
-  ansible.builtin.debug:
-    msg: "{{ kubeinit_bastion_host_address }}"
+- name: Set localhost IPv4 address fact
+  ansible.builtin.set_fact:
+    localhost_ipv4_address: "{{ hostvars[groups['local_host'][0]].ansible_default_ipv4_address }}"
 
 - name: Add ssh ProxyCommand option for all nodes
   ansible.builtin.add_host:
-    name: "{{ hostvars[item].ansible_host }}"
+    name: "{{ item }}"
     ansible_ssh_common_args: >-
-      {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ kubeinit_bastion_host_name }}"
+      {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -W %h:%p -q root@{{ kubeinit_bastion_host_address }}"
   with_items: "{{ groups['all_nodes'] }}"
   when: kubeinit_bastion_host_address not in localhost_ipv4_address

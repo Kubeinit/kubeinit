@@ -16,27 +16,26 @@
 
 - name: Configure the worker nodes
   block:
+
     - name: Storing the join cluster command token.
       ansible.builtin.copy:
         content: "{{ k8s_master_kubeadm_init_output }}"
         dest: ~/k8s_token
         mode: '0644'
-      when: groups['all_compute_nodes'] | length > 0
 
-    - name: Joining worker nodes with kubernetes master
+    - name: Joining worker nodes with kubernetes control plane
       ansible.builtin.shell: |
        kubeadm reset -f || true
        cat ~/k8s_token > out.sh
        sh out.sh
       changed_when: false
-      when: groups['all_compute_nodes'] | length > 0
 
+    # The kubeconfig file is on the controller nodes so we run kubectl label on the first controller
     - name: Label node
       ansible.builtin.shell: |
        kubectl label node {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} node-role.kubernetes.io/worker=
       changed_when: false
-      when: groups['all_compute_nodes'] | length > 0
-      # The kubeconfig file is in the master nodes otherwise we can not relabel
-      delegate_to: "{{ hostvars[kubeinit_first_controller_node].ansible_host }}"
+      delegate_to: "{{ kubeinit_first_controller_node }}"
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: (kubeinit_compute_count | int) > 0

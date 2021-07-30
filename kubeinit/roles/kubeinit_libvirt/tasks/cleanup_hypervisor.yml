@@ -28,13 +28,47 @@
     - name: Clean up the libvirt networks and hosts before validations
       ansible.builtin.include_tasks: 10_cleanup.yml
 
-    - name: Create new directories for config files per node
+    - name: Remove any previous services folders
       ansible.builtin.file:
-        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}"
-        state: directory
-        mode: 0775
-        recurse: yes
-      with_items: "{{ groups['all_guest_vms'] }}"
-      when: hostvars[item].target in kubeinit_deployment_node_name
+        path: /var/kubeinit
+        state: absent
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+    - name: Remove any previous kubeinit podman network
+      ansible.builtin.shell: |
+        set -eo pipefail
+        podman network rm -f {{ item }}-bridge || true
+      with_items: "{{ groups['all_service_nodes'] }}"
+
+    - name: Remove any previous services podman pod
+      ansible.builtin.shell: |
+        set -eo pipefail
+        podman pod rm -f {{ item }}-pod || true
+      with_items: "{{ groups['all_service_nodes'] }}"
+
+    # TODO: clean up podman volumes and buildah containers
+
+    - name: Remove any previous veth dev
+      ansible.builtin.shell: |
+        set -eo pipefail
+        ip link del {{ ovs_veth_devname }} || true
+      args:
+        executable: /bin/bash
+      with_items: "{{ groups['all_service_nodes'] }}"
+      vars:
+        ovs_veth_devname: "veth0-{{ kubeinit_inventory_cluster_distro }}{{ item.split('-')[1][:3] }}{{ item.split('-')[2] }}"
+      register: remove_veth_dev
+      changed_when: "remove_veth_dev.rc == 0"
+
+    - name: Remove any previous cluster network endpoint from the openvswitch bridge
+      ansible.builtin.shell: |
+        set -eo pipefail
+        ovs-vsctl del-port br-int {{ ovs_veth_devname }} || true
+      args:
+        executable: /bin/bash
+      with_items: "{{ groups['all_service_nodes'] }}"
+      vars:
+        ovs_veth_devname: "veth0-{{ kubeinit_inventory_cluster_distro }}{{ item.split('-')[1][:3] }}{{ item.split('-')[2] }}"
+      register: remove_veth_from_ovs
+      changed_when: "remove_veth_from_ovs.rc == 0"
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

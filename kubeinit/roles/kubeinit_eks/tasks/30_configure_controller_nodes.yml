@@ -21,15 +21,11 @@
         echo "{{ kubeinit_provision_service_public_key }}" >> ~/.ssh/authorized_keys
       changed_when: false
 
-    # Push the certificates from the registry to the master nodes if its enabled
-    - name: Push the certificates from the registry (service node) to the master nodes
-      ansible.builtin.shell: |
-        set -e
-        scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ kubeinit_deployment_node_name }}:/etc/pki/ca-trust/source/anchors/
-      register: install_all_certs_in_masters
-      changed_when: "install_all_certs_in_masters.rc == 0"
-      when: "'registry' in kubeinit_cluster_hostvars.services"
-      delegate_to: "{{ kubeinit_registry_service_address }}"
+    - name: Copy cert to pki directory
+      ansible.builtin.copy:
+        content: "{{ trustbundle }}"
+        dest: /etc/pki/ca-trust/source/anchors/domain.crt
+        mode: 0644
 
     - name: Insert the local registry auth details
       ansible.builtin.shell: |
@@ -205,4 +201,4 @@
       changed_when: false
       when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

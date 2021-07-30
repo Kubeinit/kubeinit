@@ -20,41 +20,38 @@
 #
 - name: Create a group to hold the facts for the cluster as a whole
   ansible.builtin.add_host:
-    name: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
-    group: kubeinit_cluster_vars
+    name: "{{ kubeinit_cluster_facts_name }}"
+    group: kubeinit_cluster_facts
     hypervisors: []
     services: []
 
-- name: Add all control plane nodes to the all_control_plane_nodes group
+- name: Add all controller nodes to the all_controller_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
-    group: all_control_plane_nodes
+    group: all_controller_nodes
   with_items:
-    - "{{ groups['control_plane_nodes'] | list | default([]) }}"
-  when: "'control_plane_nodes' in groups"
+    - "{{ groups['controller_nodes'] | default([]) | list }}"
 
 - name: Add all compute nodes to the all_compute_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_compute_nodes
   with_items:
-    - "{{ groups['compute_nodes'] | list | default([]) }}"
-  when: "'compute_nodes' in groups"
-
-- name: Add all bootstrap nodes the all_bootstrap_nodes group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_bootstrap_nodes
-  with_items:
-    - "{{ groups['bootstrap_nodes'] | list | default([]) }}"
-  when: "'bootstrap_nodes' in groups"
+    - "{{ groups['compute_nodes'] | default([]) | list }}"
 
 - name: Add all cluster nodes to the all_cluster_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_cluster_nodes
   with_items:
-    - "{{ groups['all_control_plane_nodes'] + groups['all_compute_nodes'] + groups['all_bootstrap_nodes'] }}"
+    - "{{ groups['all_controller_nodes'] + groups['all_compute_nodes'] }}"
+
+- name: Add the bootstrap node, if there is one, to the all_cluster_nodes group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_cluster_nodes
+  with_items:
+    - "{{ groups['bootstrap_node'] | default([]) | list }}"
 
 - name: Collect all cluster node hypervisors
   ansible.builtin.set_fact:
@@ -66,7 +63,7 @@
 
 - name: Set all cluster hypervisors fact
   ansible.builtin.add_host:
-    name: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    name: "{{ kubeinit_cluster_facts_name }}"
     hypervisors: "{{ all_cluster_hypervisors }}"
 
 - name: Add all service nodes to the all_service_nodes group
@@ -74,12 +71,11 @@
     name: "{{ item }}"
     group: all_service_nodes
   with_items:
-    - "{{ groups['service_nodes'] | list | default([]) }}"
-  when: "'service_nodes' in groups"
+    - "{{ groups['service_nodes'] | default([]) | list }}"
 
 - name: Collect all service node services
   ansible.builtin.set_fact:
-    all_services: "{{ ((all_services | default([])) + services) | unique }}"
+    all_cluster_services: "{{ ((all_cluster_services | default([])) + services) | unique }}"
   with_items:
     - "{{ groups['all_service_nodes'] }}"
   vars:
@@ -87,8 +83,8 @@
 
 - name: Set all services cluster fact
   ansible.builtin.add_host:
-    name: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
-    services: "{{ all_services }}"
+    name: "{{ kubeinit_cluster_facts_name }}"
+    services: "{{ all_cluster_services }}"
 
 - name: Add all service and cluster nodes to the all_nodes group
   ansible.builtin.add_host:
@@ -97,23 +93,77 @@
   with_items:
     - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
 
-- name: Add all hosts to the all_hosts group
+- name: Add a default entry for the first hypervisor if there are no bastion_host members
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_inventory_cluster_name }}-bastion"
+    group: bastion_host
+    target: "{{ groups['hypervisor_hosts'][0] }}"
+  when: "('bastion_host' not in groups) or ((groups['bastion_host'] | list | count) == 0)"
+
+- name: Add ansible_host for bastion_host if not defined
+  ansible.builtin.add_host:
+    name: "{{ groups['bastion_host'][0] }}"
+    group: bastion_host
+    ansible_host: "{{ hostvars[hostvars[groups['bastion_host'][0]].target].ansible_host }}"
+  when: "hostvars[groups['bastion_host'][0]].ansible_host is not defined"
+
+- name: Add target for bestion_host if not defined
+  ansible.builtin.add_host:
+    name: "{{ groups['bastion_host'][0] }}"
+    group: bastion_host
+    target: "{{ groups['bastion_host'][0] }}"
+  when: "hostvars[groups['bastion_host'][0]].target is not defined"
+
+- name: Add a default entry for the first hypervisor if there are no ovn_central_host members
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_inventory_cluster_name }}-ovn-central"
+    group: ovn_central_host
+    target: "{{ groups['hypervisor_hosts'][0] }}"
+  when: "('ovn_central_host' not in groups) or ((groups['ovn_central_host'] | list | count) == 0)"
+
+- name: Add default type for ovn_central_host if not defined
+  ansible.builtin.add_host:
+    name: "{{ groups['ovn_central_host'][0] }}"
+    group: ovn_central_host
+    type: baremetal
+  when: "hostvars[groups['ovn_central_host'][0]].type is not defined"
+
+- name: Add ansible_host for ovn_central_host if type is baremetal
+  ansible.builtin.add_host:
+    name: "{{ groups['ovn_central_host'][0] }}"
+    group: ovn_central_host
+    ansible_host: "{{ hostvars[hostvars[groups['ovn_central_host'][0]].target].ansible_host }}"
+  when: "hostvars[groups['ovn_central_host'][0]].type == 'baremetal'"
+
+- name: Add the ovn_central_host to the all_ovn_hosts group if it is virtual
+  ansible.builtin.add_host:
+    name: "{{ groups['ovn_central_host'][0] }}"
+    group: all_ovn_hosts
+  when: "'virtual' in hostvars[groups['ovn_central_host'][0]].type"
+
+- name: Add all cluster hypervisors to the all_hosts group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_hosts
   with_items:
-    - "{{ groups['hypervisor_hosts'] | list | default([]) }}"
+    - "{{ groups['hypervisor_hosts'] }}"
+  when: >
+    item in hostvars[groups['ovn_central_host'][0]].target or
+    item in hostvars[kubeinit_cluster_facts_name].hypervisors
 
-- name: Add all service and cluster nodes to the all_guest_vms group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    group: all_guest_vms
-  with_items:
-    - "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
-
-- name: Add all OVN hosts to the all_ovn_hosts group
+- name: Add all hosts to the all_ovn_hosts group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_ovn_hosts
   with_items:
     - "{{ groups['all_hosts'] }}"
+
+- name: Add services guest and cluster nodes to the all_guest_vms group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    group: all_guest_vms
+  with_items:
+    - "{{ groups['ovn_central_host'] }}"
+    - "{{ groups['all_service_nodes'] }}"
+    - "{{ groups['all_cluster_nodes'] }}"
+  when: hostvars[item].type == 'virtual'

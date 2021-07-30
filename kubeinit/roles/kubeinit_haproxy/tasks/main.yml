@@ -36,12 +36,17 @@
     pod: "{{ kubeinit_deployment_node_name }}-pod"
     state: stopped
     volumes:
-      - "{{ kubeinit_haproxy_config_file }}:/usr/local/etc/haproxy/haproxy.cfg"
       - "{{ kubeinit_haproxy_directory_lib }}:/var/lib/haproxy:Z"
   register: haproxy_podman_container_info
   retries: 5
   delay: 10
   until: not haproxy_podman_container_info.failed
+
+- name: Copy configuration into the container
+  ansible.builtin.command:
+    podman cp "{{ kubeinit_haproxy_config_file }}" "{{ kubeinit_haproxy_service_name }}:/usr/local/etc/haproxy/haproxy.cfg"
+  register: haproxy_copy_config
+  changed_when: "haproxy_copy_config.rc == 0"
 
 - name: Setting Podman facts about the container that will run the haproxy
   ansible.builtin.set_fact:

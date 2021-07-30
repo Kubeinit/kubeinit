@@ -60,11 +60,28 @@
     kubeinit_services_podman_container_name: "{{ container_registry_name }}"
     kubeinit_services_podman_container_pidfile: "{{ container_registry_pidfile }}"
 
-- name: Wait for service to be available
-  ansible.builtin.shell: |
-    set -eo pipefail
-    while [[ "$(curl --cacert /var/kubeinit/registry/certs/domain.crt -s -o /dev/null -w '%{http_code}' --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/_catalog)" != "200" ]]; do sleep 5; done
-  args:
-    executable: /bin/bash
-  register: registry_service_wait
-  changed_when: "registry_service_wait.rc == 0"
+- name: Disable pipelining while using podman connector
+  block:
+
+    - name: Wait for connection to kubeinit-credentials container
+      ansible.builtin.wait_for_connection:
+        connect_timeout: 20
+        sleep: 5
+        delay: 5
+        timeout: 300
+
+    - name: Wait for registry service to be available
+      ansible.builtin.shell: |
+        set -eo pipefail
+        curl --cacert /var/kubeinit/registry/certs/domain.crt -s -o /dev/null -w '%{http_code}' --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/_catalog
+      args:
+        executable: /bin/bash
+      register: registry_service_wait
+      retries: 5
+      delay: 10
+      until: registry_service_wait.stdout == '200'
+      changed_when: "registry_service_wait.rc == 0"
+
+  vars:
+    ansible_ssh_pipelining: False
+  delegate_to: kubeinit-credentials

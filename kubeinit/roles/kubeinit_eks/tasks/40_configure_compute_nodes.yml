@@ -28,15 +28,11 @@
        echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
       changed_when: false
 
-    # Push the certificates from the registry to the worker nodes if its enabled
-    - name: Push the certificates from the registry to the worker nodes
-      ansible.builtin.shell: |
-        set -e
-        scp -o StrictHostKeyChecking=no /etc/pki/ca-trust/source/anchors/* {{ kubeinit_deployment_node_name }}:/etc/pki/ca-trust/source/anchors/
-      register: install_all_certs_in_workers
-      changed_when: "install_all_certs_in_workers.rc == 0"
-      when: "'registry' in kubeinit_cluster_hostvars.services"
-      delegate_to: "{{ kubeinit_registry_service_address }}"
+    - name: Copy cert to pki directory
+      ansible.builtin.copy:
+        content: "{{ trustbundle }}"
+        dest: /etc/pki/ca-trust/source/anchors/domain.crt
+        mode: 0644
 
     - name: Insert the local registry auth details
       ansible.builtin.shell: |
@@ -69,4 +65,4 @@
       changed_when: false
       when: groups['all_compute_nodes'] | length > 0
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

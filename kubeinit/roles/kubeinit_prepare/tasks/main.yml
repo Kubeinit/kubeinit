@@ -30,21 +30,30 @@
       vars:
         kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
-    - name: Check to see if we should stop here
-      ansible.builtin.fail:
-        msg: "Stopping after 'task-gather-hypervisor-facts'"
+    - block:
+        - name: Check to see if we should stop here
+          ansible.builtin.debug: msg="Stopping after 'task-gather-hypervisor-facts'"
+        - name: End play
+          ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-gather-hypervisor-facts'
 
   when: not hypervisor_facts_set
 
-- name: Check to see if we should stop here
-  ansible.builtin.fail:
-    msg: "Stopping after 'task-prepare-hypervisor'"
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after 'task-prepare-hypervisor'"
+    - name: End play
+      ansible.builtin.meta: end_play
   when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-prepare-hypervisor'
+
+- name: Define cluster facts name
+  ansible.builtin.set_fact:
+    kubeinit_cluster_localhost_name: "{{ kubeinit_inventory_cluster_name }}-localhost"
+    kubeinit_cluster_facts_name: "{{ kubeinit_inventory_cluster_name }}-facts"
 
 - name: Add localhost to the local_host group
   ansible.builtin.add_host:
-    name: kubeinit-localhost
+    name: "{{ kubeinit_cluster_localhost_name }}"
     group: local_host
     ansible_host: localhost
     ansible_hostname: localhost
@@ -53,74 +62,66 @@
 - name: Gather localhost facts
   ansible.builtin.include_tasks: gather_host_facts.yml
   vars:
-    kubeinit_deployment_node_name: "kubeinit-localhost"
+    kubeinit_deployment_node_name: "{{ kubeinit_cluster_localhost_name }}"
 
 - name: Prepare groups
   ansible.builtin.include_tasks: prepare_groups.yml
 
 - name: Define group facts
   ansible.builtin.set_fact:
-    kubeinit_cluster_name: "{{ groups['kubeinit_cluster_vars'][0] }}"
-    kubeinit_bastion_host: "{{ groups['all_hosts'][0] }}"
-    kubeinit_ovn_central_host: "{{ groups['all_ovn_hosts'][0] }}"
+    kubeinit_bastion_host: "{{ hostvars[groups['bastion_host'][0]].target }}"
+    kubeinit_ovn_central_host: "{{ hostvars[groups['ovn_central_host'][0]].target }}"
     kubeinit_services_node: "{{ groups['all_service_nodes'][0] }}"
-    kubeinit_first_controller_node: "{{ groups['all_control_plane_nodes'][0] }}"
-    kubeinit_controller_count: "{{ groups['all_control_plane_nodes'] | length  }}"
+    kubeinit_first_controller_node: "{{ groups['all_controller_nodes'][0] }}"
+    kubeinit_controller_count: "{{ groups['all_controller_nodes'] | length }}"
     kubeinit_compute_count: "{{ groups['all_compute_nodes'] | length }}"
+    kubeinit_bootstrap_node: "{{ groups['bootstrap_node'][0] if ('bootstrap_node' in groups) else '' }}"
+
+- name: Gather facts from bastion_host if needed
+  ansible.builtin.include_tasks: gather_host_facts.yml
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_bastion_host }}"
+    facts_known: "{{ hostvars[kubeinit_bastion_host].ansible_distribution is defined }}"
+  when: not facts_known
 
 - name: Define additional host, node and services facts
   ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
     kubeinit_bastion_host_address: "{{ hostvars[kubeinit_bastion_host].ansible_default_ipv4_address }}"
-    kubeinit_bastion_host_name: "{{ hostvars[kubeinit_bastion_host].ansible_host }}"
-    kubeinit_ovn_central_host_address: "{{ hostvars[kubeinit_ovn_central_host].ansible_default_ipv4_address }}"
     kubeinit_apache_service_address: "{{ hostvars[kubeinit_services_node].ansible_host }}"
     kubeinit_bind_service_address: "{{ hostvars[kubeinit_services_node].ansible_host }}"
+    kubeinit_haproxy_service_node: "{{ kubeinit_services_node }}"
     kubeinit_haproxy_service_address: "{{ hostvars[kubeinit_services_node].ansible_host }}"
+    kubeinit_haproxy_service_manager: "{{ hostvars[kubeinit_services_node].ansible_host if (hostvars[kubeinit_services_node].type == 'virtual') else hostvars[kubeinit_services_node].target }}"
+    kubeinit_nexus_service_node: "{{ kubeinit_services_node }}"
     kubeinit_nexus_service_address: "{{ hostvars[kubeinit_services_node].ansible_host }}"
-    kubeinit_nexus_service_hostname: "{{ hostvars[kubeinit_services_node].inventory_hostname }}"
     kubeinit_nfs_service_address: "{{ hostvars[kubeinit_services_node].ansible_host }}"
-    kubeinit_registry_service_hostname: "{{ hostvars[kubeinit_services_node].inventory_hostname }}"
+    kubeinit_registry_service_node: "{{ kubeinit_services_node }}"
     kubeinit_registry_service_address: "{{ hostvars[kubeinit_services_node].ansible_host }}"
-    kubeinit_services_provision_address: "{{ hostvars[kubeinit_services_node].ansible_host }}"
-    kubeinit_haproxy_service_manager: "{{ hostvars[kubeinit_services_node].ansible_host }}"
+    kubeinit_provision_service_node: "{{ kubeinit_services_node }}"
+    kubeinit_provision_service_address: "{{ hostvars[kubeinit_services_node].ansible_host }}"
+    kubeinit_services_node_target: "{{ hostvars[kubeinit_services_node].target }}"
     kubeinit_service_user: "root"
     kubeinit_service_user_dir: "/root"
     kubeinit_ingress_hostname: "ingress"
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_name] }}"
 
 - name: Prepare localhost
   ansible.builtin.include_tasks: prepare_localhost.yml
 
-- name: Check to see if we should stop here
-  ansible.builtin.fail:
-    msg: "Stopping after 'task-prepare-environment'"
+- name: Remove any existing ssh tunnels on bastion host
+  ansible.builtin.shell: |
+    set -eo pipefail
+    hosts=$(for file in ~/.ssh/cm-root*; do echo $file; done | sed -n -e 's;.*@\(.*\):22;\1;p')
+    for host in $hosts; do ssh -O exit -S "~/.ssh/cm-%r@%h:%p" $host; done
+  args:
+    executable: /bin/bash
+  register: remove_ssh_tunnels
+  changed_when: "remove_ssh_tunnels.rc == 0"
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after 'task-prepare-environment'"
+    - name: End play
+      ansible.builtin.meta: end_play
   when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-prepare-environment'
-
-- name: Download images for libvirt guests
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: "download_cloud_images.yml"
-    public: true
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
-- name: Cleanup nodes for libvirt guests from previous install
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: cleanup_hypervisor.yml
-    public: true
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
-- name: Check to see if we should stop here
-  ansible.builtin.fail:
-    msg: "Stopping after 'task-cleanup-hypervisors'"
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-cleanup-hypervisors'

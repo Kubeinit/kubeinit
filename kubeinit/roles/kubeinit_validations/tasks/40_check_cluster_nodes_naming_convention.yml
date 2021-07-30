@@ -29,7 +29,7 @@
       - "Make sure they match ^[a-z0-9]+-service-[0-9][0-9]"
   with_items: "{{ groups['all_service_nodes'] }}"
 
-- name: Make sure control plane nodes naming convention is correct
+- name: Make sure controller nodes naming convention is correct
   ansible.builtin.assert:
     that:
       - item is match("^[a-z0-9]+-controller-[0-9][0-9]")
@@ -37,7 +37,7 @@
       - "The names of the cluster nodes are used to name the virtual"
       - "network interfaces when connecting them to OVN"
       - "Make sure they match ^[a-z0-9]+-controller-[0-9][0-9]"
-  with_items: "{{ groups['all_control_plane_nodes'] }}"
+  with_items: "{{ groups['all_controller_nodes'] }}"
 
 - name: Make sure compute nodes naming convention is correct
   ansible.builtin.assert:
@@ -57,4 +57,4 @@
       - "The names of the cluster nodes are used to name the virtual"
       - "network interfaces when connecting them to OVN"
       - "Make sure they match ^[a-z0-9]+-bootstrap-[0-9][0-9]"
-  with_items: "{{ groups['all_bootstrap_nodes'] }}"
+  with_items: "{{ groups['bootstrap_node'] | default([]) }}"

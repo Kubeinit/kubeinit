@@ -47,7 +47,11 @@
     - name: Prepare credentials for services
       ansible.builtin.include_tasks: prepare_credentials.yml
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+  vars:
+    kubeinit_deployment_delegate: "{{ kubeinit_deployment_node_name }}"
+  delegate_to: "{{ kubeinit_deployment_delegate }}"
 
 - name: Start services containers
   ansible.builtin.include_tasks: start_services_containers.yml
+  vars:
+    kubeinit_deployment_delegate: "{{ kubeinit_deployment_node_name }}"

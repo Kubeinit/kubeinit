@@ -15,14 +15,12 @@
 # under the License.
 
 
-- name: Check to see if the environment facts are set
-  ansible.builtin.set_fact:
-    environment_facts_set: "{{ kubeinit_bastion_host is defined }}"
-
-- name: Prepare environment
+- name: Prepare environment if not prepared
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_prepare"
     public: true
+  vars:
+    environment_facts_set: "{{ kubeinit_cluster_facts_name is defined }}"
   when: not environment_facts_set
 
 - name: Configure each cluster service node

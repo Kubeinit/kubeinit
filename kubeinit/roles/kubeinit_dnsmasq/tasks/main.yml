@@ -32,6 +32,8 @@
     src: "dnsmasq.conf.j2"
     dest: "{{ kubeinit_dnsmasq_config_file }}"
     mode: '0644'
+  vars:
+    kubeinit_dnsmasq_interface: "{{ 'eth0' if (hostvars[kubeinit_deployment_node_name].type == 'virtual') else 'ceth0' }}"
 
 - name: Create a podman container to serve the dnsmasq
   containers.podman.podman_container:
@@ -42,13 +44,17 @@
     cap_add:
       - "NET_ADMIN"
       - "NET_RAW"
-    volumes:
-      - "{{ kubeinit_dnsmasq_config_file }}:/etc/dnsmasq.conf"
     command: -d -q -C /etc/dnsmasq.conf
   register: dnsmasq_podman_container_info
   retries: 5
   delay: 10
   until: not dnsmasq_podman_container_info.failed
+
+- name: Copy configuration into the container
+  ansible.builtin.command:
+    podman cp "{{ kubeinit_dnsmasq_config_file }}" "{{ kubeinit_dnsmasq_service_name }}:/etc/dnsmasq.conf"
+  register: dnsmasq_copy_config
+  changed_when: "dnsmasq_copy_config.rc == 0"
 
 - name: Setting Podman facts about the container that will run the dnsmasq
   ansible.builtin.set_fact:
