@@ -273,6 +273,7 @@ elif [[ "$SCENARIO" == "container" ]]; then
 
     podman run --rm -it \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+        -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
         -v /etc/hosts:/etc/hosts \
         kubeinit/kubeinit \
             --user root \

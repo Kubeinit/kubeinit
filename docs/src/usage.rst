@@ -13,6 +13,7 @@ Requirements
 * We assume that the hypervisor node is called nyctea (defined in the inventory).
 * Have root passwordless access with certificates.
 * Adjust the inventory file to suit your needs i.e. `the worker nodes <https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66>`_ you will need in your cluster.
+* Having podman installed in the machine where you are running ansible-playbook.
 
 Installing dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -82,6 +83,7 @@ Running from the GIT repository
     run_as='root'
     podman run --rm -it \
         -v ~/.ssh/id_rsa:/${run_as}/.ssh/id_rsa:z \
+        -v ~/.ssh/id_rsa.pub:/${run_as}/.ssh/id_rsa.pub:z \
         -v /etc/hosts:/etc/hosts \
         kubeinit/kubeinit \
             --user ${run_as} \
@@ -100,6 +102,7 @@ Running from a release
     TAG=$(curl --silent "https://api.github.com/repos/kubeinit/kubeinit/releases/latest" | jq -r .tag_name)
     podman run --rm -it \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+        -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
         -v /etc/hosts:/etc/hosts \
         quay.io/kubeinit/kubeinit:$TAG \
             --user root \
