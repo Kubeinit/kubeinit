@@ -2,12 +2,8 @@
 
 """KubeInit's CI utils."""
 
-import base64
 import os
 import re
-
-from github import Github
-from github import InputGitTreeElement
 
 from google.cloud import storage
 
@@ -23,27 +19,30 @@ def render_index(gc_token_path):
 
     jobs = []
 
-    print('Periodic jobs to render')
-    prefix_periodic = 'jobs/periodic/'
-    prefix_pr = 'jobs/pr/'
+    print("'kubeinit_ci_utils.py' ==> Rendering CI jobs index page")
+    prefix = 'jobs/'
     delimiter = None
 
-    root_periodic_blobs = list(client.list_blobs(bucket_name,
-                                                 prefix=prefix_periodic,
-                                                 delimiter=delimiter))
+    root_blobs = list(client.list_blobs(bucket_name,
+                                        prefix=prefix,
+                                        delimiter=delimiter))
 
-    filtered = list(dict.fromkeys([re.sub('/.*', '', sub.name.replace(prefix_periodic, '')) for sub in root_periodic_blobs]))
+    filtered = list(dict.fromkeys([re.sub('/.*', '', sub.name.replace(prefix, '')) for sub in root_blobs]))
+    print("'kubeinit_ci_utils.py' ==> Filtered blobs")
+    print(filtered)
 
+    print("'kubeinit_ci_utils.py' ==> Rendering page indexes")
     for idx, blob in enumerate(filtered):
+        print(str(blob))
         fields = blob.split("-")
-        stat = fields[7]
+        stat = fields[10]
         if stat == '0':
             status = 'Passed'
             badge = 'success'
         elif stat == '1':
             status = 'Failed'
             badge = 'danger'
-        elif stat == 'go':
+        elif stat == 'u':
             status = 'Periodic'
             badge = 'primary'
         else:
@@ -57,51 +56,19 @@ def render_index(gc_token_path):
                      'driver': fields[2],
                      'masters': fields[3],
                      'workers': fields[4],
-                     'scenario': fields[5],
-                     'date': fields[6],
+                     'hypervisors': fields[5],
+                     'services_type': fields[6],
+                     'launch_from': fields[7],
+                     'job_type': fields[8],
+                     'date': fields[9],
                      'badge': badge,
-                     'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/periodic/' + blob + '/index.html'})
-
-    print('PR jobs to render')
-    root_pr_blobs = list(client.list_blobs(bucket_name,
-                                           prefix=prefix_pr,
-                                           delimiter=delimiter))
-
-    filtered = list(dict.fromkeys([re.sub('/.*', '', sub.name.replace(prefix_pr, '')) for sub in root_pr_blobs]))
-
-    for idx, blob in enumerate(filtered):
-        fields = blob.split("-")
-        stat = fields[7]
-        if stat == '0':
-            status = 'Passed'
-            badge = 'success'
-        elif stat == '1':
-            status = 'Failed'
-            badge = 'danger'
-        elif stat == 'go':
-            status = 'Periodic'
-            badge = 'primary'
-        else:
-            status = 'Running'
-            badge = 'warning'
-
-        jobs.append({'status': status,
-                     'index': idx,
-                     'id': fields[0],
-                     'distro': fields[1],
-                     'driver': fields[2],
-                     'masters': fields[3],
-                     'workers': fields[4],
-                     'scenario': fields[5],
-                     'date': fields[6],
-                     'badge': badge,
-                     'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/pr/' + blob + '/index.html'})
+                     'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/index.html'})
 
     path = os.path.join(os.path.dirname(__file__))
     file_loader = FileSystemLoader(searchpath=path)
     env = Environment(loader=file_loader)
     template_index = "kubeinit_ci_logs.html.j2"
-    print("The path for the template is: " + path)
+    print("'kubeinit_ci_utils.py' ==> The path for the template is: " + path)
     template = env.get_template(template_index)
     output = template.render(jobs=jobs)
 
@@ -110,7 +77,7 @@ def render_index(gc_token_path):
     blob.upload_from_string(output, content_type='text/html')
 
 
-def upload_logs_to_google_cloud(pipeline_id, gc_token_path):
+def upload_logs_to_google_cloud(job_path, gc_token_path):
     """Upload the CI results to Google cloud Cloud Storage."""
     return_code = 0
 
@@ -119,116 +86,38 @@ def upload_logs_to_google_cloud(pipeline_id, gc_token_path):
         bucket_name = "kubeinit-ci"
         bucket = storage.Client().get_bucket(bucket_name)
 
-        print("----Uploading logs----")
+        print("'kubeinit_ci_utils.py' ==> ----Uploading logs----")
 
-        print("Path at terminal when executing this file")
+        print("'kubeinit_ci_utils.py' ==> Path at terminal when executing this file")
         print(os.getcwd() + "\n")
 
-        print("This file path, relative to os.getcwd()")
+        print("'kubeinit_ci_utils.py' ==> This file path, relative to os.getcwd()")
         print(__file__ + "\n")
 
         file_list = []
-        path_to_upload = os.path.join(os.getcwd(), pipeline_id)
-        print("Path to upload: " + path_to_upload)
+        path_to_upload = os.path.join(os.getcwd(), job_path)
+        print("'kubeinit_ci_utils.py' ==> Path to upload: " + path_to_upload)
 
         for r, _d, f in os.walk(path_to_upload):
             for file in f:
                 file_list.append(os.path.join(r, file))
 
-        print("CI results to be stored")
+        print("'kubeinit_ci_utils.py' ==> CI results to be stored")
         print(file_list)
 
         prefix_path = os.getcwd() + '/'
-        print('The initial path: ' + prefix_path + ' will be removed')
-
-        if 'periodic' in pipeline_id:
-            type = 'jobs/periodic'
-        else:
-            type = 'jobs/pr'
+        print("'kubeinit_ci_utils.py' ==> The initial path: " + prefix_path + " will be removed")
 
         for entry in file_list:
             try:
-                blob = bucket.blob(type + '/' + entry.replace(prefix_path, ''))
+                blob = bucket.blob('jobs/' + entry.replace(prefix_path, ''))
                 blob.upload_from_filename(entry)
             except Exception as e:
-                print('An exception hapened adding the initial log files, some files could not be added')
+                print("'kubeinit_ci_utils.py' ==> An exception hapened adding the initial log files, some files could not be added")
                 print(e)
                 return_code = 1
     except Exception as e:
-        print('An exception hapened uploading files to Google Cloud Storage')
-        print(e)
-        return_code = 1
-    return return_code
-
-
-def upload_logs_to_github(pipeline_id, gh_token):
-    """Upload the CI results to GitHub."""
-    return_code = 0
-
-    try:
-        gh = Github(gh_token)
-        print("----Uploading logs----")
-
-        print("Uploading CI results to the bot account")
-        repobot = gh.get_repo('kubeinit-bot/kubeinit-ci-results')
-
-        print("Path at terminal when executing this file")
-        print(os.getcwd() + "\n")
-
-        print("This file path, relative to os.getcwd()")
-        print(__file__ + "\n")
-
-        file_list = []
-        path_to_upload = os.path.join(os.getcwd(), pipeline_id)
-        print("Path to upload: " + path_to_upload)
-
-        for r, _d, f in os.walk(path_to_upload):
-            for file in f:
-                file_list.append(os.path.join(r, file))
-
-        print("CI results to be stored")
-        print(file_list)
-        commit_message = 'Log files for the job number: ' + pipeline_id
-
-        element_list = list()
-
-        prefix_path = os.getcwd() + '/'
-        print('The initial path: ' + prefix_path + ' will be removed')
-
-        for entry in file_list:
-            try:
-                with open(entry, 'rb') as input_file:
-                    print('Opening files for reading data')
-                    dataraw = input_file.read()
-                    print('Encoding as base64')
-                    data = base64.b64encode(dataraw)
-
-                print('Adding blobs')
-                if entry.endswith('.png') or entry.endswith('.jpg') or entry.endswith('.ttf') or entry.endswith('.woff') or entry.endswith('.woff2') or entry.endswith('.ico'):
-                    print('A binary file')
-                    # We add to the commit the literal image as a string in base64
-                    blob = repobot.create_git_blob(data.decode("utf-8"), "base64")
-                    tree_element = InputGitTreeElement(path=entry.replace(prefix_path, ''), mode='100644', type='blob', sha=blob.sha)
-                    element_list.append(tree_element)
-                else:
-                    print('A text file')
-                    blob = repobot.create_git_blob(data.decode("utf-8"), encoding="base64")
-                    blob = repobot.get_git_blob(sha=blob.sha)
-                    tree_element = InputGitTreeElement(path=entry.replace(prefix_path, ''), mode='100644', type='blob', content=base64.b64decode(blob.content).decode('utf-8'))
-                    element_list.append(tree_element)
-            except Exception as e:
-                print('An exception hapened adding the initial log files, some files could not be added')
-                print(e)
-                return_code = 1
-        head_sha = repobot.get_branch('main').commit.sha
-        base_tree = repobot.get_git_tree(sha=head_sha)
-        tree = repobot.create_git_tree(element_list, base_tree)
-        parent = repobot.get_git_commit(sha=head_sha)
-        commit = repobot.create_git_commit(commit_message, tree, [parent])
-        master_refs = repobot.get_git_ref('heads/main')
-        master_refs.edit(sha=commit.sha)
-    except Exception as e:
-        print('An exception hapened files to GitHub')
+        print("'kubeinit_ci_utils.py' ==> An exception hapened uploading files to Google Cloud Storage")
         print(e)
         return_code = 1
     return return_code
@@ -252,3 +141,61 @@ def add_label(the_label, pr, repo):
     else:
         new_label = repo.create_label(the_label, "32CD32")
     pr.add_to_labels(new_label)
+
+
+def get_periodic_jobs_labels(distro='all'):
+    """Get the labels for an specific distro."""
+    # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
+
+    cdk_configs = ["cdk-libvirt-3-1-1-v-c",
+                   "cdk-libvirt-1-1-1-c-c",
+                   "cdk-libvirt-1-0-1-v-h"]
+
+    okd_configs = ["okd-libvirt-3-1-1-c-h",
+                   "okd-libvirt-1-1-1-v-h",
+                   "okd-libvirt-1-0-1-c-c"]
+
+    rke_configs = ["rke-libvirt-3-1-1-c-h",
+                   "rke-libvirt-1-1-1-c-c",
+                   "rke-libvirt-1-0-1-v-c"]
+
+    k8s_configs = ["k8s-libvirt-3-1-1-v-h",
+                   "k8s-libvirt-1-1-1-c-h",
+                   "k8s-libvirt-1-0-1-v-c",
+                   "k8s-libvirt-3-1-3-c-c",
+                   "k8s-libvirt-3-0-3-v-h"]
+
+    eks_configs = ["eks-libvirt-3-1-1-v-c",
+                   "eks-libvirt-1-1-1-c-h",
+                   "eks-libvirt-1-0-1-c-c"]
+
+    kid_configs = ["kid-libvirt-3-1-1-v-h",
+                   "kid-libvirt-1-1-1-v-c",
+                   "kid-libvirt-1-0-1-c-c"]
+
+    okd_rke_configs = ["okd.rke-libvirt-1-2-1-v-c",
+                       "okd.rke-libvirt-3-1-1-v-h"]
+
+    configs = []
+
+    if distro == 'all':
+        configs = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
+    else:
+        list_of_distros = distro.split(',')
+        for dist in list_of_distros:
+            if dist == 'okd':
+                configs = configs + okd_configs
+            if dist == 'kid':
+                configs = configs + kid_configs
+            if dist == 'eks':
+                configs = configs + eks_configs
+            if dist == 'rke':
+                configs = configs + rke_configs
+            if dist == 'cdk':
+                configs = configs + cdk_configs
+            if dist == 'k8s':
+                configs = configs + k8s_configs
+            if dist == 'okd.rke':
+                configs = configs + okd_rke_configs
+
+    return configs

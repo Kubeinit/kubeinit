@@ -46,40 +46,40 @@
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-gather-hypervisor-facts'
 
-- name: Prepare all hypervisor hosts to deploy service and cluster nodes
-  hosts: hypervisor_hosts
-  gather_facts: false
-  tasks:
-    - name: task-prepare-hypervisor
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_prepare"
-        tasks_from: prepare_hypervisor.yml
-        public: true
-
-- name: Main deployment play for creating a cluster
-  hosts: localhost
-  become: false
-  gather_facts: false
-  tasks:
-    - name: task-run-validations
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_validations"
-        public: true
-    - name: task-create-services
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_services"
-        public: true
-    - name: task-configure-services
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_services"
-        tasks_from: configure_services.yml
-        public: true
-    - name: task-prepare-cluster
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-        tasks_from: prepare_cluster.yml
-        public: true
-    - name: task-deploy-{{ kubeinit_inventory_cluster_distro }}
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-        public: true
+# - name: Prepare all hypervisor hosts to deploy service and cluster nodes
+#   hosts: hypervisor_hosts
+#   gather_facts: false
+#   tasks:
+#     - name: task-prepare-hypervisor
+#       ansible.builtin.include_role:
+#         name: "../../roles/kubeinit_prepare"
+#         tasks_from: prepare_hypervisor.yml
+#         public: true
+#
+# - name: Main deployment play for creating a cluster
+#   hosts: localhost
+#   become: false
+#   gather_facts: false
+#   tasks:
+#     - name: task-run-validations
+#       ansible.builtin.include_role:
+#         name: "../../roles/kubeinit_validations"
+#         public: true
+#     - name: task-create-services
+#       ansible.builtin.include_role:
+#         name: "../../roles/kubeinit_services"
+#         public: true
+#     - name: task-configure-services
+#       ansible.builtin.include_role:
+#         name: "../../roles/kubeinit_services"
+#         tasks_from: configure_services.yml
+#         public: true
+#     - name: task-prepare-cluster
+#       ansible.builtin.include_role:
+#         name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+#         tasks_from: prepare_cluster.yml
+#         public: true
+#     - name: task-deploy-{{ kubeinit_inventory_cluster_distro }}
+#       ansible.builtin.include_role:
+#         name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+#         public: true

@@ -1,30 +1,25 @@
 ---
-run-periodic-jobs:
-  image: fedora
-  tags:
-    - kubeinit-ci-bot
-  script:
-    - python3 ./ci/launch_e2e_periodic.py "$DISTROS"
-  only:
-    variables:
-      - $SCOPE == "periodic"
+# The scope can be:
+# PERIODIC: a periodic job running in kubeinit.
+# PR: a PR job running in kubeinit.
+# SUBMARINER: a PR job running in the submariner operator repository.
 
-run-kubeinit-jobs:
+run-singlenode:
   image: fedora
   tags:
-    - kubeinit-ci-bot
+    - kubeinit-ci-singlenode
   script:
-    - python3 ./ci/launch_e2e_kubeinit.py
+    - python3 ./ci/launch_e2e.py singlenode "$JOB_TYPE"
   only:
     variables:
-      - $SCOPE == "kubeinit"
+      - $CLUSTER_TYPE == "singlenode"
 
-run-submariner-jobs:
+run-multinode:
   image: fedora
   tags:
-    - kubeinit-ci-bot
+    - kubeinit-ci-multinode
   script:
-    - python3 ./ci/launch_e2e_submariner.py
+    - python3 ./ci/launch_e2e.py multinode "$JOB_TYPE"
   only:
     variables:
-      - $SCOPE == "submariner"
+      - $CLUSTER_TYPE == "multinode"
