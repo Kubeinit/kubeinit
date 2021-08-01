@@ -9,6 +9,15 @@ if [[ -z "${GITLAB_CI_TOKEN}" ]]; then
     echo "Exiting..."
     exit 1
 fi
+if [[ -z "${GITLAB_CI_CLUSTER_TYPE}" ]]; then
+    echo "The type of environment is required to register the nodes."
+    echo "Please run:"
+    echo "export GITLAB_CI_CLUSTER_TYPE=<[multinode|singlenode]>"
+    echo "Exiting..."
+    exit 1
+fi
+
+GITLAB_CI_HOST_NAME=$(hostname)
 
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     # Fedora or CentOS or RHEL
@@ -65,7 +74,8 @@ iface_ip=$(ip route get "8.8.8.8" | grep -Po '(?<=(src )).*(?= uid| proto)')
 echo "${iface_ip} nyctea" >> /etc/hosts
 cd
 mkdir -p ~/.ssh
-ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+# In the case the key already exists we wont overwrite it
+ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa <<< n || true
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 ssh -oStrictHostKeyChecking=no root@nyctea uptime
 
@@ -83,13 +93,13 @@ sudo gitlab-runner uninstall
 sudo gitlab-runner install --user root
 
 sudo gitlab-runner register --non-interactive \
---url https://gitlab.com/ \
---registration-token ${GITLAB_CI_TOKEN} \
---executor shell \
---output-limit 10000 \
---name kubeinit-ci-bot-server-1 \
---docker-pull-policy always \
---tag-list kubeinit-ci-bot
+                            --url https://gitlab.com/ \
+                            --registration-token ${GITLAB_CI_TOKEN} \
+                            --executor shell \
+                            --output-limit 10000 \
+                            --name ${GITLAB_CI_HOST_NAME} \
+                            --docker-pull-policy always \
+                            --tag-list kubeinit-ci-${GITLAB_CI_CLUSTER_TYPE}
 
 sudo gitlab-runner start
 
