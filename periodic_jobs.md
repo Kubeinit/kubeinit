@@ -1,9 +1,3 @@
----
-title: New Issue
-labels: bug, enhancement
----
-
-
 <p style="text-align: center" align="center">
     <a href="https://www.kubeinit.com"><img src="https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo.svg?sanitize=true" alt="The KUBErnetes INITiator"/></a>
 </p>
@@ -34,6 +28,3 @@ labels: bug, enhancement
 | Rancher K8s Engine            | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/rke-libvirt-1-0-1-v-c-periodic-pid-weekly-u/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/rke-libvirt-1-0-1-v-c-periodic-pid-weekly-u/badge_status.svg"/></a>             | 1 | 1 | 0 | virtual | |
 | OKD/RKE/Submariner            | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/okd.rke-libvirt-1-2-1-v-c-periodic-pid-weekly-u/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/okd.rke-libvirt-1-2-1-v-c-periodic-pid-weekly-u/badge_status.svg"/></a>     | 1 | 1 | 2 | virtual | |
 | OKD/RKE/Submariner            | <a href="https://storage.googleapis.com/kubeinit-ci/jobs/okd.rke-libvirt-3-1-1-v-c-periodic-pid-weekly-u/index.html"><img height="20px" src="https://storage.googleapis.com/kubeinit-ci/jobs/okd.rke-libvirt-3-1-1-v-c-periodic-pid-weekly-u/badge_status.svg"/></a>     | 1 | 3 | 1 | virtual | |
-
-
-"Say hi to your {{ NOUN }} for me," {{ ATTRIBUTION }}
