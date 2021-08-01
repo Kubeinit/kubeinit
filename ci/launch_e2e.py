@@ -367,6 +367,9 @@ def run_e2e_job(distro, driver, masters, workers,
         print("'launch_e2e.py' ==> Render ara data")
         file_output = output
         if job_type == 'periodic':
+            # We change here the pipeline id from GitLab
+            # to have always the same value so we can fetch
+            # it from the job status page
             split_job_name = job_name.split('-')
             split_job_name[8] = 'pid'
             job_name = "-".join(split_job_name)
@@ -381,6 +384,9 @@ def run_e2e_job(distro, driver, masters, workers,
 
     file_output = output
     if job_type == 'periodic':
+        # We change here the pipeline id from GitLab
+        # to have always the same value so we can fetch
+        # it from the job status page
         split_job_name = job_name.split('-')
         split_job_name[8] = 'pid'
         job_name = "-".join(split_job_name)

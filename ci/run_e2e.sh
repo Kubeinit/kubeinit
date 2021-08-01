@@ -17,6 +17,8 @@ LAUNCH_FROM="${11}"
 
 ANSIBLE_VERBOSITY="${ANSIBLE_VERBOSITY:-v}"
 
+KUBEINIT_MAIN_CI_REPOSITORY="https://github.com/kubeinit/kubeinit.git"
+
 echo "The repository is $REPOSITORY"
 echo "The branch is $BRANCH_NAME"
 echo "The pull request is $PULL_REQUEST"
@@ -51,13 +53,13 @@ if [[ "$JOB_TYPE" == "pr" ]]; then
     # git remote add ccamacho https://github.com/ccamacho/kubeinit.git
     # git fetch ccamacho
     # git cherry-pick 58f718a29d5611234304b1e144a69
-    git clone -n https://github.com/kubeinit/kubeinit.git -b $BRANCH_NAME
+    git clone -n $KUBEINIT_MAIN_CI_REPOSITORY -b $BRANCH_NAME
     cd kubeinit
     git fetch origin pull/$PULL_REQUEST/head
     git checkout -b pr  FETCH_HEAD
     git log -n 5 --pretty=oneline
 else
-    git clone https://github.com/kubeinit/kubeinit.git
+    git clone $KUBEINIT_MAIN_CI_REPOSITORY
     cd kubeinit
 fi
 
