@@ -188,10 +188,6 @@ def main(cluster_type, job_type):
                 services = params[5]
                 launch_from = params[6]
                 execute = True
-            else:
-                print("'launch_e2e.py' ==> There is a problem with the tags in")
-                print("'launch_e2e.py' ==> get_periodic_jobs_labels, they dont match a valid job")
-                exit()
 
             if execute:
                 repository = 'kubeinit/kubeinit'
