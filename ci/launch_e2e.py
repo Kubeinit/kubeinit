@@ -105,8 +105,7 @@ def main(cluster_type, job_type):
                     pr_number = pr.number
                     start_time = time.time()
                     timestamp = now.strftime("%Y.%m.%d.%H.%M.%S")
-                    job_name = (pipeline_id + "-" +
-                                distro + "-" +
+                    job_name = (distro + "-" +
                                 driver + "-" +
                                 masters + "-" +
                                 workers + "-" +
@@ -114,6 +113,7 @@ def main(cluster_type, job_type):
                                 services + "-" +
                                 launch_from + "-" +
                                 job_type + "-" +
+                                pipeline_id + "-" +
                                 timestamp
                                 )
 
@@ -198,8 +198,7 @@ def main(cluster_type, job_type):
                 branch_name = 'main'
                 pr_number = 'latest'
                 timestamp = 'weekly'
-                job_name = (pipeline_id + "-" +
-                            distro + "-" +
+                job_name = (distro + "-" +
                             driver + "-" +
                             masters + "-" +
                             workers + "-" +
@@ -207,6 +206,7 @@ def main(cluster_type, job_type):
                             services + "-" +
                             launch_from + "-" +
                             job_type + "-" +
+                            pipeline_id + "-" +
                             timestamp
                             )
                 run_e2e_job(distro,
@@ -271,8 +271,7 @@ def main(cluster_type, job_type):
                     pr_number = pr.number
                     start_time = time.time()
                     timestamp = now.strftime("%Y.%m.%d.%H.%M.%S")
-                    job_name = (pipeline_id + "-" +
-                                distro + "-" +
+                    job_name = (distro + "-" +
                                 driver + "-" +
                                 masters + "-" +
                                 workers + "-" +
@@ -280,6 +279,7 @@ def main(cluster_type, job_type):
                                 services + "-" +
                                 launch_from + "-" +
                                 job_type + "-" +
+                                pipeline_id + "-" +
                                 timestamp
                                 )
                     output = run_e2e_job(distro,
@@ -367,6 +367,9 @@ def run_e2e_job(distro, driver, masters, workers,
         print("'launch_e2e.py' ==> Render ara data")
         file_output = output
         if job_type == 'periodic':
+            split_job_name = job_name.split('-')
+            split_job_name[8] = 'pid'
+            job_name = "-".join(split_job_name)
             file_output = 'u'
         subprocess.check_call("./ci/ara.sh %s" % (str(job_name) + "-" +
                                                   str(file_output)),
@@ -378,6 +381,9 @@ def run_e2e_job(distro, driver, masters, workers,
 
     file_output = output
     if job_type == 'periodic':
+        split_job_name = job_name.split('-')
+        split_job_name[8] = 'pid'
+        job_name = "-".join(split_job_name)
         file_output = 'u'
 
     print("'launch_e2e.py' ==> starting the uploader job")
