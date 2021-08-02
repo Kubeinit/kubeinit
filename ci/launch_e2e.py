@@ -329,11 +329,9 @@ def run_e2e_job(distro, driver, masters, workers,
                 branch_name, pr_number, launch_from, job_name):
     """Run the e2e job."""
     output = 0
-    badge_text = (str(distro) + "-" +
-                  str(masters) + "-" +
-                  str(workers))
+    badge_text = "build"
     badge_code = badge(left_text=badge_text,
-                       right_text='OK',
+                       right_text='passing',
                        right_color='green')
     try:
         print("'launch_e2e.py' ==> We call the downstream job configuring its parameters")
@@ -353,11 +351,8 @@ def run_e2e_job(distro, driver, masters, workers,
         subprocess.check_call(deployment_command, shell=True)
     except Exception as e:
         print("'launch_e2e.py' ==> An exception hapened executing Ansible")
-        badge_text = (str(distro) + "-" +
-                      str(masters) + "-" +
-                      str(workers))
         badge_code = badge(left_text=badge_text,
-                           right_text='NOK',
+                           right_text='failure',
                            right_color='red')
         print(e)
         output = 1
