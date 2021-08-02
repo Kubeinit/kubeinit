@@ -176,26 +176,19 @@ def get_periodic_jobs_labels(distro='all'):
     okd_rke_configs = ["okd.rke-libvirt-1-2-1-v-c",
                        "okd.rke-libvirt-3-1-1-v-h"]
 
-    configs = []
-
-    if distro == 'all':
-        configs = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
+    if distro == 'okd':
+        return okd_configs
+    elif distro == 'kid':
+        return kid_configs
+    elif distro == 'eks':
+        return eks_configs
+    elif distro == 'rke':
+        return rke_configs
+    elif distro == 'cdk':
+        return cdk_configs
+    elif distro == 'k8s':
+        return k8s_configs
+    elif distro == 'okd.rke':
+        return okd_rke_configs
     else:
-        list_of_distros = distro.split(',')
-        for dist in list_of_distros:
-            if dist == 'okd':
-                configs = configs + okd_configs
-            if dist == 'kid':
-                configs = configs + kid_configs
-            if dist == 'eks':
-                configs = configs + eks_configs
-            if dist == 'rke':
-                configs = configs + rke_configs
-            if dist == 'cdk':
-                configs = configs + cdk_configs
-            if dist == 'k8s':
-                configs = configs + k8s_configs
-            if dist == 'okd.rke':
-                configs = configs + okd_rke_configs
-
-    return configs
+        return okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs

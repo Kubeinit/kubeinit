@@ -76,8 +76,8 @@ def main(cluster_type, job_type):
                 sha = pr.head.sha
                 execute = False
                 for label in labels:
-                    if re.match(r".+-.+-.+-.+-" + c_type + "-.+-.+", label):
-                        # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
+                    # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
+                    if re.match(r"[a-z|0-9|\.]+-[a-z]+-\d+-\d+-" + c_type + "-[v|c]-[c|h]", label):
                         print("'launch_e2e.py' ==> Matching a PR label")
                         params = label.split("-")
                         distro = params[0]
@@ -94,12 +94,13 @@ def main(cluster_type, job_type):
                     repo.get_commit(sha=sha).create_status(state="pending",
                                                            target_url=url + str(pipeline_id),
                                                            description="Running...",
-                                                           context="%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                          driver,
-                                                                                          masters,
-                                                                                          workers,
-                                                                                          hypervisors,
-                                                                                          services))
+                                                           context="%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                             driver,
+                                                                                             masters,
+                                                                                             workers,
+                                                                                             hypervisors,
+                                                                                             services,
+                                                                                             launch_from))
                     repository = repo.name
                     branch_name = branch.name
                     pr_number = pr.number
@@ -145,12 +146,13 @@ def main(cluster_type, job_type):
                     repo.get_commit(sha=sha).create_status(state=state,
                                                            target_url=dest_url,
                                                            description=desc,
-                                                           context="%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                          driver,
-                                                                                          masters,
-                                                                                          workers,
-                                                                                          hypervisors,
-                                                                                          services))
+                                                           context="%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                             masters,
+                                                                                             driver,
+                                                                                             workers,
+                                                                                             hypervisors,
+                                                                                             services,
+                                                                                             launch_from))
 
                 else:
                     print("'launch_e2e.py' ==> No need to do anything")
@@ -177,7 +179,9 @@ def main(cluster_type, job_type):
         for label in labels:
             execute = False
             print("'launch_e2e.py' ==> The label to be processed is: " + label)
-            if re.match(r".+-.+-.+-.+-" + c_type + "-.+-.+", label):
+
+            # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
+            if re.match(r"[a-z|0-9|\.]+-[a-z]+-\d+-\d+-" + c_type + "-[v|c]-[c|h]", label):
                 print("'launch_e2e.py' ==> Matching a PR label")
                 params = label.split("-")
                 distro = params[0]
@@ -256,12 +260,13 @@ def main(cluster_type, job_type):
                     repo.get_commit(sha=sha).create_status(state="pending",
                                                            target_url=url + str(pipeline_id),
                                                            description="Running...",
-                                                           context="%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                          driver,
-                                                                                          masters,
-                                                                                          workers,
-                                                                                          hypervisors,
-                                                                                          services))
+                                                           context="%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                             driver,
+                                                                                             masters,
+                                                                                             workers,
+                                                                                             hypervisors,
+                                                                                             services,
+                                                                                             launch_from))
                     repository = repo.name
                     branch_name = branch.name
                     pr_number = pr.number
@@ -306,12 +311,13 @@ def main(cluster_type, job_type):
                     repo.get_commit(sha=sha).create_status(state=state,
                                                            target_url=dest_url,
                                                            description=desc,
-                                                           context="%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                          driver,
-                                                                                          masters,
-                                                                                          workers,
-                                                                                          hypervisors,
-                                                                                          services))
+                                                           context="%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                             driver,
+                                                                                             masters,
+                                                                                             workers,
+                                                                                             hypervisors,
+                                                                                             services,
+                                                                                             launch_from))
                 else:
                     print("'launch_e2e.py' ==> No need to do anything")
                     exit()

@@ -127,17 +127,17 @@ done;
 
 echo "(run_e2e.sh) ==> Preparing the inventory ..."
 if [[ "$MASTERS" == "1" ]]; then
-    sed -i -E "s/.*-controller-02/#-controller-02/g" $(find ./hosts -type f)
-    sed -i -E "s/.*-controller-03/#-controller-03/g" $(find ./hosts -type f)
+    find ./ -type f -exec sed -i -E -e "s/.*-controller-02/#-controller-02/g" {} \;
+    find ./ -type f -exec sed -i -E -e "s/.*-controller-03/#-controller-03/g" {} \;
 fi
 
 if [[ "$WORKERS" == "0" ]]; then
-    sed -i -E "s/.*-compute-01/#-compute-01/g" $(find ./hosts -type f)
-    sed -i -E "s/.*-compute-02/#-compute-02/g" $(find ./hosts -type f)
+    find ./ -type f -exec sed -i -E -e "s/.*-compute-01/#-compute-01/g" {} \;
+    find ./ -type f -exec sed -i -E -e "s/.*-compute-02/#-compute-02/g" {} \;
 fi
 
 if [[ "$WORKER" == "1" ]]; then
-    sed -i -E "s/.*-compute-02/#-compute-02/g" $(find ./hosts -type f)
+    find ./ -type f -exec sed -i -E -e "s/.*-compute-02/#-compute-02/g" {} \;
 fi
 
 # If the distro that will be deployed is okd.rke that means
@@ -173,25 +173,35 @@ fi
 
 if [[ "$HYPERVISORS" == "3" ]]; then
     # We enable the other 2 HVs
-    sed -i -E "/# hypervisor-02 ansible_host=tyto/ s/# //g" $(find ./hosts -type f)
-    sed -i -E "/# hypervisor-03 ansible_host=strix/ s/# //g" $(find ./hosts -type f)
+    find ./ -type f -exec sed -i -E -e "/# hypervisor-02 ansible_host=tyto/ s/# //g" {} \;
+    find ./ -type f -exec sed -i -E -e "/# hypervisor-03 ansible_host=strix/ s/# //g" {} \;
 
     # We balance the cluster nodes across the HVs
 
     # Controllers
-    sed -i -E "/.*-controller-01 ansible_host/ s/hypervisor-01/hypervisor-01/g"  $(find ./hosts -type f)
-    sed -i -E "/.*-controller-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" $(find ./hosts -type f)
-    sed -i -E "/.*-controller-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" $(find ./hosts -type f)
+    find ./ -type f -exec sed -i -E -e "/.*-controller-01 ansible_host/ s/hypervisor-01/hypervisor-01/g"  {} \;
+    find ./ -type f -exec sed -i -E -e "/.*-controller-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" {} \;
+    find ./ -type f -exec sed -i -E -e "/.*-controller-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
 
     # Computes
-    sed -i -E "/.*-compute-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" $(find ./hosts -type f)
-    sed -i -E "/.*-compute-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" $(find ./hosts -type f)
+    find ./ -type f -exec sed -i -E -e "/.*-compute-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
+    find ./ -type f -exec sed -i -E -e "/.*-compute-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
 
     # Services
-    sed -i -E "/.*-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" $(find ./hosts -type f)
+    find ./ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
 
     # Bootstrap
-    sed -i -E "/.*-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" $(find ./hosts -type f)
+    find ./ -type f -exec sed -i -E -e "/.*-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
+fi
+
+#
+# We change the way the services node is deployed, by default
+# it will live in a virtual machine if the parameter is changed
+# to container, then all the services will be deployed in a pod
+# in the first hypervisor.
+#
+if [[ "$SERVICES_TYPE" == "c" ]]; then
+    find ./ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/type=virtual/type=container/g" {} \;
 fi
 
 #
@@ -200,6 +210,10 @@ fi
 
 echo "(run_e2e.sh) ==> Deploying the cluster ..."
 
+#
+# The deployment playbook can be launched from a container [c]
+# or directly from the host [h]
+#
 if [[ "$LAUNCH_FROM" == "c" ]]; then
     if [[ "$DISTRO" == "okd.rke" ]]; then
         podman build -t kubeinit/kubeinit .
