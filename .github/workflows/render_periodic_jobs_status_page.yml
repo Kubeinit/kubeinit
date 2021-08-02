@@ -1,0 +1,37 @@
+---
+# This job will render the period jobs status page
+name: render_periodic_jobs_status_page
+on:
+  push:
+    branches:
+      - main
+jobs:
+  render_render_periodic_jobs_status_page:
+    if: github.repository_owner == 'Kubeinit'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.8]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Render periodic_jobs.md
+        run: |
+          sudo apt install python3-pip
+          sudo python3 -m pip install google-cloud-storage
+          sudo python3 ./ci/render_periodic_jobs_page.py
+      - name: Commit a PR rendered page
+        uses: peter-evans/create-pull-request@v3
+        with:
+          author: kubeinit-bot <bot@kubeinit.com>
+          committer: kubeinit-bot <bot@kubeinit.com>
+          commit-message: "ci: Re-build periodic_jobs.md"
+          title: "ci: Re-build periodic_jobs.md"
+          body: This commit updates the period jobs page
+          branch: update-periodic-jobs-md
+          base: main
+          delete-branch: true
