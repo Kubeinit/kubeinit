@@ -329,7 +329,13 @@ def run_e2e_job(distro, driver, masters, workers,
                 branch_name, pr_number, launch_from, job_name):
     """Run the e2e job."""
     output = 0
-    badge_text = "build"
+    badge_text = "%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                           driver,
+                                           masters,
+                                           workers,
+                                           hypervisors,
+                                           services,
+                                           launch_from)
     badge_code = badge(left_text=badge_text,
                        right_text='passing',
                        right_color='green')
