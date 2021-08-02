@@ -14,7 +14,6 @@
 
 | Distribution     | Scenario/State | Driver           | Controllers       | Computes          | Hypervisors           | Services type           | Launch from          |
 |------------------|----------------|------------------|-------------------|-------------------|-----------------------|-------------------------|----------------------|
-
 | Origin Distribution of K8s | <a href='https://storage.googleapis.com/kubeinit-ci/jobs/okd-libvirt-3-1-1-c-h-periodic-pid-weekly-u/index.html'><img height='20px' src='https://storage.googleapis.com/kubeinit-ci/jobs/okd-libvirt-3-1-1-c-h-periodic-pid-weekly-u/badge_status.svg'/></a> | libvirt | 3 | 1 | 1 | Containerized | Host |
 | Origin Distribution of K8s | <a href='https://storage.googleapis.com/kubeinit-ci/jobs/okd-libvirt-1-1-1-v-h-periodic-pid-weekly-u/index.html'><img height='20px' src='https://storage.googleapis.com/kubeinit-ci/jobs/okd-libvirt-1-1-1-v-h-periodic-pid-weekly-u/badge_status.svg'/></a> | libvirt | 1 | 1 | 1 | Virtualized | Host |
 | Origin Distribution of K8s | <a href='https://storage.googleapis.com/kubeinit-ci/jobs/okd-libvirt-1-0-1-c-c-periodic-pid-weekly-u/index.html'><img height='20px' src='https://storage.googleapis.com/kubeinit-ci/jobs/okd-libvirt-1-0-1-c-c-periodic-pid-weekly-u/badge_status.svg'/></a> | libvirt | 1 | 0 | 1 | Containerized | Container |
