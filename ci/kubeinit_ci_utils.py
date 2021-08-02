@@ -148,28 +148,34 @@ def get_periodic_jobs_labels(distro='all'):
     # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
 
     cdk_configs = ["cdk-libvirt-3-1-1-v-c",
+                   "cdk-libvirt-3-0-1-v-v",
                    "cdk-libvirt-1-1-1-c-c",
                    "cdk-libvirt-1-0-1-v-h"]
 
     okd_configs = ["okd-libvirt-3-1-1-c-h",
+                   "okd-libvirt-3-0-1-v-v",
                    "okd-libvirt-1-1-1-v-h",
                    "okd-libvirt-1-0-1-c-c"]
 
     rke_configs = ["rke-libvirt-3-1-1-c-h",
+                   "rke-libvirt-3-0-1-v-v",
                    "rke-libvirt-1-1-1-c-c",
                    "rke-libvirt-1-0-1-v-c"]
 
     k8s_configs = ["k8s-libvirt-3-1-1-v-h",
+                   "k8s-libvirt-3-0-1-v-v",
                    "k8s-libvirt-1-1-1-c-h",
                    "k8s-libvirt-1-0-1-v-c",
                    "k8s-libvirt-3-1-3-c-c",
                    "k8s-libvirt-3-0-3-v-h"]
 
     eks_configs = ["eks-libvirt-3-1-1-v-c",
+                   "eks-libvirt-3-0-1-v-v",
                    "eks-libvirt-1-1-1-c-h",
                    "eks-libvirt-1-0-1-c-c"]
 
     kid_configs = ["kid-libvirt-3-1-1-v-h",
+                   "kid-libvirt-3-0-1-v-v",
                    "kid-libvirt-1-1-1-v-c",
                    "kid-libvirt-1-0-1-c-c"]
 
