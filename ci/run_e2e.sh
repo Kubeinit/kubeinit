@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "Executing run.sh"
+echo "(run_e2e.sh) ==> Executing run.sh ..."
 
 REPOSITORY="${1}"
 BRANCH_NAME="${2}"
@@ -103,6 +103,7 @@ kubeinit_libvirt_destroy_all_guests: True
 EOF
 fi
 
+cat scenario_variables.yml
 # Before doing anything we make sure the environment is completely cleared
 # like remove podman connections, guests, and libvirt networks
 
