@@ -102,9 +102,6 @@ def upload_logs_to_google_cloud(job_path, gc_token_path):
             for file in f:
                 file_list.append(os.path.join(r, file))
 
-        print("'kubeinit_ci_utils.py' ==> CI results to be stored")
-        print(file_list)
-
         prefix_path = os.getcwd() + '/'
         print("'kubeinit_ci_utils.py' ==> The initial path: " + prefix_path + " will be removed")
 
@@ -148,53 +145,55 @@ def get_periodic_jobs_labels(distro='all'):
     # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
 
     cdk_configs = ["cdk-libvirt-3-1-1-v-c",
-                   "cdk-libvirt-3-0-1-v-v",
+                   "cdk-libvirt-3-0-1-c-h",
                    "cdk-libvirt-1-1-1-c-c",
                    "cdk-libvirt-1-0-1-v-h"]
 
     okd_configs = ["okd-libvirt-3-1-1-c-h",
-                   "okd-libvirt-3-0-1-v-v",
+                   "okd-libvirt-3-0-1-v-c",
                    "okd-libvirt-1-1-1-v-h",
                    "okd-libvirt-1-0-1-c-c"]
 
     rke_configs = ["rke-libvirt-3-1-1-c-h",
-                   "rke-libvirt-3-0-1-v-v",
+                   "rke-libvirt-3-0-1-v-h",
                    "rke-libvirt-1-1-1-c-c",
                    "rke-libvirt-1-0-1-v-c"]
 
     k8s_configs = ["k8s-libvirt-3-1-1-v-h",
-                   "k8s-libvirt-3-0-1-v-v",
+                   "k8s-libvirt-3-0-1-c-c",
                    "k8s-libvirt-1-1-1-c-h",
                    "k8s-libvirt-1-0-1-v-c",
                    "k8s-libvirt-3-1-3-c-c",
                    "k8s-libvirt-3-0-3-v-h"]
 
     eks_configs = ["eks-libvirt-3-1-1-v-c",
-                   "eks-libvirt-3-0-1-v-v",
+                   "eks-libvirt-3-0-1-v-h",
                    "eks-libvirt-1-1-1-c-h",
                    "eks-libvirt-1-0-1-c-c"]
 
     kid_configs = ["kid-libvirt-3-1-1-v-h",
-                   "kid-libvirt-3-0-1-v-v",
+                   "kid-libvirt-3-0-1-c-h",
                    "kid-libvirt-1-1-1-v-c",
                    "kid-libvirt-1-0-1-c-c"]
 
     okd_rke_configs = ["okd.rke-libvirt-1-2-1-v-c",
                        "okd.rke-libvirt-3-1-1-v-h"]
 
-    if distro == 'okd':
-        return okd_configs
-    elif distro == 'kid':
-        return kid_configs
-    elif distro == 'eks':
-        return eks_configs
-    elif distro == 'rke':
-        return rke_configs
-    elif distro == 'cdk':
-        return cdk_configs
-    elif distro == 'k8s':
-        return k8s_configs
-    elif distro == 'okd.rke':
-        return okd_rke_configs
-    else:
+    configs = []
+    if 'okd' in distro:
+        configs = configs + okd_configs
+    if 'kid' in distro:
+        configs = configs + kid_configs
+    if 'eks' in distro:
+        configs = configs + eks_configs
+    if 'rke' in distro:
+        configs = configs + rke_configs
+    if 'cdk' in distro:
+        configs = configs + cdk_configs
+    if 'k8s' in distro:
+        configs = configs + k8s_configs
+    if 'okd.rke' in distro:
+        configs = configs + okd_rke_configs
+    if distro == "all":
         return okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
+    return configs

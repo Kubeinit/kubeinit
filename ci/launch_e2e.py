@@ -158,7 +158,7 @@ def main(cluster_type, job_type):
                     print("'launch_e2e.py' ==> No need to do anything")
                     exit()
 
-    if job_type == 'periodic':
+    if re.match(r"periodic(=[a-z|0-9|,|\.]+)?", job_type):
         #
         # We will run the periodic jobs depending on the
         # hardware we called this script from [multinode-singlenode]
@@ -172,7 +172,11 @@ def main(cluster_type, job_type):
         url = os.getenv('CI_PIPELINE_URL', "")
         print("'launch_e2e.py' ==> The job results will be published in runtime at: " + url)
 
-        labels = get_periodic_jobs_labels('all')
+        if '=' in job_type:
+            labels = get_periodic_jobs_labels(job_type.split("=")[1])
+        else:
+            labels = get_periodic_jobs_labels('all')
+        job_type = job_type.split("=")[0]
         print("'launch_e2e.py' ==> All the labels to check are")
         print(labels)
 
@@ -415,8 +419,10 @@ if __name__ == "__main__":
     elif (sys.argv[1] != 'multinode' and sys.argv[1] != 'singlenode'):
         print("'launch_e2e.py' ==> The second argument must be [singlenode|multinode]")
         sys.exit()
-    elif (sys.argv[2] != 'periodic' and sys.argv[2] != 'pr' and sys.argv[2] != 'submariner'):
+
+    elif (not re.match(r"periodic(=[a-z|0-9|,|\.]+)?", sys.argv[2]) and sys.argv[2] != 'pr' and sys.argv[2] != 'submariner'):
         print("'launch_e2e.py' ==> The third argument must be [periodic|pr|submariner]")
+        print("'launch_e2e.py' ==> periodic can be periodic|periodic=okd,eks|periodic=okd.rke ...")
         sys.exit()
 
     print("---")

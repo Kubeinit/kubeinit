@@ -70,6 +70,7 @@ def main():
         else:
             print("'render_periodic_jobs_page.py' ==> This label do not match")
             print(label)
+            raise Exception("'render_periodic_jobs_page.py' ==> This label do not match: %s" % (label))
 
         jobs.append({'distro': distro,
                      'driver': driver,
