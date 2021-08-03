@@ -213,6 +213,10 @@ def main(cluster_type, job_type):
                             pipeline_id + "-" +
                             timestamp
                             )
+
+                # print(distro)
+                # raise Exception("'launch_e2e.py' ==> STOP!")
+
                 run_e2e_job(distro,
                             driver,
                             masters,

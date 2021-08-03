@@ -144,35 +144,33 @@ def get_periodic_jobs_labels(distro='all'):
     """Get the labels for an specific distro."""
     # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
 
-    cdk_configs = ["cdk-libvirt-3-1-1-v-c",
+    cdk_configs = ["cdk-libvirt-3-1-3-v-c",
                    "cdk-libvirt-3-0-1-c-h",
                    "cdk-libvirt-1-1-1-c-c",
                    "cdk-libvirt-1-0-1-v-h"]
 
     okd_configs = ["okd-libvirt-3-1-1-c-h",
-                   "okd-libvirt-3-0-1-v-c",
+                   "okd-libvirt-3-0-3-v-c",
                    "okd-libvirt-1-1-1-v-h",
                    "okd-libvirt-1-0-1-c-c"]
 
     rke_configs = ["rke-libvirt-3-1-1-c-h",
                    "rke-libvirt-3-0-1-v-h",
-                   "rke-libvirt-1-1-1-c-c",
+                   "rke-libvirt-1-1-3-c-c",
                    "rke-libvirt-1-0-1-v-c"]
 
     k8s_configs = ["k8s-libvirt-3-1-1-v-h",
                    "k8s-libvirt-3-0-1-c-c",
                    "k8s-libvirt-1-1-1-c-h",
-                   "k8s-libvirt-1-0-1-v-c",
-                   "k8s-libvirt-3-1-3-c-c",
-                   "k8s-libvirt-3-0-3-v-h"]
+                   "k8s-libvirt-1-0-3-v-c"]
 
-    eks_configs = ["eks-libvirt-3-1-1-v-c",
+    eks_configs = ["eks-libvirt-3-1-3-v-c",
                    "eks-libvirt-3-0-1-v-h",
                    "eks-libvirt-1-1-1-c-h",
                    "eks-libvirt-1-0-1-c-c"]
 
     kid_configs = ["kid-libvirt-3-1-1-v-h",
-                   "kid-libvirt-3-0-1-c-h",
+                   "kid-libvirt-3-0-3-c-h",
                    "kid-libvirt-1-1-1-v-c",
                    "kid-libvirt-1-0-1-c-c"]
 
@@ -180,20 +178,28 @@ def get_periodic_jobs_labels(distro='all'):
                        "okd.rke-libvirt-3-1-1-v-h"]
 
     configs = []
-    if 'okd' in distro:
+    if 'okd' in distro and 'okd.rke' not in distro:
+        print("'kubeinit_ci_utils.py' ==> Appending OKD configs")
         configs = configs + okd_configs
+    if 'rke' in distro and 'okd.rke' not in distro:
+        print("'kubeinit_ci_utils.py' ==> Appending RKE configs")
+        configs = configs + rke_configs
     if 'kid' in distro:
+        print("'kubeinit_ci_utils.py' ==> Appending KID configs")
         configs = configs + kid_configs
     if 'eks' in distro:
+        print("'kubeinit_ci_utils.py' ==> Appending EKS configs")
         configs = configs + eks_configs
-    if 'rke' in distro:
-        configs = configs + rke_configs
     if 'cdk' in distro:
+        print("'kubeinit_ci_utils.py' ==> Appending CDK configs")
         configs = configs + cdk_configs
     if 'k8s' in distro:
+        print("'kubeinit_ci_utils.py' ==> Appending K8S configs")
         configs = configs + k8s_configs
     if 'okd.rke' in distro:
+        print("'kubeinit_ci_utils.py' ==> Appending OKD.RKE configs")
         configs = configs + okd_rke_configs
     if distro == "all":
+        print("'kubeinit_ci_utils.py' ==> Appending all configs")
         return okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
     return configs
