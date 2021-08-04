@@ -52,15 +52,15 @@ jobs:
           git push --force --all origin
       - name: Create collection build and publish
         run: |
-          chmod +x ./tools/release.sh
+          chmod +x ./ci/release.sh
           sudo GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
                QUAY_USER=${{ secrets.QUAY_USER }} \
                QUAY_KEY=${{ secrets.QUAY_KEY }} \
                GALAXY_KEY=${{ secrets.GALAXY_KEY }} \
-               ./tools/release.sh
+               ./ci/release.sh
       - name: Create pypi package and publish
         run: |
-          ./tools/pypi_publish.sh -k ${{ secrets.PYPI_TOKEN }}
+          ./ci/pypi_publish.sh -k ${{ secrets.PYPI_TOKEN }}
       - name: Install latest Kubeinit agent version build locally if we published a new version
         run: |
           cd ./agent
@@ -135,7 +135,7 @@ jobs:
           cat ./docs/src/inventory_diagrams.rst
       - name: Render the changelog file
         run: |
-          GITCHANGELOG_CONFIG_FILENAME=./tools/gitchangelog.rc ./tools/gitchangelog.py > ./docs/src/changelog.rst
+          GITCHANGELOG_CONFIG_FILENAME=./ci/gitchangelog.rc ./ci/gitchangelog.py > ./docs/src/changelog.rst
           cat ./docs/src/changelog.rst
       - uses: kubeinit/sphinx-action@master
         with:
