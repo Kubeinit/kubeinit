@@ -23,37 +23,51 @@
         gather_subset: "!all,network"
       register: gather_results
 
+    - name: Gather the services facts
+      ansible.builtin.service_facts:
+      register: services_results
+
+    # - name: Print the services facts
+    #   ansible.builtin.debug:
+    #     var: services_results
+
+    - name: Set firewalld_state to unknown
+      ansible.builtin.set_fact:
+        firewalld_state: 'unknown'
+
+    - name: Set firewalld_state when firewalld is defined
+      ansible.builtin.set_fact:
+        firewalld_state: "{{ services_results.ansible_facts.services['firewalld'].state }}"
+      when: services_results.ansible_facts.services['firewalld'] is defined
+
+    - name: Set firewalld_state when firewalld.service is defined
+      ansible.builtin.set_fact:
+        firewalld_state: "{{ services_results.ansible_facts.services['firewalld.service'].state }}"
+      when: services_results.ansible_facts.services['firewalld.service'] is defined
+
+    - name: Set firewalld_active
+      ansible.builtin.set_fact:
+        firewalld_active: "{{ true if firewalld_state == 'running' else false }}"
+
     - name: Set distro_family for CentOS
       ansible.builtin.set_fact:
         distro_family: "CentOS"
-        firewalld_active: true
       when: (gather_results.ansible_facts.ansible_distribution == 'CentOS' or gather_results.ansible_facts.ansible_distribution == 'RedHat')
 
     - name: Set distro_family for Fedora
       ansible.builtin.set_fact:
         distro_family: "Fedora"
-        firewalld_active: true
       when: (gather_results.ansible_facts.ansible_distribution == 'Fedora')
 
     - name: Set distro_family for Debian
       ansible.builtin.set_fact:
         distro_family: "Debian"
-        firewalld_active: false
       when: (gather_results.ansible_facts.ansible_distribution == 'Debian' or gather_results.ansible_facts.ansible_distribution == 'Ubuntu')
 
     - name: Fails if OS is not supported
       ansible.builtin.fail:
         msg: "The host \"{{ kubeinit_deployment_node_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
       when: not distro_family is defined
-
-    # TODO: use this when we are ready to adjust to existing firewall behavior
-    # - name: See if firewalld is active
-    #   ansible.builtin.command:
-    #     systemctl is-active firewalld
-    #   register: check_firewalld
-    #   failed_when:
-    #     - check_firewalld.rc != 0
-    #     - check_firewalld.rc != 3
 
     - name: Add ansible facts to hostvars
       ansible.builtin.add_host:
@@ -64,7 +78,6 @@
         ansible_distribution_major_version: "{{ gather_results.ansible_facts.ansible_distribution_major_version }}"
         distribution_family: "{{ distro_family }}"
         firewalld_is_active: "{{ firewalld_active }}"
-        # firewalld_is_active: "{{ true if (check_firewalld.rc == 0) else false }}"
 
     - name: Clear gather_results
       ansible.builtin.set_fact:
