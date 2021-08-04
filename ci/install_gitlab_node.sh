@@ -50,17 +50,28 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     fi
 fi
 
-sudo python3 -m pip install --upgrade pip
-sudo python3 -m pip install --upgrade setuptools
-sudo python3 -m pip install requests
-sudo python3 -m pip install setuptools_rust
-sudo python3 -m pip install shyaml
-sudo python3 -m pip install ansible
-sudo python3 -m pip install PyGithub
-sudo python3 -m pip install netaddr
-sudo python3 -m pip install pybadges
-sudo python3 -m pip install jinja2
-sudo python3 -m pip install google-cloud-storage
+# Make sure ansible is removed
+if command -v ansible; then
+    apath=$(python3 -m pip show ansible | grep Location | awk '{ print $2 }')
+    python3 -m pip uninstall ansible -y
+    sudo rm -rf "$apath/ansible*"
+fi
+
+# Install dependencies
+python3 -m pip install \
+    --upgrade \
+    pip \
+    wheel \
+    shyaml \
+    cryptography==3.3.2 \
+    ansible==3.4.0 \
+    netaddr \
+    requests \
+    PyGithub \
+    pybadges \
+    jinja2 \
+    urllib3 \
+    google-cloud-storage
 
 # Install and configure ara
 # There are problems with multithread ara, we keep the last
