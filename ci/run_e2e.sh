@@ -128,18 +128,23 @@ done;
 
 echo "(run_e2e.sh) ==> Preparing the inventory ..."
 if [[ "$MASTERS" == "1" ]]; then
-    find ./ -type f -exec sed -i -E -e "s/.*-controller-02/#-controller-02/g" {} \;
-    find ./ -type f -exec sed -i -E -e "s/.*-controller-03/#-controller-03/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*-controller-02/#-controller-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*-controller-03/#-controller-03/g" {} \;
 fi
 
 if [[ "$WORKERS" == "0" ]]; then
-    find ./ -type f -exec sed -i -E -e "s/.*-compute-01/#-compute-01/g" {} \;
-    find ./ -type f -exec sed -i -E -e "s/.*-compute-02/#-compute-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*-compute-01/#-compute-01/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*-compute-02/#-compute-02/g" {} \;
 fi
 
 if [[ "$WORKER" == "1" ]]; then
-    find ./ -type f -exec sed -i -E -e "s/.*-compute-02/#-compute-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*-compute-02/#-compute-02/g" {} \;
 fi
+
+# We reduce the default disk volume size used in the nodes
+find ./hosts/ -type f -exec sed -i -E -e "s/disk=25G/disk=20G/g" {} \;
+find ./hosts/ -type f -exec sed -i -E -e "s/disk=30G/disk=20G/g" {} \;
+find ./hosts/ -type f -exec sed -i -E -e "s/disk=150G/disk=20G/g" {} \;
 
 # If the distro that will be deployed is okd.rke that means
 # that we will deploy two clusters in the same libvirt host
@@ -174,25 +179,25 @@ fi
 
 if [[ "$HYPERVISORS" == "3" ]]; then
     # We enable the other 2 HVs
-    find ./ -type f -exec sed -i -E -e "/# hypervisor-02 ansible_host=tyto/ s/# //g" {} \;
-    find ./ -type f -exec sed -i -E -e "/# hypervisor-03 ansible_host=strix/ s/# //g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/# hypervisor-02 ansible_host=tyto/ s/# //g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/# hypervisor-03 ansible_host=strix/ s/# //g" {} \;
 
     # We balance the cluster nodes across the HVs
 
     # Controllers
-    find ./ -type f -exec sed -i -E -e "/.*-controller-01 ansible_host/ s/hypervisor-01/hypervisor-01/g"  {} \;
-    find ./ -type f -exec sed -i -E -e "/.*-controller-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" {} \;
-    find ./ -type f -exec sed -i -E -e "/.*-controller-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-01 ansible_host/ s/hypervisor-01/hypervisor-01/g"  {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
 
     # Computes
-    find ./ -type f -exec sed -i -E -e "/.*-compute-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
-    find ./ -type f -exec sed -i -E -e "/.*-compute-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-compute-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-compute-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
 
     # Services
-    find ./ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
 
     # Bootstrap
-    find ./ -type f -exec sed -i -E -e "/.*-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
 fi
 
 #
@@ -202,9 +207,11 @@ fi
 # in the first hypervisor.
 #
 if [[ "$SERVICES_TYPE" == "c" ]]; then
-    find ./ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/type=virtual/type=container/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/type=virtual/type=container/g" {} \;
 fi
 
+echo "(run_e2e.sh) ==> The inventory content..."
+cat ./hosts/$DISTRO/inventory || true
 #
 # The last step is to run the deployment
 #
