@@ -193,6 +193,17 @@ def get_periodic_jobs_labels(distro='all'):
     okd_rke_configs = ["okd.rke-libvirt-1-2-1-v-c",
                        "okd.rke-libvirt-3-1-1-v-h"]
 
+    if re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[1-9]-[1-9]-[v|c]-[c|h],?)+", distro):
+        print("'kubeinit_ci_utils.py' ==> We are requesting specific job labels")
+        req_labels = set(distro.split(","))
+        all_labels = set(okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs)
+        if (req_labels.issubset(all_labels)):
+            print("'kubeinit_ci_utils.py' ==> The requested labels are defined correctly")
+            return req_labels
+        else:
+            print("'kubeinit_ci_utils.py' ==> The requested labels are not a subset of the allowed labels")
+            raise Exception("'kubeinit_ci_utils.py' ==> STOP!")
+
     configs = []
     if 'okd' in distro and 'okd.rke' not in distro:
         print("'kubeinit_ci_utils.py' ==> Appending OKD configs")
