@@ -94,7 +94,8 @@ python3 -m pip install \
 # Install and configure ara
 # There are problems with multithread ara, we keep the last
 # single thread version
-sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
+#sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
+sudo python3 -m pip install --upgrade "ara[server]"
 
 ara-manage migrate
 

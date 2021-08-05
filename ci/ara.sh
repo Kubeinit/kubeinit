@@ -23,7 +23,7 @@ echo "(ara.sh) ==> Executing ara.sh"
 
 PIPELINE_ID="$1"
 
-echo "(ara.sh) ==> The pipelne_id is $PIPELINE_ID"
+echo "(ara.sh) ==> The pipeline_id is $PIPELINE_ID"
 
 echo "(ara.sh) ==> Running ara-manage to store the results"
 ara-manage generate ./$PIPELINE_ID
