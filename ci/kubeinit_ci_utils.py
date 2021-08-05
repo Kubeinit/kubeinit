@@ -170,15 +170,15 @@ def get_periodic_jobs_labels(distro='all'):
                    "okd-libvirt-1-1-1-v-h",
                    "okd-libvirt-1-0-1-c-c"]
 
-    rke_configs = ["rke-libvirt-3-1-1-c-h",
+    rke_configs = ["rke-libvirt-3-1-3-c-h",
                    "rke-libvirt-3-0-1-v-h",
-                   "rke-libvirt-1-1-3-c-c",
+                   "rke-libvirt-1-1-1-c-c",
                    "rke-libvirt-1-0-1-v-c"]
 
     k8s_configs = ["k8s-libvirt-3-1-1-v-h",
-                   "k8s-libvirt-3-0-1-c-c",
+                   "k8s-libvirt-3-0-3-c-c",
                    "k8s-libvirt-1-1-1-c-h",
-                   "k8s-libvirt-1-0-3-v-c"]
+                   "k8s-libvirt-1-0-1-v-c"]
 
     eks_configs = ["eks-libvirt-3-1-3-v-c",
                    "eks-libvirt-3-0-1-v-h",
