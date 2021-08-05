@@ -200,16 +200,17 @@ if [[ "$HYPERVISORS" == "3" ]]; then
     find ./hosts/ -type f -exec sed -i -E -e "/# hypervisor-02 ansible_host=tyto/ s/# //g" {} \;
     find ./hosts/ -type f -exec sed -i -E -e "/# hypervisor-03 ansible_host=strix/ s/# //g" {} \;
 
+    #
     # We balance the cluster nodes across the HVs
-
+    #
     # Controllers
     find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-01 ansible_host/ s/hypervisor-01/hypervisor-01/g"  {} \;
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" {} \;
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-02 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-03 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
 
     # Computes
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-compute-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-compute-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-compute-01 ansible_host/ s/hypervisor-01/hypervisor-01/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*-compute-02 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
 
     # Services
     find ./hosts/ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;

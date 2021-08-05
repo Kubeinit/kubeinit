@@ -78,7 +78,7 @@ def main(cluster_type, job_type):
                 execute = False
                 for label in labels:
                     # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
-                    if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[1-9]-" + c_type + "-[v|c]-[c|h]", label):
+                    if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-" + c_type + "-[v|c]-[c|h]", label):
                         print("'launch_e2e.py' ==> Matching a PR label")
                         params = label.split("-")
                         distro = params[0]
@@ -160,7 +160,7 @@ def main(cluster_type, job_type):
                     exit()
 
     if (re.match(r"periodic(=[a-z|0-9|,|\.]+)?", job_type) or
-            re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[1-9]-[1-9]-[v|c]-[c|h],?)+", job_type)):
+            re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[v|c]-[c|h],?)+", job_type)):
 
         #
         # We will run the periodic jobs depending on the
@@ -188,7 +188,7 @@ def main(cluster_type, job_type):
             print("'launch_e2e.py' ==> The label to be processed is: " + label)
 
             # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
-            if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[1-9]-" + c_type + "-[v|c]-[c|h]", label):
+            if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-" + c_type + "-[v|c]-[c|h]", label):
                 print("'launch_e2e.py' ==> Matching a PR label")
                 params = label.split("-")
                 distro = params[0]
@@ -428,7 +428,7 @@ if __name__ == "__main__":
         print("'launch_e2e.py' ==> The second argument must be [singlenode|multinode]")
         sys.exit()
 
-    elif (not re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[1-9]-[1-9]-[v|c]-[c|h],?)+", sys.argv[2]) and
+    elif (not re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[v|c]-[c|h],?)+", sys.argv[2]) and
           not re.match(r"periodic(=[a-z|0-9|,|\.]+)?", sys.argv[2]) and
           sys.argv[2] != 'pr' and
           sys.argv[2] != 'submariner'):
@@ -438,19 +438,19 @@ if __name__ == "__main__":
         print("'launch_e2e.py' ==> periodic=okd-libvirt-3-1-1-v-h")
         sys.exit()
 
-    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[1-9]-[2-9]-[v|c]-[c|h],?)+", sys.argv[2]) and
+    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[2-9]-[v|c]-[c|h],?)+", sys.argv[2]) and
           sys.argv[1] == 'singlenode'):
         print("'launch_e2e.py' ==> The parameter " + sys.argv[2] + " and " + sys.argv[1] + " are incompatible")
         print("'launch_e2e.py' ==> singlenode configurations can not have multinode labels")
         sys.exit()
 
-    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[1-9]-1-[v|c]-[c|h],?)+", sys.argv[2]) and
+    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-1-[v|c]-[c|h],?)+", sys.argv[2]) and
           sys.argv[1] == 'multinode'):
         print("'launch_e2e.py' ==> The parameter " + sys.argv[2] + " and " + sys.argv[1] + " are incompatible")
         print("'launch_e2e.py' ==> multinode configurations can not have singlenode labels")
         sys.exit()
 
-    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[1-9]-0-[v|c]-[c|h],?)+", sys.argv[2])):
+    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-0-[v|c]-[c|h],?)+", sys.argv[2])):
         print("'launch_e2e.py' ==> Is not possible to deploy with 0 hypervisors")
         sys.exit()
 
