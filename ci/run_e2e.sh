@@ -56,7 +56,10 @@ rm -rf /root/.ara/server/ansible.sqlite
 ara-manage migrate
 
 echo "(run_e2e.sh) ==> Configuring ara callback ..."
+export ANSIBLE_ACTION_PLUGINS="$(python3 -m ara.setup.action_plugins)"
 export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
+export ANSIBLE_LOOKUP_PLUGINS="$(python3 -m ara.setup.lookup_plugins)"
+export ARA_CALLBACK_THREADS=1
 
 echo "(run_e2e.sh) ==> Removing old tmp files ..."
 # Remove old code

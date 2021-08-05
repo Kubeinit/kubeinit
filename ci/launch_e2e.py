@@ -365,7 +365,9 @@ def run_e2e_job(distro, driver, masters, workers,
                                                                                    str(job_type),
                                                                                    str(launch_from))
         print(deployment_command)
-        subprocess.check_call(deployment_command, shell=True)
+        bash_output = subprocess.check_call(deployment_command, shell=True)
+        print("'launch_e2e.py' ==> ./ci/run_e2e.sh output")
+        print(bash_output)
     except Exception as e:
         print("'launch_e2e.py' ==> An exception hapened executing Ansible")
         badge_code = badge(left_text=badge_text,
@@ -388,9 +390,13 @@ def run_e2e_job(distro, driver, masters, workers,
             split_job_name[8] = 'pid'
             job_name = "-".join(split_job_name)
             file_output = 'u'
-        subprocess.check_call("./ci/ara.sh %s" % (str(job_name) + "-" +
-                                                  str(file_output)),
-                              shell=True)
+        print("'launch_e2e.py' ==> Ara command")
+        ara_command = "./ci/ara.sh %s" % (str(job_name) + "-" + str(file_output))
+        print(ara_command)
+        bash_output = subprocess.check_call(ara_command, shell=True)
+        print("'launch_e2e.py' ==> ./ci/ara.sh output")
+        print(bash_output)
+        print("'launch_e2e.py' ==> Removing " + str(job_name) + "-" + str(file_output))
         shutil.rmtree(str(job_name) + "-" + str(file_output))
     except Exception as e:
         print("'launch_e2e.py' ==> An exception hapened rendering ara data")
