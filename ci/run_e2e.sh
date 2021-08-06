@@ -37,32 +37,20 @@ ANSIBLE_VERBOSITY="${ANSIBLE_VERBOSITY:-v}"
 
 KUBEINIT_MAIN_CI_REPOSITORY="https://github.com/kubeinit/kubeinit.git"
 
-echo "The repository is $REPOSITORY"
-echo "The branch is $BRANCH_NAME"
-echo "The pull request is $PULL_REQUEST"
-echo "The distro is $DISTRO"
-echo "The driver is $DRIVER"
-echo "The amount of master nodes is $MASTERS"
-echo "The amount of worker nodes is $WORKERS"
-echo "The amount of hypervisors is $HYPERVISORS"
-echo "The services type is $SERVICES_TYPE"
-echo "The job type is $JOB_TYPE"
-echo "The ansible will be launched from $LAUNCH_FROM"
-echo "The ansible verbosity is $ANSIBLE_VERBOSITY"
-
-echo "(run_e2e.sh) ==> Removing ara data ..."
-# This will nuke the ara database so in each run we have a clean env
-rm -rf /root/.ara/server/ansible.sqlite
-ara-manage migrate
-
-echo "(run_e2e.sh) ==> Configuring ara callback ..."
-export ANSIBLE_ACTION_PLUGINS="$(python3 -m ara.setup.action_plugins)"
-export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
-export ANSIBLE_LOOKUP_PLUGINS="$(python3 -m ara.setup.lookup_plugins)"
-export ARA_CALLBACK_THREADS=1
+echo "(run_e2e.sh) ==> The repository is $REPOSITORY"
+echo "(run_e2e.sh) ==> The branch is $BRANCH_NAME"
+echo "(run_e2e.sh) ==> The pull request is $PULL_REQUEST"
+echo "(run_e2e.sh) ==> The distro is $DISTRO"
+echo "(run_e2e.sh) ==> The driver is $DRIVER"
+echo "(run_e2e.sh) ==> The amount of master nodes is $MASTERS"
+echo "(run_e2e.sh) ==> The amount of worker nodes is $WORKERS"
+echo "(run_e2e.sh) ==> The amount of hypervisors is $HYPERVISORS"
+echo "(run_e2e.sh) ==> The services type is $SERVICES_TYPE"
+echo "(run_e2e.sh) ==> The job type is $JOB_TYPE"
+echo "(run_e2e.sh) ==> The ansible will be launched from $LAUNCH_FROM"
+echo "(run_e2e.sh) ==> The ansible verbosity is $ANSIBLE_VERBOSITY"
 
 echo "(run_e2e.sh) ==> Removing old tmp files ..."
-# Remove old code
 rm -rf tmp
 mkdir -p tmp
 cd tmp
@@ -244,14 +232,67 @@ echo "(run_e2e.sh) ==> Deploying the cluster ..."
 # The deployment playbook can be launched from a container [c]
 # or directly from the host [h]
 #
+
+#
+# ARA configuration
+#
+podman pod kill ara-pod || true
+podman pod stop ara-pod || true
+podman pod rm ara-pod || true
+
+podman pod create \
+    --name ara-pod \
+    --publish 26973:8000
+
+echo "(run_e2e.sh) ==> Configuring ara callback ..."
+export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
+export ANSIBLE_LOAD_CALLBACK_PLUGINS=true
+export ARA_API_CLIENT="http"
+export ARA_API_SERVER="http://127.0.0.1:26973"
+
+#
+# When the playbooks are executed from containers
+# the callback plugin is not able to write back the
+# data to the api client, we need to make explicit
+# that information as environment variables when
+# running the deployment containers.
+#
+
+echo "(run_e2e.sh) ==> Preparing API server container ..."
+rm -rf ~/.ara/server || true
+mkdir -p ~/.ara/server
+# The port redirection is at pod level
+#           -p 26973:8000 \
+podman run --name api-server \
+           --pod ara-pod \
+           --detach --tty \
+           --volume ~/.ara/server:/opt/ara:z \
+           docker.io/recordsansible/ara-api:latest
+
 if [[ "$LAUNCH_FROM" == "c" ]]; then
+    # We inject ara in the container in the case we trigger Ansible inside a container
+    # so we can fetch back the results
+    sed -i -E -e "s/python3 -m pip install --no-cache-dir --upgrade/python3 -m pip install --no-cache-dir --upgrade ara/g" Dockerfile
+    #
+    # In case ARA is not logging data, the variable
+    # ANSIBLE_CALLBACK_PLUGINS with the plugin path
+    # /usr/local/lib/python3.6/site-packages/ara/plugins/callback
+    # might changed to another locatin, check this first.
+    #
+    podman build -t kubeinit/kubeinit .
+
     if [[ "$DISTRO" == "okd.rke" ]]; then
-        podman build -t kubeinit/kubeinit .
 
         podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
             -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
             -v /etc/hosts:/etc/hosts \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
                 -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
@@ -263,9 +304,15 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
                 ./playbooks/okd.yml
 
         podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
             -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
             -v /etc/hosts:/etc/hosts \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
                 -${ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
@@ -278,9 +325,15 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
                 ./playbooks/rke.yml
 
         podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
             -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
             -v /etc/hosts:/etc/hosts \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
                 -${ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
@@ -292,9 +345,15 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
                 ./playbooks/submariner.yml
 
         podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
             -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
             -v /etc/hosts:/etc/hosts \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
                 -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
@@ -306,9 +365,15 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
                 ./playbooks/submariner.yml
 
         podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
             -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
             -v /etc/hosts:/etc/hosts \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
                 -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
@@ -317,17 +382,20 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
                 -e kubeinit_submariner_is_secondary=True \
                 -e @scenario_variables.yml \
                 -e ansible_ssh_user=root \
-                ./playbooks/ubmariner-subctl-verify.yml
+                ./playbooks/submariner-subctl-verify.yml
     else
         # This will deploy a single kubernetes cluster based
         # on the $DISTRO variable from a container
-
-        podman build -t kubeinit/kubeinit .
-
         podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
             -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
             -v /etc/hosts:/etc/hosts \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
                 -${ANSIBLE_VERBOSITY} -i ./hosts/$DISTRO/inventory \

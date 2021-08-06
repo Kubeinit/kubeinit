@@ -19,8 +19,7 @@ RUN set -x && \
     echo "  IdentityFile /root/.ssh/id_rsa" >> /root/.ssh/config && \
     \
     echo "==> Adding Python runtime and deps..."  && \
-    python3 -m pip install --no-cache-dir \
-        --upgrade \
+    python3 -m pip install --no-cache-dir --upgrade \
         pip \
         shyaml \
         cryptography==3.3.2 \

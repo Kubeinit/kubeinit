@@ -59,6 +59,17 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     # ARA required packages
     sudo yum install gcc python3-devel libffi-devel openssl-devel redhat-rpm-config -y
     sudo yum install sqlite -y
+    # We might try in the future to move to MySQL insteadof sqlite
+    # sudo yum install mysql-server mysql-common mysql-devel mysql-libs python3-PyMySQL -y
+    # pip3 install mysqlclient
+    # Make sure that NOBODY can access the server without a password
+    # mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'password'; FLUSH PRIVILEGES;"
+    # Any subsequent tries to run queries this way will get access denied because lack of usr/pwd param
+    # sudo systemctl start mysqld
+    # sudo systemctl status mysqld
+
+    # mysql -u root -ppassword -e "DROP DATABASE ara;"
+    # mysql -u root -ppassword -e "CREATE DATABASE ara;"
 
     # Install GitLab runner binary
     curl -LJO https://gitlab-runner-downloads.s3.amazonaws.com/latest/rpm/gitlab-runner_amd64.rpm
@@ -94,10 +105,9 @@ python3 -m pip install \
 # Install and configure ara
 # There are problems with multithread ara, we keep the last
 # single thread version
-#sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
-sudo python3 -m pip install --upgrade "ara[server]"
-
-ara-manage migrate
+# sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
+# we run the server in a pod so we dont need to install it anymore
+sudo python3 -m pip install --upgrade ara
 
 echo "nyctea" > /etc/hostname
 iface_ip=$(ip route get "8.8.8.8" | grep -Po '(?<=(src )).*(?= uid| proto)')
