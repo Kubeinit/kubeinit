@@ -53,6 +53,6 @@ find ./$PIPELINE_ID -type f -exec sed -i -e 's#static/images/logo.svg#https://ra
 find ./$PIPELINE_ID -type f -exec sed -i -e 's#static/images/favicon.ico#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/favicon.ico#g' {} \;
 
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#ara#KubeInit#g' {} \;
-find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#https://kubeinit.recordsansible.org/#https://ara.recordsansible.org/#g' {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#https://KubeInit.recordsansible.org/#https://ara.recordsansible.org/#g' {} \;
 
 echo "(launch_e2e_ara.sh) ==> Finishing the bash executor"
