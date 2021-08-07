@@ -106,7 +106,7 @@ python3 -m pip install \
 # There are problems with multithread ara, we keep the last
 # single thread version
 # sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
-# we run the server in a pod so we dont need to install it anymore
+# we run the server (api-server) in a pod so we dont need to install it anymore
 sudo python3 -m pip install --upgrade ara
 
 echo "nyctea" > /etc/hostname

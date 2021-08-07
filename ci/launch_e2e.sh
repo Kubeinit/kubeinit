@@ -222,20 +222,11 @@ fi
 
 echo "(launch_e2e.sh) ==> The inventory content..."
 cat ./hosts/$DISTRO/inventory || true
-#
-# The last step is to run the deployment
-#
-
-echo "(launch_e2e.sh) ==> Deploying the cluster ..."
 
 #
-# The deployment playbook can be launched from a container [c]
-# or directly from the host [h]
+# Begin ARA configuration
 #
 
-#
-# ARA configuration
-#
 podman pod kill ara-pod || true
 podman pod stop ara-pod || true
 podman pod rm ara-pod || true
@@ -243,12 +234,6 @@ podman pod rm ara-pod || true
 podman pod create \
     --name ara-pod \
     --publish 26973:8000
-
-echo "(launch_e2e.sh) ==> Configuring ara callback ..."
-export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
-export ANSIBLE_LOAD_CALLBACK_PLUGINS=true
-export ARA_API_CLIENT="http"
-export ARA_API_SERVER="http://127.0.0.1:26973"
 
 #
 # When the playbooks are executed from containers
@@ -260,15 +245,52 @@ export ARA_API_SERVER="http://127.0.0.1:26973"
 
 echo "(launch_e2e.sh) ==> Preparing API server container ..."
 rm -rf ~/.ara/server || true
+rm -rf ~/.ara/output_data || true
 mkdir -p ~/.ara/server
+mkdir -p ~/.ara/output_data
+
 # The port redirection is at pod level
-#           -p 26973:8000 \
+# we redirect the 26973:8000 as the api server
+# listens in the 8000 port
 podman run --name api-server \
             --pod ara-pod \
             --detach --tty \
             --volume ~/.ara/server:/opt/ara:z \
+            --volume ~/.ara/output_data:/opt/output_data:z \
             docker.io/recordsansible/ara-api:latest
 
+#
+# Any change in the way the logs from Ansible are
+# gathered needs to be tested in both scenarios, when
+# we launch the playbooks from the host and from a container
+#
+
+echo "(launch_e2e.sh) ==> Allow queries from anywhere and restart the api-server container ..."
+until [ -f ~/.ara/server/settings.yaml ]; do
+    sleep 5
+done
+sed -i "s/  - ::1/  - '*'/" ~/.ara/server/settings.yaml
+podman restart api-server
+
+echo "(launch_e2e.sh) ==> Configuring ara callback ..."
+export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
+export ANSIBLE_LOAD_CALLBACK_PLUGINS=true
+export ARA_API_CLIENT="http"
+export ARA_API_SERVER="http://127.0.0.1:26973"
+
+podman exec -it api-server /bin/bash -c "ara-manage migrate"
+#
+# End ARA configuration
+#
+
+#
+# The last step is to run the deployment
+#
+echo "(launch_e2e.sh) ==> Deploying the cluster ..."
+#
+# The deployment playbook can be launched from a container [c]
+# or directly from the host [h]
+#
 if [[ "$LAUNCH_FROM" == "c" ]]; then
     # We inject ara in the container in the case we trigger Ansible inside a container
     # so we can fetch back the results
