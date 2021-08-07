@@ -19,7 +19,7 @@ set -e
 #                                                                           #
 #############################################################################
 
-echo "(run_e2e.sh) ==> Executing run.sh ..."
+echo "(launch_e2e.sh) ==> Executing run.sh ..."
 
 REPOSITORY="${1}"
 BRANCH_NAME="${2}"
@@ -37,25 +37,25 @@ ANSIBLE_VERBOSITY="${ANSIBLE_VERBOSITY:-v}"
 
 KUBEINIT_MAIN_CI_REPOSITORY="https://github.com/kubeinit/kubeinit.git"
 
-echo "(run_e2e.sh) ==> The repository is $REPOSITORY"
-echo "(run_e2e.sh) ==> The branch is $BRANCH_NAME"
-echo "(run_e2e.sh) ==> The pull request is $PULL_REQUEST"
-echo "(run_e2e.sh) ==> The distro is $DISTRO"
-echo "(run_e2e.sh) ==> The driver is $DRIVER"
-echo "(run_e2e.sh) ==> The amount of master nodes is $MASTERS"
-echo "(run_e2e.sh) ==> The amount of worker nodes is $WORKERS"
-echo "(run_e2e.sh) ==> The amount of hypervisors is $HYPERVISORS"
-echo "(run_e2e.sh) ==> The services type is $SERVICES_TYPE"
-echo "(run_e2e.sh) ==> The job type is $JOB_TYPE"
-echo "(run_e2e.sh) ==> The ansible will be launched from $LAUNCH_FROM"
-echo "(run_e2e.sh) ==> The ansible verbosity is $ANSIBLE_VERBOSITY"
+echo "(launch_e2e.sh) ==> The repository is $REPOSITORY"
+echo "(launch_e2e.sh) ==> The branch is $BRANCH_NAME"
+echo "(launch_e2e.sh) ==> The pull request is $PULL_REQUEST"
+echo "(launch_e2e.sh) ==> The distro is $DISTRO"
+echo "(launch_e2e.sh) ==> The driver is $DRIVER"
+echo "(launch_e2e.sh) ==> The amount of master nodes is $MASTERS"
+echo "(launch_e2e.sh) ==> The amount of worker nodes is $WORKERS"
+echo "(launch_e2e.sh) ==> The amount of hypervisors is $HYPERVISORS"
+echo "(launch_e2e.sh) ==> The services type is $SERVICES_TYPE"
+echo "(launch_e2e.sh) ==> The job type is $JOB_TYPE"
+echo "(launch_e2e.sh) ==> The ansible will be launched from $LAUNCH_FROM"
+echo "(launch_e2e.sh) ==> The ansible verbosity is $ANSIBLE_VERBOSITY"
 
-echo "(run_e2e.sh) ==> Removing old tmp files ..."
+echo "(launch_e2e.sh) ==> Removing old tmp files ..."
 rm -rf tmp
 mkdir -p tmp
 cd tmp
 
-echo "(run_e2e.sh) ==> Downloading KubeInit's code ..."
+echo "(launch_e2e.sh) ==> Downloading KubeInit's code ..."
 # Get the kubeinit code we will test
 if [[ "$JOB_TYPE" == "pr" ]]; then
     # Keep as an example for cherry-picking workarounds
@@ -73,7 +73,7 @@ else
 fi
 
 # Install the collection
-echo "(run_e2e.sh) ==> Installing KubeInit ..."
+echo "(launch_e2e.sh) ==> Installing KubeInit ..."
 cd kubeinit
 rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
 ansible-galaxy collection build -v --force --output-path releases/
@@ -87,7 +87,7 @@ cd ..
 # deployed cluster resources, like guests and
 # SDN resources
 
-echo "(run_e2e.sh) ==> Configuring KubeInit's scenario file ..."
+echo "(launch_e2e.sh) ==> Configuring KubeInit's scenario file ..."
 if [[ "$DISTRO" == "okd.rke" && "$JOB_TYPE" == "submariner" ]]; then
 # Here we will deploy a submariner environment testing a PR from
 # the submariner-operator repository
@@ -116,17 +116,17 @@ cat scenario_variables.yml
 # Before doing anything we make sure the environment is completely cleared
 # like remove podman connections, guests, and libvirt networks
 
-echo "(run_e2e.sh) ==> Cleaning hypervisor ..."
-echo "(run_e2e.sh) ==> Removing podman connections ..."
+echo "(launch_e2e.sh) ==> Cleaning hypervisor ..."
+echo "(launch_e2e.sh) ==> Removing podman connections ..."
 for i in $(podman --remote system connection list | sed -e 1d -e 's/[* ].*//'); do
     podman --remote system connection remove $i
 done;
-echo "(run_e2e.sh) ==> Removing guests ..."
+echo "(launch_e2e.sh) ==> Removing guests ..."
 for i in $(virsh -q list | awk '{ print $2 }'); do
     virsh destroy $i;
     virsh undefine $i --remove-all-storage;
 done;
-echo "(run_e2e.sh) ==> Removing nets ..."
+echo "(launch_e2e.sh) ==> Removing nets ..."
 for i in $(virsh -q net-list | awk '{ print $1 }'); do
     virsh net-destroy $i;
     virsh net-undefine $i;
@@ -135,7 +135,7 @@ done;
 # Let's configure the inventory file based in the variables
 # this script is receiving
 
-echo "(run_e2e.sh) ==> Preparing the inventory ..."
+echo "(launch_e2e.sh) ==> Preparing the inventory ..."
 if [[ "$MASTERS" == "1" ]]; then
     find ./hosts/ -type f -exec sed -i -E -e "s/.*-controller-02/#-controller-02/g" {} \;
     find ./hosts/ -type f -exec sed -i -E -e "s/.*-controller-03/#-controller-03/g" {} \;
@@ -182,7 +182,7 @@ fi
 # For the multinode deployment we only support a 3 nodes cluster
 #
 if [[ "$HYPERVISORS" != "1" && "$HYPERVISORS" != "3" ]]; then
-    echo "(run_e2e.sh) ==> We only support 1 and 3 nodes clusters"
+    echo "(launch_e2e.sh) ==> We only support 1 and 3 nodes clusters"
     exit 1
 fi
 
@@ -220,13 +220,13 @@ if [[ "$SERVICES_TYPE" == "c" ]]; then
     find ./hosts/ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/type=virtual/type=container/g" {} \;
 fi
 
-echo "(run_e2e.sh) ==> The inventory content..."
+echo "(launch_e2e.sh) ==> The inventory content..."
 cat ./hosts/$DISTRO/inventory || true
 #
 # The last step is to run the deployment
 #
 
-echo "(run_e2e.sh) ==> Deploying the cluster ..."
+echo "(launch_e2e.sh) ==> Deploying the cluster ..."
 
 #
 # The deployment playbook can be launched from a container [c]
@@ -244,7 +244,7 @@ podman pod create \
     --name ara-pod \
     --publish 26973:8000
 
-echo "(run_e2e.sh) ==> Configuring ara callback ..."
+echo "(launch_e2e.sh) ==> Configuring ara callback ..."
 export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
 export ANSIBLE_LOAD_CALLBACK_PLUGINS=true
 export ARA_API_CLIENT="http"
@@ -258,16 +258,16 @@ export ARA_API_SERVER="http://127.0.0.1:26973"
 # running the deployment containers.
 #
 
-echo "(run_e2e.sh) ==> Preparing API server container ..."
+echo "(launch_e2e.sh) ==> Preparing API server container ..."
 rm -rf ~/.ara/server || true
 mkdir -p ~/.ara/server
 # The port redirection is at pod level
 #           -p 26973:8000 \
 podman run --name api-server \
-           --pod ara-pod \
-           --detach --tty \
-           --volume ~/.ara/server:/opt/ara:z \
-           docker.io/recordsansible/ara-api:latest
+            --pod ara-pod \
+            --detach --tty \
+            --volume ~/.ara/server:/opt/ara:z \
+            docker.io/recordsansible/ara-api:latest
 
 if [[ "$LAUNCH_FROM" == "c" ]]; then
     # We inject ara in the container in the case we trigger Ansible inside a container
@@ -475,6 +475,6 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
     fi
 
 else
-    echo "(run_e2e.sh) ==> The parameter launch from do not match a valid value [c|h]"
+    echo "(launch_e2e.sh) ==> The parameter launch from do not match a valid value [c|h]"
     exit 1
 fi

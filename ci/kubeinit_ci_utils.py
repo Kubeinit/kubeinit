@@ -19,6 +19,7 @@ under the License.
 """KubeInit's CI utils."""
 
 import os
+import random
 import re
 
 from google.cloud import storage
@@ -203,30 +204,35 @@ def get_periodic_jobs_labels(distro='all'):
         else:
             print("'kubeinit_ci_utils.py' ==> The requested labels are not a subset of the allowed labels")
             raise Exception("'kubeinit_ci_utils.py' ==> STOP!")
-
-    configs = []
-    if 'okd' in distro and 'okd.rke' not in distro:
-        print("'kubeinit_ci_utils.py' ==> Appending OKD configs")
-        configs = configs + okd_configs
-    if 'rke' in distro and 'okd.rke' not in distro:
-        print("'kubeinit_ci_utils.py' ==> Appending RKE configs")
-        configs = configs + rke_configs
-    if 'kid' in distro:
-        print("'kubeinit_ci_utils.py' ==> Appending KID configs")
-        configs = configs + kid_configs
-    if 'eks' in distro:
-        print("'kubeinit_ci_utils.py' ==> Appending EKS configs")
-        configs = configs + eks_configs
-    if 'cdk' in distro:
-        print("'kubeinit_ci_utils.py' ==> Appending CDK configs")
-        configs = configs + cdk_configs
-    if 'k8s' in distro:
-        print("'kubeinit_ci_utils.py' ==> Appending K8S configs")
-        configs = configs + k8s_configs
-    if 'okd.rke' in distro:
-        print("'kubeinit_ci_utils.py' ==> Appending OKD.RKE configs")
-        configs = configs + okd_rke_configs
-    if distro == "all":
+    elif distro == 'random':
+        print("'kubeinit_ci_utils.py' ==> Returning 3 random scenarios to test")
+        # If the distro parameter is random we return 3 random distros to test
+        all_scenarios = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
+        return random.sample(all_scenarios, 3)
+    elif distro == "all":
         print("'kubeinit_ci_utils.py' ==> Appending all configs")
         return okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
-    return configs
+    else:
+        configs = []
+        if 'okd' in distro and 'okd.rke' not in distro:
+            print("'kubeinit_ci_utils.py' ==> Appending OKD configs")
+            configs = configs + okd_configs
+        if 'rke' in distro and 'okd.rke' not in distro:
+            print("'kubeinit_ci_utils.py' ==> Appending RKE configs")
+            configs = configs + rke_configs
+        if 'kid' in distro:
+            print("'kubeinit_ci_utils.py' ==> Appending KID configs")
+            configs = configs + kid_configs
+        if 'eks' in distro:
+            print("'kubeinit_ci_utils.py' ==> Appending EKS configs")
+            configs = configs + eks_configs
+        if 'cdk' in distro:
+            print("'kubeinit_ci_utils.py' ==> Appending CDK configs")
+            configs = configs + cdk_configs
+        if 'k8s' in distro:
+            print("'kubeinit_ci_utils.py' ==> Appending K8S configs")
+            configs = configs + k8s_configs
+        if 'okd.rke' in distro:
+            print("'kubeinit_ci_utils.py' ==> Appending OKD.RKE configs")
+            configs = configs + okd_rke_configs
+        return configs
