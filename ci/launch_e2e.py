@@ -160,7 +160,8 @@ def main(cluster_type, job_type):
                     exit()
 
     if (re.match(r"periodic(=[a-z|0-9|,|\.]+)?", job_type) or
-            re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[v|c]-[c|h],?)+", job_type)):
+            re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[v|c]-[c|h],?)+", job_type) or
+            job_type == 'periodic=random'):
 
         #
         # We will run the periodic jobs depending on the
@@ -353,20 +354,20 @@ def run_e2e_job(distro, driver, masters, workers,
     try:
         print("'launch_e2e.py' ==> We call the downstream job configuring its parameters")
         print("'launch_e2e.py' ==> Deployment command")
-        deployment_command = "./ci/run_e2e.sh %s %s %s %s %s %s %s %s %s %s %s" % (str(repository),
-                                                                                   str(branch_name),
-                                                                                   str(pr_number),
-                                                                                   str(distro),
-                                                                                   str(driver),
-                                                                                   str(masters),
-                                                                                   str(workers),
-                                                                                   str(hypervisors),
-                                                                                   str(services),
-                                                                                   str(job_type),
-                                                                                   str(launch_from))
+        deployment_command = "./ci/launch_e2e.sh %s %s %s %s %s %s %s %s %s %s %s" % (str(repository),
+                                                                                      str(branch_name),
+                                                                                      str(pr_number),
+                                                                                      str(distro),
+                                                                                      str(driver),
+                                                                                      str(masters),
+                                                                                      str(workers),
+                                                                                      str(hypervisors),
+                                                                                      str(services),
+                                                                                      str(job_type),
+                                                                                      str(launch_from))
         print(deployment_command)
         bash_output = subprocess.check_call(deployment_command, shell=True)
-        print("'launch_e2e.py' ==> ./ci/run_e2e.sh output")
+        print("'launch_e2e.py' ==> ./ci/launch_e2e.sh output")
         print(bash_output)
     except Exception as e:
         print("'launch_e2e.py' ==> An exception hapened executing Ansible")
@@ -391,13 +392,11 @@ def run_e2e_job(distro, driver, masters, workers,
             job_name = "-".join(split_job_name)
             file_output = 'u'
         print("'launch_e2e.py' ==> Ara command")
-        ara_command = "./ci/ara.sh %s" % (str(job_name) + "-" + str(file_output))
+        ara_command = "./ci/launch_e2e_ara.sh %s" % (str(job_name) + "-" + str(file_output))
         print(ara_command)
         bash_output = subprocess.check_call(ara_command, shell=True)
-        print("'launch_e2e.py' ==> ./ci/ara.sh output")
+        print("'launch_e2e.py' ==> ./ci/launch_e2e_ara.sh output")
         print(bash_output)
-        print("'launch_e2e.py' ==> Removing " + str(job_name) + "-" + str(file_output))
-        shutil.rmtree(str(job_name) + "-" + str(file_output))
     except Exception as e:
         print("'launch_e2e.py' ==> An exception hapened rendering ara data")
         print(e)
@@ -419,6 +418,9 @@ def run_e2e_job(distro, driver, masters, workers,
 
     print("'launch_e2e.py' ==> rendering the index job page")
     render_index(gc_token_path)
+
+    print("'launch_e2e.py' ==> Removing aux files: " + str(job_name) + "-" + str(file_output))
+    shutil.rmtree(str(job_name) + "-" + str(file_output))
 
     print("'launch_e2e.py' ==> finishing the uploader job")
     return output

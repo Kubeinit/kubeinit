@@ -19,17 +19,17 @@ set -e
 #                                                                           #
 #############################################################################
 
-echo "(ara.sh) ==> Executing ara.sh"
+echo "(launch_e2e_ara.sh) ==> Executing launch_e2e_ara.sh"
 
 PIPELINE_ID="$1"
 
-echo "(ara.sh) ==> The pipeline_id is $PIPELINE_ID"
+echo "(launch_e2e_ara.sh) ==> The pipeline_id is $PIPELINE_ID"
 
-echo "(ara.sh) ==> Configuring ara endpoints"
+echo "(launch_e2e_ara.sh) ==> Configuring ara endpoints"
 export ARA_API_CLIENT="http"
 export ARA_API_SERVER="http://127.0.0.1:26973"
 
-echo "(ara.sh) ==> Running ara-manage to store the results"
+echo "(launch_e2e_ara.sh) ==> Running ara-manage to store the results"
 ara-manage generate ./$PIPELINE_ID
 
 touch ~/badge_status.svg
@@ -55,4 +55,4 @@ find ./$PIPELINE_ID -type f -exec sed -i -e 's#static/images/favicon.ico#https:/
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#ara#KubeInit#g' {} \;
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#https://kubeinit.recordsansible.org/#https://ara.recordsansible.org/#g' {} \;
 
-echo "(ara.sh) ==> Finishing the bash executor"
+echo "(launch_e2e_ara.sh) ==> Finishing the bash executor"
