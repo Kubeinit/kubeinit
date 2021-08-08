@@ -25,12 +25,14 @@ PIPELINE_ID="$1"
 
 echo "(launch_e2e_ara.sh) ==> The pipeline_id is $PIPELINE_ID"
 
-echo "(launch_e2e_ara.sh) ==> Configuring ara endpoints"
-export ARA_API_CLIENT="http"
-export ARA_API_SERVER="http://127.0.0.1:26973"
-
-echo "(launch_e2e_ara.sh) ==> Running ara-manage to store the results"
-ara-manage generate ./$PIPELINE_ID
+#
+# Any change in the way the logs from Ansible are
+# gathered needs to be tested in both scenarios, when
+# we launch the playbooks from the host and from a container
+#
+echo "(launch_e2e_ara.sh) ==> Running ara-manage to store the results from inside the api-server container"
+podman exec -it api-server /bin/bash -c "ara-manage generate /opt/output_data/${PIPELINE_ID}"
+mv ~/.ara/output_data/${PIPELINE_ID} .
 
 touch ~/badge_status.svg
 cp ~/badge_status.svg ./$PIPELINE_ID/
