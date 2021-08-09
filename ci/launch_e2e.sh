@@ -33,7 +33,7 @@ SERVICES_TYPE="${9}"
 JOB_TYPE="${10}"
 LAUNCH_FROM="${11}"
 
-ANSIBLE_VERBOSITY="${ANSIBLE_VERBOSITY:-v}"
+KUBEINIT_ANSIBLE_VERBOSITY="${KUBEINIT_ANSIBLE_VERBOSITY:-v}"
 
 KUBEINIT_MAIN_CI_REPOSITORY="https://github.com/kubeinit/kubeinit.git"
 
@@ -48,7 +48,7 @@ echo "(launch_e2e.sh) ==> The amount of hypervisors is $HYPERVISORS"
 echo "(launch_e2e.sh) ==> The services type is $SERVICES_TYPE"
 echo "(launch_e2e.sh) ==> The job type is $JOB_TYPE"
 echo "(launch_e2e.sh) ==> The ansible will be launched from $LAUNCH_FROM"
-echo "(launch_e2e.sh) ==> The ansible verbosity is $ANSIBLE_VERBOSITY"
+echo "(launch_e2e.sh) ==> The ansible verbosity is $KUBEINIT_ANSIBLE_VERBOSITY"
 
 echo "(launch_e2e.sh) ==> Removing old tmp files ..."
 rm -rf tmp
@@ -317,7 +317,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
-                -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
                 --become \
                 --become-user root \
                 -e kubeinit_bind_multicluster_dns_forward_enabled=True \
@@ -337,7 +337,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
-                -${ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
                 --become \
                 --become-user root \
                 -e kubeinit_bind_multicluster_dns_forward_enabled=True \
@@ -358,7 +358,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
-                -${ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
                 --become \
                 --become-user root \
                 -e kubeinit_submariner_is_broker=True \
@@ -378,7 +378,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
-                -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
                 --become \
                 --become-user root \
                 -e kubeinit_submariner_is_secondary=True \
@@ -398,7 +398,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
-                -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
                 --become \
                 --become-user root \
                 -e kubeinit_submariner_is_secondary=True \
@@ -420,7 +420,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
                 --user root \
-                -${ANSIBLE_VERBOSITY} -i ./hosts/$DISTRO/inventory \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/$DISTRO/inventory \
                 --become \
                 --become-user root \
                 -e @scenario_variables.yml \
@@ -439,7 +439,7 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
         # Deploy the fisrt cluster (okd)
         ansible-playbook \
             --user root \
-            -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
             --become \
             --become-user root \
             -e kubeinit_bind_multicluster_dns_forward_enabled=True \
@@ -449,7 +449,7 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
         # Deploy the second cluster (rke)
         ansible-playbook \
             --user root \
-            -${ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
             --become \
             --become-user root \
             -e kubeinit_bind_multicluster_dns_forward_enabled=True \
@@ -460,7 +460,7 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
         # Deploy submariner as broker (rke)
         ansible-playbook \
             --user root \
-            -${ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
             --become \
             --become-user root \
             -e kubeinit_submariner_is_broker=True \
@@ -470,7 +470,7 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
         # Deploy submariner as secondary (okd)
         ansible-playbook \
             --user root \
-            -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
             --become \
             --become-user root \
             -e kubeinit_submariner_is_secondary=True \
@@ -480,7 +480,7 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
         # Run subctl verify to check cluster status in the sec cluster (okd)
         ansible-playbook \
             --user root \
-            -${ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
             --become \
             --become-user root \
             -e kubeinit_submariner_is_secondary=True \
@@ -489,7 +489,7 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
     else
         ansible-playbook \
             --user root \
-            -${ANSIBLE_VERBOSITY} -i ./hosts/$DISTRO/inventory \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/$DISTRO/inventory \
             --become \
             --become-user root \
             -e @scenario_variables.yml \
