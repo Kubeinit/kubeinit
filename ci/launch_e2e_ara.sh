@@ -46,7 +46,7 @@ find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's/ara.readthedocs.io
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#https://github.com/ansible-community/ara#https://github.com/kubeinit/kubeinit#g' {} \;
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#https://ara.recordsansible.org#https://kubeinit.org#g' {} \;
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#ARA Records Ansible and makes it easier to understand and troubleshoot. It is another recursive acronym.#KubeInit helps with the deployment of multiple Kubernetes distributions.#g' {} \;
-find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#ara is a free and open source project under the GPLv3 license.#The CI results are rendered using <a href="https://ara.recordsansible.org" target="_blank">ARA</a>#g' {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#ara is a free and open source project under the GPLv3 license.#The CI results are rendered using <a href="https://placeholderfororiginalurl" target="_blank">ARA</a>#g' {} \;
 
 find ./$PIPELINE_ID -type f -exec sed -i -e 's#../static/images/logo.svg#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo_white.svg#g' {} \;
 find ./$PIPELINE_ID -type f -exec sed -i -e 's#../static/images/favicon.ico#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/favicon.ico#g' {} \;
@@ -54,7 +54,12 @@ find ./$PIPELINE_ID -type f -exec sed -i -e 's#../static/images/favicon.ico#http
 find ./$PIPELINE_ID -type f -exec sed -i -e 's#static/images/logo.svg#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo_white.svg#g' {} \;
 find ./$PIPELINE_ID -type f -exec sed -i -e 's#static/images/favicon.ico#https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/favicon.ico#g' {} \;
 
-find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#ara#KubeInit#g' {} \;
-find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#https://KubeInit.recordsansible.org/#https://ara.recordsansible.org/#g' {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#placeholderfororiginalurl#ara.recordsansible.org#g' {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#>ara #>KubeInit #g' {} \;
+
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/href=\".+\">Playbooks/ s/href=\".+\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/jobs\/${PIPELINE_ID}\/index.html\"/g" {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/href=\".+\">Hosts/ s/href=\".+\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/jobs\/${PIPELINE_ID}\/hosts\/index.html\"/g" {} \;
+
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/class=\"navbar-brand\" href=\".+\">/ s/href=\".+\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/index.html\"/g" {} \;
 
 echo "(launch_e2e_ara.sh) ==> Finishing the bash executor"
