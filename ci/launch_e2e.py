@@ -366,11 +366,11 @@ def run_e2e_job(distro, driver, masters, workers,
                                                                                       str(job_type),
                                                                                       str(launch_from))
         print(deployment_command)
-        bash_output = subprocess.check_call(deployment_command, shell=True)
+        launch_output = subprocess.run(deployment_command, shell=True)
         print("'launch_e2e.py' ==> ./ci/launch_e2e.sh output")
-        print(bash_output)
+        print(launch_output)
     except Exception as e:
-        print("'launch_e2e.py' ==> An exception hapened executing Ansible")
+        print("'launch_e2e.py' ==> An exception hapened executing Ansible, the playbook failed")
         badge_code = badge(left_text=badge_text,
                            right_text='failure',
                            right_color='red')
@@ -394,9 +394,9 @@ def run_e2e_job(distro, driver, masters, workers,
         print("'launch_e2e.py' ==> Ara command")
         ara_command = "./ci/launch_e2e_ara.sh %s" % (str(job_name) + "-" + str(file_output))
         print(ara_command)
-        bash_output = subprocess.check_call(ara_command, shell=True)
+        ara_output = subprocess.run(ara_command, shell=True)
         print("'launch_e2e.py' ==> ./ci/launch_e2e_ara.sh output")
-        print(bash_output)
+        print(ara_output)
     except Exception as e:
         print("'launch_e2e.py' ==> An exception hapened rendering ara data")
         print(e)
@@ -412,6 +412,8 @@ def run_e2e_job(distro, driver, masters, workers,
         job_name = "-".join(split_job_name)
         file_output = 'u'
 
+    root_folder_path = os.path.join(os.getcwd(), str(job_name) + "-" + str(file_output))
+
     print("'launch_e2e.py' ==> starting the uploader job")
     upload_logs_to_google_cloud(str(job_name) + "-" + str(file_output),
                                 gc_token_path)
@@ -419,8 +421,8 @@ def run_e2e_job(distro, driver, masters, workers,
     print("'launch_e2e.py' ==> rendering the index job page")
     render_index(gc_token_path)
 
-    print("'launch_e2e.py' ==> Removing aux files: " + str(job_name) + "-" + str(file_output))
-    shutil.rmtree(str(job_name) + "-" + str(file_output))
+    print("'launch_e2e.py' ==> Removing aux files: " + root_folder_path)
+    shutil.rmtree(root_folder_path)
 
     print("'launch_e2e.py' ==> finishing the uploader job")
     return output
