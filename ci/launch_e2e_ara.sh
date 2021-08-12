@@ -60,6 +60,6 @@ find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#>ara #>KubeInit #g
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/href=\".+\">Playbooks/ s/href=\".+\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/jobs\/${PIPELINE_ID}\/index.html\"/g" {} \;
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/href=\".+\">Hosts/ s/href=\".+\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/jobs\/${PIPELINE_ID}\/hosts\/index.html\"/g" {} \;
 
-find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/class=\"navbar-brand\" href=\".*\">/ s/href=\".+\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/index.html\"/g" {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/class=\"navbar-brand\" href=\".*\">/ s/href=\".*\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/index.html\"/g" {} \;
 
 echo "(launch_e2e_ara.sh) ==> Finishing the bash executor"
