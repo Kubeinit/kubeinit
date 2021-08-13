@@ -274,6 +274,8 @@ podman restart api-server
 
 echo "(launch_e2e.sh) ==> Configuring ara callback ..."
 export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
+# The action plugins variable is required to be able to record
+export ANSIBLE_ACTION_PLUGINS="$(python3 -m ara.setup.action_plugins)"
 export ANSIBLE_LOAD_CALLBACK_PLUGINS=true
 export ARA_API_CLIENT="http"
 export ARA_API_SERVER="http://127.0.0.1:26973"
@@ -291,6 +293,30 @@ echo "(launch_e2e.sh) ==> Deploying the cluster ..."
 # The deployment playbook can be launched from a container [c]
 # or directly from the host [h]
 #
+
+#
+# This logic allows to record specific files or content before starting
+# the deployment, we add this at the beginning of the deployment
+# because if there is a runtime error then these tasks might not
+# run at all. We also do this before choosing if the deployment is
+# containerized or not.
+#
+
+echo "(launch_e2e.sh) ==> Running record tasks ..."
+cat << endoffile | sudo tee ./playbook_tmp.yml
+- name: Record useful files and variables to the deployment
+  hosts: localhost
+  tasks:
+    - name: Record host file
+      ara_record:
+        key: inventory
+        value: "{{ lookup('file', '../hosts/${DISTRO}/inventory') }}"
+        type: text
+endoffile
+cat ./kubeinit/playbook.yml >> ./playbook_tmp.yml
+mv ./playbook_tmp.yml ./kubeinit/playbook.yml
+sed -i 's/---//g' ./kubeinit/playbook.yml
+
 if [[ "$LAUNCH_FROM" == "c" ]]; then
     # We inject ara in the container in the case we trigger Ansible inside a container
     # so we can fetch back the results
@@ -313,6 +339,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -v /etc/hosts:/etc/hosts \
             -e ARA_API_CLIENT="http" \
             -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
             -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
@@ -333,6 +360,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -v /etc/hosts:/etc/hosts \
             -e ARA_API_CLIENT="http" \
             -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
             -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
@@ -354,6 +382,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -v /etc/hosts:/etc/hosts \
             -e ARA_API_CLIENT="http" \
             -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
             -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
@@ -374,6 +403,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -v /etc/hosts:/etc/hosts \
             -e ARA_API_CLIENT="http" \
             -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
             -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
@@ -394,6 +424,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -v /etc/hosts:/etc/hosts \
             -e ARA_API_CLIENT="http" \
             -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
             -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
@@ -416,6 +447,7 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
             -v /etc/hosts:/etc/hosts \
             -e ARA_API_CLIENT="http" \
             -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
             -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
             -e ARA_API_SERVER="http://127.0.0.1:8000" \
             kubeinit/kubeinit \
