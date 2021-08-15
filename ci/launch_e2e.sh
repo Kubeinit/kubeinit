@@ -286,14 +286,34 @@ podman exec -it api-server /bin/bash -c "ara-manage migrate"
 #
 
 #
-# The last step is to run the deployment
-#
-echo "(launch_e2e.sh) ==> Deploying the cluster ..."
-#
-# The deployment playbook can be launched from a container [c]
-# or directly from the host [h]
+# Install the CLI/agent
 #
 
+python3 -m pip install -r ./agent/requirements.txt
+KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
+
+#
+# Create aux file with environment information
+#
+
+kubeinit -b > ./kubeinit/playbooks/aux_info_file.txt
+echo "" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> Kubeinit agent/cli version: $(kubeinit -v) " >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The repository is: ${REPOSITORY}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The branch is: ${BRANCH_NAME}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The pull request is: ${PULL_REQUEST}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The distro is: ${DISTRO}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The driver is: ${DRIVER}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The amount of master nodes is: ${MASTERS}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The amount of worker nodes is: ${WORKERS}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The amount of hypervisors is: ${HYPERVISORS}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The services type is: ${SERVICES_TYPE}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The job type is: ${JOB_TYPE}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The ansible will be launched from: ${LAUNCH_FROM}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The ansible verbosity is: ${KUBEINIT_ANSIBLE_VERBOSITY}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The job URL: ${CI_JOB_URL}" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The piprline URL: ${CI_PIPELINE_URL}" >> ./kubeinit/playbooks/aux_info_file.txt
 #
 # This logic allows to record specific files or content before starting
 # the deployment, we add this at the beginning of the deployment
@@ -307,6 +327,13 @@ cat << endoffile | sudo tee ./playbook_tmp.yml
 - name: Record useful files and variables to the deployment
   hosts: localhost
   tasks:
+    # Relative to the playbooks folder
+    - name: Record deployment extra information
+      ara_record:
+        key: extra_information
+        value: "{{ lookup('file', './aux_info_file.txt') }}"
+        type: text
+
     - name: Record host file
       ara_record:
         key: inventory
@@ -316,6 +343,15 @@ endoffile
 cat ./kubeinit/playbook.yml >> ./playbook_tmp.yml
 mv ./playbook_tmp.yml ./kubeinit/playbook.yml
 sed -i 's/---//g' ./kubeinit/playbook.yml
+
+#
+# The last step is to run the deployment
+#
+echo "(launch_e2e.sh) ==> Deploying the cluster ..."
+#
+# The deployment playbook can be launched from a container [c]
+# or directly from the host [h]
+#
 
 if [[ "$LAUNCH_FROM" == "c" ]]; then
     # We inject ara in the container in the case we trigger Ansible inside a container
