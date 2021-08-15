@@ -137,24 +137,16 @@ jobs:
         run: |
           GITCHANGELOG_CONFIG_FILENAME=./ci/gitchangelog.rc ./ci/gitchangelog.py > ./docs/src/changelog.rst
           cat ./docs/src/changelog.rst
-      - uses: kubeinit/sphinx-action@master
-        with:
-          pre-build-command: |
-            apt-get update -y && \
-            apt install build-essential -y && \
-            apt install gcc -y && \
-            touch /tmp/sphinx-log && \
-            pip3 install --upgrade pip && \
-            pip3 install --upgrade virtualenv && \
-            pip3 install --upgrade setuptools && \
-            pip3 install -r test-requirements.txt && \
-            pip3 install --upgrade ruamel.yaml && \
-            pip3 install --upgrade sphinx-rtd-theme && \
-            ansible-galaxy collection build kubeinit -v --force --output-path . && \
-            LATEST=$(ls kubeinit-kubeinit*.tar.gz | grep -v latest | sort -V | tail -n1) && \
-            ln -sf $LATEST kubeinit-kubeinit-latest.tar.gz && \
-            ansible-galaxy collection install --force kubeinit-kubeinit-latest.tar.gz
-          docs-folder: "docs/src/"
+      - name: Render the docs
+        run: |
+          pip3 install --upgrade pip
+          pip3 install --upgrade virtualenv
+          pip3 install --upgrade setuptools
+          pip3 install -r test-requirements.txt
+          pip3 install --upgrade ruamel.yaml
+          pip3 install --upgrade sphinx-rtd-theme
+          cd ./docs/src
+          make html
       - uses: actions/upload-artifact@v1
         with:
           name: DocumentationHTML
