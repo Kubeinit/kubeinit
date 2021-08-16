@@ -81,7 +81,7 @@ def render_index(gc_token_path):
         if m and status == "Periodic":
             job_id = m.group(0).split('/')[-1]
         else:
-            job_id = fields[9]
+            job_id = fields[8]
 
         jobs.append({'status': status,
                      'index': idx,
