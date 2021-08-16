@@ -298,7 +298,7 @@ KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 
 kubeinit -b > ./kubeinit/playbooks/aux_info_file.txt
 echo "" >> ./kubeinit/playbooks/aux_info_file.txt
-echo "(launch_e2e.sh) ==> Date: $(date +"%y-%m-%d_%T")" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> Date: $(date +"%Y.%m.%d.%H.%M.%S")" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> Kubeinit agent/cli version: $(kubeinit -v) " >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The repository is: ${REPOSITORY}" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The branch is: ${BRANCH_NAME}" >> ./kubeinit/playbooks/aux_info_file.txt
