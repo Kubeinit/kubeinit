@@ -26,6 +26,8 @@ from google.cloud import storage
 
 from jinja2 import Environment, FileSystemLoader
 
+import requests
+
 
 def render_index(gc_token_path):
     """Render and upload the index file."""
@@ -66,6 +68,14 @@ def render_index(gc_token_path):
             status = 'Running'
             badge = 'warning'
 
+        extra_data_date_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/records/1.html'
+        resp = requests.get(url=extra_data_date_url)
+        m = re.search('[0-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]:[0-9][0-9]:[0-9][0-9]', resp.text)
+        if m and status == "Periodic":
+            date = m.group(0)
+        else:
+            date = fields[9]
+
         jobs.append({'status': status,
                      'index': idx,
                      'distro': fields[0],
@@ -77,7 +87,7 @@ def render_index(gc_token_path):
                      'launch_from': fields[6],
                      'job_type': fields[7],
                      'id': fields[8],
-                     'date': fields[9],
+                     'date': date,
                      'badge': badge,
                      'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/index.html'})
 
