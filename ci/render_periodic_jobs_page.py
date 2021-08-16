@@ -23,8 +23,6 @@ from jinja2 import Environment, FileSystemLoader
 
 from kubeinit_ci_utils import get_periodic_jobs_labels
 
-import requests
-
 
 def main():
     """Run the main method."""
@@ -74,14 +72,6 @@ def main():
             print(label)
             raise Exception("'render_periodic_jobs_page.py' ==> This label do not match: %s" % (label))
 
-        extra_data_date_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + label + '-periodic-pid-weekly-u/records/1.html'
-        resp = requests.get(url=extra_data_date_url)
-        m = re.search('[0-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]:[0-9][0-9]:[0-9][0-9]', resp.text)
-        if m:
-            date = m.group(0)
-        else:
-            date = 'undefined'
-
         jobs.append({'distro': distro,
                      'driver': driver,
                      'masters': masters,
@@ -89,7 +79,6 @@ def main():
                      'hypervisors': hypervisors,
                      'services_type': services_type,
                      'launch_from': launch_from,
-                     'date': date,
                      'url': "<a href='https://storage.googleapis.com/kubeinit-ci/jobs/" + label + "-periodic-pid-weekly-u/index.html'><img height='20px' src='https://storage.googleapis.com/kubeinit-ci/jobs/" + label + "-periodic-pid-weekly-u/badge_status.svg'/></a>"})
 
     path = os.path.join(os.path.dirname(__file__))

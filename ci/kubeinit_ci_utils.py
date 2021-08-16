@@ -70,11 +70,18 @@ def render_index(gc_token_path):
 
         extra_data_date_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/records/1.html'
         resp = requests.get(url=extra_data_date_url)
-        m = re.search('[0-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]:[0-9][0-9]:[0-9][0-9]', resp.text)
+
+        m = re.search("[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]", resp.text)
         if m and status == "Periodic":
             date = m.group(0)
         else:
             date = fields[9]
+
+        m = re.search("https:\\/\\/gitlab\\.com\\/kubeinit\\/kubeinit\\/-\\/jobs\\/[0-9]+", resp.text)
+        if m and status == "Periodic":
+            job_id = m.group(0).split('/')[-1]
+        else:
+            job_id = fields[9]
 
         jobs.append({'status': status,
                      'index': idx,
@@ -86,7 +93,7 @@ def render_index(gc_token_path):
                      'services_type': fields[5],
                      'launch_from': fields[6],
                      'job_type': fields[7],
-                     'id': fields[8],
+                     'id': job_id,
                      'date': date,
                      'badge': badge,
                      'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/index.html'})
