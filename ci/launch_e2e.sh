@@ -298,7 +298,7 @@ KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 
 kubeinit -b > ./kubeinit/playbooks/aux_info_file.txt
 echo "" >> ./kubeinit/playbooks/aux_info_file.txt
-echo "" >> ./kubeinit/playbooks/aux_info_file.txt
+echo "(launch_e2e.sh) ==> Date: $(date +"%y-%m-%d_%T")" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> Kubeinit agent/cli version: $(kubeinit -v) " >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The repository is: ${REPOSITORY}" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The branch is: ${BRANCH_NAME}" >> ./kubeinit/playbooks/aux_info_file.txt
@@ -313,7 +313,7 @@ echo "(launch_e2e.sh) ==> The job type is: ${JOB_TYPE}" >> ./kubeinit/playbooks/
 echo "(launch_e2e.sh) ==> The ansible will be launched from: ${LAUNCH_FROM}" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The ansible verbosity is: ${KUBEINIT_ANSIBLE_VERBOSITY}" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The job URL: ${CI_JOB_URL}" >> ./kubeinit/playbooks/aux_info_file.txt
-echo "(launch_e2e.sh) ==> The piprline URL: ${CI_PIPELINE_URL}" >> ./kubeinit/playbooks/aux_info_file.txt
+
 #
 # This logic allows to record specific files or content before starting
 # the deployment, we add this at the beginning of the deployment

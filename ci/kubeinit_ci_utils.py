@@ -205,10 +205,10 @@ def get_periodic_jobs_labels(distro='all'):
             print("'kubeinit_ci_utils.py' ==> The requested labels are not a subset of the allowed labels")
             raise Exception("'kubeinit_ci_utils.py' ==> STOP!")
     elif distro == 'random':
-        print("'kubeinit_ci_utils.py' ==> Returning 3 random scenarios to test")
-        # If the distro parameter is random we return 3 random distros to test
+        print("'kubeinit_ci_utils.py' ==> Returning 4 random scenarios to test")
+        # If the distro parameter is random we return 4 random distros to test
         all_scenarios = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
-        return random.sample(all_scenarios, 3)
+        return random.sample(all_scenarios, 4)
     elif distro == "all":
         print("'kubeinit_ci_utils.py' ==> Appending all configs")
         return okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
