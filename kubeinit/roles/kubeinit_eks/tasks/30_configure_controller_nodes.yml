@@ -19,6 +19,8 @@
     - name: Install root public from service node in master nodes
       ansible.builtin.shell: |
         echo "{{ kubeinit_provision_service_public_key }}" >> ~/.ssh/authorized_keys
+      args:
+        executable: /bin/bash
       changed_when: false
 
     - name: Copy cert to pki directory
@@ -40,6 +42,8 @@
           }
         }
         EOF
+      args:
+        executable: /bin/bash
       register: insert_master_local_registry_auth
       changed_when: "insert_master_local_registry_auth.rc == 0"
       when: "'registry' in kubeinit_cluster_hostvars.services"
@@ -143,6 +147,8 @@
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
+      args:
+        executable: /bin/bash
       changed_when: false
       when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
@@ -150,6 +156,8 @@
       ansible.builtin.shell: |
         #TODO:FIXME: Check warnings in the output
         kubeadm token create --print-join-command
+      args:
+        executable: /bin/bash
       register: eks_master_kubeadm_init_output_aux
       changed_when: "eks_master_kubeadm_init_output_aux.rc == 0"
       when: kubeinit_deployment_node_name in kubeinit_first_controller_node
@@ -184,6 +192,8 @@
        kubeadm reset -f || true
        sed "s/$/{{ eks_master_kubeadm_init_master_join_key }}/g" eks_token > ~/eks_master_join_command.sh
        sh eks_master_join_command.sh
+      args:
+        executable: /bin/bash
       changed_when: false
       when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
@@ -198,6 +208,8 @@
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
+      args:
+        executable: /bin/bash
       changed_when: false
       when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 

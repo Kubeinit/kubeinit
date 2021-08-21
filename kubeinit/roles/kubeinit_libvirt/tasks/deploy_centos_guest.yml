@@ -43,6 +43,8 @@
       ansible.builtin.shell: |
         qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2'
         qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
+      args:
+        executable: /bin/bash
       register: grow_img
       changed_when: "grow_img.rc == 0"
 
@@ -65,6 +67,8 @@
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.redhat.tmpl:/etc/cloud/templates \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg:/etc/cloud \
           --selinux-relabel
+      args:
+        executable: /bin/bash
       register: virt_inject
       changed_when: "virt_inject.rc == 0"
 
@@ -88,6 +92,8 @@
             --noautoconsole \
             --import \
             --disk {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2,format=qcow2,bus=virtio
+      args:
+        executable: /bin/bash
       register: virt_install
       changed_when: "virt_install.rc == 0"
 
@@ -148,6 +154,8 @@
     - name: Disable SWAP
       ansible.builtin.shell: |
         swapoff -a
+      args:
+        executable: /bin/bash
       changed_when: false
 
     - name: Resize root partition
@@ -155,6 +163,8 @@
         echo 'Reclaim space for root partition'
         growpart /dev/vda 1
         xfs_growfs /dev/vda1
+      args:
+        executable: /bin/bash
       changed_when: false
 
     - name: Disable SELinux
@@ -171,6 +181,8 @@
         mkdir -p /proc/sys/net/bridge/
         echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
         sysctl -p
+      args:
+        executable: /bin/bash
       changed_when: false
 
     #
@@ -245,6 +257,8 @@
 
     - name: Reboot immediately after the package update
       ansible.builtin.shell: "sleep 5 && reboot"
+      args:
+        executable: /bin/bash
       async: 1
       poll: 0
       when: update_packages is changed and kubeinit_libvirt_reboot_guests_after_package_update

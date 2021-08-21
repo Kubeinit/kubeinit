@@ -20,12 +20,16 @@
       ansible.builtin.shell: |
         ~/rke --version
         ~/rke up --ignore-docker-version -disable-port-check
+      args:
+        executable: /bin/bash
       register: install_rke
       changed_when: "install_rke.rc == 0"
 
     - name: Autoload kubeconfig
       ansible.builtin.shell: |
         echo "export KUBECONFIG=~/kube_config_cluster.yml" >> ~/.bashrc
+      args:
+        executable: /bin/bash
       ignore_errors: yes
       register: autoload
       changed_when: "autoload.rc == 0"
@@ -39,6 +43,8 @@
     - name: Copy the kubeconfig
       ansible.builtin.shell: |
         cp ~/kube_config_cluster.yml ~/.kube/config
+      args:
+        executable: /bin/bash
       register: copy_kubeconfig
       changed_when: "copy_kubeconfig.rc == 0"
 

@@ -26,6 +26,8 @@
             --control-plane-endpoint "api.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}:6443" \
             --upload-certs \
             --pod-network-cidr={{ kubeinit_k8s_pod_network_cidr }}
+      args:
+        executable: /bin/bash
       register: k8s_master_kubeadm_master_init_output
       changed_when: "k8s_master_kubeadm_master_init_output.rc == 0"
       when: kubeinit_deployment_node_name in kubeinit_first_controller_node
@@ -64,12 +66,16 @@
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
+      args:
+        executable: /bin/bash
       changed_when: false
       when: kubeinit_deployment_node_name in kubeinit_first_controller_node
 
     - name: Get the join command
       ansible.builtin.shell: |
         kubeadm token create --print-join-command
+      args:
+        executable: /bin/bash
       register: k8s_master_kubeadm_init_output_aux
       changed_when: "k8s_master_kubeadm_init_output_aux.rc == 0"
       when: kubeinit_deployment_node_name in kubeinit_first_controller_node
@@ -103,6 +109,8 @@
        kubeadm reset -f || true
        sed "s/$/{{ k8s_master_kubeadm_init_master_join_key }}/g" k8s_token > ~/k8s_master_join_command.sh
        sh k8s_master_join_command.sh
+      args:
+        executable: /bin/bash
       changed_when: false
       when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
@@ -117,6 +125,8 @@
       ansible.builtin.shell: |
        sudo cp -f /etc/kubernetes/admin.conf ~/.kube/config
        sudo chown $(id -u):$(id -g) ~/.kube/config
+      args:
+        executable: /bin/bash
       changed_when: false
       when: (kubeinit_controller_count | int) > 1 and kubeinit_deployment_node_name not in kubeinit_first_controller_node
 
