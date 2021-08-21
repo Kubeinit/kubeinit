@@ -26,6 +26,8 @@
     - name: Install root public from service node in worker nodes
       ansible.builtin.shell: |
        echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
+      args:
+        executable: /bin/bash
       changed_when: false
 
     - name: Copy cert to pki directory
@@ -47,6 +49,8 @@
           }
         }
         EOF
+      args:
+        executable: /bin/bash
       register: insert_worker_local_registry_auth
       changed_when: "insert_worker_local_registry_auth.rc == 0"
       when: "'registry' in kubeinit_cluster_hostvars.services"
@@ -62,6 +66,8 @@
        kubeadm reset -f || true
        cat ~/eks_token > out.sh
        sh out.sh
+      args:
+        executable: /bin/bash
       changed_when: false
       when: groups['all_compute_nodes'] | length > 0
 

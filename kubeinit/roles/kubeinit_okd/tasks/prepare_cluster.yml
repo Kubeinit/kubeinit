@@ -51,12 +51,16 @@
     - name: Backup the install config file
       ansible.builtin.shell: |
         cp ~/install_dir/install-config.yaml ~/install-config.yaml
+      args:
+        executable: /bin/bash
       register: backup_install_config
       changed_when: "backup_install_config.rc == 0"
 
     - name: Render the bootstrap details
       ansible.builtin.shell: |
         openshift-install create manifests --dir=install_dir/
+      args:
+        executable: /bin/bash
       register: render_bootstrap_details
       changed_when: "render_bootstrap_details.rc == 0"
 
@@ -94,6 +98,8 @@
         tar -czvf install_manifests_backup.tar.gz ~/install_dir/
         openshift-install create ignition-configs --dir=install_dir/
         cp -R install_dir/* "/var/kubeinit/html/okd4/"
+      args:
+        executable: /bin/bash
       register: render_ignition_files
       changed_when: "render_ignition_files.rc == 0"
 
@@ -113,6 +119,8 @@
     - name: Autoload kubeconfig
       ansible.builtin.shell: |
         echo "export KUBECONFIG=~/install_dir/auth/kubeconfig" >> ~/.bashrc
+      args:
+        executable: /bin/bash
       ignore_errors: yes
       register: autoload
       changed_when: "autoload.rc == 0"

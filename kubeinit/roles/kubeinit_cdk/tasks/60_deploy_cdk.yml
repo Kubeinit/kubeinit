@@ -40,6 +40,8 @@
         chmod 600 ~/.ssh/id_rsa
         snap install juju --classic
         juju add-cloud --local {{ kubeinit_inventory_cluster_name }} -f cloud.yml
+      args:
+        executable: /bin/bash
       register: install_juju
       changed_when: "install_juju.rc == 0"
 
@@ -49,6 +51,8 @@
             --debug \
             --bootstrap-series=focal \
             manual/root@{{ kubeinit_provision_service_address }} > juju-bootstrap.log 2>&1
+      args:
+        executable: /bin/bash
       register: bootstrap_cdk
       changed_when: "bootstrap_cdk.rc == 0"
 
@@ -56,6 +60,8 @@
       ansible.builtin.shell: |
         juju controllers
         juju status --format=yaml
+      args:
+        executable: /bin/bash
       register: show_juju_info
       changed_when: "show_juju_info.rc == 0"
 
@@ -65,6 +71,8 @@
         sleep 2
         ssh-keyscan {{ hostvars[item].ansible_host }} >> ~/.ssh/known_hosts
         juju add-machine --debug ssh:root@{{ hostvars[item].ansible_host }} > juju-add-machine-{{ item }}.log 2>&1
+      args:
+        executable: /bin/bash
       register: add_cdk_machines
       changed_when: "add_cdk_machines.rc == 0"
       with_items:
@@ -86,6 +94,8 @@
     - name: "Deploy CDK"
       ansible.builtin.shell: |
         juju deploy ./bundle.yml --force --map-machines=existing{% for item in (groups['all_controller_nodes'] + groups['all_compute_nodes']) -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
+      args:
+        executable: /bin/bash
       register: install_cdk
       changed_when: "install_cdk.rc == 0"
       retries: 20
@@ -94,6 +104,8 @@
     - name: "Get cluster status"
       ansible.builtin.shell: |
         juju status
+      args:
+        executable: /bin/bash
       register: status_cdk
       changed_when: "status_cdk.rc == 0"
 
@@ -139,6 +151,8 @@
     - name: Autoload kubeconfig
       ansible.builtin.shell: |
         echo "export KUBECONFIG=~/.kube/config" >> ~/.bashrc
+      args:
+        executable: /bin/bash
       register: autoload
       changed_when: "autoload.rc == 0"
 

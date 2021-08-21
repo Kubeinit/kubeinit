@@ -101,6 +101,8 @@
   ansible.builtin.shell: |
     set -e
     grep vmx /proc/cpuinfo
+  args:
+    executable: /bin/bash
   ignore_errors: yes
   register: intel_processor
   changed_when: "intel_processor.rc == 0"
@@ -109,6 +111,8 @@
   ansible.builtin.shell: |
     set -e
     grep svm /proc/cpuinfo
+  args:
+    executable: /bin/bash
   ignore_errors: yes
   register: amd_processor
   changed_when: "amd_processor.rc == 0"
@@ -143,6 +147,8 @@
   ansible.builtin.shell: |
     set -e
     cat {{ nested_virtualization_test_path }}
+  args:
+    executable: /bin/bash
   register: actual_status
   changed_when: "actual_status.rc == 0"
   when: intel_processor.rc == 0 or amd_processor.rc == 0
