@@ -92,12 +92,16 @@ def check_tasks(file):
                     module = routing[route].get(task.action,
                                                 {}).get('redirect')
                     if module:
-                        errors.append((file, task.action, module))
+                        errors.append((file, task.action, "this task should be called as: " + str(module)))
                         break
 
                 print(task.action)
                 if '.' not in task.action:
-                    errors.append((file, task.action, "no dot in namespace"))
+                    errors.append((file, task.action, "all tasks must have dots in namespace"))
+
+                if task.action == 'ansible.builtin.shell':
+                    if 'executable' not in task._attributes['args']:
+                        errors.append((file, task.action, "must define the executable as an args, like /bin/bash"))
 
             except AnsibleParserError:
                 pass
@@ -128,6 +132,6 @@ for path in Path(search_folder).rglob('*.yml'):
     to_fix = to_fix + check_tasks(path)
 
 if len(to_fix) > 0:
-    msg = 'There are some tasks using non FQCN methods: ' + str(to_fix)
+    msg = 'There are some tasks not properly defined: ' + str(to_fix)
     print(msg)
     sys.exit(1)
