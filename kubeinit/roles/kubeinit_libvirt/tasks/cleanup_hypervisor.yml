@@ -37,12 +37,16 @@
       ansible.builtin.shell: |
         set -eo pipefail
         podman network rm -f {{ item }}-bridge || true
+      args:
+        executable: /bin/bash
       with_items: "{{ groups['all_service_nodes'] }}"
 
     - name: Remove any previous services podman pod
       ansible.builtin.shell: |
         set -eo pipefail
         podman pod rm -f {{ item }}-pod || true
+      args:
+        executable: /bin/bash
       with_items: "{{ groups['all_service_nodes'] }}"
 
     # TODO: clean up podman volumes and buildah containers
