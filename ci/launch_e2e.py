@@ -366,7 +366,7 @@ def run_e2e_job(distro, driver, masters, workers,
                                                                                       str(job_type),
                                                                                       str(launch_from))
         print(deployment_command)
-        launch_output = subprocess.run(deployment_command, shell=True)
+        launch_output = subprocess.run(deployment_command, shell=True, check=True)
         print("'launch_e2e.py' ==> ./ci/launch_e2e.sh output")
         print(launch_output)
     except Exception as e:
@@ -394,7 +394,7 @@ def run_e2e_job(distro, driver, masters, workers,
         print("'launch_e2e.py' ==> Ara command")
         ara_command = "./ci/launch_e2e_ara.sh %s" % (str(job_name) + "-" + str(file_output))
         print(ara_command)
-        ara_output = subprocess.run(ara_command, shell=True)
+        ara_output = subprocess.run(ara_command, shell=True, check=True)
         print("'launch_e2e.py' ==> ./ci/launch_e2e_ara.sh output")
         print(ara_output)
     except Exception as e:
