@@ -246,10 +246,6 @@ def main(cluster_type, job_type):
                                      pr_number,
                                      launch_from,
                                      job_name)
-                if output == 0:
-                    exit()
-                else:
-                    exit(1)
 
     #
     # KubeInit's submariner PR check
