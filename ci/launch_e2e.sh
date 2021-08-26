@@ -37,8 +37,6 @@ KUBEINIT_ANSIBLE_VERBOSITY="${KUBEINIT_ANSIBLE_VERBOSITY:-v}"
 
 KUBEINIT_MAIN_CI_REPOSITORY="https://github.com/kubeinit/kubeinit.git"
 
-DEST_BRANCH=$(curl --silent "https://api.github.com/repos/kubeinit/kubeinit/pulls" | jq -c ".[] | select( .number | contains(${PULL_REQUEST})) | .base | .label" | tr -d \" | cut -d':' -f2)
-
 echo "(launch_e2e.sh) ==> The repository is $REPOSITORY"
 echo "(launch_e2e.sh) ==> The branch is $BRANCH_NAME"
 echo "(launch_e2e.sh) ==> The pull request is $PULL_REQUEST"
@@ -60,6 +58,8 @@ cd tmp
 echo "(launch_e2e.sh) ==> Downloading KubeInit's code ..."
 # Get the kubeinit code we will test
 if [[ "$JOB_TYPE" == "pr" ]]; then
+    DEST_BRANCH=$(curl --silent "https://api.github.com/repos/kubeinit/kubeinit/pulls" | jq -c ".[] | select( .number | contains(${PULL_REQUEST})) | .base | .label" | tr -d \" | cut -d':' -f2)
+
     # Keep as an example for cherry-picking workarounds
     # git remote add ccamacho https://github.com/ccamacho/kubeinit.git
     # git fetch ccamacho
