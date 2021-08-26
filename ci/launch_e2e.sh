@@ -37,6 +37,8 @@ KUBEINIT_ANSIBLE_VERBOSITY="${KUBEINIT_ANSIBLE_VERBOSITY:-v}"
 
 KUBEINIT_MAIN_CI_REPOSITORY="https://github.com/kubeinit/kubeinit.git"
 
+DEST_BRANCH=$(curl --silent "https://api.github.com/repos/kubeinit/kubeinit/pulls" | jq -c ".[] | select( .number | contains(${PULL_REQUEST})) | .base | .label" | tr -d \" | cut -d':' -f2)
+
 echo "(launch_e2e.sh) ==> The repository is $REPOSITORY"
 echo "(launch_e2e.sh) ==> The branch is $BRANCH_NAME"
 echo "(launch_e2e.sh) ==> The pull request is $PULL_REQUEST"
@@ -66,6 +68,9 @@ if [[ "$JOB_TYPE" == "pr" ]]; then
     cd kubeinit
     git fetch origin pull/$PULL_REQUEST/head
     git checkout -b pr  FETCH_HEAD
+    git remote add upstream https://github.com/kubeinit/kubeinit.git
+    git fetch upstream
+    git rebase upstream/${DEST_BRANCH}
     git log -n 5 --pretty=oneline
 else
     git clone $KUBEINIT_MAIN_CI_REPOSITORY

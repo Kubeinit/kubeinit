@@ -55,6 +55,10 @@ def main(cluster_type, job_type):
         c_type = '[2-9]'
 
     now = datetime.now()
+
+    #
+    # KubeInit's pull request check
+    #
     if job_type == 'pr':
         #
         # We will check for labels in opened PRs in the main
@@ -155,10 +159,17 @@ def main(cluster_type, job_type):
                                                                                              services,
                                                                                              launch_from))
 
+                    if output == 0:
+                        exit()
+                    else:
+                        exit(1)
                 else:
                     print("'launch_e2e.py' ==> No need to do anything")
                     exit()
 
+    #
+    # KubeInit's periodic job check
+    #
     if (re.match(r"periodic(=[a-z|0-9|,|\.]+)?", job_type) or
             re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[v|c]-[c|h],?)+", job_type) or
             job_type == 'periodic=random'):
@@ -221,21 +232,28 @@ def main(cluster_type, job_type):
                 # print(distro)
                 # raise Exception("'launch_e2e.py' ==> STOP!")
 
-                run_e2e_job(distro,
-                            driver,
-                            masters,
-                            workers,
-                            hypervisors,
-                            services,
-                            job_type,
-                            pipeline_id,
-                            gc_token_path,
-                            repository,
-                            branch_name,
-                            pr_number,
-                            launch_from,
-                            job_name)
+                output = run_e2e_job(distro,
+                                     driver,
+                                     masters,
+                                     workers,
+                                     hypervisors,
+                                     services,
+                                     job_type,
+                                     pipeline_id,
+                                     gc_token_path,
+                                     repository,
+                                     branch_name,
+                                     pr_number,
+                                     launch_from,
+                                     job_name)
+                if output == 0:
+                    exit()
+                else:
+                    exit(1)
 
+    #
+    # KubeInit's submariner PR check
+    #
     if job_type == 'submariner':
         gh = Github(os.environ['GH_SUBMARINER_TOKEN'])
         gc_token_path = os.environ['GC_STORAGE_KEY']
@@ -330,6 +348,10 @@ def main(cluster_type, job_type):
                                                                                              hypervisors,
                                                                                              services,
                                                                                              launch_from))
+                    if output == 0:
+                        exit()
+                    else:
+                        exit(1)
                 else:
                     print("'launch_e2e.py' ==> No need to do anything")
                     exit()
