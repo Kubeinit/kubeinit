@@ -134,3 +134,14 @@ WRONG:
 
     This feature adds a new role to implement
     an awesome new feature.
+
+
+Internal CI usage
+~~~~~~~~~~~~~~~~~
+
+The following diagram describes the internal usage of GitHub actions
+and GitLab to run the end-to-end jobs.
+
+    .. image:: static/plantuml/github_workflow.svg
+      :width: 100%
+      :alt: Sequence diagram of the CI GitHub workflow for the e2e jobs
