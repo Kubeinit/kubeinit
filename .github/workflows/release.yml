@@ -81,9 +81,10 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Render the projects roles and inventory diagrams
+      - name: Install required packages
         run: |
-          sudo apt-get install graphviz -y
+          sudo apt-get update -y
+          sudo apt-get install graphviz plantuml openjdk-11-jdk -y
           sudo apt-get remove ansible -y
           sudo python3 -m pip uninstall ansible
           sudo python3 -m pip install ansible==3.4.0
@@ -93,6 +94,14 @@ jobs:
           sudo python3 -m pip install --upgrade ansible-inventory-grapher
           sudo python3 -m pip install --upgrade ansible-playbook-grapher
 
+      - name: Render the plantuml diagrams
+        run: |
+          plantuml -tsvg -output render ./docs/src/images/plantuml/*.plantuml
+          mkdir -p ./docs/src/static/plantuml
+          mv ./docs/src/images/plantuml/render/* ./docs/src/static/plantuml/
+
+      - name: Render the projects roles and inventory diagrams
+        run: |
           distros=()
           for p in ./hosts/*/
           do

@@ -1,0 +1,31 @@
+@startuml
+actor RootUser
+control GitLab_Schedule
+
+RootUser [bold,#blue]-> GitHub_PR : Add CI label
+GitLab_Schedule [bold,#LightSeaGreen]-> GitLab_Schedule: Runs every 15 minutes
+GitLab_Schedule [bold,#green]-> GitHub_PR : Get labels from open PRs
+GitHub_PR [bold,#green]-> GitLab_Schedule: Send labels for open PRs
+
+Loop for each label
+  GitLab_Schedule [bold,#green]-> GitHub_PR : Remove label
+  GitLab_Schedule [bold,#green]-> GitHub_PR : Mark label as a "in progress job"
+  GitLab_Schedule [bold,#green]-> GitLab_Runner : Trigger job
+  GitLab_Runner [bold,#red]-> GitLab_Runner : Configure job parameters based in the label information
+  GitLab_Runner [bold,#purple]-> Worker_machines : Deploy the cluster
+  Worker_machines [bold,#purple]-> GitLab_Runner : Send the job result
+  GitLab_Runner [bold,#green]-> GitHub_PR : Write the job result in the PR
+  GitLab_Runner [bold,#green]-> GitHub_PR : Mark the job as finished (successfully or with failures)
+End
+
+GitHub_PR [bold,#blue]-> RootUser: Done
+
+legend
+    |= Color |= Type |= Description |
+    | <size:11><back:#Blue>           </back></size>|    <&arrow-right> | User action triggered by an elevated KubeInit member. |
+    | <size:11><back:#LightSeaGreen>           </back></size>|    <&arrow-right> | GitLab native scheduled job. |
+    | <size:11><back:#Green>           </back></size>|    <&arrow-right> | The ci/launch_e2e.py script located in the kubeinit repository.|
+    | <size:11><back:#Red>           </back></size>|    <&arrow-right> | The ci/run.sh script located in the kubeinit repository.|
+    | <size:11><back:#Purple>           </back></size>|    <&arrow-right> | Execution of the KubeInit's Ansible collection|
+endlegend
+@enduml
