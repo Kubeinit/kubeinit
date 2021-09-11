@@ -68,4 +68,11 @@
         owner: "{{ kubeinit_qemu_user }}"
       when: "'centos' in hostvars[kubeinit_services_node].os"
 
+    - name: Update packages in CentOS cloud image
+      ansible.builtin.command: |
+        virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }} --update
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: "'centos' in hostvars[kubeinit_services_node].os"
+
   delegate_to: "{{ kubeinit_deployment_node_name }}"

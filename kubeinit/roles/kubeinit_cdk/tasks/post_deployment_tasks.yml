@@ -14,22 +14,21 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Configure the post deployment tasks
-  block:
-
-    - name: "Finish"
-      ansible.builtin.shell: |
-        echo "Finished"
-      args:
-        executable: /bin/bash
-
-    #
-    # Configure NFS
-    #
+#
+# Configure NFS
+#
+- block:
     - name: Configure NFS
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_nfs"
         public: true
       when: "'nfs' in kubeinit_cluster_hostvars.services"
-
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+- name: "Finish"
+  ansible.builtin.shell: |
+    echo "Finished"
+  args:
+    executable: /bin/bash
