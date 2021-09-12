@@ -14,35 +14,24 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Configure the post deployment tasks
-  block:
-
-    # We fetch the kubeconfig from the first controller node
-    - name: Copying the kubeconfig to a variable
-      ansible.builtin.slurp:
-        src: ~/.kube/config
-      register: kubeinit_k8s_cluster_kubeconfig
-      delegate_to: "{{ kubeinit_first_controller_node }}"
-
-    - name: Create kube directory
-      ansible.builtin.file:
-        path: ~/.kube
-        state: directory
-        mode: '0644'
-
-    - name: Storing the master kubeconfig to the services machine.
-      ansible.builtin.copy:
-        content: "{{ kubeinit_k8s_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
-        dest: ~/.kube/config
-        mode: '0644'
-
-    #
-    # Configure NFS
-    #
+#
+# Configure NFS
+#
+- block:
     - name: Configure NFS
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_nfs"
         public: true
       when: "'nfs' in kubeinit_cluster_hostvars.services"
-
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+- name: Touch a file
+  ansible.builtin.shell: |
+    touch ~/.kube/config
+  args:
+    executable: /bin/bash
+  register: touch_kubeconfig
+  changed_when: "touch_kubeconfig.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"

@@ -81,19 +81,3 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_role: worker
-
-- name: Finish post deployment tasks
-  ansible.builtin.include_tasks: 50_post_deployment_tasks.yml
-  with_items:
-    - "{{ groups['all_service_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-
-- name: Deploy KubeVirt
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_kubevirt"
-    tasks_from: main.yml
-    public: yes
-  when: not kubeinit_okd_openshift_deploy | default(False)

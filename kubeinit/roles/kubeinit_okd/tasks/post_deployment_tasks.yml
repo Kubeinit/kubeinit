@@ -14,8 +14,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Configure the post deployment tasks
+- name: Configure the post deployment tasks on the provision service node
   block:
+
     - name: "verify that all the csr are loaded and aproved for the deployed nodes"
       ansible.builtin.shell: |
         set -o pipefail
@@ -72,7 +73,7 @@
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_nfs"
         public: true
-      when: "'nfs' in kubeinit_cluster_hostvars.services and hostvars[kubeinit_deployment_node_name].type == 'virtual'"
+      when: "'nfs' in kubeinit_cluster_hostvars.services"
 
     - name: Display final debug info
       ansible.builtin.debug:
@@ -88,4 +89,13 @@
       ansible.builtin.debug:
         msg: "{{ msg.split('\n') }}"
 
+    - name: Deploy KubeVirt
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_kubevirt"
+        tasks_from: main.yml
+        public: yes
+      when: not kubeinit_okd_openshift_deploy | default(False)
+
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
