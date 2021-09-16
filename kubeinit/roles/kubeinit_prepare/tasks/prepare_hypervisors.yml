@@ -14,10 +14,27 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+#
+# Prepare hypervisors by first gathering facts
+#
+- name: Add an explicit localhost entry to hostvars
+  ansible.builtin.add_host:
+    name: localhost
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
 
-#
-# Prepare the hypervisor
-#
+- name: Gather localhost and hypervisor facts
+  ansible.builtin.include_tasks: gather_host_facts.yml
+  loop: "{{ groups['hypervisor_hosts'] | union(['localhost']) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+
+- name: Create a pseudo-host to hold the facts for the cluster as a whole
+  ansible.builtin.add_host:
+    name: 'kubeinit-facts'
+    tasks_completed: "{{ ['task-gather-hypervisor-facts'] }}"
 
 - block:
     - name: Check to see if we should stop here
@@ -25,13 +42,3 @@
     - name: End play
       ansible.builtin.meta: end_play
   when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars['kubeinit-facts'].tasks_completed
-
-- name: Delegate to kubeinit_deployment_node_name (inventory_hostname)
-  block:
-    - name: Provision the libvirt services on the hypervisor
-      ansible.builtin.include_role:
-        name: "../../roles/kubeinit_libvirt"
-        public: true
-  vars:
-    kubeinit_deployment_node_name: "{{ inventory_hostname }}"
-  delegate_to: "{{ kubeinit_deployment_node_name }}"

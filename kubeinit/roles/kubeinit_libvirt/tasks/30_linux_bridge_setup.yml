@@ -20,13 +20,6 @@
 - name: Set up the libvirt networks
   block:
 
-    - name: Remove the deployment networks
-      community.libvirt.virt_net:
-        state: absent
-        name: "{{ item.name }}"
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
-
     ##
     ## Define common resources, networks
     ##
@@ -60,3 +53,5 @@
         name: "{{ item.name }}"
       with_items: "{{ kubeinit_libvirt_cluster_nets }}"
       when: item.enabled and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

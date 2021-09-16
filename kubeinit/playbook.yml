@@ -14,8 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-- name: Check Ansible version
+- name: Initial setup
   hosts: localhost
   become: false
   gather_subset: "!all,network"
@@ -28,29 +27,17 @@
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
   tasks:
-    - name: task-gather-hypervisor-facts
+    - name: task-prepare-hypervisors
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"
-        tasks_from: gather_host_facts.yml
+        tasks_from: prepare_hypervisors.yml
         public: true
-      with_items:
-        - "{{ groups['hypervisor_hosts'] | list }}"
-      loop_control:
-        loop_var: cluster_role_item
-      vars:
-        kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    - block:
-        - name: Check to see if we should stop here
-          ansible.builtin.debug: msg="Stopping after 'task-gather-hypervisor-facts'"
-        - name: End play
-          ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-gather-hypervisor-facts'
 
 - name: Prepare all hypervisor hosts to deploy service and cluster nodes
   hosts: hypervisor_hosts
   gather_facts: false
   tasks:
-    - name: task-prepare-hypervisor
+    - name: Prepare each hypervisor in the deployment
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_prepare"
         tasks_from: prepare_hypervisor.yml
@@ -61,6 +48,15 @@
   become: false
   gather_facts: false
   tasks:
+    - name: task-prepare-environment
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_prepare"
+        public: true
+    - name: task-cleanup-hypervisors
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_prepare"
+        tasks_from: cleanup_hypervisors.yml
+        public: true
     - name: task-run-validations
       ansible.builtin.include_role:
         name: "../../roles/kubeinit_validations"

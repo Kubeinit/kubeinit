@@ -79,10 +79,11 @@
           - yum-utils
           - device-mapper-persistent-data
           - lvm2
-          - "kubelet-{{ kubeinit_eks_kubernetes_version }}"
-          - "kubeadm-{{ kubeinit_eks_kubernetes_version }}"
-          - "kubectl-{{ kubeinit_eks_kubernetes_version }}"
         state: present
+
+    - name: Install requirements
+      ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_eks_kubernetes_version }} kubeadm-{{ kubeinit_eks_kubernetes_version }} kubectl-{{ kubeinit_eks_kubernetes_version }} --disableexcludes=kubernetes
+      changed_when: false
 
     - name: Enable kubelet
       ansible.builtin.systemd:

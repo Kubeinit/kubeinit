@@ -55,9 +55,10 @@
           --install python3 \
           --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
           --run-command "sed -i s/^SELINUX=.*$/SELINUX=disabled/g /etc/selinux/config" \
-          --ssh-inject root:file:/root/.ssh/authorized_keys \
-          --run-command "echo {{ kubeinit_provision_vms_public_key }} >> /root/.ssh/authorized_keys" \
-          --hostname {{ kubeinit_deployment_node_name }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} \
+          {% for authorized_key in kubeinit_cluster_hostvars.authorized_keys %}
+            --ssh-inject root:string:"{{ authorized_key }}" \
+          {% endfor %}
+          --hostname {{ kubeinit_deployment_node_name }}.{{ kubeinit_cluster_fqdn }} \
           {% if kubeinit_libvirt_create_cloud_user %}
             --run-command 'id -u {{ kubeinit_libvirt_cloud_user }} &>/dev/null || /usr/sbin/useradd -u 1000 {{ kubeinit_libvirt_cloud_user }}' \
             --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
@@ -106,7 +107,7 @@
       delay: 10
       until: kubeinit_deployment_node_name in running_vms.list_vms
 
-  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+  delegate_to: "{{ kubeinit_deployment_delegate }}"
 
 - name: Check cluster nodes are up and running
   ansible.builtin.include_tasks: 70_check_nodes_up.yml
@@ -247,6 +248,7 @@
          repo_gpgcheck=1
          gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
                 https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+         exclude=kubelet kubeadm kubectl
 
     - name: Update packages
       ansible.builtin.yum:

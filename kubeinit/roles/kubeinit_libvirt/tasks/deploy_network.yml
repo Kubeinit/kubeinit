@@ -14,30 +14,40 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+##
+## Configure OVN on all the HVs
+##
+- name: Include the OVN install tasks
+  ansible.builtin.include_tasks: 20_ovn_install.yml
+  with_items:
+    - "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: network
 
-#
-# Gather hosts information
-#
+- name: Include the OVN setup
+  ansible.builtin.include_tasks: 40_ovn_setup.yml
 
-- name: Delegate to kubeinit_deployment_node_name
-  block:
+- name: Post configure steps for OVN
+  ansible.builtin.include_tasks: 50_ovn_post_setup.yml
+  with_items:
+    - "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: network
+  when: (kubeinit_deployment_node_name in kubeinit_ovn_central_host)
 
-    ##
-    ## Configure OVN on all the HVs
-    ##
-
-    - name: Include the OVN install tasks
-      ansible.builtin.include_tasks: 20_ovn_install.yml
-
-    - name: Include the OVN setup
-      ansible.builtin.include_tasks: 40_ovn_setup.yml
-
-    - name: Post configure steps for OVN
-      ansible.builtin.include_tasks: 50_ovn_post_setup.yml
-      when: (kubeinit_deployment_node_name in kubeinit_ovn_central_host)
-
-    - name: Include the linux bridge tasks
-      ansible.builtin.include_tasks: 30_linux_bridge_setup.yml
-      when: (kubeinit_deployment_node_name in groups['all_hosts'])
-
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+- name: Include the linux bridge tasks
+  ansible.builtin.include_tasks: 30_linux_bridge_setup.yml
+  with_items:
+    - "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_role: network
+  when: (kubeinit_deployment_node_name in groups['all_hosts'])

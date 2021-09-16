@@ -20,6 +20,8 @@
     name: "../../roles/kubeinit_libvirt"
     tasks_from: "deploy_{{ hostvars[kubeinit_deployment_node_name].os }}_guest.yml"
     public: true
+  vars:
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
 - name: Delegate to cluster service node
   block:
@@ -37,7 +39,7 @@
         dns:
           - "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
           - "{{ kubeinit_common_dns_public }}"
-        dns_search: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+        dns_search: "{{ kubeinit_cluster_fqdn }}"
         state: created
       register: services_pod_creation
       retries: 5

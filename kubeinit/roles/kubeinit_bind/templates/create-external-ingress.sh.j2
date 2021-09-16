@@ -43,16 +43,16 @@ view "external" {
     match-clients { any; };
     allow-query { any; };
 
-    zone "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}" {
+    zone "{{ kubeinit_cluster_fqdn }}" {
         type master;
-        file "/etc/bind/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}";
+        file "/etc/bind/db.{{ kubeinit_cluster_fqdn }}";
     };
 
 };
 EOF
 
 # Create db file for our zone database
-cat > "/var/kubeinit/bind/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}" << EOF
+cat > "/var/kubeinit/bind/db.{{ kubeinit_cluster_fqdn }}" << EOF
 \$TTL    604800
 
 ; This file is rendered using a template from a KubeInit role
@@ -60,7 +60,7 @@ cat > "/var/kubeinit/bind/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_i
 ; No not edit directly
 ; More information at: https://github.com/kubeinit/kubeinit
 
-@       IN      SOA     {{ kubeinit_ingress_hostname }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}. admin.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.(
+@       IN      SOA     {{ kubeinit_ingress_hostname }}.{{ kubeinit_cluster_fqdn }}. admin.{{ kubeinit_cluster_fqdn }}.(
                   1     ; Serial
              604800     ; Refresh
               86400     ; Retry
@@ -69,16 +69,16 @@ cat > "/var/kubeinit/bind/db.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_i
 )
 
 ; name servers - NS records
-    IN      NS      {{ kubeinit_ingress_hostname }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.
+    IN      NS      {{ kubeinit_ingress_hostname }}.{{ kubeinit_cluster_fqdn }}.
 
 ; external access IP - A records
-{{ kubeinit_ingress_hostname }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                          IN      A       ${KUBEINIT_INGRESS_IP}
-registry.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                         IN      A       ${KUBEINIT_INGRESS_IP}
-api.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                              IN      A       ${KUBEINIT_INGRESS_IP}
-api-int.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                          IN      A       ${KUBEINIT_INGRESS_IP}
-*.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.                           IN      A       ${KUBEINIT_INGRESS_IP}
-console-openshift-console.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.   IN      A       ${KUBEINIT_INGRESS_IP}
-oauth-openshift.apps.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}.             IN      A       ${KUBEINIT_INGRESS_IP}
+{{ kubeinit_ingress_hostname }}.{{ kubeinit_cluster_fqdn }}.                          IN      A       ${KUBEINIT_INGRESS_IP}
+registry.{{ kubeinit_cluster_fqdn }}.                         IN      A       ${KUBEINIT_INGRESS_IP}
+api.{{ kubeinit_cluster_fqdn }}.                              IN      A       ${KUBEINIT_INGRESS_IP}
+api-int.{{ kubeinit_cluster_fqdn }}.                          IN      A       ${KUBEINIT_INGRESS_IP}
+*.apps.{{ kubeinit_cluster_fqdn }}.                           IN      A       ${KUBEINIT_INGRESS_IP}
+console-openshift-console.apps.{{ kubeinit_cluster_fqdn }}.   IN      A       ${KUBEINIT_INGRESS_IP}
+oauth-openshift.apps.{{ kubeinit_cluster_fqdn }}.             IN      A       ${KUBEINIT_INGRESS_IP}
 EOF
 
 # Tear down any remants from previous executions of this script
@@ -92,7 +92,7 @@ podman run --rm --name kubeinit-set-bind-cache-owner -v kubeinit-bind-cache:/var
 # Create a pod for our container with dns nameserver and search options
 # If you would also like to add a container running VNC you can add this option to the end of the command on the next line: -p ${KUBEINIT_INGRESS_IP}:5901:5901
 if podman pod exists kubeinit-ingress-pod; then podman pod rm kubeinit-ingress-pod; fi
-podman pod create --name kubeinit-ingress-pod --dns ${KUBEINIT_INGRESS_IP} --dns 8.8.8.8 --dns-search {{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}
+podman pod create --name kubeinit-ingress-pod --dns ${KUBEINIT_INGRESS_IP} --dns 8.8.8.8 --dns-search {{ kubeinit_cluster_fqdn }}
 
 # Use overlay for .ssh folder when available
 if [ "$ID" == "centos" ]; then

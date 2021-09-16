@@ -26,8 +26,9 @@ pullSecret: '  {{ kubeinit_registry_pullsecret }}'
 pullSecret: '  {{ kubeinit_okd_registry_pullsecret }}'
 {% endif %}
 sshKey: |
-  {{ kubeinit_provision_vms_public_key }}
-  {{ kubeinit_provision_service_public_key }}
+{% for authorized_key in kubeinit_cluster_hostvars.authorized_keys %}
+  {{ authorized_key }}
+{% endfor %}
 {% if 'registry' in kubeinit_cluster_hostvars.services %}
 additionalTrustBundle: |
   {{ trustbundle | regex_replace('\n', '\n  ') }}

@@ -14,63 +14,37 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
 #
 # "kubeinit_services" tasks
 #
 
-- name: Prepare environment if not prepared
+- name: Cleanup hypervisors if needed
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_prepare"
+    tasks_from: cleanup_hypervisors.yml
     public: true
   vars:
-    environment_facts_set: "{{ kubeinit_cluster_facts_name is defined }}"
-  when: not environment_facts_set
-
-- name: Cleanup nodes for libvirt guests from previous install
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: cleanup_hypervisor.yml
-    public: true
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+  when: not task_completed
 
 - block:
     - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after 'task-cleanup-hypervisors'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-cleanup-hypervisors'
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping before 'task-create-services'"
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
     - name: End play
       ansible.builtin.meta: end_play
   when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-services'
-
-- name: Download images for libvirt guests
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: "download_cloud_images.yml"
-    public: true
 
 - name: Create OVN network
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
     tasks_from: deploy_network.yml
     public: true
-  with_items:
-    - "{{ groups['all_ovn_hosts'] }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: network
+
+- name: Download images for libvirt guests
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: "download_cloud_images.yml"
+    public: true
 
 - name: Deploy cluster services
   ansible.builtin.include_tasks: "prepare_{{ kubeinit_deployment_node_type }}_services.yml"
@@ -83,9 +57,18 @@
     kubeinit_deployment_role: service
     kubeinit_deployment_node_type: "{{ hostvars[cluster_role_item].type }}"
 
+- name: Add task-create-services to tasks_completed
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-create-services']) }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
 - block:
     - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after 'task-create-services'"
+      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
     - name: End play
       ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task == 'task-create-services'
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

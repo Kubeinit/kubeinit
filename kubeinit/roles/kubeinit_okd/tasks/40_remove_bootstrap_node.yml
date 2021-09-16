@@ -16,18 +16,18 @@
 
 - name: Remove bootstrap node from haproxy config
   ansible.builtin.command: |
-    podman --remote --connection {{ kubeinit_haproxy_service_node }} exec kubeinit-haproxy sed -i '/bootstrap/s/^/#/' /usr/local/etc/haproxy/haproxy.cfg
+    podman --remote --connection {{ kubeinit_haproxy_service_node }} exec {{ kubeinit_haproxy_service_name }} sed -i '/bootstrap/s/^/#/' /usr/local/etc/haproxy/haproxy.cfg
   delegate_to: localhost
   register: remove_bootstrap_from_haproxy
   changed_when: "remove_bootstrap_from_haproxy.rc == 0"
 
 - name: Restart haproxy container
   ansible.builtin.systemd:
-    name: kubeinit-haproxy
+    name: "{{ kubeinit_haproxy_service_name }}"
     state: restarted
     enabled: yes
     scope: user
-  delegate_to: "{{ kubeinit_haproxy_service_manager }}"
+  delegate_to: "{{ kubeinit_haproxy_service_node }}"
 
 - name: Remove boostrap node
   block:
