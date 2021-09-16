@@ -1028,6 +1028,23 @@ Performance
 
 Refactor
 ~~~~~~~~
+- Move cleanup tasks before run validations. [Glenn Marcy]
+
+  This commit moves the cleanup tasks to a new spot after preparing
+  the environment and before running validations.  Those cleanup tasks
+  have also been optimized to run in parallel when the cluster is being
+  deployed to multiple hypervisors.  OVN cleanup has also been adjusted
+  to be more of a surgical operation, touching as little as necessary,
+  rather than the scorched earth approach used previously.
+
+  Other changes include adding kubeinit_cluster_fqdn as a shorter
+  substitute for the cluster_name.cluster_domain, replacing append to
+  authorized_keys shell commands with the authorized_key ansible task,
+  streamlining the cloud image downloads and applying package updates
+  to those images once for each copy rather than for each guest vm
+  created from those images, collecting more information during initial
+  fact gathering rather than spreading it out across many different roles,
+  and many other minor improvements.
 - Move post-deployment tasks to a new play task after deployment. [Glenn
   Marcy]
 
