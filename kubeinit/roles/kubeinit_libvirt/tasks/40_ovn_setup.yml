@@ -17,11 +17,10 @@
 ##
 ## OVN hypervisors setup.
 ##
-
 - name: Configure OVS on the Hypervisors
   ansible.builtin.shell: |
-    CENTRAL_IP={{ hostvars[kubeinit_ovn_central_host].ansible_default_ipv4_address }} # This is the IP of the ovn-central HV
-    LOCAL_IP={{ hostvars[kubeinit_deployment_node_name].ansible_default_ipv4_address }} # This is the IP of the current HV
+    CENTRAL_IP={{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }} # This is the IP of the ovn-central HV
+    LOCAL_IP={{ hostvars[kubeinit_deployment_node_name].ssh_connection_address }} # This is the IP of the current HV
     ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
     ovs-vsctl set Open_vSwitch . \
         external_ids:ovn-remote="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_southbound_port }}" \
@@ -31,11 +30,15 @@
         external_ids:system-id="{{ kubeinit_deployment_node_name }}"
     # On each HV lets create a virtual bridge br-int
     # This bridge will be used when we create the VMs
-    # we will use br-int so no need to removing it before
     ovs-vsctl --may-exist add-br br-int
-    # This is executed in every Hypervisor
   args:
     executable: /bin/bash
   register: ovs_setup
-
   changed_when: "ovs_setup.rc == 0"
+  with_items:
+    - "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

@@ -20,84 +20,112 @@
 - name: Clean OVN/OVS resources
   ansible.builtin.shell: |
     set -o pipefail
-    ovs-vsctl del-br br-int || true
-    ovs-vsctl del-br br-ex || true
-    ovn-nbctl ls-del sw0 || true
-    ovn-nbctl lr-del lr0 || true
-    ovn-nbctl ls-del public || true
     ip route del {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex || true
+    ovn-nbctl --if-exists ls-del sw0 || true
+    ovn-nbctl --if-exists lr-del lr0 || true
+    ovn-nbctl --if-exists ls-del public || true
+    ovs-vsctl --if-exists del-br br-int || true
+    ovs-vsctl --if-exists del-br br-ex || true
+    ip link del genev_sys_6081 || true
+    ovs-dpctl del-dp ovs-system || true
   args:
     executable: /bin/bash
-  register: libvirt_clean_ovn
-  when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
-  changed_when: "libvirt_clean_ovn.rc == 0"
+  register: clean_ovn
+  changed_when: "clean_ovn.rc == 0"
+  with_items:
+    - "{{ groups['all_hosts'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 - name: Stop and disable OVN services in the first hypervisor (CentOS based)
   ansible.builtin.service:
-    name: "{{ item }}"
+    name: "{{ service_name }}"
     state: stopped
-    enabled: false
-  loop:
-    - openvswitch
-    - ovn-northd
-    - ovn-controller
+  register: libvirt_clean_ovn
+  failed_when: libvirt_clean_ovn is not defined
+  with_items:
+    - "{{ groups['all_hosts'] | product(['openvswitch', 'ovn-northd', 'ovn-controller']) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    service_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS' or hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
-  failed_when: false
 
 - name: Stop and disable OVN services in the rest of the hypervisors (CentOS based)
   ansible.builtin.service:
-    name: "{{ item }}"
+    name: "{{ service_name }}"
     state: stopped
     enabled: false
-  loop:
-    - openvswitch
-    - ovn-controller
+  register: libvirt_clean_ovn
+  failed_when: libvirt_clean_ovn is not defined
+  with_items:
+    - "{{ groups['all_hosts'] | product(['openvswitch', 'ovn-controller']) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    service_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   when: >
     (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS' or hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
-  failed_when: false
 
 - name: Stop and disable OVN services in the first hypervisor (Ubuntu based)
   ansible.builtin.service:
-    name: "{{ item }}"
+    name: "{{ service_name }}"
     state: stopped
     enabled: false
-  loop:
-    - ovs-vswitchd
-    - ovn-central
-    - ovn-controller
+  register: libvirt_clean_ovn
+  failed_when: libvirt_clean_ovn is not defined
+  with_items:
+    - "{{ groups['all_hosts'] | product(['ovs-vswitchd', 'ovn-central', 'ovn-controller']) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    service_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   when: >
     (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
-  failed_when: false
 
 - name: Stop and disable OVN services in the rest of the hypervisors (Ubuntu based)
   ansible.builtin.service:
-    name: "{{ item }}"
+    name: "{{ service_name }}"
     state: stopped
     enabled: false
-  loop:
-    - ovs-vswitchd
-    - ovn-controller
+  register: libvirt_clean_ovn
+  failed_when: libvirt_clean_ovn is not defined
+  with_items:
+    - "{{ groups['all_hosts'] | product(['ovs-vswitchd', 'ovn-controller']) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    service_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
   when: >
     (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
     (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
-  failed_when: false
 
 - name: Delete existing OVS/OVN files
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ dir_name }}"
     state: absent
-  loop:
-    - /etc/openvswitch/
-    - /etc/ovn/
-    - /var/lib/openvswitch/
-    - /var/lib/ovn/
-    - /var/log/openvswitch/
-    - /var/log/ovn/
-    - /usr/share/openvswitch/
-    - /usr/share/ovn/
-    - /var/run/openvswitch/
-    - /var/run/ovn/
+  with_items:
+    - "{{ groups['all_hosts'] | product(['/etc/openvswitch/conf.db', '/etc/openvswitch/system-id.conf', '/var/lib/ovn/']) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    dir_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

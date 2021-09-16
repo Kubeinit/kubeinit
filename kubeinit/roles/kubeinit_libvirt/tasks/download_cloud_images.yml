@@ -14,65 +14,65 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
 #
 # Download distribution specific images
 #
+- name: Create tuples for hosts and guest vms
+  ansible.builtin.set_fact:
+    all_hosts_guest_vms: "{{ (all_hosts_guest_vms | default([])) + ([item[0]] | product([item[1]])) }}"
+  loop: "{{ groups['all_hosts'] | product(groups['all_guest_vms']) }}"
+  when: hostvars[item[1]].target in item[0]
 
-- name: Delegate to kubeinit_deployment_node_name
-  block:
+- name: Create new directories for config files per node
+  ansible.builtin.file:
+    path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ guest_vm }}"
+    state: directory
+    mode: 0775
+    recurse: yes
+  loop: "{{ all_hosts_guest_vms }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    guest_vm: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
 
-    - name: Create new directories for config files per node
-      ansible.builtin.file:
-        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}"
-        state: directory
-        mode: 0775
-        recurse: yes
-      with_items: "{{ groups['all_guest_vms'] }}"
-      when: hostvars[item].target in kubeinit_deployment_node_name
+- name: Create tuples for hosts and guest os
+  ansible.builtin.set_fact:
+    all_hosts_guest_os: "{{ (all_hosts_guest_os | default([])) + ([item[0]] | product([hostvars[item[1]].os])) }}"
+  loop: "{{ groups['all_hosts'] | product(groups['all_guest_vms']) }}"
+  when: hostvars[item[1]].target in item[0] and kubeinit_libvirt_source_images[hostvars[item[1]].os].image
 
-    - name: Set qemu user depending on the hypervisor linux distribution
-      ansible.builtin.set_fact:
-        kubeinit_qemu_user: "{{ 'qemu' if (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'RedHat' or hostvars[kubeinit_deployment_node_name].ansible_distribution == 'Fedora') else 'libvirt-qemu' }}"
+- name: Remove duplicates
+  ansible.builtin.set_fact:
+    all_hosts_guest_os: "{{ (all_hosts_guest_os | default([])) | unique }}"
 
-    - name: Download Ubuntu cloud image
-      ansible.builtin.get_url:
-        validate_certs: False
-        use_proxy: True
-        url: "{{ kubeinit_libvirt_source_images.ubuntu.uri }}{{ kubeinit_libvirt_source_images.ubuntu.image }}"
-        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.ubuntu.image }}"
-        force: no
-        mode: '0666'
-        owner: "{{ kubeinit_qemu_user }}"
-      when: "'ubuntu' in hostvars[kubeinit_services_node].os"
+- name: Download cloud images
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_libvirt_source_images[guest_os].uri }}{{ kubeinit_libvirt_source_images[guest_os].image }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images[guest_os].image }}"
+    force: no
+    mode: '0666'
+    owner: "{{ hostvars[kubeinit_deployment_node_name].libvirt_qemu_user }}"
+  loop: "{{ all_hosts_guest_os }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    guest_os: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
 
-    - name: Download Debian cloud image
-      ansible.builtin.get_url:
-        validate_certs: False
-        use_proxy: True
-        url: "{{ kubeinit_libvirt_source_images.debian.uri }}{{ kubeinit_libvirt_source_images.debian.image }}"
-        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.debian.image }}"
-        force: no
-        mode: '0666'
-        owner: "{{ kubeinit_qemu_user }}"
-      when: "'debian' in hostvars[kubeinit_services_node].os"
-
-    - name: Download CentOS cloud image
-      ansible.builtin.get_url:
-        validate_certs: False
-        use_proxy: True
-        url: "{{ kubeinit_libvirt_source_images.centos.uri }}{{ kubeinit_libvirt_source_images.centos.image }}"
-        dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}"
-        force: no
-        mode: '0666'
-        owner: "{{ kubeinit_qemu_user }}"
-      when: "'centos' in hostvars[kubeinit_services_node].os"
-
-    - name: Update packages in CentOS cloud image
-      ansible.builtin.command: |
-        virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }} --update
-      register: _result
-      changed_when: "_result.rc == 0"
-      when: "'centos' in hostvars[kubeinit_services_node].os"
-
+- name: Update packages in cloud images
+  ansible.builtin.command: |
+    virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images[guest_os].image }} {% if guest_os == 'ubuntu' %}--run-command 'env DEBIAN_FRONTEND=noninteractive apt-get -y --allow-remove-essential purge shim-signed'{% endif %} --update
+  loop: "{{ all_hosts_guest_os }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    guest_os: "{{ cluster_role_item[1] }}"
+  register: update_cloud_image_packages
+  changed_when: "update_cloud_image_packages.rc == 0"
   delegate_to: "{{ kubeinit_deployment_node_name }}"

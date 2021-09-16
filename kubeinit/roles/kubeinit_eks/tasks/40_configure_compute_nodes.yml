@@ -23,12 +23,13 @@
         mode: '0644'
       when: groups['all_compute_nodes'] | length > 0
 
-    - name: Install root public from service node in worker nodes
-      ansible.builtin.shell: |
-       echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
-      args:
-        executable: /bin/bash
-      changed_when: false
+    - name: Add cluster authorized keys in compute nodes
+      ansible.posix.authorized_key:
+        user: root
+        key: "{{ item }}"
+        state: present
+      with_items:
+        - "{{ kubeinit_cluster_hostvars.authorized_keys }}"
 
     - name: Copy cert to pki directory
       ansible.builtin.copy:

@@ -15,101 +15,120 @@
 # under the License.
 
 ##
-## Cleanup tasks
+## Clean networks
 ##
-- name: Cleanup the environment virtual nets
-  block:
-    ##
-    ## Clean networks
-    ##
-    - name: Get all the networks
-      community.libvirt.virt_net:
-        command: list_nets
-      register: running_nets
+- name: Destroy deployment networks
+  community.libvirt.virt_net:
+    command: destroy
+    name: "{{ cluster_net.name }}"
+  with_items:
+    - "{{ groups['all_hosts'] | product(kubeinit_libvirt_cluster_nets) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_net: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_net.name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
-    - name: Destroy deployment networks
-      community.libvirt.virt_net:
-        command: destroy
-        name: "{{ item.name }}"
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item.name in running_nets.list_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+- name: Undefine deployment networks
+  community.libvirt.virt_net:
+    command: undefine
+    name: "{{ cluster_net.name }}"
+  with_items:
+    - "{{ groups['all_hosts'] | product(kubeinit_libvirt_cluster_nets) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_net: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_net.name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
-    - name: Undefine deployment networks
-      community.libvirt.virt_net:
-        command: undefine
-        name: "{{ item.name }}"
-      with_items: "{{ kubeinit_libvirt_cluster_nets }}"
-      when: item.name in running_nets.list_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+- name: Remove the deployment networks
+  community.libvirt.virt_net:
+    state: absent
+    name: "{{ cluster_net.name }}"
+  with_items:
+    - "{{ groups['all_hosts'] | product(kubeinit_libvirt_cluster_nets) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_net: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_net.name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
-    ##
-    ## Clean VMs
-    ##
+##
+## Clean VMs
+##
+- name: Destroy vms
+  community.libvirt.virt:
+    name: "{{ cluster_vm }}"
+    state: destroyed
+  loop: "{{ kubeinit_cluster_hostvars.running_vms }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_vm: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_vm in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
 
-    - name: Get all the VMs
-      community.libvirt.virt:
-        command: list_vms
-      register: running_vms
+- name: Undefine vms
+  community.libvirt.virt:
+    name: "{{ cluster_vm }}"
+    command: undefine
+  loop: "{{ kubeinit_cluster_hostvars.running_vms }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_vm: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_vm in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
 
-    - name: Destroy vms
-      community.libvirt.virt:
-        name: "{{ item }}"
-        state: destroyed
-      with_items: "{{ running_vms.list_vms }}"
-      when: item in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
+- name: Remove VMs storage
+  ansible.builtin.file:
+    state: absent
+    path: "{{ kubeinit_libvirt_target_image_dir }}/{{ cluster_vm }}.qcow2"
+  loop: "{{ kubeinit_cluster_hostvars.running_vms }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_vm: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_vm in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
 
-    - name: Undefine vms
-      community.libvirt.virt:
-        name: "{{ item }}"
-        command: undefine
-      with_items: "{{ running_vms.list_vms }}"
-      when: item in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
-
-    - name: Remove VMs storage
-      ansible.builtin.file:
-        state: absent
-        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ item }}.qcow2"
-      with_items: "{{ running_vms.list_vms }}"
-      when: item in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
-
-    ##
-    ## Clean folders
-    ##
-
-    - name: Clean directories for config files per node
-      ansible.builtin.file:
-        state: absent
-        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ item }}/"
-      with_items: "{{ groups['all_guest_vms'] }}"
+##
+## Clean folders
+##
+- name: Clean directories for config files per node
+  ansible.builtin.file:
+    state: absent
+    path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ guest_vm }}/"
+  with_items:
+    - "{{ groups['all_hosts'] | product(groups['all_guest_vms']) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    guest_vm: "{{ cluster_role_item[1] }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
-- name: Cleanup the environment keys
-  block:
-    ##
-    ## Clean keys
-    ##
-    - name: Check if ~/.ssh/known_hosts exists
-      ansible.builtin.stat:
-        path: ~/.ssh/known_hosts
-      register: known_hosts_file
-
-    - name: Reset ssh keys in hypervisor
-      ansible.builtin.shell: |
-        set -o pipefail
-        ssh-keygen -R  {{ item }} || true
-        ssh-keygen -R  {{ item }}.{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }} || true
-        ssh-keygen -R  {{ hostvars[item].ansible_host }} || true
-      with_items: "{{ groups['all_guest_vms'] }}"
-      when: known_hosts_file.stat.exists | bool
-      args:
-        executable: /bin/bash
-      register: libvirt_reset_ssh
-      changed_when: "libvirt_reset_ssh.rc == 0"
-
-    - name: Delete keys in ~/.ssh/known_hosts
-      ansible.builtin.lineinfile:
-        dest: ~/.ssh/known_hosts
-        state: absent
-        regexp: '{{ hostvars[item].ansible_host }}'
-      with_items: "{{ groups['all_guest_vms'] }}"
-
+##
+## Clean keys
+##
+- name: Reset ssh keys in hypervisor
+  ansible.builtin.known_hosts:
+    name: "{{ node_alias }}"
+    state: absent
+  with_items:
+    - "{{ groups['all_hosts'] | product(kubeinit_cluster_hostvars.node_aliases | flatten | unique) | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    node_alias: "{{ cluster_role_item[1] }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"

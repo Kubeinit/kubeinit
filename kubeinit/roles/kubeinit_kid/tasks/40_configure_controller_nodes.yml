@@ -21,11 +21,12 @@
         name: "{{ kubeinit_kid_controller_dependencies }}"
         state: present
 
-    - name: Install root public from service node in masters
-      ansible.builtin.shell: |
-        echo "{{ kubeinit_provision_service_public_key }}" >> /root/.ssh/authorized_keys
-      args:
-        executable: /bin/bash
-      changed_when: false
+    - name: Add cluster authorized keys in controller nodes
+      ansible.posix.authorized_key:
+        user: root
+        key: "{{ item }}"
+        state: present
+      with_items:
+        - "{{ kubeinit_cluster_hostvars.authorized_keys }}"
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"

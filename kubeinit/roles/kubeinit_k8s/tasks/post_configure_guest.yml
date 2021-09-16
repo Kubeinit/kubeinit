@@ -160,10 +160,11 @@
           - yum-utils
           - device-mapper-persistent-data
           - lvm2
-          - kubelet-{{ kubeinit_inventory_k8s_version }}.*
-          - kubeadm-{{ kubeinit_inventory_k8s_version }}.*
-          - kubectl-{{ kubeinit_inventory_k8s_version }}.*
         state: present
+
+    - name: Install requirements
+      ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_inventory_k8s_version }}.* kubeadm-{{ kubeinit_inventory_k8s_version }}.* kubectl-{{ kubeinit_inventory_k8s_version }}.* --disableexcludes=kubernetes
+      changed_when: false
 
     - name: Enable kubelet
       ansible.builtin.systemd:
