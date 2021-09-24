@@ -1,6 +1,16 @@
 ---
 name: molecule
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+  pull_request:
+  # Run the functional tests every 8 hours.
+  # This will help to identify faster if
+  # there is a CI failure related to a
+  # change in any dependency.
+  schedule:
+    - cron: '0 */8 * * *'
 jobs:
   build:
     runs-on: ubuntu-latest

@@ -142,17 +142,17 @@ done;
 
 echo "(launch_e2e.sh) ==> Preparing the inventory ..."
 if [[ "$MASTERS" == "1" ]]; then
-    find ./hosts/ -type f -exec sed -i -E -e "s/.*-controller-02/#-controller-02/g" {} \;
-    find ./hosts/ -type f -exec sed -i -E -e "s/.*-controller-03/#-controller-03/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*controller-02/#controller-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*controller-03/#controller-03/g" {} \;
 fi
 
 if [[ "$WORKERS" == "0" ]]; then
-    find ./hosts/ -type f -exec sed -i -E -e "s/.*-compute-01/#-compute-01/g" {} \;
-    find ./hosts/ -type f -exec sed -i -E -e "s/.*-compute-02/#-compute-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*compute-01/#compute-01/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*compute-02/#compute-02/g" {} \;
 fi
 
 if [[ "$WORKER" == "1" ]]; then
-    find ./hosts/ -type f -exec sed -i -E -e "s/.*-compute-02/#-compute-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "s/.*compute-02/#compute-02/g" {} \;
 fi
 
 # We reduce the default disk volume size used in the nodes
@@ -200,19 +200,19 @@ if [[ "$HYPERVISORS" == "3" ]]; then
     # We balance the cluster nodes across the HVs
     #
     # Controllers
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-01 ansible_host/ s/hypervisor-01/hypervisor-01/g"  {} \;
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" {} \;
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-controller-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*controller-01 ansible_host/ s/hypervisor-01/hypervisor-01/g"  {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*controller-02 ansible_host/ s/hypervisor-01/hypervisor-01/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*controller-03 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
 
     # Computes
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-compute-01 ansible_host/ s/hypervisor-01/hypervisor-01/g" {} \;
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-compute-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*compute-01 ansible_host/ s/hypervisor-01/hypervisor-01/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*compute-02 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
 
     # Services
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*service-01 ansible_host/ s/hypervisor-01/hypervisor-03/g" {} \;
 
     # Bootstrap
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
 fi
 
 #
@@ -222,7 +222,7 @@ fi
 # in the first hypervisor.
 #
 if [[ "$SERVICES_TYPE" == "c" ]]; then
-    find ./hosts/ -type f -exec sed -i -E -e "/.*-service-01 ansible_host/ s/type=virtual/type=container/g" {} \;
+    find ./hosts/ -type f -exec sed -i -E -e "/.*service-01 ansible_host/ s/type=virtual/type=container/g" {} \;
 fi
 
 echo "(launch_e2e.sh) ==> The inventory content..."
