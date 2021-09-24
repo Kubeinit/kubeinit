@@ -21,35 +21,42 @@
 - name: Add all controller nodes to the all_controller_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
+    guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
     group: all_controller_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
+    target: "{{ hostvars[item].target }}"
   loop: "{{ groups['controller_nodes'] | default([]) | list }}"
 
 - name: Add all compute nodes to the all_compute_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
+    guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
     group: all_compute_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
+    target: "{{ hostvars[item].target }}"
   loop: "{{ groups['compute_nodes'] | default([]) | list }}"
 
-- name: Add all cluster nodes to the all_cluster_nodes group
+- name: Add all controller and compute nodes to the all_cluster_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_cluster_nodes
-    fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
+    fqdn: "{{ hostvars[item].fqdn }}"
+    target: "{{ hostvars[item].target }}"
   loop: "{{ groups['all_controller_nodes'] + groups['all_compute_nodes'] }}"
 
-- name: Add the bootstrap node, if there is one, to the all_cluster_nodes group
+- name: Add any extra cluster vm guest nodes to the extra_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
-    group: all_cluster_nodes
+    guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
+    group: extra_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
-  loop: "{{ groups['bootstrap_node'] | default([]) | list }}"
+    target: "{{ hostvars[item].target }}"
+  loop: "{{ groups['extra_nodes'] | default([]) | list }}"
 
 - name: Collect all cluster node hypervisors
   ansible.builtin.set_fact:
     all_cluster_hypervisors: "{{ all_cluster_hypervisors | default([]) | union([hostvars[item].target]) }}"
-  loop: "{{ groups['all_cluster_nodes'] }}"
+  loop: "{{ groups['all_cluster_nodes'] + (groups['extra_nodes'] | default([])) }}"
 
 - name: Set all cluster hypervisors fact
   ansible.builtin.add_host:
@@ -59,10 +66,13 @@
 - name: Add all service nodes to the all_service_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
+    guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
     group: all_service_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
     services: "{{ hostvars[item].services.split(',') }}"
-    container_host: "{{ item if (hostvars[item].type == 'virtual') else hostvars[item].target }}"
+    target: "{{ hostvars[item].target }}"
+    type: container
+    container_host: "{{ item if (false and hostvars[item].type == 'virtual') else hostvars[item].target }}"
   loop: "{{ groups['service_nodes'] | default([]) | list }}"
 
 - name: Create tuples for each service and each service node providing that service
@@ -107,8 +117,8 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_nodes
-    fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
-  loop: "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
+    fqdn: "{{ hostvars[item].fqdn }}"
+  loop: "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] + (groups['extra_nodes'] | default([])) }}"
 
 - name: Add a default entry for the first hypervisor if there are no bastion_host members
   ansible.builtin.add_host:
@@ -186,7 +196,7 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_guest_vms
-  loop: "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] }}"
+  loop: "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] + (groups['extra_nodes'] | default([])) }}"
   when: hostvars[item].type == 'virtual'
 
 - name: Collect all of the node aliases

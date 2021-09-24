@@ -14,6 +14,221 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Prepare environment if not prepared
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    public: true
+  vars:
+    environment_facts_set: "{{ kubeinit_cluster_facts_name is defined }}"
+  when: not environment_facts_set
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-cluster'
+
+- name: Override initial pullsecret with fake auth
+  ansible.builtin.set_fact:
+    kubeinit_okd_registry_pullsecret: '  { "auths": { "fakeregistry:5000": { "auth": "foo" } } }'
+  when: not 'registry' in kubeinit_cluster_hostvars.services and kubeinit_okd_registry_pullsecret_empty in kubeinit_okd_registry_pullsecret
+
+- name: Only use these tasks if we are deploying OCP and not OKD
+  block:
+
+    - name: Read openshift pullsecret
+      ansible.builtin.slurp:
+        src: "{{ kubeinit_okd_openshift_pullsecret }}"
+      register: openshift_pullsecret
+      delegate_to: localhost
+      when: |
+        kubeinit_okd_openshift_pullsecret is defined and
+        kubeinit_okd_openshift_pullsecret
+
+    - name: Create registry auth for pullsecret using individual auth values
+      ansible.builtin.set_fact:
+        # The spaces after the first single quote is required, do not remove
+        # Something in Ansible appears to be recognizing this as valid Python,
+        # so it's getting transformed into a Python list and then serialized
+        # using Python's str(), which is why we end up with the single-quoted values.
+        ocp_registry_token: '  { "auths": { "cloud.openshift.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_cloud_openshift_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"quay.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_quay_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.connect.redhat.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_connect_redhat_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.redhat.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_redhat_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } } }'
+      when: |
+        not kubeinit_okd_openshift_pullsecret is defined or
+        not kubeinit_okd_openshift_pullsecret
+
+    - name: Create registry auth for pullsecret
+      ansible.builtin.shell: |
+        set -eo pipefail
+        {% if kubeinit_okd_openshift_pullsecret is defined and kubeinit_okd_openshift_pullsecret %}
+        echo '{{ openshift_pullsecret.content | b64decode | trim }}' | jq -c ".auths"
+        {% else %}
+        echo '{{ ocp_registry_token }}' | jq -c ".auths"
+        {% endif %}
+      args:
+        executable: /bin/bash
+      register: ocp_registry_pullsecret
+      changed_when: "ocp_registry_pullsecret.rc == 0"
+
+    - name: Append openshift auth to pullsecret
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo '{{ kubeinit_okd_registry_pullsecret }}' | jq -c \
+          '.auths += {{ ocp_registry_pullsecret.stdout }}'
+      args:
+        executable: /bin/bash
+      register: ocp_new_pullsecret
+      changed_when: "ocp_new_pullsecret.rc == 0"
+
+    - name: Override final openshift kubeinit_okd_registry_pullsecret with both auths
+      ansible.builtin.set_fact:
+        kubeinit_okd_registry_pullsecret: '  {{ ocp_new_pullsecret.stdout }}'
+
+  when: kubeinit_okd_openshift_deploy
+
+- name: Debug kubeinit_okd_registry_pullsecret before overriding kubeinit_registry_pullsecret
+  ansible.builtin.debug:
+    var: kubeinit_okd_registry_pullsecret
+
+# This task will override the default "empty" pullsecret from the registry playbook
+# with the content of the pullsecret defined in the OKD playbook
+- name: Assign a default pullsecret when we use a local registry and deploying OKD
+  ansible.builtin.set_fact:
+    kubeinit_registry_pullsecret: '  {{ kubeinit_okd_registry_pullsecret }}'
+
+- name: Debug kubeinit_registry_pullsecret after overriding it
+  ansible.builtin.debug:
+    var: kubeinit_registry_pullsecret
+
+- name: Setup the cluster provision container
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: create_provision_container.yml
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
+    kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
+    kubeinit_deployment_os: "{{ hostvars[kubeinit_provision_service_node].os }}"
+    kubeinit_deployment_type: container
+    kubeinit_deployment_role: provision
+
+- name: Delegate to the provision service node
+  block:
+
+    - name: "Render net info"
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "{{ kubeinit_okd_pod_cidr }}" > ~/pod_cidr
+        echo "{{ kubeinit_okd_service_cidr }}" > ~/service_cidr
+      args:
+        executable: /bin/bash
+      register: render_net_info
+      changed_when: "render_net_info.rc == 0"
+
+    - name: Install services requirements
+      ansible.builtin.yum:
+        name: socat
+        state: present
+        use_backend: dnf
+
+    #
+    # Include the install configuration
+    #
+
+    - name: Download okd installer
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_okd_dependencies.installer }}"
+        dest: ~/
+
+    - name: Download okd client
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_okd_dependencies.client }}"
+        dest: ~/
+
+    - name: Install okd client and installer
+      ansible.builtin.shell: |
+        set -o pipefail
+        dnf install -y libvirt
+        cd
+        rm -rf install_dir
+        mkdir install_dir
+        for f in *.tar.gz; do tar -xvf "$f"; done
+        mv kubectl oc openshift-install /usr/local/bin/
+        oc version
+        openshift-install version
+      args:
+        executable: /bin/bash
+      register: install_client_and_installer
+      changed_when: "install_client_and_installer.rc == 0"
+
+    #
+    # Configure local registry
+    #
+
+    - name: Render the required container images
+      ansible.builtin.shell: |
+        set -o pipefail
+
+        {% if ( kubeinit_okd_openshift_deploy | default(False) ) %}
+        URL="{{ kubeinit_okd_registry_release_url }}"
+        {% else %}
+        URL=$( curl -s "{{ kubeinit_okd_registry_release_url }}" \
+           | jq -r '.assets[] | select(.name=="release.txt") | .browser_download_url' )
+        {% endif %}
+
+        curl -LO "$URL"
+        cat release.txt | grep quay | grep -v "Pull From" | tr -s ' ' | cut -d ' ' -f 3 > ~/kubeinit_deployment_images.txt
+      args:
+        executable: /bin/bash
+      register: render_images_list
+      changed_when: "render_images_list.rc == 0"
+
+    - name: Mirror OKD remote registry to local
+      ansible.builtin.shell: |
+        set -eo pipefail
+        oc adm \
+            release mirror \
+            --registry-config={{ kubeinit_registry_auth_file }} \
+            --from={{ kubeinit_okd_registry }}/{{ kubeinit_okd_registry_organization }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}{% if ( kubeinit_okd_openshift_deploy | default(False) ) %}-x86_64{% endif %} \
+            --to={{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }} \
+            --to-release-image={{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }} \
+            2>&1 | tee mirror-output.txt
+        oc adm \
+            release extract \
+            --registry-config={{ kubeinit_registry_auth_file }} \
+            --command=openshift-install "{{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}"
+        oc adm \
+            release extract \
+            --registry-config={{ kubeinit_registry_auth_file }} \
+            --command=oc "{{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}"
+        # This will override the current client and installer binaries
+        cp oc openshift-install /usr/local/bin/
+        oc version
+        openshift-install version
+      args:
+        executable: /bin/bash
+      register: mirror_registry
+      changed_when: "mirror_registry.rc == 0"
+      when: "'registry' in kubeinit_cluster_hostvars.services"
+
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Add task-prepare-cluster to tasks_completed
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-prepare-cluster']) }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+
 - name: Download CoreOS libvirt images
   ansible.builtin.include_role:
     name: ../../roles/kubeinit_libvirt

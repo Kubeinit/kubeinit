@@ -10,7 +10,7 @@
 
 ansible_python_interpreter=/usr/bin/python3
 ansible_ssh_pipelining=True
-ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+ansible_ssh_common_args='-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new'
 
 kubeinit_inventory_network_gateway=10.0.0.254
 kubeinit_inventory_network_netmask=255.255.255.0
@@ -25,7 +25,7 @@ kubeinit_inventory_cluster_distro=k8s
 kubeinit_inventory_cluster_name=k8scluster
 kubeinit_inventory_cluster_domain=kubeinit.local
 
-kubeinit_inventory_k8s_version="1.21"
+kubeinit_inventory_kubernetes_version="1.21"
 kubeinit_inventory_hosted_deployment=false
 
 [controller_nodes:vars]
@@ -35,7 +35,6 @@ ram=25165824
 vcpus=8
 maxvcpus=16
 prefix=24
-root_device=/dev/sda1
 
 [compute_nodes:vars]
 os=centos
@@ -44,7 +43,6 @@ ram=8388608
 vcpus=8
 maxvcpus=16
 prefix=24
-root_device=/dev/sda1
 
 [service_nodes:vars]
 os=centos
@@ -53,7 +51,6 @@ ram=12582912
 vcpus=8
 maxvcpus=16
 prefix=24
-root_device=/dev/sda1
 services="bind,dnsmasq,haproxy,apache,registry" # nexus
 
 #
@@ -70,35 +67,48 @@ hypervisor-01 ansible_host=nyctea
 # hypervisor-03 ansible_host=strix
 # hypervisor-04 ansible_host=otus
 
-# Master, worker, service, and bootstrap nodes can be configured as virtual
-# machines or using the already provisioned baremetal machines for the deployment.
+# The cluster will have one host identified as the bastion host
+# By default, this role will be assumed by the first hypervisor,
+# which is the same behavior as the first commented out line.
+# The second commented out line would set the second hypervisor
+# to be the bastion host.  The final commented out line would
+# set the bastion host to be a different host that is not being
+# used as a hypervisor for the guests VMs for this cluster.
+
+[bastion_host]
+# bastion target=hypervisor-01
+# bastion target=hypervisor-02
+# bastion ansible_host=bastion
+
+# Controller and compute nodes can be configured as virtual machines
+# or using the already provisioned baremetal machines for the deployment.
 
 # Only use an odd number configuration, this means
-# enabling only 1, 3, or 5 master nodes at a time.
+# enabling only 1, 3, or 5 controller nodes at a time.
 
 [controller_nodes]
-k8s-controller-01 ansible_host=10.0.0.1 mac=52:54:00:47:91:72 interfaceid=69c9ed39-93ed-4275-9232-004dcf108def target=hypervisor-01 type=virtual
-k8s-controller-02 ansible_host=10.0.0.2 mac=52:54:00:94:59:96 interfaceid=a06fc904-b92c-4b54-89e3-52d7b1a629cb target=hypervisor-01 type=virtual
-k8s-controller-03 ansible_host=10.0.0.3 mac=52:54:00:80:48:54 interfaceid=58695245-239f-4b2e-844c-9188b0050486 target=hypervisor-01 type=virtual
-# k8s-controller-04 ansible_host=10.0.0.4 mac=52:54:00:89:47:35 interfaceid=ff7be990-0c78-40a6-a8ea-cb2eb81d01af target=hypervisor-01 type=virtual
-# k8s-controller-05 ansible_host=10.0.0.5 mac=52:54:00:37:49:40 interfaceid=8f987c60-e0c9-4364-969c-659fec50316a target=hypervisor-01 type=virtual
+controller-01 ansible_host=10.0.0.1 mac=52:54:00:47:91:72 interfaceid=69c9ed39-93ed-4275-9232-004dcf108def target=hypervisor-01 type=virtual
+controller-02 ansible_host=10.0.0.2 mac=52:54:00:94:59:96 interfaceid=a06fc904-b92c-4b54-89e3-52d7b1a629cb target=hypervisor-01 type=virtual
+controller-03 ansible_host=10.0.0.3 mac=52:54:00:80:48:54 interfaceid=58695245-239f-4b2e-844c-9188b0050486 target=hypervisor-01 type=virtual
+# controller-04 ansible_host=10.0.0.4 mac=52:54:00:89:47:35 interfaceid=ff7be990-0c78-40a6-a8ea-cb2eb81d01af target=hypervisor-01 type=virtual
+# controller-05 ansible_host=10.0.0.5 mac=52:54:00:37:49:40 interfaceid=8f987c60-e0c9-4364-969c-659fec50316a target=hypervisor-01 type=virtual
 
-# From .6 to .99 worker nodes
+# From .6 to .99 compute nodes
 [compute_nodes]
-k8s-compute-01 ansible_host=10.0.0.6 mac=52:54:00:11:48:25 interfaceid=082189cd-396c-4cb2-ba73-893813304c31 target=hypervisor-01 type=virtual
-k8s-compute-02 ansible_host=10.0.0.7 mac=52:54:00:82:39:53 interfaceid=54936709-f31c-4380-ac87-5dd86926f8ba target=hypervisor-01 type=virtual
-# k8s-compute-03 ansible_host=10.0.0.8 mac=52:54:00:58:77:10 interfaceid=387269e7-20e1-4b52-9e2a-477ce3b939f3 target=hypervisor-01 type=virtual
-# k8s-compute-04 ansible_host=10.0.0.9 mac=52:54:00:36:51:70 interfaceid=3f8ecd91-54eb-4541-a836-40691966da7a target=hypervisor-01 type=virtual
-# k8s-compute-05 ansible_host=10.0.0.10 mac=52:54:00:88:55:36 interfaceid=7d43ffae-0cba-4965-98a1-8a6d5e1f7f51 target=hypervisor-01 type=virtual
-# k8s-compute-06 ansible_host=10.0.0.11 mac=52:54:00:64:31:39 interfaceid=344087c1-1a58-4154-8e4a-a7f80d2ecaf1 target=hypervisor-01 type=virtual
-# k8s-compute-07 ansible_host=10.0.0.12 mac=52:54:00:26:46:24 interfaceid=ba1cf733-1d71-428f-b66a-43d437e27649 target=hypervisor-01 type=virtual
-# k8s-compute-08 ansible_host=10.0.0.13 mac=52:54:00:27:85:70 interfaceid=b9829c21-6163-4c28-8c4b-824b16abeb32 target=hypervisor-01 type=virtual
-# k8s-compute-09 ansible_host=10.0.0.14 mac=52:54:00:22:66:71 interfaceid=5b9f8521-5749-4ff1-af0a-deb419bfb38e target=hypervisor-01 type=virtual
-# k8s-compute-10 ansible_host=10.0.0.15 mac=52:54:00:97:97:10 interfaceid=0be96990-cf50-4061-aee9-a9482eaf8eb0 target=hypervisor-01 type=virtual
+compute-01 ansible_host=10.0.0.6 mac=52:54:00:11:48:25 interfaceid=082189cd-396c-4cb2-ba73-893813304c31 target=hypervisor-01 type=virtual
+compute-02 ansible_host=10.0.0.7 mac=52:54:00:82:39:53 interfaceid=54936709-f31c-4380-ac87-5dd86926f8ba target=hypervisor-01 type=virtual
+# compute-03 ansible_host=10.0.0.8 mac=52:54:00:58:77:10 interfaceid=387269e7-20e1-4b52-9e2a-477ce3b939f3 target=hypervisor-01 type=virtual
+# compute-04 ansible_host=10.0.0.9 mac=52:54:00:36:51:70 interfaceid=3f8ecd91-54eb-4541-a836-40691966da7a target=hypervisor-01 type=virtual
+# compute-05 ansible_host=10.0.0.10 mac=52:54:00:88:55:36 interfaceid=7d43ffae-0cba-4965-98a1-8a6d5e1f7f51 target=hypervisor-01 type=virtual
+# compute-06 ansible_host=10.0.0.11 mac=52:54:00:64:31:39 interfaceid=344087c1-1a58-4154-8e4a-a7f80d2ecaf1 target=hypervisor-01 type=virtual
+# compute-07 ansible_host=10.0.0.12 mac=52:54:00:26:46:24 interfaceid=ba1cf733-1d71-428f-b66a-43d437e27649 target=hypervisor-01 type=virtual
+# compute-08 ansible_host=10.0.0.13 mac=52:54:00:27:85:70 interfaceid=b9829c21-6163-4c28-8c4b-824b16abeb32 target=hypervisor-01 type=virtual
+# compute-09 ansible_host=10.0.0.14 mac=52:54:00:22:66:71 interfaceid=5b9f8521-5749-4ff1-af0a-deb419bfb38e target=hypervisor-01 type=virtual
+# compute-10 ansible_host=10.0.0.15 mac=52:54:00:97:97:10 interfaceid=0be96990-cf50-4061-aee9-a9482eaf8eb0 target=hypervisor-01 type=virtual
 
 # From .100 to .109 service nodes
 [service_nodes]
-k8s-service-01 ansible_host=10.0.0.100 mac=52:54:00:25:24:22 interfaceid=9ce0f8d6-f95f-4120-9b63-d409e64b5197 target=hypervisor-01 type=virtual
+service-01 ansible_host=10.0.0.100 mac=52:54:00:25:24:22 interfaceid=9ce0f8d6-f95f-4120-9b63-d409e64b5197 target=hypervisor-01 type=virtual
 
 # Auxiliary groups
 

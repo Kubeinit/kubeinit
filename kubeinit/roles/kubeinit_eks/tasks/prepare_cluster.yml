@@ -13,3 +13,140 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
+
+- name: Prepare environment if not prepared
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    public: true
+  vars:
+    environment_facts_set: "{{ kubeinit_cluster_facts_name is defined }}"
+  when: not environment_facts_set
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-cluster'
+
+- name: Setup the cluster provision container
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: create_provision_container.yml
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
+    kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
+    kubeinit_deployment_os: "{{ hostvars[kubeinit_provision_service_node].os }}"
+    kubeinit_deployment_type: container
+    kubeinit_deployment_role: provision
+
+- name: Configure the service node
+  block:
+
+    - name: Remove repo before adding it
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: absent
+
+    - name: Creating a repository file for Kubernetes
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: touch
+        mode: '0644'
+
+    - name: Adding repository details in Kubernetes repo file.
+      ansible.builtin.blockinfile:
+        path: /etc/yum.repos.d/kubernetes.repo
+        block: |
+         [kubernetes]
+         name=Kubernetes
+         baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-$basearch
+         enabled=1
+         gpgcheck=1
+         repo_gpgcheck=1
+         gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+         exclude=kubelet kubeadm kubectl
+
+    #
+    # Kubernetes config
+    #
+
+    - name: Install requirements
+      ansible.builtin.command: dnf install -y kubectl-{{ kubeinit_eks_kubernetes_version }} --disableexcludes=kubernetes
+
+    - name: Install services requirements
+      ansible.builtin.package:
+        name: skopeo
+        state: present
+
+    - name: Install common requirements
+      ansible.builtin.package:
+        name: "{{ kubeinit_eks_common_dependencies }}"
+        state: present
+      when: kubeinit_eks_common_dependencies is defined
+
+    #
+    # Configure local registry
+    #
+
+    - name: Get the required container images
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -s https://distro.eks.amazonaws.com/kubernetes-1-21/kubernetes-1-21-eks-4.yaml | sed -n -e "s|^.*uri: \(public.ecr.aws/eks-distro\)|\1|p" > ~/kubeinit_deployment_images.txt
+        echo public.ecr.aws/eks-distro/kubernetes/kube-proxy-base:$(curl -s https://raw.githubusercontent.com/aws/eks-distro/main/projects/kubernetes/release/1-21/GIT_TAG)-eks-1-21-4 >> ~/kubeinit_deployment_images.txt
+        echo public.ecr.aws/eks-distro/kubernetes/go-runner:$(curl -s https://raw.githubusercontent.com/aws/eks-distro/main/projects/kubernetes/release/1-21/GIT_TAG)-eks-1-21-4 >> ~/kubeinit_deployment_images.txt
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Mirror EKS remote registry to local
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -e
+        mkdir -p /etc/containers/
+        cat << EOF > /etc/containers/policy.json
+        {
+            "default": [
+                {
+                    "type": "insecureAcceptAnything"
+                }
+            ],
+            "transports":
+                {
+                    "docker-daemon":
+                        {
+                            "": [{"type":"insecureAcceptAnything"}]
+                        }
+                }
+        }
+        EOF
+        echo "function skopeo_copy {" > skopeo_copy.bash
+        echo "  skopeo copy docker://\$1 docker://{{ kubeinit_registry_uri }}/\$2 --dest-creds {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }}" >> ~/skopeo_copy.bash
+        echo "}" >> ~/skopeo_copy.bash
+        sed -e 's;^\(public.ecr.aws/\)\(.*/\)\(.*\);skopeo_copy "\1\2\3" "\2\3"\nskopeo_copy "\1\2\3" "\3";' ~/kubeinit_deployment_images.txt >> ~/skopeo_copy.bash
+        bash ~/skopeo_copy.bash
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: "'registry' in kubeinit_cluster_hostvars.services"
+
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Add task-prepare-cluster to tasks_completed
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-prepare-cluster']) }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

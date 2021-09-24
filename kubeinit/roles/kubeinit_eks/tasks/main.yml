@@ -14,35 +14,251 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Prepare services if needed
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: prepare_services.yml
+    public: true
+  vars:
+    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+  when: not task_completed
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-cluster'
+
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: deploy_centos_guest.yml
+    tasks_from: "deploy_{{ kubeinit_deployment_os }}_guest.yml"
     public: yes
-  with_items:
-    - "{{ groups['all_cluster_nodes'] | list }}"
+  loop: "{{ groups['all_cluster_nodes'] }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_os: "{{ hostvars[cluster_role_item].os }}"
     kubeinit_deployment_role: cluster
+  when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed
 
-- name: Configure the cluster master nodes
-  ansible.builtin.include_tasks: 30_configure_controller_nodes.yml
-  with_items:
-    - "{{ groups['all_controller_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
+- name: Add cluster authorized keys in cluster nodes
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ authorized_key }}"
+    state: present
+  loop: "{{ groups['all_cluster_nodes'] | product(kubeinit_cluster_hostvars.authorized_keys) }}"
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: master
+    cluster_node: "{{ item[0] }}"
+    authorized_key: "{{ item[1] }}"
+  delegate_to: "{{ cluster_node }}"
 
-- name: Configure the cluster worker nodes
-  ansible.builtin.include_tasks: 40_configure_compute_nodes.yml
-  with_items:
-    - "{{ groups['all_compute_nodes'] | list }}"
+- name: Copy cert to pki directory
+  ansible.builtin.copy:
+    content: "{{ kubeinit_cluster_hostvars.domain_cert }}"
+    dest: /etc/pki/ca-trust/source/anchors/domain.crt
+    mode: 0644
+  loop: "{{ groups['all_cluster_nodes'] }}"
   loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: worker
+    loop_var: cluster_node
+  delegate_to: "{{ cluster_node }}"
+
+- name: Insert the local registry auth details
+  ansible.builtin.shell: |
+    set -eo pipefail
+    mkdir -p .docker
+    cat << EOF > .docker/config.json
+    {
+      "auths": {{ kubeinit_cluster_hostvars.registry_disconnected_auth }},
+      "HttpHeaders": {
+        "User-Agent": "Docker-Client/18.09.7 (linux)"
+      }
+    }
+    EOF
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_cluster_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  delegate_to: "{{ cluster_node }}"
+  when: "'registry' in kubeinit_cluster_hostvars.services"
+
+- name: Update the CA certs files
+  ansible.builtin.command: update-ca-trust extract
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_cluster_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  delegate_to: "{{ cluster_node }}"
+  when: "'registry' in kubeinit_cluster_hostvars.services"
+
+- name: Setup the first controller node
+  block:
+
+    - name: Get etcd tag
+      ansible.builtin.shell: |
+        set -eo pipefail
+        curl -v --silent --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/etcd/tags/list --stderr - | grep '"name":"etcd"' | jq .tags[0]
+      args:
+        executable: /bin/bash
+      register: _result_etcd_tag
+      changed_when: "_result_etcd_tag.rc == 0"
+
+    - name: Clean kubeadm and initialize Kubernetes cluster
+      ansible.builtin.shell: |
+        set -eo pipefail
+        kubeadm reset -f || true
+        kubeadm config images list
+        kubeadm config images list --image-repository {{ kubeinit_registry_uri }}
+        kubeadm config images list --kubernetes-version latest
+        cat << EOF > ~/config.yml
+        apiVersion: kubeadm.k8s.io/v1beta2
+        kind: ClusterConfiguration
+        etcd:
+          local:
+            imageRepository: "{{ kubeinit_registry_uri }}"
+            imageTag: {{ _result_etcd_tag.stdout }}
+        controlPlaneEndpoint: "api.{{ kubeinit_cluster_fqdn }}:6443"
+        kubernetesVersion: "v{{ kubeinit_eks_kubernetes_version }}"
+        networking:
+          serviceSubnet: "{{ kubeinit_eks_service_network_cidr }}"
+          podSubnet: "{{ kubeinit_eks_pod_network_cidr }}"
+        EOF
+        kubeadm init  --upload-certs  --config=config.yml
+      args:
+        executable: /bin/bash
+      register: _result_kubeadm_init_output
+      changed_when: "_result_kubeadm_init_output.rc == 0"
+
+    - name: Debug
+      ansible.builtin.debug: var=_result_kubeadm_init_output
+
+    - name: Get the controller join key
+      ansible.builtin.set_fact:
+        eks_controller_join_key: "{{ item }}"
+      loop: "{{ _result_kubeadm_init_output.stdout_lines }}"
+      when: ('--control-plane --certificate-key' in item)
+
+    - name: Debug
+      ansible.builtin.debug: var=eks_controller_join_key
+
+    - name: Storing the controller join key to add the other controller nodes.
+      ansible.builtin.copy:
+        content: "{{ eks_controller_join_key }}"
+        dest: ~/eks_controller_join_key
+        mode: '0644'
+      when: (kubeinit_controller_count | int) > 1
+
+    - name: Create kube directory
+      ansible.builtin.file:
+        path: ~/.kube
+        state: directory
+        mode: '0644'
+
+    - name: Copying required files
+      ansible.builtin.shell: |
+        cp -f /etc/kubernetes/admin.conf ~/.kube/config
+        chown $(id -u):$(id -g) ~/.kube/config
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Get the join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: _result_join_command
+      changed_when: "_result_join_command.rc == 0"
+
+    - name: Storing the join cluster command token.
+      ansible.builtin.copy:
+        content: "{{ _result_join_command.stdout }}"
+        dest: ~/eks_token
+        mode: '0644'
+      when: (kubeinit_controller_count | int) > 1
+
+    - name: Install Network Add-on
+      ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      register: _result
+      changed_when: "_result.rc == 0"
+
+  delegate_to: "{{ kubeinit_first_controller_node }}"
+
+##
+## Execute to configure all the other controller nodes
+##
+
+- name: Join additional controller nodes using the PK
+  ansible.builtin.shell: |
+   kubeadm reset -f || true
+   echo "{{ _result_join_command.stdout }} {{ eks_controller_join_key }}" > ~/eks_controller_join_command.sh
+   sh ~/eks_controller_join_command.sh
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_controller_nodes'] }}"
+  loop_control:
+    loop_var: controller_node
+  delegate_to: "{{ controller_node }}"
+  when: (kubeinit_controller_count | int) > 1 and controller_node not in kubeinit_first_controller_node
+
+- name: Create kube directory
+  ansible.builtin.file:
+    path: ~/.kube
+    state: directory
+    mode: '0777'
+  loop: "{{ groups['all_controller_nodes'] }}"
+  loop_control:
+    loop_var: controller_node
+  delegate_to: "{{ controller_node }}"
+  when: (kubeinit_controller_count | int) > 1 and controller_node not in kubeinit_first_controller_node
+
+- name: Copying required files
+  ansible.builtin.shell: |
+    cp -f /etc/kubernetes/admin.conf ~/.kube/config
+    chown $(id -u):$(id -g) ~/.kube/config
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_controller_nodes'] }}"
+  loop_control:
+    loop_var: controller_node
+  delegate_to: "{{ controller_node }}"
+  when: (kubeinit_controller_count | int) > 1 and controller_node not in kubeinit_first_controller_node
+
+- name: Join compute nodes with kubernetes control plane
+  ansible.builtin.shell: |
+    kubeadm reset -f || true
+    echo "{{ _result_join_command.stdout }}" > ~/eks_compute_join_command.sh
+    sh ~/eks_compute_join_command.sh
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_compute_nodes'] }}"
+  loop_control:
+    loop_var: compute_node
+  delegate_to: "{{ compute_node }}"
+
+- name: Add task-deploy-cluster to tasks_completed
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-deploy-cluster']) }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

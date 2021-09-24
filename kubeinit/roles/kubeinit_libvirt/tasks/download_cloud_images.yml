@@ -14,6 +14,21 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Prepare environment if not prepared
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    public: true
+  vars:
+    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+  when: not task_completed
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-download-images'
+
 #
 # Download distribution specific images
 #
@@ -34,7 +49,7 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
-    guest_vm: "{{ cluster_role_item[1] }}"
+    guest_vm: "{{ hostvars[cluster_role_item[1]].guest_name }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
 - name: Create tuples for hosts and guest os
@@ -76,3 +91,19 @@
   register: update_cloud_image_packages
   changed_when: "update_cloud_image_packages.rc == 0"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+- name: Add task-download-images to tasks_completed
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-download-images']) }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

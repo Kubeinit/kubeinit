@@ -29,29 +29,53 @@
     dest: "{{ kubeinit_haproxy_config_file }}"
     mode: '0644'
 
+- name: Install buildah if required
+  ansible.builtin.package:
+    state: present
+    name: "buildah"
+
+- name: Remove any old haproxy buildah container
+  ansible.builtin.shell: |
+    set -o pipefail
+    buildah rm buildah-haproxy || true
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Create a new working container image
+  ansible.builtin.command: buildah from --name buildah-haproxy docker.io/library/haproxy:2.3
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Update the container
+  ansible.builtin.command: buildah run buildah-haproxy -- apt-get -y update
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Copy generated haproxy.cfg into container
+  ansible.builtin.command: buildah copy buildah-haproxy {{ kubeinit_haproxy_config_file }} /usr/local/etc/haproxy/haproxy.cfg
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Commit the container image
+  ansible.builtin.command: buildah commit buildah-haproxy kubeinit/kubeinit-haproxy:latest
+  register: _result
+  changed_when: "_result.rc == 0"
+
 - name: Create a podman container to serve the haproxy
   containers.podman.podman_container:
     name: "{{ kubeinit_haproxy_service_name }}"
-    image: docker.io/library/haproxy:2.3
-    pod: "{{ kubeinit_deployment_node_name }}-pod"
+    image: kubeinit/kubeinit-haproxy:latest
+    pod: "{{ kubeinit_deployment_pod_name }}"
     state: stopped
     volumes:
       - "{{ kubeinit_haproxy_directory_lib }}:/var/lib/haproxy:Z"
-  register: haproxy_podman_container_info
+      - "{{ kubeinit_services_data_volume }}:/var/kubeinit/:Z"
+  register: _result_container_info
   retries: 5
   delay: 10
-  until: not haproxy_podman_container_info.failed
-
-- name: Copy configuration into the container
-  ansible.builtin.command:
-    podman cp "{{ kubeinit_haproxy_config_file }}" "{{ kubeinit_haproxy_service_name }}:/usr/local/etc/haproxy/haproxy.cfg"
-  register: haproxy_copy_config
-  changed_when: "haproxy_copy_config.rc == 0"
-
-- name: Setting Podman facts about the container that will run the haproxy
-  ansible.builtin.set_fact:
-    container_haproxy_name: "{{ haproxy_podman_container_info.container.Name }}"
-    container_haproxy_pidfile: "{{ haproxy_podman_container_info.container.ConmonPidFile }}"
+  until: not _result_container_info.failed
 
 - name: Create systemd service for podman container
   ansible.builtin.include_role:
@@ -60,5 +84,9 @@
     public: true
   vars:
     kubeinit_services_systemd_service_name: "{{ kubeinit_haproxy_service_name }}"
-    kubeinit_services_podman_container_name: "{{ container_haproxy_name }}"
-    kubeinit_services_podman_container_pidfile: "{{ container_haproxy_pidfile }}"
+    kubeinit_services_podman_container_name: "{{ _result_container_info.container.Name }}"
+    kubeinit_services_podman_container_pidfile: "{{ _result_container_info.container.ConmonPidFile }}"
+
+- name: Clear temp facts
+  ansible.builtin.set_fact:
+    _result_container_info: null

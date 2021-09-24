@@ -15,102 +15,187 @@
 # under the License.
 
 
-- name: Remove any previous kubeinit podman network
-  containers.podman.podman_network:
-    name: "{{ kubeinit_deployment_node_name }}-bridge"
-    state: absent
+- name: Delegate to service node target
+  block:
 
-- name: Create a podman network for the service containers
-  containers.podman.podman_network:
-    name: "{{ kubeinit_deployment_node_name }}-bridge"
-    opt:
-      mtu: 1442
-      vlan: 0
-    state: present
+    - name: Prepare podman
+      ansible.builtin.include_role:
+        name: ../../roles/kubeinit_prepare
+        tasks_from: prepare_podman.yml
+        public: true
 
-- name: Remove any previous services podman pod
-  containers.podman.podman_pod:
-    name: "{{ kubeinit_deployment_node_name }}-pod"
-    state: absent
+    - name: Ensure user specific systemd instance are persistent
+      ansible.builtin.command: |
+        loginctl enable-linger {{ kubeinit_service_user }}
+      register: _result
+      changed_when: "_result.rc == 0"
 
-- name: Create a podman pod for the service containers
-  containers.podman.podman_pod:
-    name: "{{ kubeinit_deployment_node_name }}-pod"
-    network: "{{ kubeinit_deployment_node_name }}-bridge"
-    hostname: "{{ kubeinit_deployment_node_name }}.{{ kubeinit_cluster_fqdn }}"
-    dns:
-      - "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
-      - "{{ kubeinit_common_dns_public }}"
-    dns_search: "{{ kubeinit_cluster_fqdn }}"
-    state: started
-  register: services_podman_pod_info
+    - name: Retrieve remote user runtime path
+      ansible.builtin.command: |
+        loginctl show-user {{ kubeinit_service_user }} -p RuntimePath --value
+      register: _result_systemd_runtime_path
+      changed_when: "_result_systemd_runtime_path.rc == 0"
 
-- name: Gather info about the infra container of the services pod
-  containers.podman.podman_container_info:
-    name: "{{ services_podman_pod_info.pod.Containers[0].Name }}"
-  register: services_pod_infra_info
+    - name: Enable and start podman.socket
+      ansible.builtin.systemd:
+        name: podman.socket
+        enabled: yes
+        state: started
+        scope: user
 
-- name: Extract cni netns value for the pod
+    - name: Start podman.service
+      ansible.builtin.systemd:
+        name: podman.service
+        state: started
+        scope: user
+
+  delegate_to: "{{ kubeinit_deployment_delegate }}"
+
+- name: Set ssh port to use
   ansible.builtin.set_fact:
-    cni_netns_name: "{{ services_pod_infra_info.containers[0].NetworkSettings.SandboxKey | basename }}"
+    podman_remote_ssh_port: "{{ 6222 if (kubeinit_deployment_delegate not in kubeinit_bastion_host) else 22 }}"
 
-- name: Set veth facts
+- name: Set the remote end of the tunnel
   ansible.builtin.set_fact:
-    ovs_veth_devname: "veth0-{{ kubeinit_inventory_cluster_distro }}{{ kubeinit_deployment_node_name.split('-')[1][:3] }}{{ kubeinit_deployment_node_name.split('-')[2] }}"
+    podman_remote_ssh_host: "{{ hostvars[kubeinit_deployment_delegate].ssh_connection_address }}"
 
-- name: Remove any previous veth dev
-  ansible.builtin.shell: |
-    set -eo pipefail
-    ip link del {{ ovs_veth_devname }} || true
-  args:
-    executable: /bin/bash
-  register: remove_veth_dev
-  changed_when: "remove_veth_dev.rc == 0"
+- name: Set the host in the middle of the tunnel
+  ansible.builtin.set_fact:
+    podman_intermediate_ssh_host: "{{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}"
 
-- name: Create veth pair to connect the services pod to the cluster network
+- name: Delegate to bastion host
+  block:
+
+    - name: Need an ssh tunnel from the bastion host through the ovn-central host to the service node
+      ansible.builtin.command: |
+        ssh -i ~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -M -S "~/.ssh/cm-%r@%h:%p" -N -f -L "{{ kubeinit_bastion_host_address }}:{{ podman_remote_ssh_port }}:{{ podman_remote_ssh_host }}:22" "{{ podman_intermediate_ssh_host }}"
+
+    - name: Open firewall port 6222 on bastion
+      ansible.posix.firewalld:
+        port: 6222/tcp
+        state: enabled
+        permanent: true
+      when: hostvars[kubeinit_bastion_host].firewalld_is_active
+
+    - name: Reload firewalld service
+      ansible.builtin.shell: |
+        firewall-cmd --reload
+      args:
+        executable: /bin/bash
+      when: hostvars[kubeinit_bastion_host].firewalld_is_active
+
+    - name: Create route to cluster network on bastion host
+      ansible.builtin.shell: |
+        set -eo pipefail
+        ip route delete {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} || true
+        ip route add {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via {{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}
+      args:
+        executable: /bin/bash
+      when: false and kubeinit_ovn_central_host not in kubeinit_bastion_host
+
+  delegate_to: "{{ kubeinit_bastion_host }}"
+  when: kubeinit_deployment_delegate not in kubeinit_bastion_host
+
+- name: Add remote system connection definition for bastion hypervisor
   ansible.builtin.command: |
-    ip link add {{ ovs_veth_devname }} mtu 1442 type veth peer name ceth0 mtu 1442 address {{ hostvars[kubeinit_deployment_node_name].mac }}
-  register: create_veth_pair
-  changed_when: "create_veth_pair.rc == 0"
+    podman --remote system connection add "{{ kubeinit_deployment_node_name }}" --identity "~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa" "ssh://{{ kubeinit_service_user }}@{{ kubeinit_bastion_host_address }}:{{ podman_remote_ssh_port }}{{ _result_systemd_runtime_path.stdout }}/podman/podman.sock"
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: localhost
 
-- name: Create veth pair to connect the services pod to the cluster network
-  ansible.builtin.command: |
-    ip link set ceth0 netns {{ cni_netns_name }}
-  register: set_ceth_netns
-  changed_when: "set_ceth_netns.rc == 0"
+- name: Delegate to service node target
+  block:
 
-- name: Create veth pair to connect the services pod to the cluster network
-  ansible.builtin.command: |
-    ip netns exec {{ cni_netns_name }} ip link set dev ceth0 up
-  register: set_ceth_up
-  changed_when: "set_ceth_up.rc == 0"
+    - name: Create kubeinit services data volume
+      containers.podman.podman_volume:
+        name: "{{ kubeinit_services_data_volume }}"
+        state: present
+        recreate: yes
 
-- name: Create veth pair to connect the services pod to the cluster network
-  ansible.builtin.command: |
-    ip netns exec {{ cni_netns_name }} ip addr add {{ hostvars[kubeinit_deployment_node_name].ansible_host }}/{{ kubeinit_inventory_network_cidr }} dev ceth0
-  register: set_ceth_ipaddr
-  changed_when: "set_ceth_ipaddr.rc == 0"
+    - name: Create a podman network for the service containers
+      containers.podman.podman_network:
+        name: "{{ kubeinit_deployment_bridge_name }}"
+        opt:
+          mtu: 1442
+          vlan: 0
+        state: present
 
-- name: Create veth pair to connect the services pod to the cluster network
-  ansible.builtin.command: |
-    ovs-vsctl add-port br-int {{ ovs_veth_devname }}
-  register: add_veth_to_ovs
-  changed_when: "add_veth_to_ovs.rc == 0"
+    - name: Create a podman pod for the service containers
+      containers.podman.podman_pod:
+        name: "{{ kubeinit_deployment_pod_name }}"
+        network: "{{ kubeinit_deployment_bridge_name }}"
+        hostname: "{{ kubeinit_deployment_node_name }}.{{ kubeinit_cluster_fqdn }}"
+        dns:
+          - "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}"
+          - "{{ kubeinit_common_dns_public }}"
+        dns_search: "{{ kubeinit_cluster_fqdn }}"
+        state: started
+      register: _result_pod_info
 
-- name: Create veth pair to connect the services pod to the cluster network
-  ansible.builtin.command: |
-    ip link set dev {{ ovs_veth_devname }} up
-  register: set_veth_up
-  changed_when: "set_veth_up.rc == 0"
+    - name: Gather info about the infra container of the services pod
+      containers.podman.podman_container_info:
+        name: "{{ _result_pod_info.pod.Containers[0].Name }}"
+      register: _result_infra_container_info
 
-- name: Create veth pair to connect the services pod to the cluster network
-  ansible.builtin.command: |
-    ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:attached-mac="{{ hostvars[kubeinit_deployment_node_name].mac }}"
-  register: set_veth_ovs_macaddr
-  changed_when: "set_veth_ovs_macaddr.rc == 0"
+  delegate_to: "{{ kubeinit_deployment_delegate }}"
 
-- name: Create veth pair to connect the services pod to the cluster network
-  ansible.builtin.command: |
-    ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:iface-id="{{ hostvars[kubeinit_deployment_node_name].interfaceid }}"
-  register: set_veth_ovs_ifaceid
-  changed_when: "set_veth_ovs_ifaceid.rc == 0"
+- name: Delegate to service node target
+  block:
+
+    - name: Extract cni netns value for the pod
+      ansible.builtin.set_fact:
+        cni_netns_name: "{{ _result_infra_container_info.containers[0].NetworkSettings.SandboxKey | basename }}"
+
+    - name: Set veth facts
+      ansible.builtin.set_fact:
+        ovs_veth_devname: "veth0-{{ hostvars[kubeinit_deployment_node_name].ansible_host | ansible.netcommon.ip4_hex }}"
+
+    - name: Create veth pair to connect the services pod to the cluster network
+      ansible.builtin.command: |
+        ip link add {{ ovs_veth_devname }} mtu 1442 type veth peer name ceth0 mtu 1442 address {{ hostvars[kubeinit_deployment_node_name].mac }}
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Put the container endpoint of the veth pair in the netns of the services pod
+      ansible.builtin.command: |
+        ip link set ceth0 netns {{ cni_netns_name }}
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Set the services pod endpoint up
+      ansible.builtin.command: |
+        ip netns exec {{ cni_netns_name }} ip link set dev ceth0 up
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Add the IP address for the services pod endpoint
+      ansible.builtin.command: |
+        ip netns exec {{ cni_netns_name }} ip addr add {{ hostvars[kubeinit_deployment_node_name].ansible_host }}/{{ kubeinit_inventory_network_cidr }} dev ceth0
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Add the cluster network endpoint to the openvswitch bridge
+      ansible.builtin.command: |
+        ovs-vsctl add-port br-int {{ ovs_veth_devname }}
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Set the cluster network endpoint up
+      ansible.builtin.command: |
+        ip link set dev {{ ovs_veth_devname }} up
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Set the mac address for the ovs port
+      ansible.builtin.command: |
+        ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:attached-mac="{{ hostvars[kubeinit_deployment_node_name].mac }}"
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Set the interface id for the ovs port
+      ansible.builtin.command: |
+        ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:iface-id="{{ hostvars[kubeinit_deployment_node_name].interfaceid }}"
+      register: _result
+      changed_when: "_result.rc == 0"
+
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"

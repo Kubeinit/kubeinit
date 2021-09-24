@@ -13,28 +13,3 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-
-
-- name: Delegate to cluster service node
-  block:
-
-    - name: "Render net info"
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo "{{ kubeinit_okd_pod_cidr }}" > ~/pod_cidr
-        echo "{{ kubeinit_okd_service_cidr }}" > ~/service_cidr
-      args:
-        executable: /bin/bash
-      register: render_net_info
-      changed_when: "render_net_info.rc == 0"
-
-    - name: Install services requirements
-      ansible.builtin.yum:
-        name: "{{ kubeinit_okd_service_dependencies }}"
-        state: present
-        use_backend: dnf
-
-    - name: Prepare openshift pullsecret
-      ansible.builtin.include_tasks: prepare_pullsecret.yml
-
-  delegate_to: "{{ kubeinit_deployment_node_name }}"

@@ -37,9 +37,8 @@ worker{{ loop.index - 1 }}.{{ kubeinit_cluster_fqdn }}.       IN      A       {{
 
 {% endfor %}
 
-{% for host in groups['bootstrap_node'] | default([]) | list %}
+{% for host in groups['extra_nodes'] | default([]) | list %}
 {{ host }}.{{ kubeinit_cluster_fqdn }}.                       IN      A       {{ hostvars[host].ansible_host }}
-bootstrap.{{ kubeinit_cluster_fqdn }}.                        IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
 ; OpenShift internal cluster IPs - A records

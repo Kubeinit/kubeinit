@@ -16,7 +16,7 @@
 
 
 #
-# Include Libvirt validations
+# "kubeinit_services" tasks
 #
 
 - name: Cleanup hypervisors if needed
@@ -33,21 +33,18 @@
       ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
     - name: End play
       ansible.builtin.meta: end_play
-  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-run-validations'
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-network'
 
-- name: Check that the hypervisor has enough disk space
-  ansible.builtin.include_tasks: 10_libvirt_free_space.yml
+- name: Create OVN network
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_libvirt"
+    tasks_from: deploy_network.yml
+    public: true
 
-- name: Check that the hypervisor has enough RAM
-  ansible.builtin.include_tasks: 20_libvirt_available_ram.yml
-
-- name: Check that the hypervisor has enough cores
-  ansible.builtin.include_tasks: 30_libvirt_check_cpu_cores.yml
-
-- name: Add task-run-validations to tasks_completed
+- name: Add task-create-network to tasks_completed
   ansible.builtin.add_host:
     name: "{{ kubeinit_cluster_facts_name }}"
-    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-run-validations']) }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-create-network']) }}"
 
 - name: Update kubeinit_cluster_hostvars
   ansible.builtin.set_fact:

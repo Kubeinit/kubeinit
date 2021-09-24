@@ -19,7 +19,7 @@
 # "kubeinit_dnsmasq" tasks
 #
 
-- name: Create Dnsmasq folders
+- name: Create dnsmasq folders
   ansible.builtin.file:
     path: "{{ item | safe | trim }}"
     state: directory
@@ -27,39 +27,64 @@
     mode: '0755'
   with_items: "{{ kubeinit_dnsmasq_directories }}"
 
-- name: Create Dnsmasq config file
+- name: Create dnsmasq config file
   ansible.builtin.template:
     src: "dnsmasq.conf.j2"
     dest: "{{ kubeinit_dnsmasq_config_file }}"
     mode: '0644'
   vars:
-    kubeinit_dnsmasq_interface: "{{ 'eth0' if (hostvars[kubeinit_deployment_node_name].type == 'virtual') else 'ceth0' }}"
+    kubeinit_dnsmasq_interface: 'ceth0'
+
+- name: Install buildah if required
+  ansible.builtin.package:
+    state: present
+    name: "buildah"
+
+- name: Remove any old dnsmasq buildah container
+  ansible.builtin.shell: |
+    set -o pipefail
+    buildah rm buildah-dnsmasq || true
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Create a new working container image
+  ansible.builtin.command: buildah from --name buildah-dnsmasq quay.io/poseidon/dnsmasq
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Update the container
+  ansible.builtin.command: buildah run buildah-dnsmasq -- apk upgrade
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Copy generated dnsmasq.conf into container
+  ansible.builtin.command: buildah copy buildah-dnsmasq {{ kubeinit_dnsmasq_config_file }} /etc/dnsmasq.conf
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Commit the container image
+  ansible.builtin.command: buildah commit buildah-dnsmasq kubeinit/kubeinit-dnsmasq:latest
+  register: _result
+  changed_when: "_result.rc == 0"
 
 - name: Create a podman container to serve the dnsmasq
   containers.podman.podman_container:
     name: "{{ kubeinit_dnsmasq_service_name }}"
-    image: quay.io/poseidon/dnsmasq
-    pod: "{{ kubeinit_deployment_node_name }}-pod"
+    image: kubeinit/kubeinit-dnsmasq:latest
+    pod: "{{ kubeinit_deployment_pod_name }}"
     state: stopped
     cap_add:
       - "NET_ADMIN"
       - "NET_RAW"
     command: -d -q -C /etc/dnsmasq.conf
-  register: dnsmasq_podman_container_info
+    volumes:
+      - "{{ kubeinit_services_data_volume }}:/var/kubeinit/:Z"
+  register: _result_container_info
   retries: 5
   delay: 10
-  until: not dnsmasq_podman_container_info.failed
-
-- name: Copy configuration into the container
-  ansible.builtin.command:
-    podman cp "{{ kubeinit_dnsmasq_config_file }}" "{{ kubeinit_dnsmasq_service_name }}:/etc/dnsmasq.conf"
-  register: dnsmasq_copy_config
-  changed_when: "dnsmasq_copy_config.rc == 0"
-
-- name: Setting Podman facts about the container that will run the dnsmasq
-  ansible.builtin.set_fact:
-    container_dnsmasq_name: "{{ dnsmasq_podman_container_info.container.Name }}"
-    container_dnsmasq_pidfile: "{{ dnsmasq_podman_container_info.container.ConmonPidFile }}"
+  until: not _result_container_info.failed
 
 - name: Create systemd service for podman container
   ansible.builtin.include_role:
@@ -68,5 +93,9 @@
     public: true
   vars:
     kubeinit_services_systemd_service_name: "{{ kubeinit_dnsmasq_service_name }}"
-    kubeinit_services_podman_container_name: "{{ container_dnsmasq_name }}"
-    kubeinit_services_podman_container_pidfile: "{{ container_dnsmasq_pidfile }}"
+    kubeinit_services_podman_container_name: "{{ _result_container_info.container.Name }}"
+    kubeinit_services_podman_container_pidfile: "{{ _result_container_info.container.ConmonPidFile }}"
+
+- name: Clear temp facts
+  ansible.builtin.set_fact:
+    _result_container_info: null

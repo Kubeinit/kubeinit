@@ -14,55 +14,97 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Prepare services if needed
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: prepare_services.yml
+    public: true
+  vars:
+    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+  when: not task_completed
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-cluster'
+
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: deploy_ubuntu_guest.yml
+    tasks_from: "deploy_{{ kubeinit_deployment_os }}_guest.yml"
     public: yes
-  with_items:
-    - "{{ groups['all_cluster_nodes'] | list }}"
+  loop: "{{ groups['all_cluster_nodes'] }}"
   loop_control:
-    loop_var: cluster_role_item
+    loop_var: cluster_node
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_node_name: "{{ cluster_node }}"
+    kubeinit_deployment_delegate: "{{ hostvars[cluster_node].target }}"
+    kubeinit_deployment_os: "{{ hostvars[cluster_node].os }}"
     kubeinit_deployment_role: cluster
+  when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed
 
-- name: Post configure the DNS in all nodes
-  ansible.builtin.include_tasks: 30_post_service_config.yml
-  with_items:
-    - "{{ groups['all_cluster_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
+- name: Add cluster authorized keys in cluster nodes
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ authorized_key }}"
+    state: present
+  loop: "{{ groups['all_cluster_nodes'] | product(kubeinit_cluster_hostvars.authorized_keys) }}"
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: cluster
+    cluster_node: "{{ item[0] }}"
+    authorized_key: "{{ item[1] }}"
+  delegate_to: "{{ cluster_node }}"
 
-- name: Configure the cluster master nodes
-  ansible.builtin.include_tasks: 40_configure_controller_nodes.yml
-  with_items:
-    - "{{ groups['all_controller_nodes'] | list }}"
+- name: Enable insecure registry in Docker
+  ansible.builtin.shell: |
+    # This is mandatory so the cluster nodes can fetch the
+    # images from the local (insecure) registry
+    sed -i '/^ExecStart=/ s/$/ --insecure-registry {{ kubeinit_registry_uri }}/' /lib/systemd/system/docker.service
+    systemctl daemon-reload
+    systemctl restart docker
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_cluster_nodes'] }}"
   loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: master
+    loop_var: cluster_node
+  delegate_to: "{{ cluster_node }}"
+  when: "'registry' in kubeinit_cluster_hostvars.services"
 
-- name: Configure the cluster worker nodes
-  ansible.builtin.include_tasks: 50_configure_compute_nodes.yml
-  with_items:
-    - "{{ groups['all_compute_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: worker
+- name: "Install RKE"
+  ansible.builtin.shell: |
+    ~/rke --version
+    ~/rke up --ignore-docker-version -disable-port-check
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
 
-- name: Deploy RKE
-  ansible.builtin.include_tasks: 60_deploy_rke.yml
-  with_items:
-    - "{{ groups['all_service_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: service
+- name: Autoload kubeconfig
+  ansible.builtin.shell: |
+    echo "export KUBECONFIG=~/kube_config_cluster.yml" >> ~/.bashrc
+  args:
+    executable: /bin/bash
+  ignore_errors: yes
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Create kube directory
+  ansible.builtin.file:
+    path: ~/.kube
+    state: directory
+    mode: '0644'
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Copy the kubeconfig
+  ansible.builtin.shell: |
+    cp ~/kube_config_cluster.yml ~/.kube/config
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"

@@ -14,7 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
 - name: "Install KubeVirt"
   ansible.builtin.shell: |
     set -o pipefail
@@ -29,8 +28,8 @@
     chmod +x virtctl
   args:
     executable: /bin/bash
-  register: cmd_res
-  changed_when: "cmd_res.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 # - name: "wait until crds are loaded"
@@ -40,15 +39,12 @@
 #     kubectl get crds | grep virtualmachines.kubevirt.io
 #   args:
 #     executable: /bin/bash
-#   register: wait_crd
-#   changed_when: "wait_crd.rc == 0"
+#   register: _result
+#   changed_when: "_result.rc == 0"
 #   retries: 60
 #   delay: 60
-#   until: wait_crd.stdout_lines | list | count == 1
-#   delegate_to: "{{ cluster_node }}"
-#   with_items: "{{ groups['all_service_nodes'] }}"
-#   loop_control:
-#     loop_var: cluster_node
+#   until: _result.stdout_lines | list | count == 1
+#   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 # - name: "Deploy example VM"
 #   ansible.builtin.shell: |
@@ -58,12 +54,9 @@
 #     ./virtctl start testvm
 #   args:
 #     executable: /bin/bash
-#   register: deploy_example_vm
-#   changed_when: "deploy_example_vm.rc == 0"
-#   delegate_to: "{{ cluster_node }}"
-#   with_items: "{{ groups['all_service_nodes'] }}"
-#   loop_control:
-#     loop_var: cluster_node
+#   register: _result
+#   changed_when: "_result.rc == 0"
+#   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 # - name: Print some final data
 #   vars:

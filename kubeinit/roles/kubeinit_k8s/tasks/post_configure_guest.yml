@@ -15,161 +15,88 @@
 # under the License.
 
 #
-# Initial config
+# cri-o repos
 #
 
-- name: Configure common requirements in guests
-  block:
+- name: Download cri-o repos
+  ansible.builtin.shell: |
+    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo \
+      https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8_Stream/devel:kubic:libcontainers:stable.repo
+    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_kubernetes_version }}.repo \
+      https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_kubernetes_version }}/CentOS_8_Stream/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_kubernetes_version }}.repo
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
 
-    - name: Install common requirements
-      ansible.builtin.yum:
-        name: "{{ kubeinit_k8s_common_dependencies }}"
-        state: present
-        use_backend: dnf
+#
+# cri-o config
+#
 
-    #
-    # cri-o config
-    #
+- name: Install the latest version of cri-o
+  ansible.builtin.package:
+    name: cri-o
+    state: present
 
-    # The three steps beforeshould provide the correct repo to install cri-o
-    - name: Install the latest version of cri-o
-      ansible.builtin.yum:
-        name: cri-o
-        state: present
+- name: Enable/start/status cri-o
+  ansible.builtin.shell: |
+    systemctl enable crio
+    systemctl start crio
+    systemctl status crio
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
 
-    - name: Creating cri-o sysctl file
-      ansible.builtin.file:
-        path: /etc/sysctl.d/99-kubernetes-cri.conf
-        state: touch
-        mode: '0644'
+#
+# kubernetes repos
+#
 
-    - name: Configure cri-o ipv4_forward
-      ansible.builtin.blockinfile:
-        path: /etc/sysctl.d/99-kubernetes-cri.conf
-        block: |
-         net.bridge.bridge-nf-call-iptables  = 1
-         net.ipv4.ip_forward                 = 1
-         net.bridge.bridge-nf-call-ip6tables = 1
+- name: Remove repo before adding it
+  ansible.builtin.file:
+    path: /etc/yum.repos.d/kubernetes.repo
+    state: absent
 
-    - name: Load system new sysctl parameters
-      ansible.builtin.command: sysctl -p/etc/sysctl.d/99-kubernetes-cri.conf
-      changed_when: false
+- name: Creating a repository file for Kubernetes
+  ansible.builtin.file:
+    path: /etc/yum.repos.d/kubernetes.repo
+    state: touch
+    mode: '0644'
 
-    - name: Update cri-o config group_manager to cgroupfs
-      ansible.builtin.command: sed -i 's#group_manager = "systemd"#group_manager = "cgroupfs"#g' /etc/crio/crio.conf
-      changed_when: false
+- name: Adding repository details in Kubernetes repo file.
+  ansible.builtin.blockinfile:
+    path: /etc/yum.repos.d/kubernetes.repo
+    block: |
+     [kubernetes]
+     name=Kubernetes
+     baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-$basearch
+     enabled=1
+     gpgcheck=1
+     repo_gpgcheck=1
+     gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+     exclude=kubelet kubeadm kubectl
 
-    - name: Update cri-o config conmon_cgroup to pod
-      ansible.builtin.command: sed -i 's#conmon_cgroup = "system.slice"#conmon_cgroup = "pod"#g' /etc/crio/crio.conf
-      changed_when: false
+#
+# Kubernetes config
+#
 
-    - name: Update cri-o config overlay to overlay2
-      ansible.builtin.command: sed -i 's/[#|^]storage_driver = .*/storage_driver = "overlay2"/g' /etc/crio/crio.conf
-      changed_when: false
+- name: Install requirements
+  ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_inventory_kubernetes_version }}.* kubeadm-{{ kubeinit_inventory_kubernetes_version }}.* kubectl-{{ kubeinit_inventory_kubernetes_version }}.* --disableexcludes=kubernetes
+  register: _result
+  changed_when: "_result.rc == 0"
 
-    - name: Update cri-o config storage option to overlay2
-      ansible.builtin.command: sed -i 's/[#|^]storage_option = .*/storage_option = [ "overlay2.override_kernel_check=1" ]/g' /etc/crio/crio.conf
-      changed_when: false
+- name: Enable kubelet
+  ansible.builtin.systemd:
+    state: restarted
+    name: kubelet
+    enabled: yes
 
-    - name: Create new net.d folder
-      ansible.builtin.file:
-        path: /etc/crio/net.d
-        state: directory
-        mode: '0644'
+#
+# Install additional packages
+#
 
-    - name: Update cri-o config network dir to crio folder
-      ansible.builtin.command: sed -i 's?[#|^]network_dir = .*?network_dir = "/etc/crio/net.d/"?g' /etc/crio/crio.conf
-      changed_when: false
-
-    - name: Update cri-o config conmon to the correct path
-      ansible.builtin.command: sed 's|/usr/libexec/crio/conmon|/usr/bin/conmon|' -i /etc/crio/crio.conf
-      changed_when: false
-
-    - name: Creating kubelet default file
-      ansible.builtin.file:
-        path: /etc/default/kubelet
-        state: touch
-        mode: '0644'
-
-    - name: Configure kubelet defaults
-      ansible.builtin.blockinfile:
-        path: /etc/default/kubelet
-        block: |
-          KUBELET_EXTRA_ARGS=--runtime-cgroups=/systemd/system.slice --kubelet-cgroups=/systemd/system.slice --feature-gates="AllAlpha=false,RunAsGroup=true" --container-runtime=remote --cgroup-driver=cgroupfs --container-runtime-endpoint='unix:///var/run/crio/crio.sock' --runtime-request-timeout=5m
-
-    - name: Systemd reload
-      ansible.builtin.command: systemctl daemon-reload
-      changed_when: false
-
-    - name: Creating cri-o bridge
-      # From: https://github.com/cri-o/cri-o/blob/master/contrib/cni/10-crio-bridge.conf
-      ansible.builtin.file:
-        path: /etc/crio/net.d/10-crio-bridge.conf
-        state: touch
-        mode: '0644'
-
-    - name: Configure cri-o bridge
-      ansible.builtin.blockinfile:
-        path: /etc/crio/net.d/10-crio-bridge.conf
-        block: |
-         {
-             "cniVersion": "0.3.1",
-             "name": "crio-bridge",
-             "type": "bridge",
-             "bridge": "cni0",
-             "isGateway": true,
-             "ipMasq": true,
-             "hairpinMode": true,
-             "ipam": {
-                 "type": "host-local",
-                 "routes": [
-                     { "dst": "0.0.0.0/0" },
-                     { "dst": "1100:200::1/24" }
-                 ],
-                 "ranges": [
-                     [{ "subnet": "10.244.0.0/16" }],
-                     [{ "subnet": "1100:200::/24" }]
-                 ]
-             }
-         }
-
-    - name: Create hooks folder
-      ansible.builtin.file:
-        path: /usr/share/containers/oci/hooks.d
-        state: directory
-        mode: '0777'
-
-    - name: Enable/start/status cri-o
-      ansible.builtin.shell: |
-        systemctl enable crio
-        systemctl start crio
-        systemctl status crio
-      args:
-        executable: /bin/bash
-      changed_when: false
-
-    #
-    # Kubernetes config
-    #
-
-    - name: Install requirements
-      ansible.builtin.package:
-        name:
-          - tc
-          - podman-docker
-          - yum-utils
-          - device-mapper-persistent-data
-          - lvm2
-        state: present
-
-    - name: Install requirements
-      ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_inventory_k8s_version }}.* kubeadm-{{ kubeinit_inventory_k8s_version }}.* kubectl-{{ kubeinit_inventory_k8s_version }}.* --disableexcludes=kubernetes
-      changed_when: false
-
-    - name: Enable kubelet
-      ansible.builtin.systemd:
-        state: restarted
-        name: kubelet
-        enabled: yes
-
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+- name: Install common requirements
+  ansible.builtin.package:
+    name: "{{ kubeinit_k8s_common_dependencies }}"
+    state: present
+  when: kubeinit_k8s_common_dependencies is defined

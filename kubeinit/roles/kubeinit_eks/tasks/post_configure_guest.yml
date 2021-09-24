@@ -15,80 +15,107 @@
 # under the License.
 
 #
-# Initial config
+# cri-o repos
 #
 
-- name: Configure common requirements in guests
-  block:
+- name: Download cri-o repos
+  ansible.builtin.shell: |
+    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo \
+      https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8_Stream/devel:kubic:libcontainers:stable.repo
+    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_kubernetes_version }}.repo \
+      https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_kubernetes_version }}/CentOS_8_Stream/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_kubernetes_version }}.repo
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
 
-    - name: Install common requirements
-      ansible.builtin.yum:
-        name: "{{ kubeinit_eks_common_dependencies }}"
-        state: present
-        use_backend: dnf
+#
+# cri-o config
+#
 
-    #
-    # cri-o repos
-    #
+- name: Install the latest version of cri-o
+  ansible.builtin.package:
+    name: cri-o
+    state: present
 
-    - name: Download cri-o repos
-      ansible.builtin.shell: |
-        curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo \
-          https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8_Stream/devel:kubic:libcontainers:stable.repo
-        curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_k8s_version }}.repo \
-          https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_k8s_version }}/CentOS_8_Stream/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_k8s_version }}.repo
-      args:
-        executable: /bin/bash
+- name: Add insecure registry
+  ansible.builtin.blockinfile:
+    path: /etc/containers/registries.conf
+    block: |
+      [[registry]]
+      location = "{{ kubeinit_registry_uri }}"
+      insecure = true
+  when: "'registry' in kubeinit_cluster_hostvars.services"
 
-    #
-    # cri-o config
-    #
+- name: Enable/start/status cri-o
+  ansible.builtin.shell: |
+    systemctl enable crio
+    systemctl start crio
+    systemctl status crio
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
 
-    # The three steps beforeshould provide the correct repo to install cri-o
-    - name: Install the latest version of cri-o
-      ansible.builtin.yum:
-        name: cri-o
-        state: present
+#
+# kubernetes repos
+#
 
-    - name: Add insecure registry
-      ansible.builtin.blockinfile:
-        path: /etc/containers/registries.conf
-        block: |
-          [[registry]]
-          location = "{{ kubeinit_registry_uri }}"
-          insecure = true
-      when: "'registry' in kubeinit_cluster_hostvars.services"
+- name: Remove repo before adding it
+  ansible.builtin.file:
+    path: /etc/yum.repos.d/kubernetes.repo
+    state: absent
 
-    - name: Enable/start/status cri-o
-      ansible.builtin.shell: |
-        systemctl enable crio
-        systemctl start crio
-        systemctl status crio
-      args:
-        executable: /bin/bash
-      changed_when: false
+- name: Creating a repository file for Kubernetes
+  ansible.builtin.file:
+    path: /etc/yum.repos.d/kubernetes.repo
+    state: touch
+    mode: '0644'
 
-    #
-    # Kubernetes config
-    #
+- name: Adding repository details in Kubernetes repo file.
+  ansible.builtin.blockinfile:
+    path: /etc/yum.repos.d/kubernetes.repo
+    block: |
+     [kubernetes]
+     name=Kubernetes
+     baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+     enabled=1
+     gpgcheck=1
+     repo_gpgcheck=1
+     gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+     exclude=kubelet kubeadm kubectl
 
-    - name: Install requirements
-      ansible.builtin.package:
-        name:
-          - tc
-          - yum-utils
-          - device-mapper-persistent-data
-          - lvm2
-        state: present
+#
+# Kubernetes config
+#
 
-    - name: Install requirements
-      ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_eks_kubernetes_version }} kubeadm-{{ kubeinit_eks_kubernetes_version }} kubectl-{{ kubeinit_eks_kubernetes_version }} --disableexcludes=kubernetes
-      changed_when: false
+- name: Install requirements
+  ansible.builtin.package:
+    name:
+      - jq
+      - tc
+      - yum-utils
+      - device-mapper-persistent-data
+      - lvm2
+    state: present
 
-    - name: Enable kubelet
-      ansible.builtin.systemd:
-        state: restarted
-        name: kubelet
-        enabled: yes
+- name: Install requirements
+  ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_eks_kubernetes_version }} kubeadm-{{ kubeinit_eks_kubernetes_version }} kubectl-{{ kubeinit_eks_kubernetes_version }} --disableexcludes=kubernetes
+  register: _result
+  changed_when: "_result.rc == 0"
 
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+- name: Enable kubelet
+  ansible.builtin.systemd:
+    state: restarted
+    name: kubelet
+    enabled: yes
+
+#
+# Install additional packages
+#
+
+- name: Install common requirements
+  ansible.builtin.package:
+    name: "{{ kubeinit_eks_common_dependencies }}"
+    state: present
+  when: kubeinit_eks_common_dependencies is defined

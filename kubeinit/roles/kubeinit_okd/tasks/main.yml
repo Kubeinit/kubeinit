@@ -14,24 +14,25 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
 - name: Deploy the cluster bootstrap node
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: deploy_coreos_guest.yml
+    tasks_from: "deploy_{{ kubeinit_deployment_os }}_guest.yml"
     public: yes
   with_items:
-    - "{{ groups['bootstrap_node'] | list }}"
+    - "{{ groups['extra_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_os: "{{ hostvars[cluster_role_item].os }}"
     kubeinit_deployment_role: bootstrap
 
 - name: Deploy the cluster master nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: deploy_coreos_guest.yml
+    tasks_from: "deploy_{{ kubeinit_deployment_os }}_guest.yml"
     public: yes
   with_items:
     - "{{ groups['all_controller_nodes'] | list }}"
@@ -39,40 +40,116 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_os: "{{ hostvars[cluster_role_item].os }}"
     kubeinit_deployment_role: master
 
-- name: Configure the cluster master nodes
-  ansible.builtin.include_tasks: 20_configure_controller_nodes.yml
-  with_items:
-    - "{{ groups['all_service_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: master
+- name: Verify that controller nodes are ok
+  ansible.builtin.shell: |
+    set -o pipefail
+    export KUBECONFIG=~/install_dir/auth/kubeconfig; \
+    oc get nodes | grep master | grep " Ready"
+  args:
+    executable: /bin/bash
+  register: cmd_res_nodes_ok
+  changed_when: "cmd_res_nodes_ok.rc == 0"
+  retries: 60
+  delay: 60
+  until: cmd_res_nodes_ok.stdout_lines | default([]) | list | count == groups['all_controller_nodes'] | count
+  delegate_to: "{{ kubeinit_provision_service_node }}"
 
-- name: Wait until bootstrap completes
-  ansible.builtin.include_tasks: 30_check_bootstrap_complete.yml
-  with_items:
-    - "{{ groups['all_service_nodes'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+- name: Use single node cluster
+  ansible.builtin.shell: |
+    set -o pipefail
+    export KUBECONFIG=~/install_dir/auth/kubeconfig
+    oc get nodes
+    oc patch clusterversion/version --type='merge' -p "$(cat <<- EOF
+    spec:
+      overrides:
+        - group: apps/v1
+          kind: Deployment
+          name: etcd-quorum-guard
+          namespace: openshift-machine-config-operator
+          unmanaged: true
+    EOF
+    )"
+    oc scale --replicas=1 deployment/etcd-quorum-guard -n openshift-machine-config-operator || true
+    oc scale --replicas=1 ingresscontroller/default -n openshift-ingress-operator || true
+    oc scale --replicas=1 deployment.apps/console -n openshift-console || true
+    oc scale --replicas=1 deployment.apps/downloads -n openshift-console || true
+    oc scale --replicas=1 deployment.apps/oauth-openshift -n openshift-authentication || true
+    oc scale --replicas=1 deployment.apps/packageserver -n openshift-operator-lifecycle-manager || true
+    # Optional
+    oc scale --replicas=1 deployment.apps/prometheus-adapter -n openshift-monitoring || true
+    oc scale --replicas=1 deployment.apps/thanos-querier -n openshift-monitoring || true
+    oc scale --replicas=1 statefulset.apps/prometheus-k8s -n openshift-monitoring || true
+    oc scale --replicas=1 statefulset.apps/alertmanager-main -n openshift-monitoring || true
+    oc patch etcd cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableEtcd": true }}}' --type=merge
+    oc patch authentications.operator.openshift.io cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableOAuthServer": true }}}' --type=merge
+  args:
+    executable: /bin/bash
+  register: single_node_cluster
+  changed_when: "single_node_cluster.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+  when: (groups['all_controller_nodes'] | count) == 1
 
-- name: Remove the bootstrap node
-  ansible.builtin.include_tasks: 40_remove_bootstrap_node.yml
-  with_items:
-    - "{{ groups['bootstrap_node'] | list }}"
-  loop_control:
-    loop_var: cluster_role_item
+# This can take a lot of time until the cluster converges
+- name: Wait for bootstrap to complete
+  ansible.builtin.shell: |
+    openshift-install gather --dir install_dir bootstrap --bootstrap {{ hostvars[groups['extra_nodes'][0]].ansible_host }} \
+        {% for node in groups['all_controller_nodes'] -%}{% raw %} --master {% endraw %}{{ hostvars[node].ansible_host }}{%- endfor %}
+    openshift-install --dir=install_dir/ wait-for bootstrap-complete --log-level info
+  args:
+    executable: /bin/bash
+  register: result
+  retries: 5
+  delay: 20
+  until: result.rc == 0
+  changed_when: "result.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Remove bootstrap node from haproxy config
+  ansible.builtin.command: |
+    podman --remote --connection {{ kubeinit_haproxy_service_node }} exec {{ kubeinit_haproxy_service_name }} sed -i '/bootstrap/s/^/#/' /usr/local/etc/haproxy/haproxy.cfg
+  register: remove_bootstrap_from_haproxy
+  changed_when: "remove_bootstrap_from_haproxy.rc == 0"
+  delegate_to: localhost
+
+- name: Restart haproxy container
+  ansible.builtin.systemd:
+    name: "{{ kubeinit_haproxy_service_name }}"
+    state: restarted
+    enabled: yes
+    scope: user
+  delegate_to: "{{ hostvars[kubeinit_haproxy_service_node].target }}"
+
+# To run in the hypervisor where the bootstrap machine is deployed
+- name: Remove boostrap node
+  block:
+
+    - name: Destroy bootstrap node VM
+      community.libvirt.virt:
+        name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}"
+        command: destroy
+
+    - name: Undefine bootstrap node VM
+      community.libvirt.virt:
+        name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}"
+        command: undefine
+
+    - name: Remove bootstrap node VM storage
+      ansible.builtin.file:
+        state: absent
+        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2"
+
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_node_name: "{{ groups['extra_nodes'][0] }}"
+  delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
 - name: Deploy the cluster worker nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: deploy_coreos_guest.yml
+    tasks_from: "deploy_{{ kubeinit_deployment_os }}_guest.yml"
     public: yes
   with_items:
     - "{{ groups['all_compute_nodes'] | list }}"
@@ -80,4 +157,6 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_os: "{{ hostvars[cluster_role_item].os }}"
     kubeinit_deployment_role: worker

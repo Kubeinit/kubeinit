@@ -62,6 +62,11 @@
 ##
 ## Clean VMs
 ##
+- name: Generate a list of vm guest names to match
+  ansible.builtin.set_fact:
+    matching_vm_guest_names: "{{ (matching_vm_guest_names | default([])) | union([hostvars[item].guest_name]) }}"
+  loop: "{{ groups['all_guest_vms'] }}"
+
 - name: Destroy vms
   community.libvirt.virt:
     name: "{{ cluster_vm }}"
@@ -73,7 +78,7 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
     cluster_vm: "{{ cluster_role_item[1] }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: cluster_vm in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
+  when: cluster_vm in matching_vm_guest_names or kubeinit_libvirt_destroy_all_guests
 
 - name: Undefine vms
   community.libvirt.virt:
@@ -86,7 +91,7 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
     cluster_vm: "{{ cluster_role_item[1] }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: cluster_vm in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
+  when: cluster_vm in matching_vm_guest_names or kubeinit_libvirt_destroy_all_guests
 
 - name: Remove VMs storage
   ansible.builtin.file:
@@ -99,7 +104,7 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
     cluster_vm: "{{ cluster_role_item[1] }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: cluster_vm in groups['all_guest_vms'] or kubeinit_libvirt_destroy_all_guests
+  when: cluster_vm in matching_vm_guest_names or kubeinit_libvirt_destroy_all_guests
 
 ##
 ## Clean folders
@@ -114,7 +119,7 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
-    guest_vm: "{{ cluster_role_item[1] }}"
+    guest_vm: "{{ hostvars[cluster_role_item[1]].guest_name }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
 ##
