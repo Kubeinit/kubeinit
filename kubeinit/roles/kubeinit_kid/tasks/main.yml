@@ -14,10 +14,26 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Prepare services if needed
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: prepare_services.yml
+    public: true
+  vars:
+    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+  when: not task_completed
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-cluster'
+
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: "deploy_{{ kubeinit_deployment_os }}_guest.yml"
+    tasks_from: deploy_debian_guest.yml
     public: yes
   loop: "{{ groups['all_cluster_nodes'] }}"
   loop_control:
@@ -25,7 +41,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_node }}"
     kubeinit_deployment_delegate: "{{ hostvars[cluster_node].target }}"
-    kubeinit_deployment_os: "{{ hostvars[cluster_node].os }}"
     kubeinit_deployment_role: cluster
 
 - name: Add cluster authorized keys in all cluster nodes
@@ -66,3 +81,19 @@
     state: directory
     mode: '0644'
   delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Add task-deploy-cluster to tasks_completed
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-deploy-cluster']) }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

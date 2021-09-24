@@ -33,7 +33,7 @@
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: "../../roles/kubeinit_libvirt"
-    tasks_from: "deploy_{{ kubeinit_deployment_os }}_guest.yml"
+    tasks_from: deploy_centos_guest.yml
     public: yes
   loop: "{{ groups['all_cluster_nodes'] }}"
   loop_control:
@@ -41,7 +41,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
-    kubeinit_deployment_os: "{{ hostvars[cluster_role_item].os }}"
     kubeinit_deployment_role: cluster
   when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed
 
