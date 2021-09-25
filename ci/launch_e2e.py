@@ -265,7 +265,7 @@ def main(cluster_type, job_type):
                 else:
                     state = "failure"
                 dur_mins = str(round((time.time() - start_time) / 60, 2))
-                issue = repo.issue(489)
+                issue = repo.get_issue(number=489)
                 issue.create_comment(body="%s-%s-%s-%s-%s-%s-%s-%s-%s-%s" % (distro,
                                                                              driver,
                                                                              masters,
