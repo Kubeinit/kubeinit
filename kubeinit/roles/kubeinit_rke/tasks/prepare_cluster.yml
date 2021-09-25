@@ -13,3 +13,153 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
+
+- name: Prepare environment if not prepared
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    public: true
+  vars:
+    environment_facts_set: "{{ kubeinit_cluster_facts_name is defined }}"
+  when: not environment_facts_set
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-cluster'
+
+- name: Setup the cluster provision container
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_services"
+    tasks_from: create_provision_container.yml
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
+    kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
+    kubeinit_deployment_os: "{{ hostvars[kubeinit_provision_service_node].os }}"
+    kubeinit_deployment_type: container
+    kubeinit_deployment_role: provision
+
+- name: Configure the provision service node
+  block:
+
+    - name: Add kubic repo for latest podman (Ubuntu)
+      ansible.builtin.shell: |
+        set -eo pipefail
+        version_id=$(sed -n -e 's/^VERSION_ID="\(.*\)"/\1/p' /etc/os-release)
+        echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+        curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/Release.key" | apt-key add -
+        apt-get update
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Add kubernetes repo for latest kubectl (Ubuntu)
+      ansible.builtin.shell: |
+        set -eo pipefail
+        apt-get install -y apt-transport-https ca-certificates curl
+        curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list
+        apt-get update
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Install services requirements
+      ansible.builtin.package:
+        name: "kubectl,skopeo"
+        state: present
+
+    - name: "Render net info"
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "{{ kubeinit_rke_pod_cidr }}" > ~/pod_cidr
+        echo "{{ kubeinit_rke_service_cidr }}" > ~/service_cidr
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Render the cluster template
+      ansible.builtin.template:
+        src: "cluster.yml.j2"
+        dest: "~/cluster.yml"
+        mode: '0644'
+
+    - name: Download rancher
+      ansible.builtin.get_url:
+        url: "https://github.com/rancher/rke/releases/download/{{ kubeinit_rke_registry_release_tag }}/rke_linux-amd64"
+        dest: ~/
+        mode: '0755'
+
+    - name: "Adjust installer"
+      ansible.builtin.copy:
+        src: ~/rke_linux-amd64
+        dest: ~/rke
+        remote_src: yes
+        group: "{{ kubeinit_service_user }}"
+        owner: "{{ kubeinit_service_user }}"
+        mode: '0755'
+        force: yes
+
+    - name: "Render the required container images"
+      ansible.builtin.shell: |
+        set -o pipefail
+        ~/rke config --system-images | grep -v 'INFO' | grep -v 'level=info' > ~/kubeinit_deployment_images.txt
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Mirror RKE remote registry to local
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -e
+        mkdir -p /etc/containers/
+        cat << EOF > /etc/containers/policy.json
+        {
+            "default": [
+                {
+                    "type": "insecureAcceptAnything"
+                }
+            ],
+            "transports":
+                {
+                    "docker-daemon":
+                        {
+                            "": [{"type":"insecureAcceptAnything"}]
+                        }
+                }
+        }
+        EOF
+        echo "function skopeo_sync {" > skopeo_sync.bash
+        echo "  skopeo sync --src docker --dest docker docker.io/\$1 --dest-creds {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} {{ kubeinit_registry_uri }}/\$2" >> ~/skopeo_sync.bash
+        echo "}" >> ~/skopeo_sync.bash
+        sed -e 's;^\(.*\)/\(.*\);skopeo_sync "\1/\2" "\1";' ~/kubeinit_deployment_images.txt >> ~/skopeo_sync.bash
+        bash ~/skopeo_sync.bash
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: "'registry' in kubeinit_cluster_hostvars.services"
+
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Add task-prepare-cluster to tasks_completed
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-prepare-cluster']) }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

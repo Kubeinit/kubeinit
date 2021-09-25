@@ -14,13 +14,35 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Install buildah if required
+  ansible.builtin.package:
+    state: present
+    name: "buildah"
+
+- name: Create a new working container image
+  ansible.builtin.command: buildah from --name buildah-registry docker.io/library/registry:2
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Update the container
+  ansible.builtin.command: buildah run buildah-registry -- apk upgrade
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Commit the container image
+  ansible.builtin.command: buildah commit buildah-registry kubeinit/kubeinit-registry:latest
+  register: _result
+  changed_when: "_result.rc == 0"
 
 - name: Create a podman container to serve the registry
   containers.podman.podman_container:
     name: "{{ kubeinit_registry_service_name }}"
-    image: docker.io/library/registry:2
-    pod: "{{ kubeinit_deployment_node_name }}-pod"
+    image: kubeinit/kubeinit-registry:latest
+    pod: "{{ kubeinit_deployment_pod_name }}"
+    init: true
     state: stopped
+    volumes:
+      - "{{ kubeinit_services_data_volume }}:/var/kubeinit"
     env:
       REGISTRY_AUTH: htpasswd
       REGISTRY_AUTH_HTPASSWD_REALM: Registry
@@ -29,27 +51,22 @@
       REGISTRY_HTTP_TLS_CERTIFICATE: certs/domain.crt
       REGISTRY_HTTP_TLS_KEY: certs/domain.key
       REGISTRY_COMPATIBILITY_SCHEMA1_ENABLED: true
-  register: registry_podman_container_info
+  register: _result_container_info
   retries: 5
   delay: 10
-  until: not registry_podman_container_info.failed
-
-- name: Setting Podman facts about the container that will run the registry
-  ansible.builtin.set_fact:
-    container_registry_name: "{{ registry_podman_container_info.container.Name }}"
-    container_registry_pidfile: "{{ registry_podman_container_info.container.ConmonPidFile }}"
+  until: not _result_container_info.failed
 
 - name: Copy kubeinit registry secrets into registry container
   ansible.builtin.shell: |
     set -eo pipefail
-    podman --remote cp kubeinit-credentials:/var/kubeinit/registry/auth/ - | \
-      podman --remote cp - "{{ kubeinit_registry_service_name }}:/"
-    podman --remote cp kubeinit-credentials:/var/kubeinit/registry/certs/ - | \
-      podman --remote cp - "{{ kubeinit_registry_service_name }}:/"
+    podman --remote --connection {{ kubeinit_registry_service_node }} cp {{ kubeinit_registry_service_name }}:{{ kubeinit_registry_directory_auth }} - | \
+      podman --remote --connection {{ kubeinit_registry_service_node }} cp - "{{ kubeinit_registry_service_name }}:/"
+    podman --remote --connection {{ kubeinit_registry_service_node }} cp {{ kubeinit_registry_service_name }}:{{ kubeinit_registry_directory_cert }} - | \
+      podman --remote --connection {{ kubeinit_registry_service_node }} cp - "{{ kubeinit_registry_service_name }}:/"
   args:
     executable: /bin/bash
-  register: registry_copy_secrets
-  changed_when: "registry_copy_secrets.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   delegate_to: localhost
 
 - name: Create systemd service for podman container
@@ -59,31 +76,9 @@
     public: true
   vars:
     kubeinit_services_systemd_service_name: "{{ kubeinit_registry_service_name }}"
-    kubeinit_services_podman_container_name: "{{ container_registry_name }}"
-    kubeinit_services_podman_container_pidfile: "{{ container_registry_pidfile }}"
+    kubeinit_services_podman_container_name: "{{ _result_container_info.container.Name }}"
+    kubeinit_services_podman_container_pidfile: "{{ _result_container_info.container.ConmonPidFile }}"
 
-- name: Disable pipelining while using podman connector
-  block:
-
-    - name: Wait for connection to kubeinit-credentials container
-      ansible.builtin.wait_for_connection:
-        connect_timeout: 20
-        sleep: 5
-        delay: 5
-        timeout: 300
-
-    - name: Wait for registry service to be available
-      ansible.builtin.shell: |
-        set -eo pipefail
-        curl --cacert /var/kubeinit/registry/certs/domain.crt -s -o /dev/null -w '%{http_code}' --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/_catalog
-      args:
-        executable: /bin/bash
-      register: registry_service_wait
-      retries: 5
-      delay: 10
-      until: registry_service_wait.stdout == '200'
-      changed_when: "registry_service_wait.rc == 0"
-
-  vars:
-    ansible_ssh_pipelining: False
-  delegate_to: kubeinit-credentials
+- name: Clear temp facts
+  ansible.builtin.set_fact:
+    _result_container_info: null

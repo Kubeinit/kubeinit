@@ -46,33 +46,28 @@
     touch /etc/qemu/firmware/50-edk2-ovmf-cc.json
   args:
     executable: /bin/bash
-  register: libvirt_bugfix
-  changed_when: "libvirt_bugfix.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
 
 - name: Install CentOS based requirements
   ansible.builtin.package:
     name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
     state: present
   when: hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS' or hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora'
-  register: installed_packages_centos
+  register: _result_installed_packages_centos
 
 - name: Install Debian based requirements
   ansible.builtin.package:
     name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
     state: present
   when: hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian'
-  register: installed_packages_debian
+  register: _result_installed_packages_debian
 
 - name: Upgrade all packages
   ansible.builtin.package:
     name: '*'
     state: latest
-  register: upgraded_packages
-
-- name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
-  community.crypto.openssh_keypair:
-    path: "~/.ssh/id_rsa"
-    regenerate: 'never'
+  register: _result_upgraded_packages
 
 - name: Add users to libvirt
   ansible.builtin.user:
@@ -81,11 +76,7 @@
     append: yes
   with_items:
     - root
-    - "{{ ansible_ssh_user | default(lookup('env', 'USER'), True) }}"
-
-- name: Restart if required
-  ansible.builtin.set_fact:
-    kubeinit_libvirt_restart: (installed_packages_debian.changed or installed_packages_centos.changed or upgraded_packages.changed)
+    - "{{ ansible_ssh_user | default('root') }}"
 
 - name: Reboot host and wait for it to restart
   ansible.builtin.reboot:
@@ -95,7 +86,13 @@
     pre_reboot_delay: 0
     post_reboot_delay: 30
     test_command: whoami
-  when: kubeinit_libvirt_restart | bool
+  when: (_result_installed_packages_centos.changed or _result_installed_packages_debian.changed or _result_upgraded_packages.changed) and kubeinit_libvirt_reboot_hypervisors_after_package_update
+
+- name: Clear installed/upgraded packages facts
+  ansible.builtin.set_fact:
+    _result_installed_packages_centos: null
+    _result_installed_packages_debian: null
+    _result_upgraded_packages: null
 
 - name: Check if Intel virtualization is supported
   ansible.builtin.shell: |
@@ -104,8 +101,8 @@
   args:
     executable: /bin/bash
   ignore_errors: yes
-  register: intel_processor
-  changed_when: "intel_processor.rc == 0"
+  register: _result_intel_processor
+  changed_when: "_result_intel_processor.rc == 0"
 
 - name: Check if AMD virtualization is supported
   ansible.builtin.shell: |
@@ -114,34 +111,34 @@
   args:
     executable: /bin/bash
   ignore_errors: yes
-  register: amd_processor
-  changed_when: "amd_processor.rc == 0"
+  register: _result_amd_processor
+  changed_when: "_result_amd_processor.rc == 0"
 
 - name: Fail in case no Intel or AMD virtualization support is not detected and is not a hosted deployment.
   ansible.builtin.fail:
     msg: "The system doesn't seem to have Intel nor AMD virtualization support or is not a hosted deployment."
-  when: intel_processor.rc != 0 and amd_processor.rc != 0 and not kubeinit_inventory_hosted_deployment
+  when: _result_intel_processor.rc != 0 and _result_amd_processor.rc != 0 and not kubeinit_inventory_hosted_deployment
 
 - name: Set fact for Intel virtualization
   ansible.builtin.set_fact:
     nested_virtualization_module_name: "kvm_intel"
-  when: intel_processor.rc == 0
+  when: _result_intel_processor.rc == 0
 
 - name: Set fact for AMD virtualization
   ansible.builtin.set_fact:
     nested_virtualization_module_name: "kvm_amd"
-  when: amd_processor.rc == 0
+  when: _result_amd_processor.rc == 0
 
 - name: Set fact for nested virtualization test path
   ansible.builtin.set_fact:
     nested_virtualization_test_path: "/sys/module/{{ nested_virtualization_module_name }}/parameters/nested"
-  when: intel_processor.rc == 0 or amd_processor.rc == 0
+  when: _result_intel_processor.rc == 0 or _result_amd_processor.rc == 0
 
 - name: "Ensure {{ nested_virtualization_module_name }} module is available and loaded"
   community.general.modprobe:
     name: "{{ nested_virtualization_module_name }}"
     state: present
-  when: intel_processor.rc == 0 or amd_processor.rc == 0
+  when: _result_intel_processor.rc == 0 or _result_amd_processor.rc == 0
 
 - name: Test status of nested virtualization
   ansible.builtin.shell: |
@@ -149,9 +146,9 @@
     cat {{ nested_virtualization_test_path }}
   args:
     executable: /bin/bash
-  register: actual_status
-  changed_when: "actual_status.rc == 0"
-  when: intel_processor.rc == 0 or amd_processor.rc == 0
+  register: _result
+  changed_when: "_result.rc == 0"
+  when: _result_intel_processor.rc == 0 or _result_amd_processor.rc == 0
 
 - name: "Persist configuration in /etc/modprobe.d/kvm.conf"
   ansible.builtin.lineinfile:
@@ -160,18 +157,18 @@
     line: "options {{ nested_virtualization_module_name }} nested=1"
     create: yes
     mode: '0644'
-  when: intel_processor.rc == 0 or amd_processor.rc == 0
+  when: _result_intel_processor.rc == 0 or _result_amd_processor.rc == 0
 
 - name: "Load {{ nested_virtualization_module_name }} module"
   community.general.modprobe:
     name: "{{ nested_virtualization_module_name }}"
     state: present
-  when: intel_processor.rc == 0 or amd_processor.rc == 0
+  when: _result_intel_processor.rc == 0 or _result_amd_processor.rc == 0
 
 - name: Clear intel and amd processor facts
   ansible.builtin.set_fact:
-    intel_processor: null
-    amd_processor: null
+    _result_intel_processor: null
+    _result_amd_processor: null
 
 - name: Enable and start libvirtd
   ansible.builtin.service:

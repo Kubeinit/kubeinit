@@ -1,0 +1,384 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Delegate to the service node target
+  block:
+
+    - name: Install buildah if required
+      ansible.builtin.package:
+        state: present
+        name: "buildah"
+
+    - name: Remove any old buildah container
+      ansible.builtin.shell: |
+        set -eo pipefail
+        if [ "$(buildah ls --filter 'name=buildah-provision' --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]
+        then
+          buildah rm buildah-provision
+        fi
+      args:
+        executable: /bin/bash
+      register: provision_buildah_rm_img
+      changed_when: "provision_buildah_rm_img.rc == 0"
+
+    - name: Setup CentOS container image
+      block:
+        - name: Create a new working container image (CentOS)
+          ansible.builtin.command: buildah from --name buildah-provision quay.io/centos/centos:stream8
+          register: provision_buildah_create_img
+          changed_when: "provision_buildah_create_img.rc == 0"
+        - name: Update the container
+          ansible.builtin.command: buildah run buildah-provision -- dnf update -q -y
+          register: provision_buildah_update_packages
+          changed_when: "provision_buildah_update_packages.rc == 0"
+        - name: Install commands and services we will need
+          ansible.builtin.command: buildah run buildah-provision -- dnf install -q -y systemd openssh openssh-server openssh-clients procps iproute iputils net-tools python3 python3-pip jq
+          register: provision_buildah_install_packages
+          changed_when: "provision_buildah_install_packages.rc == 0"
+      when: kubeinit_deployment_os == 'centos'
+
+    - name: Setup Debian container image
+      block:
+        - name: Create a new working container image
+          ansible.builtin.command: buildah from --name buildah-provision docker.io/debian:{{ kubeinit_libvirt_debian_release }}
+          register: provision_buildah_create_img
+          changed_when: "provision_buildah_create_img.rc == 0"
+        - name: Update the container
+          ansible.builtin.command: buildah run buildah-provision -- apt-get update -q -y
+          register: provision_buildah_update_packages
+          changed_when: "provision_buildah_update_packages.rc == 0"
+        - name: Install commands and services we will need
+          ansible.builtin.command: buildah run buildah-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
+          register: provision_buildah_install_packages
+          changed_when: "provision_buildah_install_packages.rc == 0"
+        - name: Missing privilege separation directory
+          ansible.builtin.command: buildah run buildah-provision -- mkdir -p /run/sshd
+          register: provision_buildah_fix_sshd
+          changed_when: "provision_buildah_fix_sshd.rc == 0"
+      when: kubeinit_deployment_os == 'debian'
+
+    - name: Setup Ubuntu container image
+      block:
+        - name: Create a new working container image
+          ansible.builtin.command: buildah from --name buildah-provision docker.io/ubuntu:{{ kubeinit_libvirt_ubuntu_release }}
+          register: provision_buildah_create_img
+          changed_when: "provision_buildah_create_img.rc == 0"
+        - name: Update the container
+          ansible.builtin.command: buildah run buildah-provision -- apt-get update -q -y
+          register: provision_buildah_update_packages
+          changed_when: "provision_buildah_update_packages.rc == 0"
+        - name: Install commands and services we will need
+          ansible.builtin.command: buildah run buildah-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
+          register: provision_buildah_install_packages
+          changed_when: "provision_buildah_install_packages.rc == 0"
+        - name: Create folder normally done by service ssh start
+          ansible.builtin.command: buildah run buildah-provision -- mkdir /run/sshd
+          register: provision_buildah_create_folder
+          changed_when: "provision_buildah_create_folder.rc == 0"
+      when: kubeinit_deployment_os == 'ubuntu'
+
+    - name: Set working directory inside container
+      ansible.builtin.command: buildah config --workingdir {{ kubeinit_service_user_dir }} buildah-provision
+      register: provision_buildah_set_workingdir
+      changed_when: "provision_buildah_set_workingdir.rc == 0"
+
+    - name: Generate system ssh keys
+      ansible.builtin.command: buildah run buildah-provision -- bash -c "(cd /etc/ssh; ssh-keygen -A)"
+      register: provision_buildah_keygen
+      changed_when: "provision_buildah_keygen.rc == 0"
+
+    - name: Clear cmd
+      ansible.builtin.command: buildah config --cmd '' buildah-provision
+      register: provision_buildah_clear_cmd
+      changed_when: "provision_buildah_clear_cmd.rc == 0"
+
+    - name: Set entrypoint
+      ansible.builtin.command: buildah config --entrypoint '["/sbin/init"]' buildah-provision
+      register: provision_buildah_set_entrypoint
+      changed_when: "provision_buildah_set_entrypoint.rc == 0"
+
+    - name: Commit the image
+      ansible.builtin.command: buildah commit buildah-provision kubeinit/kubeinit-provision:latest
+      register: provision_buildah_commit_image
+      changed_when: "provision_buildah_commit_image.rc == 0"
+
+    - name: Remove any previous provision container
+      containers.podman.podman_container:
+        name: "{{ kubeinit_provision_service_name }}"
+        state: absent
+
+    - name: Create podman provision container
+      containers.podman.podman_container:
+        name: "{{ kubeinit_provision_service_name }}"
+        image: kubeinit/kubeinit-provision:latest
+        pod: "{{ kubeinit_deployment_pod_name }}"
+        state: stopped
+        cap_add:
+          - "AUDIT_WRITE"
+        volumes:
+          - "{{ kubeinit_services_data_volume }}:/var/kubeinit"
+      register: _result_container_info
+
+    - name: Create systemd service for podman container
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_services"
+        tasks_from: create_managed_service.yml
+        public: true
+      vars:
+        kubeinit_services_systemd_service_name: "{{ kubeinit_provision_service_name }}"
+        kubeinit_services_podman_container_name: "{{ _result_container_info.container.Name }}"
+        kubeinit_services_podman_container_pidfile: "{{ _result_container_info.container.ConmonPidFile }}"
+
+  delegate_to: "{{ kubeinit_deployment_delegate }}"
+
+- name: Add remote container to hosts
+  ansible.builtin.add_host:
+    hostname: "{{ kubeinit_provision_service_name }}"
+    ansible_connection: containers.podman.podman
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_podman_extra_args: --remote --connection "{{ kubeinit_deployment_node_name }}"
+
+- name: Disable pipelining while using podman connector
+  block:
+
+    - name: Wait for connection to provision container
+      ansible.builtin.wait_for_connection:
+        connect_timeout: 20
+        sleep: 5
+        delay: 5
+        timeout: 300
+
+    - name: Read in the contents of domain.crt
+      ansible.builtin.slurp:
+        src: "{{ kubeinit_registry_domain_cert }}"
+      register: _result_domain_cert_b64
+
+    - name: Wait for registry service to be available
+      ansible.builtin.shell: |
+        set -eo pipefail
+        curl --cacert {{ kubeinit_registry_domain_cert }} -s -o /dev/null -w '%{http_code}' --user {{ kubeinit_registry_user }}:{{ kubeinit_registry_password }} https://{{ kubeinit_registry_uri }}/v2/_catalog
+      args:
+        executable: /bin/bash
+      register: _result
+      retries: 5
+      delay: 10
+      until: _result.stdout == '200'
+      changed_when: "_result.rc == 0"
+
+    - name: Make sure packages to generate registry credentials are installed
+      ansible.builtin.package:
+        state: present
+        name: "{{ kubeinit_registry_required_packages | default([]) }}"
+
+    - name: Install cryptography, passlib and nexus3-cli
+      ansible.builtin.shell: |
+        set -o pipefail
+        python3 -m pip install -q cryptography==3.3.2 passlib nexus3-cli
+      args:
+        executable: /bin/bash
+      register: provision_pip_install
+      changed_when: "provision_pip_install.rc == 0"
+
+    - name: Remove nologin marker
+      ansible.builtin.file:
+        path: /run/nologin
+        state: absent
+
+    - name: Set disconnected_auth
+      ansible.builtin.set_fact:
+        disconnected_registry_up: "{{ kubeinit_registry_user }}:{{ kubeinit_registry_password }}"
+      no_log: true
+
+    - name: Create registry auth for pullsecret
+      ansible.builtin.set_fact:
+        # The spaces after the first single quote is required, do not remove
+        # Something in Ansible appears to be recognizing this as valid Python,
+        # so it's getting transformed into a Python list and then serialized
+        # using Python's str(), which is why we end up with the single-quoted values.
+        disconnected_auth: '  {"{{ kubeinit_registry_uri }}": {"auth": "{{ disconnected_registry_up | b64encode }}" } }'
+      no_log: true
+
+    - name: Append auths to pullsecret
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo '{{ kubeinit_registry_pullsecret }}' | jq -c \
+          '.auths += {{ disconnected_auth }}'
+      args:
+        executable: /bin/bash
+      register: new_pullsecret
+      changed_when: "new_pullsecret.rc == 0"
+
+    - name: Override final kubeinit_registry_pullsecret with both auths
+      ansible.builtin.set_fact:
+        kubeinit_registry_pullsecret: '  {{ new_pullsecret.stdout }}'
+
+    - name: Debug the creds dictionary
+      ansible.builtin.debug:
+        var: kubeinit_registry_pullsecret
+
+    - name: Write auth for disconnected registry auth details
+      ansible.builtin.copy:
+        content: '  {{ kubeinit_registry_pullsecret }}'
+        dest: "~/{{ kubeinit_registry_auth_file }}"
+        mode: '0755'
+        backup: yes
+        force: yes
+
+    - name: Create registry auth pullsecret file
+      ansible.builtin.copy:
+        content: "{{ kubeinit_registry_pullsecret }}"
+        dest: "{{ kubeinit_service_user_dir }}/{{ kubeinit_registry_auth_file }}"
+        group: "{{ kubeinit_service_user }}"
+        owner: "{{ kubeinit_service_user }}"
+        mode: '0644'
+        force: yes
+
+    - name: Copy domain cert into services container
+      ansible.builtin.copy:
+        src: "{{ kubeinit_registry_domain_cert }}"
+        dest: "{{ kubeinit_service_user_dir }}/domain.crt"
+        remote_src: yes
+        group: "{{ kubeinit_service_user }}"
+        owner: "{{ kubeinit_service_user }}"
+        mode: '0644'
+        force: yes
+
+    - name: Copy cert to pki directory
+      ansible.builtin.copy:
+        src: "{{ kubeinit_registry_domain_cert }}"
+        dest: /etc/pki/ca-trust/source/anchors/domain.crt
+        remote_src: yes
+        group: "{{ kubeinit_service_user }}"
+        owner: "{{ kubeinit_service_user }}"
+        mode: 0644
+        force: yes
+        backup: yes
+      when: kubeinit_deployment_os == 'centos'
+
+    - name: Copy cert to pki directory
+      ansible.builtin.copy:
+        src: "{{ kubeinit_registry_domain_cert }}"
+        dest: /usr/local/share/ca-certificates/domain.crt
+        remote_src: yes
+        group: "{{ kubeinit_service_user }}"
+        owner: "{{ kubeinit_service_user }}"
+        mode: 0644
+        force: yes
+        backup: yes
+      when: kubeinit_deployment_os == 'ubuntu' or kubeinit_deployment_os == 'debian'
+
+    - name: Install all certs in ubuntu
+      ansible.builtin.shell: |
+        set -e
+        mkdir -p /usr/local/share/ca-certificates/kubeinit/
+        openssl x509 -inform PEM -in {{ kubeinit_registry_directory_cert }}/domainCA.crt > {{ kubeinit_registry_directory_cert }}/domainCA.pem
+        cp {{ kubeinit_registry_directory_cert }}/* /usr/local/share/ca-certificates/kubeinit/
+      args:
+        executable: /bin/bash
+      register: install_all_certs
+      changed_when: "install_all_certs.rc == 0"
+      when: kubeinit_deployment_os == 'ubuntu' or kubeinit_deployment_os == 'debian'
+
+    - name: Update the CA trust files
+      ansible.builtin.command: update-ca-trust extract
+      register: update_ca_trust_files
+      changed_when: "update_ca_trust_files.rc == 0"
+      when: kubeinit_deployment_os == 'centos'
+
+    - name: Update the CA trust files
+      ansible.builtin.command: update-ca-certificates
+      register: update_ca_certs
+      changed_when: "update_ca_certs.rc == 0"
+      when: kubeinit_deployment_os == 'ubuntu' or kubeinit_deployment_os == 'debian'
+
+    #
+    # The root user of the provision service container will be given the private
+    # ssh key which will allow remote ssh access to the nodes in the cluster.
+    # We will create those keys here and place them when those nodes are created.
+    #
+    - name: Create ~/.ssh directory
+      ansible.builtin.file:
+        path: "~/.ssh/"
+        state: directory
+        owner: "{{ kubeinit_service_user }}"
+        group: "{{ kubeinit_service_user }}"
+        mode: '0700'
+
+    - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa) for provision host
+      community.crypto.openssh_keypair:
+        path: "~/.ssh/id_rsa"
+        regenerate: 'never'
+      register: provision_service_keypair
+
+    - name: Install cluster authorized keys
+      ansible.posix.authorized_key:
+        user: root
+        key: "{{ item }}"
+        state: present
+      with_items:
+        - "{{ kubeinit_cluster_hostvars.authorized_keys }}"
+        - "{{ provision_service_keypair.public_key }}"
+
+  vars:
+    ansible_ssh_pipelining: False
+  delegate_to: "{{ kubeinit_provision_service_name }}"
+
+- name: Add provision service public key to cluster authorized_keys
+  ansible.builtin.set_fact:
+    authorized_keys_with_provision: "{{ kubeinit_cluster_hostvars.authorized_keys | union([provision_service_keypair.public_key]) }}"
+
+- name: Update the cluster authorized_keys
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    authorized_keys: "{{ authorized_keys_with_provision }}"
+
+- name: Add registry auth info to cluster vars
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    domain_cert: "{{ _result_domain_cert_b64.content | string | b64decode }}"
+    registry_disconnected_auth: "{{ disconnected_auth }}"
+    registry_pullsecret: "{{ kubeinit_registry_pullsecret }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+# Confirm connectivity
+- name: "Make sure we can execute remote commands on {{ kubeinit_deployment_node_name }} before we continue"
+  ansible.builtin.shell: |
+    set -o pipefail
+    ssh \
+        -i ~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa \
+        -o ConnectTimeout=5 \
+        -o BatchMode=yes \
+        -o UserKnownHostsFile=/dev/null \
+        -o StrictHostKeyChecking=accept-new \
+        -o ProxyCommand="ssh -i ~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}" \
+        root@{{ hostvars[kubeinit_deployment_node_name].ansible_host }} 'echo connected' || true
+  args:
+    executable: /bin/bash
+  register: cmd_boot_ok_res
+  changed_when: "cmd_boot_ok_res.rc == 0"
+  retries: 30
+  delay: 10
+  until: "'connected' in cmd_boot_ok_res.stdout"
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
+- name: Gather network and host facts for guest
+  ansible.builtin.include_role:
+    name: "../../roles/kubeinit_prepare"
+    tasks_from: gather_host_facts.yml
+    public: yes

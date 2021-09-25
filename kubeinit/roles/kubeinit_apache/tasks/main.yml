@@ -14,50 +14,45 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Install buildah if required
+  ansible.builtin.package:
+    state: present
+    name: "buildah"
 
-- name: Make sure the apache folder exists
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    recurse: yes
-    mode: '0700'
-  with_items:
-    - "/var/kubeinit/html"
+- name: Create a new working container image
+  ansible.builtin.command: buildah from --name buildah-apache docker.io/httpd:2.4
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Update the container
+  ansible.builtin.command: buildah run buildah-apache -- apt-get -y update
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Replace port 80 with 8080
+  ansible.builtin.command: buildah run buildah-apache -- sed -i -e 's/^Listen 80$/Listen 8080/' /usr/local/apache2/conf/httpd.conf
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Create link to kubeinit folder
+  ansible.builtin.command: buildah run buildah-apache -- ln -s /var/kubeinit/html/ /usr/local/apache2/htdocs/kubeinit
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Commit the container image
+  ansible.builtin.command: buildah commit buildah-apache kubeinit/kubeinit-apache:latest
+  register: _result
+  changed_when: "_result.rc == 0"
 
 - name: Create a podman container to serve the Apache server
   containers.podman.podman_container:
     name: "{{ kubeinit_apache_service_name }}"
-    image: docker.io/httpd:2.4
+    image: kubeinit/kubeinit-apache:latest
     state: stopped
-    pod: "{{ kubeinit_deployment_node_name }}-pod"
+    pod: "{{ kubeinit_deployment_pod_name }}"
     volumes:
-      - /var/kubeinit/html/:/usr/local/apache2/htdocs/:Z
-  register: apache_podman_container_info
-
-- name: Setting Podman facts about the container that will run the Apache server
-  ansible.builtin.set_fact:
-    container_apache_name: "{{ apache_podman_container_info.container.Name }}"
-    container_apache_pidfile: "{{ apache_podman_container_info.container.ConmonPidFile }}"
-
-- name: Copy httpd configuration from the container
-  ansible.builtin.command:
-    podman cp "{{ kubeinit_apache_service_name }}:/usr/local/apache2/conf/httpd.conf" "./httpd.conf"
-  register: apache_sync_config
-  changed_when: "apache_sync_config.rc == 0"
-
-- name: Replace port 80 with 8080
-  ansible.builtin.lineinfile:
-    path: "./httpd.conf"
-    regexp: "^Listen 80$"
-    line: "Listen 8080"
-    state: present
-    mode: '0644'
-
-- name: Copy updated configuration back into container
-  ansible.builtin.command:
-    podman cp "./httpd.conf" "{{ kubeinit_apache_service_name }}:/usr/local/apache2/conf/httpd.conf"
-  register: apache_copy_config
-  changed_when: "apache_copy_config.rc == 0"
+      - "{{ kubeinit_services_data_volume }}:/var/kubeinit/:Z"
+  register: _result_container_info
 
 - name: Create systemd service for podman container
   ansible.builtin.include_role:
@@ -66,5 +61,9 @@
     public: true
   vars:
     kubeinit_services_systemd_service_name: "{{ kubeinit_apache_service_name }}"
-    kubeinit_services_podman_container_name: "{{ container_apache_name }}"
-    kubeinit_services_podman_container_pidfile: "{{ container_apache_pidfile }}"
+    kubeinit_services_podman_container_name: "{{ _result_container_info.container.Name }}"
+    kubeinit_services_podman_container_pidfile: "{{ _result_container_info.container.ConmonPidFile }}"
+
+- name: Clear temp facts
+  ansible.builtin.set_fact:
+    _result_container_info: null

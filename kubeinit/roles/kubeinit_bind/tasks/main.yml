@@ -14,13 +14,54 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Create script to provide external access to the cluster through the bastion host
+  ansible.builtin.template:
+    src: "create-external-ingress.sh.j2"
+    dest: "~/create-external-ingress.sh"
+    mode: '0644'
+  delegate_to: "{{ kubeinit_bastion_host }}"
 
-- name: Create Bind folder
+- name: Create Bind folders
   ansible.builtin.file:
-    path: "{{ kubeinit_bind_directory }}"
+    path: "{{ item | safe | trim }}"
     state: directory
     recurse: yes
     mode: '0755'
+  loop: "{{ kubeinit_bind_directories }}"
+
+- name: Install buildah if required
+  ansible.builtin.package:
+    state: present
+    name: "buildah"
+
+- name: Remove any old bind buildah container
+  ansible.builtin.shell: |
+    set -o pipefail
+    buildah rm buildah-bind || true
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Create a new working container image
+  ansible.builtin.command: buildah from --name buildah-bind --volume {{ kubeinit_bind_directory }}:/bind-config:Z docker.io/internetsystemsconsortium/bind9:9.11
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Update the container
+  ansible.builtin.command: buildah run buildah-bind -- apt-get -y update
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Copy original contents to /bind-config folder
+  ansible.builtin.command: buildah run buildah-bind -- cp -pr /etc/bind/. /bind-config/.
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Commit the container image
+  ansible.builtin.command: buildah commit buildah-bind kubeinit/kubeinit-bind:latest
+  register: _result
+  changed_when: "_result.rc == 0"
 
 - name: Create named.conf
   ansible.builtin.template:
@@ -31,52 +72,43 @@
 - name: Create named.conf.local
   ansible.builtin.template:
     src: "named.conf.local.j2"
-    dest: "{{ kubeinit_bind_directory }}/named.conf.local"
+    dest: "{{ kubeinit_bind_directory_kubeinit }}/named.conf.local"
     mode: '0644'
-
-- name: Create script to provide external access to the cluster through the bastion host
-  ansible.builtin.template:
-    src: "create-external-ingress.sh.j2"
-    dest: "~/create-external-ingress.sh"
-    mode: '0644'
-  delegate_to: "{{ kubeinit_bastion_host }}"
-
-- name: Create BIND zones directories
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: '0755'
-    recurse: yes
-  with_items:
-    - "{{ kubeinit_bind_directory }}/zones/internals"
 
 - name: Create BIND db internal subnet
   ansible.builtin.template:
     src: "internals_db.j2"
-    dest: "{{ kubeinit_bind_directory }}/zones/internals/db.{{ kubeinit_inventory_network_net }}"
+    dest: "{{ kubeinit_bind_directory_zones_internals }}/db.{{ kubeinit_inventory_network_net }}"
     mode: '0644'
 
 - name: Create BIND db internal zone
   ansible.builtin.template:
     src: "internals_db.local.j2"
-    dest: "{{ kubeinit_bind_directory }}/zones/internals/db.{{ kubeinit_cluster_fqdn }}"
+    dest: "{{ kubeinit_bind_directory_zones_internals }}/db.{{ kubeinit_cluster_fqdn }}"
     mode: '0644'
+
+- name: Create a podman volume for bind config
+  containers.podman.podman_volume:
+    name: "{{ kubeinit_bind_volume_name }}"
+    state: present
+    recreate: yes
 
 - name: Create a podman container to serve the Bind server
   containers.podman.podman_container:
     name: "{{ kubeinit_bind_service_name }}"
-    image: docker.io/internetsystemsconsortium/bind9:9.11
-    pod: "{{ kubeinit_deployment_node_name }}-pod"
+    image: kubeinit/kubeinit-bind:latest
+    pod: "{{ kubeinit_deployment_pod_name }}"
     state: stopped
     volumes:
-      - "{{ kubeinit_bind_directory }}/named.conf:/etc/bind/named.conf"
-      - "{{ kubeinit_bind_directory }}/:/etc/bind/kubeinit/:Z"
-  register: bind_podman_container_info
+      - "{{ kubeinit_bind_volume_name }}:/etc/bind"
+      - "{{ kubeinit_services_data_volume }}:/var/kubeinit/:Z"
+  register: _result_container_info
 
-- name: Setting Podman facts about the container that will run the bind
-  ansible.builtin.set_fact:
-    container_bind_name: "{{ bind_podman_container_info.container.Name }}"
-    container_bind_pidfile: "{{ bind_podman_container_info.container.ConmonPidFile }}"
+- name: Copy data into bind config volume
+  ansible.builtin.command: |
+    podman cp "{{ kubeinit_bind_directory }}/." "{{ kubeinit_bind_service_name }}:/etc/bind/."
+  register: _result
+  changed_when: "_result.rc == 0"
 
 - name: Create systemd service for podman container
   ansible.builtin.include_role:
@@ -85,5 +117,9 @@
     public: true
   vars:
     kubeinit_services_systemd_service_name: "{{ kubeinit_bind_service_name }}"
-    kubeinit_services_podman_container_name: "{{ container_bind_name }}"
-    kubeinit_services_podman_container_pidfile: "{{ container_bind_pidfile }}"
+    kubeinit_services_podman_container_name: "{{ _result_container_info.container.Name }}"
+    kubeinit_services_podman_container_pidfile: "{{ _result_container_info.container.ConmonPidFile }}"
+
+- name: Clear temp facts
+  ansible.builtin.set_fact:
+    _result_container_info: null

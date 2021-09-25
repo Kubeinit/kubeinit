@@ -18,11 +18,8 @@
 # "kubeinit_services" tasks
 #
 
-- name: Cleanup hypervisors if needed
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_prepare"
-    tasks_from: cleanup_hypervisors.yml
-    public: true
+- name: Create network if needed
+  ansible.builtin.include_tasks: create_network.yml
   vars:
     task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
   when: not task_completed
@@ -34,28 +31,46 @@
       ansible.builtin.meta: end_play
   when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-services'
 
-- name: Create OVN network
+- name: Setup the services pod
   ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: deploy_network.yml
+    name: ../../roles/kubeinit_services
+    tasks_from: 00_create_service_pod.yml
     public: true
-
-- name: Download images for libvirt guests
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_libvirt"
-    tasks_from: "download_cloud_images.yml"
-    public: true
-
-- name: Deploy cluster services
-  ansible.builtin.include_tasks: "prepare_{{ kubeinit_deployment_node_type }}_services.yml"
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_bridge_name: "{{ hostvars[cluster_role_item].guest_name }}-bridge"
+    kubeinit_deployment_pod_name: "{{ hostvars[cluster_role_item].guest_name }}-pod"
+    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
     kubeinit_deployment_role: service
-    kubeinit_deployment_node_type: "{{ hostvars[cluster_role_item].type }}"
+
+- name: Prepare the credentials we are going to use in the cluster
+  ansible.builtin.include_tasks: prepare_credentials.yml
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
+    kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
+    kubeinit_deployment_os: "{{ hostvars[kubeinit_provision_service_node].os }}"
+    kubeinit_deployment_type: container
+    kubeinit_deployment_role: provision
+
+- name: Start services containers
+  ansible.builtin.include_role:
+    name: ../../roles/kubeinit_services
+    tasks_from: start_services_containers.yml
+    public: true
+  with_items:
+    - "{{ groups['all_service_nodes'] | list }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    kubeinit_deployment_pod_name: "{{ hostvars[cluster_role_item].guest_name }}-pod"
+    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_role: service
 
 - name: Add task-create-services to tasks_completed
   ansible.builtin.add_host:

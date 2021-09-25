@@ -33,8 +33,8 @@
     systemctl restart nfs-server
   args:
     executable: /bin/bash
-  register: nfs_share_config
-  changed_when: "nfs_share_config.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   when: hostvars[kubeinit_deployment_node_name].os == 'centos'
 
 - name: "configure NFS shares of Ubuntu based guests"
@@ -48,8 +48,8 @@
     systemctl restart nfs-kernel-server
   args:
     executable: /bin/bash
-  register: nfs_share_config
-  changed_when: "nfs_share_config.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   when: hostvars[kubeinit_deployment_node_name].os == 'ubuntu' or hostvars[kubeinit_deployment_node_name].os == 'debian'
 
 #
@@ -120,11 +120,11 @@
     EOF
     export KUBECONFIG=~/.kube/config
     kubectl apply -f ~/nfs_rbac.yaml --request-timeout=1800s
-  register: add_provisioning_role
+  register: _result
   retries: 5
   delay: 20
-  until: add_provisioning_role.rc == 0
-  changed_when: "add_provisioning_role.rc == 0"
+  until: _result.rc == 0
+  changed_when: "_result.rc == 0"
   args:
     executable: /bin/bash
 
@@ -169,8 +169,8 @@
     EOF
     export KUBECONFIG=~/.kube/config
     kubectl apply -f ~/nfs_client_prov_deployment.yaml --request-timeout=1800s
-  register: add_provisioning_client
-  changed_when: "add_provisioning_client.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   args:
     executable: /bin/bash
 
@@ -189,8 +189,8 @@
     EOF
     export KUBECONFIG=~/.kube/config
     kubectl apply -f ~/nfs_storage_class.yaml --request-timeout=1800s
-  register: add_storage_class
-  changed_when: "add_storage_class.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   args:
     executable: /bin/bash
 
@@ -239,8 +239,8 @@
         EOF
         export KUBECONFIG=~/.kube/config
         kubectl apply -f ~/nfs_scc.yaml --request-timeout=1800s
-      register: add_sec_context
-      changed_when: "add_sec_context.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       args:
         executable: /bin/bash
 
@@ -248,8 +248,8 @@
       ansible.builtin.shell: |
         export KUBECONFIG=~/.kube/config
         oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
-      register: apply_nfs_sec
-      changed_when: "apply_nfs_sec.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       args:
         executable: /bin/bash
 
@@ -257,11 +257,11 @@
       ansible.builtin.shell: |
         export KUBECONFIG=~/.kube/config
         oc get configs.imageregistry.operator.openshift.io cluster
-      register: iregistry_result
+      register: _result
       retries: 60
       delay: 20
-      until: iregistry_result.rc == 0
-      changed_when: "iregistry_result.rc == 0"
+      until: _result.rc == 0
+      changed_when: "_result.rc == 0"
       args:
         executable: /bin/bash
 
@@ -270,8 +270,8 @@
         # We patch the imageregistry operator to create a claim that managed-nfs-storage will satisfy
         export KUBECONFIG=~/.kube/config
         oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"storage": {"pvc": {"claim": "" }}}}'
-      register: patch_imageregistry_operator
-      changed_when: "patch_imageregistry_operator.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       args:
         executable: /bin/bash
 
@@ -279,8 +279,8 @@
       ansible.builtin.shell: |
         export KUBECONFIG=~/.kube/config
         oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
-      register: patch_imageregistry_operator
-      changed_when: "patch_imageregistry_operator.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       args:
         executable: /bin/bash
 

@@ -34,6 +34,7 @@
 
 - name: Define cluster fact names needed to prepare groups
   ansible.builtin.set_fact:
+    kubeinit_cluster_name: "{{ kubeinit_inventory_cluster_name }}"
     kubeinit_cluster_fqdn: "{{ kubeinit_inventory_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
     kubeinit_cluster_facts_name: 'kubeinit-facts'
     kubeinit_cluster_bastion_name:
@@ -51,7 +52,6 @@
     kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
     kubeinit_bastion_host: "{{ hostvars[kubeinit_cluster_bastion_name].target }}"
     kubeinit_ovn_central_host: "{{ hostvars[kubeinit_cluster_ovn_central_name].target }}"
-    kubeinit_bootstrap_node: "{{ groups['bootstrap_node'][0] | default(None) }}"
     kubeinit_first_controller_node: "{{ groups['all_controller_nodes'][0] }}"
     kubeinit_hypervisor_count: "{{ groups['hypervisor_hosts'] | length }}"
     kubeinit_controller_count: "{{ groups['all_controller_nodes'] | length }}"
@@ -84,7 +84,7 @@
 
     - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa) on bastion host
       community.crypto.openssh_keypair:
-        path: "~/.ssh/id_rsa"
+        path: "~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa"
         regenerate: 'never'
       register: _result_cluster_keypair
       delegate_to: "{{ kubeinit_bastion_host }}"
@@ -134,9 +134,8 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     ansible_ssh_common_args: >-
-      {{ ansible_ssh_common_args }} -o ProxyCommand="ssh -o StrictHostKeyChecking=no -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ansible_host }}"
+      {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa -o ProxyCommand="ssh {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ansible_host }}"
   with_items: "{{ groups['all_nodes'] }}"
-  when: kubeinit_bastion_host_address not in hostvars['localhost'].ansible_default_ipv4_address
 
 - name: Add task-prepare-environment to tasks_completed
   ansible.builtin.add_host:

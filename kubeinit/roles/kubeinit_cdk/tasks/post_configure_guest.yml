@@ -14,30 +14,26 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-#
-# Initial config
-#
+- name: Prepare podman
+  ansible.builtin.include_role:
+    name: ../../roles/kubeinit_prepare
+    tasks_from: prepare_podman.yml
+    public: true
 
-- name: Configure common requirements in guests
-  block:
+- name: Install common requirements
+  ansible.builtin.package:
+    name: "{{ kubeinit_cdk_common_dependencies }}"
+    state: present
+  when: kubeinit_cdk_common_dependencies is defined
 
-    - name: Install common requirements
-      ansible.builtin.package:
-        name: "{{ kubeinit_cdk_common_dependencies }}"
-        state: present
+- name: Enable and start podman.socket
+  ansible.builtin.systemd:
+    name: podman.socket
+    enabled: yes
+    state: started
+    scope: user
 
-    - name: Enable and start podman.socket
-      ansible.builtin.systemd:
-        name: podman.socket
-        enabled: yes
-        state: started
-        scope: user
-
-    - name: Install kubectl
-      ansible.builtin.shell: |
-        snap install kubectl --classic
-      args:
-        executable: /bin/bash
-      changed_when: false
-
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+- name: Install kubectl
+  ansible.builtin.package:
+    name: "kubectl"
+    state: present

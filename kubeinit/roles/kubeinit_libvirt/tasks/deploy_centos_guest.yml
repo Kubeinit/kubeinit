@@ -16,33 +16,34 @@
 
 - name: Deploy a CentOS based guest
   block:
+
     - name: Create the network interface template for networking details
       ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/ifcfg-eth0.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth0"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/ifcfg-eth0"
         mode: "0644"
 
     - name: Create the hosts template
       ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.redhat.tmpl"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/hosts.redhat.tmpl"
         mode: "0644"
 
     - name: Create the network cloudinit templates for networking details
       ansible.builtin.template:
         src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/cloud.cfg"
         mode: "0644"
 
     - name: Remove old disk images
       ansible.builtin.file:
-        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2"
+        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2"
         state: absent
 
     - name: Grow the partitions
       ansible.builtin.shell: |
-        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2'
-        qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
+        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.centos.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2'
+        qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
       args:
         executable: /bin/bash
       register: grow_img
@@ -51,7 +52,8 @@
     # This will inject the VM configuration in the case of a CentOS machine
     - name: "Inject virt-customize assets in {{ kubeinit_deployment_node_name }}"
       ansible.builtin.shell: |
-        virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2 \
+        virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2 \
+          --update \
           --install python3 \
           --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
           --run-command "sed -i s/^SELINUX=.*$/SELINUX=disabled/g /etc/selinux/config" \
@@ -64,9 +66,9 @@
             --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
             --root-password password:{{ kubeinit_libvirt_vms_default_password }} \
           {% endif %}
-          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
-          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/hosts.redhat.tmpl:/etc/cloud/templates \
-          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ kubeinit_deployment_node_name }}/cloud.cfg:/etc/cloud \
+          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/ifcfg-eth0:/etc/sysconfig/network-scripts \
+          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/hosts.redhat.tmpl:/etc/cloud/templates \
+          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/cloud.cfg:/etc/cloud \
           --selinux-relabel
       args:
         executable: /bin/bash
@@ -77,7 +79,7 @@
       ansible.builtin.shell: |
         virt-install \
             --connect qemu:///system \
-            --name={{ kubeinit_deployment_node_name }} \
+            --name={{ hostvars[kubeinit_deployment_node_name].guest_name }} \
             --memory memory={{ (hostvars[kubeinit_deployment_node_name].ram | int) // 1024 }} \
             --cpuset=auto \
             --vcpus={{ hostvars[kubeinit_deployment_node_name].vcpus }},maxvcpus={{ hostvars[kubeinit_deployment_node_name].maxvcpus }} \
@@ -86,13 +88,13 @@
             --autostart \
             {% for net in kubeinit_libvirt_cluster_nets %}
               {% if net.enabled %}
-                --network network={{ net.name }}{% if net.main %},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }}{% endif %},target.dev=veth0-{{ kubeinit_inventory_cluster_distro }}{{ kubeinit_deployment_node_name.split("-")[1][:3] }}{{ kubeinit_deployment_node_name.split("-")[2] }},model=virtio \
+                --network network={{ net.name }}{% if net.main %},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }}{% endif %},target.dev=veth0-{{ hostvars[kubeinit_deployment_node_name].ansible_host | ansible.netcommon.ip4_hex }},model=virtio \
               {% endif %}
             {% endfor %}
             --graphics none \
             --noautoconsole \
             --import \
-            --disk {{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_deployment_node_name }}.qcow2,format=qcow2,bus=virtio
+            --disk {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2,format=qcow2,bus=virtio
       args:
         executable: /bin/bash
       register: virt_install
@@ -105,15 +107,16 @@
       register: running_vms
       retries: 30
       delay: 10
-      until: kubeinit_deployment_node_name in running_vms.list_vms
+      until: hostvars[kubeinit_deployment_node_name].guest_name in running_vms.list_vms
 
   delegate_to: "{{ kubeinit_deployment_delegate }}"
 
 - name: Check cluster nodes are up and running
   ansible.builtin.include_tasks: 70_check_nodes_up.yml
 
-- name: Configure common requirements in guests
+- name: Configure common requirements in CentOS guests
   block:
+
     - name: Make NetworkManager stop updating resolv.conf
       ansible.builtin.lineinfile:
         dest: "/etc/NetworkManager/NetworkManager.conf"
@@ -186,75 +189,16 @@
         executable: /bin/bash
       changed_when: false
 
-    #
-    # cri-o repos
-    #
-
-    - name: Remove repo before adding it
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/crio.repo
-        state: absent
-
-    - name: Creating a repository file for cri-o
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/crio.repo
-        state: touch
-        mode: '0644'
-
-    - name: Adding repository details in the cri-o repo file.
-      ansible.builtin.blockinfile:
-        path: /etc/yum.repos.d/crio.repo
-        block: |
-          [devel_kubic_libcontainers_stable]
-          name=Stable Releases of Upstream github.com/containers packages (CentOS_8_Stream)
-          type=rpm-md
-          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8_Stream/
-          gpgcheck=1
-          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8_Stream/repodata/repomd.xml.key
-          enabled=1
-
-          [devel_kubic_libcontainers_stable_cri-o_{{ kubeinit_inventory_k8s_version }}]
-          name=Last release available in {{ kubeinit_inventory_k8s_version }} branch (CentOS_8_Stream)
-          type=rpm-md
-          baseurl=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ kubeinit_inventory_k8s_version }}/CentOS_8_Stream/
-          gpgcheck=1
-          gpgkey=https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ kubeinit_inventory_k8s_version }}/CentOS_8_Stream/repodata/repomd.xml.key
-          enabled=1
-
-    #
-    # k8s repos
-    #
-
-    - name: Remove repo before adding it
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/kubernetes.repo
-        state: absent
-
-    - name: Creating a repository file for Kubernetes
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/kubernetes.repo
-        state: touch
-        mode: '0644'
-
-    - name: Adding repository details in Kubernetes repo file.
-      ansible.builtin.blockinfile:
-        path: /etc/yum.repos.d/kubernetes.repo
-        block: |
-         [kubernetes]
-         name=Kubernetes
-         baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
-         enabled=1
-         gpgcheck=1
-         repo_gpgcheck=1
-         gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
-                https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-         exclude=kubelet kubeadm kubectl
+    - name: Perform any distro-specific post-deployment guest configuration
+      ansible.builtin.include_role:
+        name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+        tasks_from: post_configure_guest.yml
+        public: true
 
     - name: Update packages
-      ansible.builtin.yum:
+      ansible.builtin.package:
         name: "*"
         state: latest
-        use_backend: dnf
       register: update_packages
 
     - name: Reboot immediately after the package update
@@ -269,12 +213,6 @@
 
 - name: Check cluster nodes are up and running
   ansible.builtin.include_tasks: 70_check_nodes_up.yml
-
-- name: Perform any distro-specific post-deployment guest configuration
-  ansible.builtin.include_role:
-    name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-    tasks_from: post_configure_guest.yml
-    public: true
 
 - name: Gather network and host facts for guest
   ansible.builtin.include_role:

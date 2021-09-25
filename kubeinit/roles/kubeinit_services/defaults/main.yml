@@ -21,22 +21,26 @@
 kubeinit_services_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
 kubeinit_services_hide_sensitive_logs: true
 
-kubeinit_services_service_name: kubeinit-provision
+kubeinit_services_data_volume: "{{ kubeinit_inventory_cluster_name }}-data"
 
-kubeinit_services_directory: /var/kubeinit/services
+kubeinit_apache_service_name: "{{ kubeinit_inventory_cluster_name }}-apache"
+kubeinit_bind_service_name: "{{ kubeinit_inventory_cluster_name }}-bind"
+kubeinit_dnsmasq_service_name: "{{ kubeinit_inventory_cluster_name }}-dnsmasq"
+kubeinit_haproxy_service_name: "{{ kubeinit_inventory_cluster_name }}-haproxy"
+kubeinit_nexus_service_name: "{{ kubeinit_inventory_cluster_name }}-nexus"
+kubeinit_registry_service_name: "{{ kubeinit_inventory_cluster_name }}-registry"
 
-kubeinit_services_directories:
-  - "{{ kubeinit_services_directory }}"
+kubeinit_provision_service_name: "{{ kubeinit_inventory_cluster_name }}-provision"
 
 kubeinit_registry_directory: /var/kubeinit/registry
 kubeinit_registry_directory_auth: "{{ kubeinit_registry_directory }}/auth"
 kubeinit_registry_directory_cert: "{{ kubeinit_registry_directory }}/certs"
-kubeinit_registry_directory_data: "{{ kubeinit_registry_directory }}/data"
+
+kubeinit_registry_domain_cert: "{{ kubeinit_registry_directory_cert }}/domain.crt"
 
 kubeinit_registry_directories:
   - "{{ kubeinit_registry_directory_auth }}"
   - "{{ kubeinit_registry_directory_cert }}"
-  - "{{ kubeinit_registry_directory_data }}"
 
 kubeinit_registry_user: registryusername
 kubeinit_registry_password: registrypassword
@@ -50,9 +54,6 @@ kubeinit_registry_required_packages:
   - python3
   - python3-dns
   - jq
-  - skopeo
-
-kubeinit_registry_service_name: kubeinit-registry
 
 kubeinit_registry_port: 5000
 kubeinit_registry_host: "{{ kubeinit_registry_service_node }}"

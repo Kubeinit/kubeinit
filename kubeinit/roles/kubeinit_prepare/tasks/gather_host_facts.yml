@@ -21,12 +21,6 @@
       ansible.builtin.gather_facts:
         gather_subset: "!all,network"
       register: gather_results
-      no_log: true
-
-    - name: Print gathered facts if requested
-      ansible.builtin.debug:
-        var: gather_results
-      when: kubeinit_common_print_gathered_facts is defined and kubeinit_common_print_gathered_facts
 
     - name: Set distro_family for CentOS
       ansible.builtin.set_fact:
@@ -71,12 +65,6 @@
     - name: Gather the services facts
       ansible.builtin.service_facts:
       register: services_results
-      no_log: true
-
-    - name: Print services facts if requested
-      ansible.builtin.debug:
-        var: services_results
-      when: kubeinit_common_print_gathered_facts is defined and kubeinit_common_print_gathered_facts
 
     - name: Set firewalld_state to unknown
       ansible.builtin.set_fact:
@@ -147,7 +135,7 @@
 
     - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa) on hypervisor hosts
       community.crypto.openssh_keypair:
-        path: "~/.ssh/id_rsa"
+        path: "~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa"
         regenerate: 'never'
       register: openssh_keypair
       when: kubeinit_deployment_node_name in (['localhost'] + groups['hypervisor_hosts'])
