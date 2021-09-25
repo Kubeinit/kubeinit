@@ -142,8 +142,8 @@ def main(cluster_type, job_type):
                     else:
                         state = "failure"
 
-                    desc = ("Ended with %s in %s minutes" % (state,
-                                                             round((time.time() - start_time) / 60, 2)))
+                    dur_mins = str(round((time.time() - start_time) / 60, 2))
+                    desc = ("Ended with %s in %s minutes" % (state, dur_mins))
 
                     dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
                     print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
@@ -158,6 +158,16 @@ def main(cluster_type, job_type):
                                                                                              hypervisors,
                                                                                              services,
                                                                                              launch_from))
+                    repo.get_commit(sha=sha).create_comment(body="%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                           driver,
+                                                                                           masters,
+                                                                                           workers,
+                                                                                           hypervisors,
+                                                                                           services,
+                                                                                           launch_from,
+                                                                                           state,
+                                                                                           str(start_time),
+                                                                                           dur_mins))
 
                     if output == 0:
                         exit()
@@ -328,8 +338,9 @@ def main(cluster_type, job_type):
                     else:
                         state = "failure"
 
-                    desc = ("Ended with %s in %s minutes" % (state,
-                                                             round((time.time() - start_time) / 60, 2)))
+                    dur_mins = str(round((time.time() - start_time) / 60, 2))
+                    desc = ("Ended with %s in %s minutes" % (state, dur_mins))
+
                     dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
 
                     print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
@@ -344,6 +355,16 @@ def main(cluster_type, job_type):
                                                                                              hypervisors,
                                                                                              services,
                                                                                              launch_from))
+                    repo.get_commit(sha=sha).create_comment(body="%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                           driver,
+                                                                                           masters,
+                                                                                           workers,
+                                                                                           hypervisors,
+                                                                                           services,
+                                                                                           launch_from,
+                                                                                           state,
+                                                                                           str(start_time),
+                                                                                           dur_mins))
                     if output == 0:
                         exit()
                     else:
