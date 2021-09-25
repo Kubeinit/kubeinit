@@ -110,8 +110,7 @@ jobs:
 
           for distro in ${distros}; do
               filename=${distro}.yml
-              guest_os=$(sed -nr "/^\[controller_nodes:vars\]/ { :l /^os[ ]*=/ { s/.*=[ ]*//; p; q;}; n; b l;}" ./hosts/${distro}/inventory)
-              echo "ansible-playbook-grapher -e kubeinit_deployment_os=${guest_os} -e kubeinit_inventory_cluster_distro=${distro} ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename"
+              echo "ansible-playbook-grapher -e kubeinit_inventory_cluster_distro=${distro} ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename"
               ansible-playbook-grapher -e kubeinit_deployment_os=${guest_os} -e kubeinit_inventory_cluster_distro=${distro} ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename
           cat << EOF >> ./docs/src/playbook_diagrams.rst
 
