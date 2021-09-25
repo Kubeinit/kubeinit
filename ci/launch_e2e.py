@@ -142,8 +142,8 @@ def main(cluster_type, job_type):
                     else:
                         state = "failure"
 
-                    desc = ("Ended with %s in %s minutes" % (state,
-                                                             round((time.time() - start_time) / 60, 2)))
+                    dur_mins = str(round((time.time() - start_time) / 60, 2))
+                    desc = ("Ended with %s in %s minutes" % (state, dur_mins))
 
                     dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
                     print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
@@ -158,6 +158,16 @@ def main(cluster_type, job_type):
                                                                                              hypervisors,
                                                                                              services,
                                                                                              launch_from))
+                    pr.create_issue_comment(body="%s-%s-%s-%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                    driver,
+                                                                                    masters,
+                                                                                    workers,
+                                                                                    hypervisors,
+                                                                                    services,
+                                                                                    launch_from,
+                                                                                    state,
+                                                                                    str(start_time),
+                                                                                    dur_mins))
 
                     if output == 0:
                         exit()
@@ -217,6 +227,7 @@ def main(cluster_type, job_type):
                 branch_name = 'main'
                 pr_number = 'latest'
                 timestamp = 'weekly'
+                start_time = time.time()
                 job_name = (distro + "-" +
                             driver + "-" +
                             masters + "-" +
@@ -246,6 +257,23 @@ def main(cluster_type, job_type):
                                      pr_number,
                                      launch_from,
                                      job_name)
+
+                if output == 0:
+                    state = "success"
+                else:
+                    state = "failure"
+                dur_mins = str(round((time.time() - start_time) / 60, 2))
+                issue = repo.issue(489)
+                issue.create_comment(body="%s-%s-%s-%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                             driver,
+                                                                             masters,
+                                                                             workers,
+                                                                             hypervisors,
+                                                                             services,
+                                                                             launch_from,
+                                                                             state,
+                                                                             str(start_time),
+                                                                             dur_mins))
 
     #
     # KubeInit's submariner PR check
@@ -328,8 +356,9 @@ def main(cluster_type, job_type):
                     else:
                         state = "failure"
 
-                    desc = ("Ended with %s in %s minutes" % (state,
-                                                             round((time.time() - start_time) / 60, 2)))
+                    dur_mins = str(round((time.time() - start_time) / 60, 2))
+                    desc = ("Ended with %s in %s minutes" % (state, dur_mins))
+
                     dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
 
                     print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
@@ -344,6 +373,16 @@ def main(cluster_type, job_type):
                                                                                              hypervisors,
                                                                                              services,
                                                                                              launch_from))
+                    pr.create_issue_comment(body="%s-%s-%s-%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                    driver,
+                                                                                    masters,
+                                                                                    workers,
+                                                                                    hypervisors,
+                                                                                    services,
+                                                                                    launch_from,
+                                                                                    state,
+                                                                                    str(start_time),
+                                                                                    dur_mins))
                     if output == 0:
                         exit()
                     else:
