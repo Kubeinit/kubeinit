@@ -578,6 +578,7 @@ Features
 
 Fixes
 ~~~~~
+- Expand guest vm os name in task filename. [Glenn Marcy]
 - Make tox linters happy. [Glenn Marcy]
 - Move Ubuntu image to latest. [Carlos Camacho]
 
@@ -1033,6 +1034,35 @@ Performance
 
 Refactor
 ~~~~~~~~
+- Use cluster name in all named cluster resources. [Glenn Marcy]
+
+  This commit adds updates to the overall naming scene for cluster nodes so
+  that we could support two clusters, either of the same or different distros,
+  on the same hypervisor(s) without them conflicting with one another.  This
+  is still a work in progress and other changes will be needed before that
+  goal can be achieved.  The main change at this time is to remove the cluster
+  distro prefix from inventories so that we can generate guest names with the
+  cluster name as a prefix.
+
+  Other changes include:
+  - Added a section to the inventory describing the behavior of the bastion_host
+    and delivered initial support for creating a bastion external to the cluster.
+  - Replaced [bootstrap_node] with [extra_nodes] to generalize the idea of distro
+    specific nodes, and added juju-controller to the CDK distro as an extra node.
+  - Changed playbook sequence to separate out the network creation and cloud image
+    download tasks and folded the distro specific service configuration into the
+    prepare_cluster task.
+  - All services now build local container images for their service configuration.
+  - Cluster services now share configuration in services data volume mounted on
+    /var/kubeinit in each container.
+  - Updated distros to consolidate tasks into single prepare and deploy cluster flow.
+  - Updated CDK distro to latest in charmstore, download standalone command from
+    launchpad eliminating dependency on snap in the provision container, moved the
+    juju-controller into an extra guest node that only performs that function.
+  - Removed validation that cluster nodes need to match a specic pattern, more work
+    in CI needed so that cluster node names can be arbitrary.
+  - Changed veth0 names for guest vms to use ip4_hex representation.
+  - Streamlined the flow through the kubeinit_services role tasks.
 - Move cleanup tasks before run validations. [Glenn Marcy]
 
   This commit moves the cleanup tasks to a new spot after preparing

@@ -745,6 +745,7 @@ CentOS 8.3.2011 to CentOS Stream.</p>
 <section id="fixes">
 <h3>Fixes<a class="headerlink" href="#fixes" title="Permalink to this headline"></a></h3>
 <ul>
+<li><p>Expand guest vm os name in task filename. [Glenn Marcy]</p></li>
 <li><p>Make tox linters happy. [Glenn Marcy]</p></li>
 <li><p>Move Ubuntu image to latest. [Carlos Camacho]</p>
 <p>This commit moves forward the Ubuntu
@@ -1205,6 +1206,38 @@ container needs to be built only once.</p>
 <section id="refactor">
 <h3>Refactor<a class="headerlink" href="#refactor" title="Permalink to this headline"></a></h3>
 <ul>
+<li><p>Use cluster name in all named cluster resources. [Glenn Marcy]</p>
+<p>This commit adds updates to the overall naming scene for cluster nodes so
+that we could support two clusters, either of the same or different distros,
+on the same hypervisor(s) without them conflicting with one another.  This
+is still a work in progress and other changes will be needed before that
+goal can be achieved.  The main change at this time is to remove the cluster
+distro prefix from inventories so that we can generate guest names with the
+cluster name as a prefix.</p>
+<p>Other changes include:
+- Added a section to the inventory describing the behavior of the bastion_host</p>
+<blockquote>
+<div><p>and delivered initial support for creating a bastion external to the cluster.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Replaced [bootstrap_node] with [extra_nodes] to generalize the idea of distro
+specific nodes, and added juju-controller to the CDK distro as an extra node.</p></li>
+<li><p>Changed playbook sequence to separate out the network creation and cloud image
+download tasks and folded the distro specific service configuration into the
+prepare_cluster task.</p></li>
+<li><p>All services now build local container images for their service configuration.</p></li>
+<li><p>Cluster services now share configuration in services data volume mounted on
+/var/kubeinit in each container.</p></li>
+<li><p>Updated distros to consolidate tasks into single prepare and deploy cluster flow.</p></li>
+<li><p>Updated CDK distro to latest in charmstore, download standalone command from
+launchpad eliminating dependency on snap in the provision container, moved the
+juju-controller into an extra guest node that only performs that function.</p></li>
+<li><p>Removed validation that cluster nodes need to match a specic pattern, more work
+in CI needed so that cluster node names can be arbitrary.</p></li>
+<li><p>Changed veth0 names for guest vms to use ip4_hex representation.</p></li>
+<li><p>Streamlined the flow through the kubeinit_services role tasks.</p></li>
+</ul>
+</li>
 <li><p>Move cleanup tasks before run validations. [Glenn Marcy]</p>
 <p>This commit moves the cleanup tasks to a new spot after preparing
 the environment and before running validations.  Those cleanup tasks
