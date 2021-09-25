@@ -188,8 +188,10 @@ def main(cluster_type, job_type):
         # We will run the periodic jobs depending on the
         # hardware we called this script from [multinode-singlenode]
         #
+        gh = Github(os.environ['GH_TOKEN'])
         gc_token_path = os.environ['GC_STORAGE_KEY']
         pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
+        repo = gh.get_repo("kubeinit/kubeinit")
 
         output = "go"
         # Something linke:
