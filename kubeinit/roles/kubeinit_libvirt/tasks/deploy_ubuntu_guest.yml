@@ -18,25 +18,25 @@
   block:
     - name: Create the interfaces template for networking details
       ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/00-installer-ubuntu-netconfig.yaml.j2"
+        src: "00-installer-ubuntu-netconfig.yaml.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/00-installer-ubuntu-netconfig.yaml"
         mode: "0644"
 
     - name: Create the hosts template
       ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
+        src: "101-cloudinit-hosts.tmpl.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/hosts.debian.tmpl"
         mode: "0644"
 
     - name: Create the main config file for cloud-init
       ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
+        src: "102-cloudinit-cloud.cfg.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/cloud.cfg"
         mode: "0644"
 
     - name: Create the datasource cloud-init file
       ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/90-cloudinit-dpkg.cfg.j2"
+        src: "90-cloudinit-dpkg.cfg.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/90_dpkg.cfg"
         mode: "0644"
 
@@ -235,7 +235,7 @@
 
     - name: Perform any distro-specific post-deployment guest configuration
       ansible.builtin.include_role:
-        name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+        name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_inventory_cluster_distro }}"
         tasks_from: post_configure_guest.yml
         public: true
 
@@ -260,6 +260,6 @@
 
 - name: Gather network and host facts for guest
   ansible.builtin.include_role:
-    name: "../../roles/kubeinit_prepare"
+    name: kubeinit.kubeinit.kubeinit_prepare
     tasks_from: gather_host_facts.yml
     public: yes

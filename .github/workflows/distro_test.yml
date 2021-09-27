@@ -80,8 +80,11 @@ jobs:
         sed -i -E "s/.*compute-01/#compute-01/g" ./hosts/cdk/inventory
         sed -i -E "s/.*compute-02/#compute-02/g" ./hosts/cdk/inventory
         sed -i -E "/service-01 ansible_host/ s/type=virtual/type=container/g" ./hosts/cdk/inventory
-    - name: Run the deployment for a container
+    - name: Run the deployment from a container
       run: |
+        # There is no need to install the collection before this step.
+        # The collection is compiled and installed when we create
+        # the kubeinit container using the code in the current path.
         sudo su <<EOF
             whoami
             podman build -t kubeinit/kubeinit .

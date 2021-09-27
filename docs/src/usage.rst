@@ -164,11 +164,11 @@ from the project's root folder:
       tasks:
         - name: Run the prepare tasks
           ansible.builtin.include_role:
-            name: "../../roles/kubeinit_prepare"
+            name: kubeinit.kubeinit.kubeinit_prepare
             tasks_from: main.yml
         - name: Clean the environment
           ansible.builtin.include_role:
-            name: ../../roles/kubeinit_libvirt
+            name: kubeinit.kubeinit.kubeinit_libvirt
             tasks_from: 10_cleanup
     EOF
     # Run the cleanup playbook

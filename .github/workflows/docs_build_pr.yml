@@ -34,6 +34,15 @@ jobs:
           sudo python3 -m pip install --upgrade setuptools
           sudo python3 -m pip install --upgrade ansible-inventory-grapher
           sudo python3 -m pip install --upgrade ansible-playbook-grapher
+          sudo python3 -m pip install --upgrade shyaml
+
+      - name: Install kubeinit's collection
+        run: |
+          cd kubeinit
+          rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
+          ansible-galaxy collection build -v --force --output-path releases/
+          ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
+          cd ..
 
       - name: Render the plantuml diagrams
         run: |
