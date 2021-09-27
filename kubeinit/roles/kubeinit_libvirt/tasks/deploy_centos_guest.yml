@@ -19,19 +19,19 @@
 
     - name: Create the network interface template for networking details
       ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/ifcfg-eth0.j2"
+        src: "ifcfg-eth0.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/ifcfg-eth0"
         mode: "0644"
 
     - name: Create the hosts template
       ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/101-cloudinit-hosts.tmpl.j2"
+        src: "101-cloudinit-hosts.tmpl.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/hosts.redhat.tmpl"
         mode: "0644"
 
     - name: Create the network cloudinit templates for networking details
       ansible.builtin.template:
-        src: "../../roles/kubeinit_libvirt/templates/102-cloudinit-cloud.cfg.j2"
+        src: "102-cloudinit-cloud.cfg.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/cloud.cfg"
         mode: "0644"
 
@@ -191,7 +191,7 @@
 
     - name: Perform any distro-specific post-deployment guest configuration
       ansible.builtin.include_role:
-        name: "../../roles/kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+        name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_inventory_cluster_distro }}"
         tasks_from: post_configure_guest.yml
         public: true
 
@@ -216,6 +216,6 @@
 
 - name: Gather network and host facts for guest
   ansible.builtin.include_role:
-    name: "../../roles/kubeinit_prepare"
+    name: kubeinit.kubeinit.kubeinit_prepare
     tasks_from: gather_host_facts.yml
     public: yes
