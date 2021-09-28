@@ -28,8 +28,8 @@
         ovn-sbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_southbound_port }}
       args:
         executable: /bin/bash
-      register: config_ovn_connection
-      changed_when: "config_ovn_connection.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     #
     # We create the OVN switch that will be binded to each chassis (hypervisor)
@@ -44,9 +44,9 @@
         ovn-nbctl --wait=hv ls-add sw0
       args:
         executable: /bin/bash
-      register: config_ovn_switch
+      register: _result
+      changed_when: "_result.rc == 0"
       when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
-      changed_when: "config_ovn_switch.rc == 0"
 
     - name: Create OVS/OVN bindings for the VMs ports
       ansible.builtin.shell: |
@@ -61,9 +61,9 @@
         ovn-nbctl --wait=sb lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
       args:
         executable: /bin/bash
-      with_items: "{{ groups['all_nodes'] }}"
-      register: config_ovn_bindings
-      changed_when: "config_ovn_bindings.rc == 0"
+      loop: "{{ groups['all_nodes'] }}"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Configuring a router connected to the guests switch
       ansible.builtin.shell: |
@@ -123,8 +123,8 @@
         sysctl net.ipv4.conf.all.rp_filter=2
       args:
         executable: /bin/bash
-      register: config_ovn_routing
-      changed_when: "config_ovn_routing.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     #
     # The NAT rules are mandatory to allow guests to have external connectivity
@@ -154,8 +154,8 @@
         iptables -P OUTPUT ACCEPT
       args:
         executable: /bin/bash
-      register: config_iptables
-      changed_when: "config_iptables.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       when: not hostvars[kubeinit_deployment_node_name].firewalld_is_active
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"

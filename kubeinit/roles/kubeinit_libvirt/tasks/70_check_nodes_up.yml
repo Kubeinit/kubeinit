@@ -30,11 +30,11 @@
         root@{{ hostvars[kubeinit_deployment_node_name].ansible_host }} 'echo connected' || true
   args:
     executable: /bin/bash
-  register: cmd_boot_ok_res
+  register: _result
   retries: 30
   delay: 10
-  until: "'connected' in cmd_boot_ok_res.stdout"
-  changed_when: "cmd_boot_ok_res.rc == 0"
+  until: "'connected' in _result.stdout"
+  changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_deployment_delegate }}"
 
 - name: Wait for {{ kubeinit_deployment_node_name }} to boot

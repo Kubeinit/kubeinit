@@ -38,8 +38,6 @@
     kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
     kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
     kubeinit_deployment_os: "{{ hostvars[kubeinit_provision_service_node].os }}"
-    kubeinit_deployment_type: container
-    kubeinit_deployment_role: provision
 
 - name: Configure the service node
   block:
@@ -72,6 +70,34 @@
     # Kubernetes config
     #
 
+    - name: Set EKS kubernetes major-minor fact
+      ansible.builtin.set_fact:
+        kubeinit_eks_kubernetes_major_minor: "{{ kubeinit_inventory_kubernetes_version.split('.')[0] + '-' + kubeinit_inventory_kubernetes_version.split('.')[1] }}"
+
+    - name: Discover the revision number for eks
+      ansible.builtin.command: curl -s https://raw.githubusercontent.com/aws/eks-distro/main/release/{{ kubeinit_eks_kubernetes_major_minor }}/production/RELEASE
+      register: _result_revision
+      changed_when: "_result_revision.rc == 0"
+
+    - name: Set EKS release number fact
+      ansible.builtin.set_fact:
+        kubeinit_eks_revision: "{{ _result_revision.stdout | trim }}"
+
+    - name: Discover the git tag for eks
+      ansible.builtin.command: curl -s https://raw.githubusercontent.com/aws/eks-distro/main/projects/kubernetes/release/{{ kubeinit_eks_kubernetes_major_minor }}/GIT_TAG
+      register: _result_gittag
+      changed_when: "_result_gittag.rc == 0"
+
+    - name: Set EKS string facts
+      ansible.builtin.set_fact:
+        kubeinit_eks_kubernetes_dirname: "kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}"
+        kubeinit_eks_kubernetes_filename: "kubernetes-{{ kubeinit_eks_kubernetes_major_minor + '-eks-' + kubeinit_eks_revision }}.yaml"
+        kubeinit_eks_kubernetes_gittag: "{{ (_result_gittag.stdout | trim) + '-eks-' + kubeinit_eks_kubernetes_major_minor + '-' + kubeinit_eks_revision }}"
+
+    - name: Set complete EKS kubernetes version
+      ansible.builtin.set_fact:
+        kubeinit_eks_kubernetes_version: "{{ kubeinit_inventory_kubernetes_version + '.' + kubeinit_eks_revision }}"
+
     - name: Install requirements
       ansible.builtin.command: dnf install -y kubectl-{{ kubeinit_eks_kubernetes_version }} --disableexcludes=kubernetes
 
@@ -92,10 +118,11 @@
 
     - name: Get the required container images
       ansible.builtin.shell: |
-        set -o pipefail
-        curl -s https://distro.eks.amazonaws.com/kubernetes-1-21/kubernetes-1-21-eks-4.yaml | sed -n -e "s|^.*uri: \(public.ecr.aws/eks-distro\)|\1|p" > ~/kubeinit_deployment_images.txt
-        echo public.ecr.aws/eks-distro/kubernetes/kube-proxy-base:$(curl -s https://raw.githubusercontent.com/aws/eks-distro/main/projects/kubernetes/release/1-21/GIT_TAG)-eks-1-21-4 >> ~/kubeinit_deployment_images.txt
-        echo public.ecr.aws/eks-distro/kubernetes/go-runner:$(curl -s https://raw.githubusercontent.com/aws/eks-distro/main/projects/kubernetes/release/1-21/GIT_TAG)-eks-1-21-4 >> ~/kubeinit_deployment_images.txt
+        set -eo pipefail
+        curl -s https://distro.eks.amazonaws.com/{{ kubeinit_eks_kubernetes_dirname }}/{{ kubeinit_eks_kubernetes_filename }} | \
+          sed -n -e "s|^.*uri: \(public.ecr.aws/eks-distro\)|\1|p" > ~/kubeinit_deployment_images.txt
+        echo public.ecr.aws/eks-distro/kubernetes/kube-proxy-base:{{ kubeinit_eks_kubernetes_gittag }} >> ~/kubeinit_deployment_images.txt
+        echo public.ecr.aws/eks-distro/kubernetes/go-runner:{{ kubeinit_eks_kubernetes_gittag }} >> ~/kubeinit_deployment_images.txt
       args:
         executable: /bin/bash
       register: _result

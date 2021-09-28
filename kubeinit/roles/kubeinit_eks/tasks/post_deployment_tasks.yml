@@ -17,7 +17,7 @@
 - name: Fetch the kubeconfig from the first controller node
   ansible.builtin.slurp:
     src: ~/.kube/config
-  register: kubeinit_eks_cluster_kubeconfig
+  register: _result_cluster_kubeconfig
   delegate_to: "{{ kubeinit_first_controller_node }}"
 
 - name: Create kube directory
@@ -27,21 +27,21 @@
     mode: '0644'
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
-- name: Storing the master kubeconfig to the provision services machine.
+- name: Store the kubeconfig to the provision services machine.
   ansible.builtin.copy:
-    content: "{{ kubeinit_eks_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
+    content: "{{ _result_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
     dest: ~/.kube/config
     mode: '0644'
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
-- name: Label worker nodes
+- name: Label compute nodes
   ansible.builtin.shell: |
-    kubectl label node {{ item }}.{{ kubeinit_cluster_fqdn }} node-role.kubernetes.io/worker=
+    kubectl label node {{ hostvars[item].fqdn }} node-role.kubernetes.io/worker=
   args:
     executable: /bin/bash
-  changed_when: false
-  with_items:
-    - "{{ groups['all_compute_nodes'] | list }}"
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_compute_nodes'] }}"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 - name: Deploy EKS manifests.
@@ -52,7 +52,8 @@
     kubectl get release kubernetes-1-18-eks-1 -o yaml
   args:
     executable: /bin/bash
-  changed_when: false
+  register: _result
+  changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 #

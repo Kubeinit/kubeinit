@@ -31,89 +31,89 @@
         fi
       args:
         executable: /bin/bash
-      register: provision_buildah_rm_img
-      changed_when: "provision_buildah_rm_img.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Setup CentOS container image
       block:
         - name: Create a new working container image (CentOS)
           ansible.builtin.command: buildah from --name buildah-provision quay.io/centos/centos:stream8
-          register: provision_buildah_create_img
-          changed_when: "provision_buildah_create_img.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
         - name: Update the container
           ansible.builtin.command: buildah run buildah-provision -- dnf update -q -y
-          register: provision_buildah_update_packages
-          changed_when: "provision_buildah_update_packages.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
         - name: Install commands and services we will need
           ansible.builtin.command: buildah run buildah-provision -- dnf install -q -y systemd openssh openssh-server openssh-clients procps iproute iputils net-tools python3 python3-pip jq
-          register: provision_buildah_install_packages
-          changed_when: "provision_buildah_install_packages.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'centos'
 
     - name: Setup Debian container image
       block:
         - name: Create a new working container image
           ansible.builtin.command: buildah from --name buildah-provision docker.io/debian:{{ kubeinit_libvirt_debian_release }}
-          register: provision_buildah_create_img
-          changed_when: "provision_buildah_create_img.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
         - name: Update the container
           ansible.builtin.command: buildah run buildah-provision -- apt-get update -q -y
-          register: provision_buildah_update_packages
-          changed_when: "provision_buildah_update_packages.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
         - name: Install commands and services we will need
           ansible.builtin.command: buildah run buildah-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
-          register: provision_buildah_install_packages
-          changed_when: "provision_buildah_install_packages.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
         - name: Missing privilege separation directory
           ansible.builtin.command: buildah run buildah-provision -- mkdir -p /run/sshd
-          register: provision_buildah_fix_sshd
-          changed_when: "provision_buildah_fix_sshd.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'debian'
 
     - name: Setup Ubuntu container image
       block:
         - name: Create a new working container image
           ansible.builtin.command: buildah from --name buildah-provision docker.io/ubuntu:{{ kubeinit_libvirt_ubuntu_release }}
-          register: provision_buildah_create_img
-          changed_when: "provision_buildah_create_img.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
         - name: Update the container
           ansible.builtin.command: buildah run buildah-provision -- apt-get update -q -y
-          register: provision_buildah_update_packages
-          changed_when: "provision_buildah_update_packages.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
         - name: Install commands and services we will need
           ansible.builtin.command: buildah run buildah-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
-          register: provision_buildah_install_packages
-          changed_when: "provision_buildah_install_packages.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
         - name: Create folder normally done by service ssh start
           ansible.builtin.command: buildah run buildah-provision -- mkdir /run/sshd
-          register: provision_buildah_create_folder
-          changed_when: "provision_buildah_create_folder.rc == 0"
+          register: _result
+          changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'ubuntu'
 
     - name: Set working directory inside container
       ansible.builtin.command: buildah config --workingdir {{ kubeinit_service_user_dir }} buildah-provision
-      register: provision_buildah_set_workingdir
-      changed_when: "provision_buildah_set_workingdir.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Generate system ssh keys
       ansible.builtin.command: buildah run buildah-provision -- bash -c "(cd /etc/ssh; ssh-keygen -A)"
-      register: provision_buildah_keygen
-      changed_when: "provision_buildah_keygen.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Clear cmd
       ansible.builtin.command: buildah config --cmd '' buildah-provision
-      register: provision_buildah_clear_cmd
-      changed_when: "provision_buildah_clear_cmd.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Set entrypoint
       ansible.builtin.command: buildah config --entrypoint '["/sbin/init"]' buildah-provision
-      register: provision_buildah_set_entrypoint
-      changed_when: "provision_buildah_set_entrypoint.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Commit the image
       ansible.builtin.command: buildah commit buildah-provision kubeinit/kubeinit-provision:latest
-      register: provision_buildah_commit_image
-      changed_when: "provision_buildah_commit_image.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Remove any previous provision container
       containers.podman.podman_container:
@@ -189,8 +189,8 @@
         python3 -m pip install -q cryptography==3.3.2 passlib nexus3-cli
       args:
         executable: /bin/bash
-      register: provision_pip_install
-      changed_when: "provision_pip_install.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Remove nologin marker
       ansible.builtin.file:
@@ -218,12 +218,12 @@
           '.auths += {{ disconnected_auth }}'
       args:
         executable: /bin/bash
-      register: new_pullsecret
-      changed_when: "new_pullsecret.rc == 0"
+      register: _result_pullsecret
+      changed_when: "_result_pullsecret.rc == 0"
 
     - name: Override final kubeinit_registry_pullsecret with both auths
       ansible.builtin.set_fact:
-        kubeinit_registry_pullsecret: '  {{ new_pullsecret.stdout }}'
+        kubeinit_registry_pullsecret: '  {{ _result_pullsecret.stdout }}'
 
     - name: Debug the creds dictionary
       ansible.builtin.debug:
@@ -288,20 +288,20 @@
         cp {{ kubeinit_registry_directory_cert }}/* /usr/local/share/ca-certificates/kubeinit/
       args:
         executable: /bin/bash
-      register: install_all_certs
-      changed_when: "install_all_certs.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'ubuntu' or kubeinit_deployment_os == 'debian'
 
     - name: Update the CA trust files
       ansible.builtin.command: update-ca-trust extract
-      register: update_ca_trust_files
-      changed_when: "update_ca_trust_files.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'centos'
 
     - name: Update the CA trust files
       ansible.builtin.command: update-ca-certificates
-      register: update_ca_certs
-      changed_when: "update_ca_certs.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'ubuntu' or kubeinit_deployment_os == 'debian'
 
     #
@@ -321,7 +321,7 @@
       community.crypto.openssh_keypair:
         path: "~/.ssh/id_rsa"
         regenerate: 'never'
-      register: provision_service_keypair
+      register: _result_provision_service_keypair
 
     - name: Install cluster authorized keys
       ansible.posix.authorized_key:
@@ -330,7 +330,7 @@
         state: present
       with_items:
         - "{{ kubeinit_cluster_hostvars.authorized_keys }}"
-        - "{{ provision_service_keypair.public_key }}"
+        - "{{ _result_provision_service_keypair.public_key }}"
 
   vars:
     ansible_ssh_pipelining: False
@@ -338,7 +338,7 @@
 
 - name: Add provision service public key to cluster authorized_keys
   ansible.builtin.set_fact:
-    authorized_keys_with_provision: "{{ kubeinit_cluster_hostvars.authorized_keys | union([provision_service_keypair.public_key]) }}"
+    authorized_keys_with_provision: "{{ kubeinit_cluster_hostvars.authorized_keys | union([_result_provision_service_keypair.public_key]) }}"
 
 - name: Update the cluster authorized_keys
   ansible.builtin.add_host:
@@ -370,11 +370,11 @@
         root@{{ hostvars[kubeinit_deployment_node_name].ansible_host }} 'echo connected' || true
   args:
     executable: /bin/bash
-  register: cmd_boot_ok_res
-  changed_when: "cmd_boot_ok_res.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   retries: 30
   delay: 10
-  until: "'connected' in cmd_boot_ok_res.stdout"
+  until: "'connected' in _result.stdout"
   delegate_to: "{{ kubeinit_bastion_host }}"
 
 - name: Gather network and host facts for guest

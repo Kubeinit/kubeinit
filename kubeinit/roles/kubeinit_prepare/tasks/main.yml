@@ -56,6 +56,8 @@
     kubeinit_hypervisor_count: "{{ groups['hypervisor_hosts'] | length }}"
     kubeinit_controller_count: "{{ groups['all_controller_nodes'] | length }}"
     kubeinit_compute_count: "{{ groups['all_compute_nodes'] | length }}"
+  loop: "{{ ['localhost'] | union(groups['hypervisor_hosts']) }}"
+  delegate_to: "{{ item }}"
 
 - name: Install podman if required
   ansible.builtin.package:
@@ -73,6 +75,8 @@
     kubeinit_nfs_service_node: "{{ kubeinit_cluster_hostvars.services['nfs'] | default(None) }}"
     kubeinit_provision_service_node: "{{ kubeinit_cluster_hostvars.services['provision'] }}"
     kubeinit_registry_service_node: "{{ kubeinit_cluster_hostvars.services['registry'] | default(None) }}"
+  loop: "{{ ['localhost'] | union(groups['hypervisor_hosts']) }}"
+  delegate_to: "{{ item }}"
 
 - name: Gather facts from bastion host if it is not a hypervisor host
   block:
@@ -129,6 +133,8 @@
     kubeinit_service_user: "root"
     kubeinit_service_user_dir: "/root"
     kubeinit_ingress_hostname: "ingress"
+  loop: "{{ ['localhost'] | union(groups['hypervisor_hosts']) }}"
+  delegate_to: "{{ item }}"
 
 - name: Add ssh ProxyCommand option for all nodes
   ansible.builtin.add_host:

@@ -41,7 +41,6 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
-    kubeinit_deployment_role: cluster
   when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed
 
 - name: Setup the first controller node
@@ -173,18 +172,13 @@
 
 # The kubeconfig file is on the controller nodes so we run kubectl label on the first controller
 - name: Label node
-  ansible.builtin.shell: |
-   kubectl label node {{ kubeinit_deployment_node_name }}.{{ kubeinit_cluster_fqdn }} node-role.kubernetes.io/worker=
-  args:
-    executable: /bin/bash
+  ansible.builtin.command: |
+   kubectl label node {{ hostvars[compute_node].fqdn }} node-role.kubernetes.io/worker=
   register: _result
   changed_when: "_result.rc == 0"
   loop: "{{ groups['all_compute_nodes'] }}"
   loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_role: compute
+    loop_var: compute_node
   delegate_to: "{{ kubeinit_first_controller_node }}"
 
 - name: Add task-deploy-cluster to tasks_completed

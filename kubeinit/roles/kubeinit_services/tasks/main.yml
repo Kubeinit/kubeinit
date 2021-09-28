@@ -32,10 +32,7 @@
   when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-services'
 
 - name: Setup the services pod
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_services
-    tasks_from: 00_create_service_pod.yml
-    public: true
+  ansible.builtin.include_tasks: 00_create_service_pod.yml
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
@@ -45,7 +42,6 @@
     kubeinit_deployment_bridge_name: "{{ hostvars[cluster_role_item].guest_name }}-bridge"
     kubeinit_deployment_pod_name: "{{ hostvars[cluster_role_item].guest_name }}-pod"
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
-    kubeinit_deployment_role: service
 
 - name: Prepare the credentials we are going to use in the cluster
   ansible.builtin.include_tasks: prepare_credentials.yml
@@ -53,15 +49,9 @@
     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
     kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
     kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
-    kubeinit_deployment_os: "{{ hostvars[kubeinit_provision_service_node].os }}"
-    kubeinit_deployment_type: container
-    kubeinit_deployment_role: provision
 
 - name: Start services containers
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_services
-    tasks_from: start_services_containers.yml
-    public: true
+  ansible.builtin.include_tasks: start_services_containers.yml
   with_items:
     - "{{ groups['all_service_nodes'] | list }}"
   loop_control:
@@ -70,7 +60,6 @@
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_pod_name: "{{ hostvars[cluster_role_item].guest_name }}-pod"
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
-    kubeinit_deployment_role: service
 
 - name: Add task-create-services to tasks_completed
   ansible.builtin.add_host:

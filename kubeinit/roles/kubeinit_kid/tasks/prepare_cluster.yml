@@ -38,8 +38,6 @@
     kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
     kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
     kubeinit_deployment_os: "{{ hostvars[kubeinit_provision_service_node].os }}"
-    kubeinit_deployment_type: container
-    kubeinit_deployment_role: provision
 
 - name: Configure the service node
   block:
@@ -51,8 +49,8 @@
         echo "{{ kubeinit_kid_service_cidr }}" > ~/service_cidr
       args:
         executable: /bin/bash
-      register: render_net_info
-      changed_when: "render_net_info.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
