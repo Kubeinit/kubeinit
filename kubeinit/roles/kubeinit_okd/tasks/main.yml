@@ -42,9 +42,9 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
-    kubeinit_deployment_role: bootstrap
+    kubeinit_ignition_name: bootstrap
 
-- name: Deploy the cluster master nodes
+- name: Deploy the cluster controller nodes
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
     tasks_from: deploy_coreos_guest.yml
@@ -56,7 +56,7 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
-    kubeinit_deployment_role: master
+    kubeinit_ignition_name: master
 
 - name: Verify that controller nodes are ok
   ansible.builtin.shell: |
@@ -65,12 +65,12 @@
     oc get nodes | grep master | grep " Ready"
   args:
     executable: /bin/bash
-  register: cmd_res_nodes_ok
-  changed_when: "cmd_res_nodes_ok.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   retries: 60
   delay: 60
-  until: cmd_res_nodes_ok.stdout_lines | default([]) | list | count == groups['all_controller_nodes'] | count
   delegate_to: "{{ kubeinit_provision_service_node }}"
+  until: _result.stdout_lines | default([]) | list | count == groups['all_controller_nodes'] | count
 
 - name: Use single node cluster
   ansible.builtin.shell: |
@@ -102,8 +102,8 @@
     oc patch authentications.operator.openshift.io cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableOAuthServer": true }}}' --type=merge
   args:
     executable: /bin/bash
-  register: single_node_cluster
-  changed_when: "single_node_cluster.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
   when: (groups['all_controller_nodes'] | count) == 1
 
@@ -116,18 +116,18 @@
     openshift-install --dir=install_dir/ wait-for bootstrap-complete --log-level info
   args:
     executable: /bin/bash
-  register: result
+  register: _result
+  changed_when: "_result.rc == 0"
   retries: 5
   delay: 20
-  until: result.rc == 0
-  changed_when: "result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
+  until: _result.rc == 0
 
 - name: Remove bootstrap node from haproxy config
   ansible.builtin.command: |
     podman --remote --connection {{ kubeinit_haproxy_service_node }} exec {{ kubeinit_haproxy_service_name }} sed -i '/bootstrap/s/^/#/' /usr/local/etc/haproxy/haproxy.cfg
-  register: remove_bootstrap_from_haproxy
-  changed_when: "remove_bootstrap_from_haproxy.rc == 0"
+  register: _result
+  changed_when: "_result.rc == 0"
   delegate_to: localhost
 
 - name: Restart haproxy container
@@ -161,7 +161,7 @@
     kubeinit_deployment_node_name: "{{ groups['extra_nodes'][0] }}"
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
-- name: Deploy the cluster worker nodes
+- name: Deploy the cluster compute nodes
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
     tasks_from: deploy_coreos_guest.yml
@@ -173,7 +173,7 @@
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
-    kubeinit_deployment_role: worker
+    kubeinit_ignition_name: worker
 
 - name: Add task-deploy-cluster to tasks_completed
   ansible.builtin.add_host:

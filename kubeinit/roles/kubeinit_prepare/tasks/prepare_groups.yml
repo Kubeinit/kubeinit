@@ -72,7 +72,7 @@
     services: "{{ hostvars[item].services.split(',') }}"
     target: "{{ hostvars[item].target }}"
     type: container
-    container_host: "{{ item if (false and hostvars[item].type == 'virtual') else hostvars[item].target }}"
+    container_host: "{{ hostvars[item].target }}"
   loop: "{{ groups['service_nodes'] | default([]) | list }}"
 
 - name: Create tuples for each service and each service node providing that service
@@ -196,7 +196,7 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_guest_vms
-  loop: "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] + (groups['extra_nodes'] | default([])) }}"
+  loop: "{{ groups['all_cluster_nodes'] + (groups['extra_nodes'] | default([])) }}"
   when: hostvars[item].type == 'virtual'
 
 - name: Collect all of the node aliases

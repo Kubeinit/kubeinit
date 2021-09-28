@@ -14,36 +14,33 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
 #
 # Make sure the mount of RAM if enough for all machines
 #
-
 - name: Get hypervisor total RAM
   ansible.builtin.shell: |
     set -o pipefail
     free --kilo  | grep ^Mem | tr -s ' ' | cut -d ' ' -f 2
   args:
     executable: /bin/bash
-  register: kubeinit_validations_libvirt_total_ram
+  register: _result_total_ram
   with_items:
     - "{{ groups['all_hosts'] | list }}"
   delegate_to: "{{ item }}"
-  changed_when: "kubeinit_validations_libvirt_total_ram.rc == 0"
+  changed_when: "_result_total_ram.rc == 0"
 
 - name: Debug
   ansible.builtin.debug:
-    var: kubeinit_validations_libvirt_total_ram
+    var: _result_total_ram
 
 - name: Define the hypervisors ram available dictionary
   ansible.builtin.set_fact:
     kubeinit_validations_hypervisors_free_ram: "{{ kubeinit_validations_hypervisors_free_ram|default([]) | combine( {item.item: item.stdout|int} ) }}"
-  with_items: "{{ kubeinit_validations_libvirt_total_ram.results }}"
+  with_items: "{{ _result_total_ram.results }}"
 
 - name: Debug
   ansible.builtin.debug:
-    var: kubeinit_validations_libvirt_total_ram
-
+    var: kubeinit_validations_hypervisors_free_ram
 
 - name: Get the total inventory ram usage
   ansible.builtin.set_fact:

@@ -46,8 +46,8 @@
         qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
       args:
         executable: /bin/bash
-      register: grow_img
-      changed_when: "grow_img.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     # This will inject the VM configuration in the case of a CentOS machine
     - name: "Inject virt-customize assets in {{ kubeinit_deployment_node_name }}"
@@ -72,8 +72,8 @@
           --selinux-relabel
       args:
         executable: /bin/bash
-      register: virt_inject
-      changed_when: "virt_inject.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: "Create VM definition for {{ kubeinit_deployment_node_name }}"
       ansible.builtin.shell: |
@@ -97,17 +97,17 @@
             --disk {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2,format=qcow2,bus=virtio
       args:
         executable: /bin/bash
-      register: virt_install
-      changed_when: "virt_install.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Wait until {{ kubeinit_deployment_node_name }} is running
       community.libvirt.virt:
         command: list_vms
         state: running
-      register: running_vms
+      register: _result
       retries: 30
       delay: 10
-      until: hostvars[kubeinit_deployment_node_name].guest_name in running_vms.list_vms
+      until: hostvars[kubeinit_deployment_node_name].guest_name in _result.list_vms
 
   delegate_to: "{{ kubeinit_deployment_delegate }}"
 
@@ -134,20 +134,20 @@
     - name: Get resolv lines
       ansible.builtin.slurp:
         src: /etc/resolv.conf
-      register: count_resolv_lines
+      register: _result_resolv_conf
 
     - name: Add the local DNS server as a local resolver when not empty
       ansible.builtin.lineinfile:
         path: /etc/resolv.conf
         line: "nameserver {{ kubeinit_bind_service_address }}"
         insertbefore: nameserver.*
-      when: (count_resolv_lines.content | b64decode).splitlines() | length > 0
+      when: (_result_resolv_conf.content | b64decode).splitlines() | length > 0
 
     - name: Add the local DNS server as a local resolver when empty
       ansible.builtin.lineinfile:
         path: /etc/resolv.conf
         line: "nameserver {{ kubeinit_bind_service_address }}"
-      when: (count_resolv_lines.content | b64decode).splitlines() | length == 0
+      when: (_result_resolv_conf.content | b64decode).splitlines() | length == 0
 
     - name: Add the local DNS server as a local resolver
       ansible.builtin.lineinfile:
@@ -160,7 +160,8 @@
         swapoff -a
       args:
         executable: /bin/bash
-      changed_when: false
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Resize root partition
       ansible.builtin.shell: |
@@ -169,7 +170,8 @@
         xfs_growfs /dev/vda1
       args:
         executable: /bin/bash
-      changed_when: false
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Disable SELinux
       ansible.posix.selinux:
@@ -187,7 +189,8 @@
         sysctl -p
       args:
         executable: /bin/bash
-      changed_when: false
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Perform any distro-specific post-deployment guest configuration
       ansible.builtin.include_role:
@@ -199,7 +202,7 @@
       ansible.builtin.package:
         name: "*"
         state: latest
-      register: update_packages
+      register: _result_update_packages
 
     - name: Reboot immediately after the package update
       ansible.builtin.shell: "sleep 5 && reboot"
@@ -207,7 +210,7 @@
         executable: /bin/bash
       async: 1
       poll: 0
-      when: update_packages is changed and kubeinit_libvirt_reboot_guests_after_package_update
+      when: _result_update_packages is changed and kubeinit_libvirt_reboot_guests_after_package_update
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 

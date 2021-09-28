@@ -25,12 +25,12 @@
         oc get csr | grep Approved
       args:
         executable: /bin/bash
-      register: cmd_res
-      changed_when: "cmd_res.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       retries: 60
       delay: 60
       # Per each node we have 2 certs one per kubelet-serving and another per kube-apiserver-client-kubelet
-      until: cmd_res.stdout_lines | default([]) | list | count == ( groups['all_controller_nodes'] | count + groups['all_compute_nodes'] | count ) * 2
+      until: _result.stdout_lines | default([]) | list | count == ( groups['all_controller_nodes'] | count + groups['all_compute_nodes'] | count ) * 2
 
     - name: "wait until all nodes are ready"
       ansible.builtin.shell: |
@@ -39,32 +39,19 @@
         oc get nodes | grep " Ready"
       args:
         executable: /bin/bash
-      register: cmd_res
-      changed_when: "cmd_res.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       retries: 60
       delay: 60
-      until: cmd_res.stdout_lines | default([]) | list | count == ( (groups['all_controller_nodes'] | count) + (groups['all_compute_nodes'] | count) )
+      until: _result.stdout_lines | default([]) | list | count == ( (groups['all_controller_nodes'] | count) + (groups['all_compute_nodes'] | count) )
 
     - name: Copy the kubeconfig
       ansible.builtin.shell: |
         cp ~/install_dir/auth/kubeconfig ~/.kube/config
       args:
         executable: /bin/bash
-      register: copy_kubeconfig
-      changed_when: "copy_kubeconfig.rc == 0"
-
-    - name: Get some final cluster information
-      ansible.builtin.shell: |
-        set -o pipefail
-        set -e
-        echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
-        export KUBECONFIG=~/install_dir/auth/kubeconfig
-        oc get nodes
-      args:
-        executable: /bin/bash
-      ignore_errors: yes
-      register: final_output_info
-      changed_when: "final_output_info.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     #
     # Configure NFS
@@ -75,9 +62,30 @@
         public: true
       when: "'nfs' in kubeinit_cluster_hostvars.services"
 
+    #
+    # Deploy KubeVirt
+    #
+    - name: Deploy KubeVirt
+      ansible.builtin.include_role:
+        name: kubeinit.kubeinit.kubeinit_kubevirt
+        public: yes
+      when: not kubeinit_okd_openshift_deploy | default(False)
+
+    - name: Get some final cluster information
+      ansible.builtin.shell: |
+        set -eo pipefail
+        echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
+        export KUBECONFIG=~/install_dir/auth/kubeconfig
+        oc get nodes
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+      register: _result_cluster_info
+      changed_when: "_result_cluster_info.rc == 0"
+
     - name: Display final debug info
       ansible.builtin.debug:
-        var: final_output_info
+        var: _result_cluster_info
 
     - name: Print some final data
       vars:
@@ -88,13 +96,6 @@
             console-openshift-console.apps.{{ kubeinit_cluster_fqdn }}
       ansible.builtin.debug:
         msg: "{{ msg.split('\n') }}"
-
-    - name: Deploy KubeVirt
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_kubevirt
-        tasks_from: main.yml
-        public: yes
-      when: not kubeinit_okd_openshift_deploy | default(False)
 
   vars:
     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"

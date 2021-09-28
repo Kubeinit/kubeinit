@@ -60,7 +60,7 @@
 - name: Check if kubeinit_common_docker_password path exists
   ansible.builtin.stat:
     path: "{{ kubeinit_common_docker_password }}"
-  register: docker_password_in_file
+  register: _result_passwordfile
   delegate_to: localhost
   no_log: true
   when: |
@@ -72,7 +72,7 @@
 - name: Read docker password from file when the variable has the path
   ansible.builtin.slurp:
     src: "{{ kubeinit_common_docker_password }}"
-  register: docker_password
+  register: _result_passsword
   delegate_to: localhost
   no_log: true
   when: |
@@ -80,12 +80,12 @@
     kubeinit_common_docker_password is defined and
     kubeinit_common_docker_username and
     kubeinit_common_docker_password and
-    docker_password_in_file.stat.exists
+    _result_passwordfile.stat.exists
 
 - name: Podman login to docker.io
   containers.podman.podman_login:
     username: "{{ kubeinit_common_docker_username }}"
-    password: "{{ (docker_password.content | b64decode | trim) if (docker_password_in_file.stat.exists) else (kubeinit_common_docker_password) }}"
+    password: "{{ (_result_passsword.content | b64decode | trim) if (_result_passwordfile.stat.exists) else (kubeinit_common_docker_password) }}"
     registry: "docker.io"
   no_log: true
   when: |
@@ -96,7 +96,7 @@
 
 - name: Clear any reference to docker password
   ansible.builtin.set_fact:
-    docker_password: null
+    _result_passsword: null
   no_log: true
   when: |
     kubeinit_common_docker_username is defined and

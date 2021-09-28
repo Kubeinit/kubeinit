@@ -38,8 +38,8 @@
         (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS')
       args:
         executable: /bin/bash
-      register: ovn_install
-      changed_when: "ovn_install.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Install OVN packages in Fedora (Master Hypervisor)
       ansible.builtin.shell: |
@@ -53,8 +53,8 @@
         (hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
       args:
         executable: /bin/bash
-      register: ovn_install
-      changed_when: "ovn_install.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Install OVN packages in Ubuntu/Debian (Master Hypervisor)
       ansible.builtin.shell: |
@@ -68,8 +68,8 @@
         (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
       args:
         executable: /bin/bash
-      register: ovn_install
-      changed_when: "ovn_install.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     #
     # We DO NOT install ovn-central (OVN requirement) in the other hypervisors
@@ -87,8 +87,8 @@
         (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS')
       args:
         executable: /bin/bash
-      register: ovn_install_slaves
-      changed_when: "ovn_install_slaves.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Install OVN packages in Fedora (Slave Hypervisor)
       ansible.builtin.shell: |
@@ -101,8 +101,8 @@
         (hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
       args:
         executable: /bin/bash
-      register: ovn_install_slaves
-      changed_when: "ovn_install_slaves.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Install OVN packages in Ubuntu/Debian (Slave Hypervisor)
       ansible.builtin.shell: |
@@ -115,14 +115,14 @@
         (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
       args:
         executable: /bin/bash
-      register: ovn_install_slaves
-      changed_when: "ovn_install_slaves.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Refresh firewalld services list to pick up ovn services
       ansible.builtin.command: |
         firewall-cmd --reload
-      register: refresh_firewalld
-      changed_when: "refresh_firewalld.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       when: >
         hostvars[kubeinit_deployment_node_name].firewalld_is_active
 
@@ -158,8 +158,8 @@
     - name: Refresh firewalld services list
       ansible.builtin.command: |
         firewall-cmd --reload
-      register: reload_firewalld
-      changed_when: "reload_firewalld.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       when: >
         hostvars[kubeinit_deployment_node_name].firewalld_is_active
 

@@ -40,7 +40,7 @@
     - name: Read openshift pullsecret
       ansible.builtin.slurp:
         src: "{{ kubeinit_okd_openshift_pullsecret }}"
-      register: openshift_pullsecret
+      register: _result_openshift_pullsecret
       delegate_to: localhost
       when: |
         kubeinit_okd_openshift_pullsecret is defined and
@@ -61,28 +61,28 @@
       ansible.builtin.shell: |
         set -eo pipefail
         {% if kubeinit_okd_openshift_pullsecret is defined and kubeinit_okd_openshift_pullsecret %}
-        echo '{{ openshift_pullsecret.content | b64decode | trim }}' | jq -c ".auths"
+        echo '{{ _result_openshift_pullsecret.content | b64decode | trim }}' | jq -c ".auths"
         {% else %}
         echo '{{ ocp_registry_token }}' | jq -c ".auths"
         {% endif %}
       args:
         executable: /bin/bash
-      register: ocp_registry_pullsecret
-      changed_when: "ocp_registry_pullsecret.rc == 0"
+      register: _result_registry_pullsecret
+      changed_when: "_result_registry_pullsecret.rc == 0"
 
     - name: Append openshift auth to pullsecret
       ansible.builtin.shell: |
         set -o pipefail
         echo '{{ kubeinit_okd_registry_pullsecret }}' | jq -c \
-          '.auths += {{ ocp_registry_pullsecret.stdout }}'
+          '.auths += {{ _result_registry_pullsecret.stdout }}'
       args:
         executable: /bin/bash
-      register: ocp_new_pullsecret
-      changed_when: "ocp_new_pullsecret.rc == 0"
+      register: _result_new_pullsecret
+      changed_when: "_result_new_pullsecret.rc == 0"
 
     - name: Override final openshift kubeinit_okd_registry_pullsecret with both auths
       ansible.builtin.set_fact:
-        kubeinit_okd_registry_pullsecret: '  {{ ocp_new_pullsecret.stdout }}'
+        kubeinit_okd_registry_pullsecret: '  {{ _result_new_pullsecret.stdout }}'
 
   when: kubeinit_okd_openshift_deploy
 
@@ -109,8 +109,6 @@
     kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
     kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
     kubeinit_deployment_os: "{{ hostvars[kubeinit_provision_service_node].os }}"
-    kubeinit_deployment_type: container
-    kubeinit_deployment_role: provision
 
 - name: Delegate to the provision service node
   block:
@@ -122,8 +120,8 @@
         echo "{{ kubeinit_okd_service_cidr }}" > ~/service_cidr
       args:
         executable: /bin/bash
-      register: render_net_info
-      changed_when: "render_net_info.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Install services requirements
       ansible.builtin.yum:
@@ -158,8 +156,8 @@
         openshift-install version
       args:
         executable: /bin/bash
-      register: install_client_and_installer
-      changed_when: "install_client_and_installer.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     #
     # Configure local registry
@@ -180,8 +178,8 @@
         cat release.txt | grep quay | grep -v "Pull From" | tr -s ' ' | cut -d ' ' -f 3 > ~/kubeinit_deployment_images.txt
       args:
         executable: /bin/bash
-      register: render_images_list
-      changed_when: "render_images_list.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Mirror OKD remote registry to local
       ansible.builtin.shell: |
@@ -207,8 +205,8 @@
         openshift-install version
       args:
         executable: /bin/bash
-      register: mirror_registry
-      changed_when: "mirror_registry.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       when: "'registry' in kubeinit_cluster_hostvars.services"
 
   delegate_to: "{{ kubeinit_provision_service_node }}"
@@ -268,16 +266,16 @@
         cp ~/install_dir/install-config.yaml ~/install-config.yaml
       args:
         executable: /bin/bash
-      register: backup_install_config
-      changed_when: "backup_install_config.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Render the bootstrap details
       ansible.builtin.shell: |
         openshift-install create manifests --dir=install_dir/
       args:
         executable: /bin/bash
-      register: render_bootstrap_details
-      changed_when: "render_bootstrap_details.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Enable master schedulable if there are no worker nodes
       ansible.builtin.shell: |
@@ -289,8 +287,8 @@
         sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
       args:
         executable: /bin/bash
-      register: enable_masters_sched
-      changed_when: "enable_masters_sched.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       when: kubeinit_compute_count | int == 0
 
     - name: Disable master schedulable if there is at least one worker node
@@ -303,8 +301,8 @@
         sed -r "s/^(\s*${key}\s*:\s*).*/\1${new_value}/" -i "$yaml_file"
       args:
         executable: /bin/bash
-      register: disable_masters_sched
-      changed_when: "disable_masters_sched.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
       when: kubeinit_compute_count | int > 0
 
     - name: Render ignition files
@@ -315,8 +313,8 @@
         cp -R install_dir/* "/var/kubeinit/html/okd4/"
       args:
         executable: /bin/bash
-      register: render_ignition_files
-      changed_when: "render_ignition_files.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Apply permissions to the apache folder
       ansible.builtin.file:
@@ -337,7 +335,7 @@
       args:
         executable: /bin/bash
       ignore_errors: yes
-      register: autoload
-      changed_when: "autoload.rc == 0"
+      register: _result
+      changed_when: "_result.rc == 0"
 
   delegate_to: "{{ kubeinit_provision_service_node }}"

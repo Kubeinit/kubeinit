@@ -25,24 +25,24 @@
     cat /proc/cpuinfo | grep processor | grep : | wc -l
   args:
     executable: /bin/bash
-  register: kubeinit_validations_libvirt_total_cores
+  register: _result_total_cores
   with_items:
     - "{{ groups['all_hosts'] | list }}"
   delegate_to: "{{ item }}"
-  changed_when: "kubeinit_validations_libvirt_total_cores.rc == 0"
+  changed_when: "_result_total_cores.rc == 0"
 
 - name: Debug
   ansible.builtin.debug:
-    var: kubeinit_validations_libvirt_total_cores
+    var: _result_total_cores
 
 - name: Define the hypervisors available cores dictionary
   ansible.builtin.set_fact:
     kubeinit_validations_hypervisors_available_cores: "{{ kubeinit_validations_hypervisors_available_cores|default([]) | combine( {item.item: item.stdout|int} ) }}"
-  with_items: "{{ kubeinit_validations_libvirt_total_cores.results }}"
+  with_items: "{{ _result_total_cores.results }}"
 
 - name: Debug
   ansible.builtin.debug:
-    var: kubeinit_validations_libvirt_total_cores
+    var: kubeinit_validations_hypervisors_available_cores
 
 - name: Get the total inventory cores usage
   ansible.builtin.set_fact:

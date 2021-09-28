@@ -14,11 +14,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
 #
 # Make sure the mount path of libvirt has enough space in the hypervisor
 #
-
 - name: Get libvirt hypervisors directory free space
   ansible.builtin.shell: |
     set -o pipefail
@@ -40,20 +38,20 @@
         ' | jq .spaceavail | tr -d '"'
   args:
     executable: /bin/bash
-  register: kubeinit_validations_libvirt_free_space
+  register: _result_free_storage
   with_items:
     - "{{ groups['all_hosts'] | list }}"
   delegate_to: "{{ item }}"
-  changed_when: "kubeinit_validations_libvirt_free_space.rc == 0"
+  changed_when: "_result_free_storage.rc == 0"
 
 - name: Debug
   ansible.builtin.debug:
-    var: kubeinit_validations_libvirt_free_space
+    var: _result_free_storage
 
 - name: Define the hypervisors disk free space dictionary
   ansible.builtin.set_fact:
     kubeinit_validations_hypervisors_free_disk_space: "{{ kubeinit_validations_hypervisors_free_disk_space|default([]) | combine( {item.item: item.stdout[:-1]|int} ) }}"
-  with_items: "{{ kubeinit_validations_libvirt_free_space.results }}"
+  with_items: "{{ _result_free_storage.results }}"
 
 - name: Debug
   ansible.builtin.debug:

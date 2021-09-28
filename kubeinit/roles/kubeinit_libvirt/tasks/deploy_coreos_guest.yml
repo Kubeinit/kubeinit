@@ -36,7 +36,7 @@
         kubeinit_libvirt_okd_image_rootfs: "{{ kubeinit_libvirt_source_images.rhcos.rootfs }}"
       when: kubeinit_okd_openshift_deploy | default(False)
 
-    - name: "Create VM definition for the {{ kubeinit_deployment_role }} nodes"
+    - name: "Create VM definition for {{ kubeinit_deployment_node_name }}"
       ansible.builtin.shell: |
         set -o pipefail
         # If you use the kernel args to deploy the machine
@@ -53,10 +53,10 @@
                          coreos.inst.insecure=yes
                          coreos.inst.install_dev=/dev/vda
                          coreos.inst.image_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_raw }}
-                         coreos.inst.ignition_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_deployment_role }}.ign
+                         coreos.inst.ignition_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_ignition_name }}.ign
                          coreos.live.rootfs_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_rootfs }}'
 
-        kernel_args='initrd=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_initrd }} ip=dhcp nameserver={{ kubeinit_bind_service_address }} rd.neednet=1 console=tty0 console=ttyS0 coreos.inst=yes coreos.inst.insecure=yes coreos.inst.install_dev=/dev/vda coreos.inst.image_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_raw }} coreos.inst.ignition_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_deployment_role }}.ign coreos.live.rootfs_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_rootfs }}'
+        kernel_args='initrd=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_initrd }} ip=dhcp nameserver={{ kubeinit_bind_service_address }} rd.neednet=1 console=tty0 console=ttyS0 coreos.inst=yes coreos.inst.insecure=yes coreos.inst.install_dev=/dev/vda coreos.inst.image_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_raw }} coreos.inst.ignition_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_ignition_name }}.ign coreos.live.rootfs_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_rootfs }}'
 
         virt-install \
             --connect qemu:///system \
@@ -77,15 +77,16 @@
             --extra-args "${kernel_args}"
       args:
         executable: /bin/bash
-      changed_when: false
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Wait until {{ kubeinit_deployment_node_name }} is running
       community.libvirt.virt:
         command: list_vms
         state: running
-      register: running_vms
+      register: _result
       retries: 30
       delay: 10
-      until: hostvars[kubeinit_deployment_node_name].guest_name in running_vms.list_vms
+      until: hostvars[kubeinit_deployment_node_name].guest_name in _result.list_vms
 
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
