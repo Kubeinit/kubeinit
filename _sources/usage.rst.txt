@@ -38,6 +38,16 @@ An example of a possible dependency issue is the following:
 By default the KubeInit's container image installs these requirements, this should only affect
 those executing directly the collection from the source code.
 
+There is also needed to build and install the collection if its used directly from the
+repository.
+
+.. code-block:: console
+
+    # From the root directory in the repository, execute:
+    rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
+    ansible-galaxy collection build -v --force --output-path releases/
+    ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
+
 Directly executing the deployment playbook
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
