@@ -166,27 +166,15 @@ from the project's root folder:
 
 .. code-block:: console
 
-    # Create a playbook to run the cleanup tasks
-    cat << EOF > ./playbooks/clean.yml
-    ---
-    - name: Clean
-      hosts: hypervisor_hosts
-      tasks:
-        - name: Run the prepare tasks
-          ansible.builtin.include_role:
-            name: kubeinit.kubeinit.kubeinit_prepare
-            tasks_from: main.yml
-        - name: Clean the environment
-          ansible.builtin.include_role:
-            name: kubeinit.kubeinit.kubeinit_libvirt
-            tasks_from: 10_cleanup
-    EOF
-    # Run the cleanup playbook
     ansible-playbook \
         --user root \
         -v -i ./hosts/okd/inventory \
+        -e kubeinit_stop_after_task=task-cleanup-hypervisors \
         --become \
         --become-user root \
-        ./playbooks/clean.yml
-    # Remove cleanup playbook
-    rm -rf ./playbooks/clean.yml
+        ./playbooks/okd.yml
+
+In this case the deployment will stop just after cleaning the
+hypervisors resources. If its required to remove all the guests
+in the hypervisors its also possible to add the following variable
+`-e kubeinit_libvirt_destroy_all_guests=True`

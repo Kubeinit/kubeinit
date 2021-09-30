@@ -247,32 +247,19 @@ machine a user can execute:</p>
 <p>Each time a cluster is deployed, all the previously created resources are removed.
 In case a user needs to remove the resources created by Kubeinit execute
 from the project’s root folder:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>Create a playbook to run the cleanup tasks
-<span class="go">cat &lt;&lt; EOF &gt; ./playbooks/clean.yml</span>
-<span class="go">---</span>
-<span class="go">- name: Clean</span>
-<span class="go">  hosts: hypervisor_hosts</span>
-<span class="go">  tasks:</span>
-<span class="go">    - name: Run the prepare tasks</span>
-<span class="go">      ansible.builtin.include_role:</span>
-<span class="go">        name: kubeinit.kubeinit.kubeinit_prepare</span>
-<span class="go">        tasks_from: main.yml</span>
-<span class="go">    - name: Clean the environment</span>
-<span class="go">      ansible.builtin.include_role:</span>
-<span class="go">        name: kubeinit.kubeinit.kubeinit_libvirt</span>
-<span class="go">        tasks_from: 10_cleanup</span>
-<span class="go">EOF</span>
-<span class="gp"># </span>Run the cleanup playbook
-<span class="go">ansible-playbook \</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">ansible-playbook \</span>
 <span class="go">    --user root \</span>
 <span class="go">    -v -i ./hosts/okd/inventory \</span>
+<span class="go">    -e kubeinit_stop_after_task=task-cleanup-hypervisors \</span>
 <span class="go">    --become \</span>
 <span class="go">    --become-user root \</span>
-<span class="go">    ./playbooks/clean.yml</span>
-<span class="gp"># </span>Remove cleanup playbook
-<span class="go">rm -rf ./playbooks/clean.yml</span>
+<span class="go">    ./playbooks/okd.yml</span>
 </pre></div>
 </div>
+<p>In this case the deployment will stop just after cleaning the
+hypervisors resources. If its required to remove all the guests
+in the hypervisors its also possible to add the following variable
+<cite>-e kubeinit_libvirt_destroy_all_guests=True</cite></p>
 </section>
 </section>
 
