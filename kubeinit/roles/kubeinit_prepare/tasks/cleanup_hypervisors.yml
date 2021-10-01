@@ -172,8 +172,7 @@
     enabled: false
   register: _result_stop_service
   failed_when: _result_stop_service is not defined
-  with_items:
-    - "{{ groups['all_hosts'] | product(kubeinit_cluster_hostvars.services) | list }}"
+  loop: "{{ groups['all_hosts'] | product(kubeinit_cluster_hostvars.services) }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -274,8 +273,7 @@
     buildah rm --all || true
   args:
     executable: /bin/bash
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
+  loop: "{{ groups['all_hosts'] }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -290,8 +288,7 @@
     podman system prune -a -f || true
   args:
     executable: /bin/bash
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
+  loop: "{{ groups['all_hosts'] }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -306,8 +303,7 @@
     ip link del {{ ovs_veth_devname }} || true
   args:
     executable: /bin/bash
-  with_items:
-    - "{{ groups['all_hosts'] | product(groups['all_service_nodes']) | list }}"
+  loop: "{{ groups['all_hosts'] | product(groups['all_service_nodes']) }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -323,8 +319,7 @@
     ovs-vsctl del-port br-int {{ ovs_veth_devname }} || true
   args:
     executable: /bin/bash
-  with_items:
-    - "{{ groups['all_hosts'] | product(groups['all_service_nodes']) | list }}"
+  loop: "{{ groups['all_hosts'] | product(groups['all_service_nodes']) }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -334,16 +329,10 @@
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
-- name: Clean the OVN network
+- name: Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
-    tasks_from: 10_ovn_cleanup.yml
-    public: true
-
-- name: Clean up the libvirt networks and hosts before validations
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_libvirt
-    tasks_from: 10_cleanup.yml
+    tasks_from: cleanup_libvirt.yml
     public: true
 
 - name: Add task-cleanup-hypervisors to tasks_completed

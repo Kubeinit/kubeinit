@@ -39,8 +39,7 @@
   args:
     executable: /bin/bash
   register: _result_free_storage
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
+  loop: "{{ groups['all_hosts'] }}"
   delegate_to: "{{ item }}"
   changed_when: "_result_free_storage.rc == 0"
 
@@ -51,7 +50,7 @@
 - name: Define the hypervisors disk free space dictionary
   ansible.builtin.set_fact:
     kubeinit_validations_hypervisors_free_disk_space: "{{ kubeinit_validations_hypervisors_free_disk_space|default([]) | combine( {item.item: item.stdout[:-1]|int} ) }}"
-  with_items: "{{ _result_free_storage.results }}"
+  loop: "{{ _result_free_storage.results }}"
 
 - name: Debug
   ansible.builtin.debug:
@@ -60,7 +59,7 @@
 - name: Get the total inventory disk usage
   ansible.builtin.set_fact:
     kubeinit_validations_libvirt_disk_usage: "{{ kubeinit_validations_libvirt_disk_usage|default({})| combine( {item: {'id': item, 'disk': hostvars[item].disk[:-1]|int, 'target': hostvars[item].target} } ) }}"
-  with_items: "{{ groups['all_guest_vms'] }}"
+  loop: "{{ groups['all_guest_vms'] }}"
 
 - name: Debug
   ansible.builtin.debug:
@@ -77,7 +76,7 @@
           }]
         + kubeinit_validations_libvirt_combined_disk_usage[item.value.target] | default([]) })
       }}
-  with_dict: "{{ kubeinit_validations_libvirt_disk_usage }}"
+  loop: "{{ kubeinit_validations_libvirt_disk_usage | dict2items }}"
 
 - name: Debug
   ansible.builtin.debug:
@@ -88,7 +87,7 @@
     kubeinit_validations_libvirt_summarized_disk_usage: "{{ kubeinit_validations_libvirt_summarized_disk_usage|default([]) | combine( {item: my_attribute} ) }}"
   vars:
     my_attribute: "{{ kubeinit_validations_libvirt_combined_disk_usage[item] | map(attribute='disk') | list | sum }}"
-  with_items: "{{ kubeinit_validations_libvirt_combined_disk_usage.keys() | list }}"
+  loop: "{{ kubeinit_validations_libvirt_combined_disk_usage.keys() }}"
 
 - name: Debug
   ansible.builtin.debug:
@@ -97,12 +96,12 @@
 - name: Debug
   ansible.builtin.debug:
     var: item
-  with_dict: "{{ kubeinit_validations_hypervisors_free_disk_space }}"
+  loop: "{{ kubeinit_validations_hypervisors_free_disk_space | dict2items }}"
 
 - name: Make sure there is enough free space
   ansible.builtin.assert:
     that:
       - kubeinit_validations_hypervisors_free_disk_space[item.key]|int > item.value|float * 1.1
     msg: "It seems there is not enough disk space (Required: {{ kubeinit_validations_libvirt_summarized_disk_usage }} Available: {{ kubeinit_validations_hypervisors_free_disk_space }})"
-  with_dict: "{{ kubeinit_validations_libvirt_summarized_disk_usage }}"
+  loop: "{{ kubeinit_validations_libvirt_summarized_disk_usage | dict2items }}"
   when: kubeinit_ignore_validation_checks is not defined
