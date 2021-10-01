@@ -1,0 +1,245 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+#
+# Cleanup OVN network
+#
+- name: Clean OVN/OVS resources
+  ansible.builtin.shell: |
+    set -o pipefail
+    ip route del {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex || true
+    ovn-nbctl --if-exists ls-del sw0 || true
+    ovn-nbctl --if-exists lr-del lr0 || true
+    ovn-nbctl --if-exists ls-del public || true
+    ovs-vsctl --if-exists del-br br-int || true
+    ovs-vsctl --if-exists del-br br-ex || true
+    ip link del genev_sys_6081 || true
+    ovs-dpctl del-dp ovs-system || true
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Stop and disable OVN services in the first hypervisor (CentOS based)
+  ansible.builtin.service:
+    name: "{{ service_name }}"
+    state: stopped
+    enabled: false
+  register: _result_stop_service
+  failed_when: _result_stop_service is not defined
+  loop: "{{ groups['all_hosts'] | product(['openvswitch', 'ovn-northd', 'ovn-controller']) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    service_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS' or hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
+
+- name: Stop and disable OVN services in the rest of the hypervisors (CentOS based)
+  ansible.builtin.service:
+    name: "{{ service_name }}"
+    state: stopped
+    enabled: false
+  register: _result_stop_service
+  failed_when: _result_stop_service is not defined
+  loop: "{{ groups['all_hosts'] | product(['openvswitch', 'ovn-controller']) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    service_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS' or hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora')
+
+- name: Stop and disable OVN services in the first hypervisor (Ubuntu based)
+  ansible.builtin.service:
+    name: "{{ service_name }}"
+    state: stopped
+    enabled: false
+  register: _result_stop_service
+  failed_when: _result_stop_service is not defined
+  loop: "{{ groups['all_hosts'] | product(['ovs-vswitchd', 'ovn-central', 'ovn-controller']) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    service_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    (kubeinit_deployment_node_name in kubeinit_ovn_central_host) and
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
+
+- name: Stop and disable OVN services in the rest of the hypervisors (Ubuntu based)
+  ansible.builtin.service:
+    name: "{{ service_name }}"
+    state: stopped
+    enabled: false
+  register: _result_stop_service
+  failed_when: _result_stop_service is not defined
+  loop: "{{ groups['all_hosts'] | product(['ovs-vswitchd', 'ovn-controller']) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    service_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    (kubeinit_deployment_node_name not in kubeinit_ovn_central_host) and
+    (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian')
+
+- name: Delete existing OVS/OVN files
+  ansible.builtin.file:
+    path: "{{ dir_name }}"
+    state: absent
+  loop: "{{ groups['all_hosts'] | product(['/etc/openvswitch/conf.db', '/etc/openvswitch/system-id.conf', '/var/lib/ovn/']) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    dir_name: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+#
+# Cleanup libvirt networks
+#
+- name: Destroy deployment networks
+  community.libvirt.virt_net:
+    command: destroy
+    name: "{{ cluster_net.name }}"
+  loop: "{{ groups['all_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_net: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_net.name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Undefine deployment networks
+  community.libvirt.virt_net:
+    command: undefine
+    name: "{{ cluster_net.name }}"
+  loop: "{{ groups['all_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_net: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_net.name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Remove the deployment networks
+  community.libvirt.virt_net:
+    state: absent
+    name: "{{ cluster_net.name }}"
+  loop: "{{ groups['all_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_net: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_net.name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+#
+# Cleanup VMs
+#
+- name: Generate a list of vm guest names to match
+  ansible.builtin.set_fact:
+    matching_vm_guest_names: "{{ (matching_vm_guest_names | default([])) | union([hostvars[item].guest_name]) }}"
+  loop: "{{ groups['all_guest_vms'] }}"
+
+- name: Destroy vms
+  community.libvirt.virt:
+    name: "{{ cluster_vm }}"
+    state: destroyed
+  loop: "{{ kubeinit_cluster_hostvars.running_vms }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_vm: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_vm in matching_vm_guest_names or kubeinit_libvirt_destroy_all_guests
+
+- name: Undefine vms
+  community.libvirt.virt:
+    name: "{{ cluster_vm }}"
+    command: undefine
+  loop: "{{ kubeinit_cluster_hostvars.running_vms }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_vm: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_vm in matching_vm_guest_names or kubeinit_libvirt_destroy_all_guests
+
+- name: Remove VMs storage
+  ansible.builtin.file:
+    state: absent
+    path: "{{ kubeinit_libvirt_target_image_dir }}/{{ cluster_vm }}.qcow2"
+  loop: "{{ kubeinit_cluster_hostvars.running_vms }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    cluster_vm: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: cluster_vm in matching_vm_guest_names or kubeinit_libvirt_destroy_all_guests
+
+#
+# Cleanup guest vm folders
+#
+- name: Clean directories for config files per node
+  ansible.builtin.file:
+    state: absent
+    path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ guest_vm }}/"
+  loop: "{{ groups['all_hosts'] | product(groups['all_guest_vms']) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    guest_vm: "{{ hostvars[cluster_role_item[1]].guest_name }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+#
+# Clean keys
+#
+- name: Reset ssh keys in hypervisor
+  ansible.builtin.known_hosts:
+    name: "{{ node_alias }}"
+    state: absent
+  loop: "{{ groups['all_hosts'] | product(kubeinit_cluster_hostvars.node_aliases | flatten | unique) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    node_alias: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

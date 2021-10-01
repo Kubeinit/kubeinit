@@ -328,9 +328,7 @@
         user: root
         key: "{{ item }}"
         state: present
-      with_items:
-        - "{{ kubeinit_cluster_hostvars.authorized_keys }}"
-        - "{{ _result_provision_service_keypair.public_key }}"
+      loop: "{{ kubeinit_cluster_hostvars.authorized_keys | union([_result_provision_service_keypair.public_key]) }}"
 
   vars:
     ansible_ssh_pipelining: False

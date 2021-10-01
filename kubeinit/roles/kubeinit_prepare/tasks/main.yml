@@ -141,7 +141,7 @@
     name: "{{ item }}"
     ansible_ssh_common_args: >-
       {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa -o ProxyCommand="ssh {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ansible_host }}"
-  with_items: "{{ groups['all_nodes'] }}"
+  loop: "{{ groups['all_nodes'] }}"
 
 - name: Add task-prepare-environment to tasks_completed
   ansible.builtin.add_host:

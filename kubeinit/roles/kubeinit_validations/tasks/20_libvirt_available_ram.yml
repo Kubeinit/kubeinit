@@ -24,8 +24,7 @@
   args:
     executable: /bin/bash
   register: _result_total_ram
-  with_items:
-    - "{{ groups['all_hosts'] | list }}"
+  loop: "{{ groups['all_hosts'] }}"
   delegate_to: "{{ item }}"
   changed_when: "_result_total_ram.rc == 0"
 
@@ -36,7 +35,7 @@
 - name: Define the hypervisors ram available dictionary
   ansible.builtin.set_fact:
     kubeinit_validations_hypervisors_free_ram: "{{ kubeinit_validations_hypervisors_free_ram|default([]) | combine( {item.item: item.stdout|int} ) }}"
-  with_items: "{{ _result_total_ram.results }}"
+  loop: "{{ _result_total_ram.results }}"
 
 - name: Debug
   ansible.builtin.debug:
@@ -45,7 +44,7 @@
 - name: Get the total inventory ram usage
   ansible.builtin.set_fact:
     kubeinit_validations_libvirt_ram_usage: "{{ kubeinit_validations_libvirt_ram_usage|default({})| combine( {item: {'id': item, 'ram': hostvars[item].ram|int, 'target': hostvars[item].target} } ) }}"
-  with_items: "{{ groups['all_guest_vms'] }}"
+  loop: "{{ groups['all_guest_vms'] }}"
 
 - name: Debug
   ansible.builtin.debug:
@@ -62,7 +61,7 @@
           }]
         + kubeinit_validations_libvirt_combined_ram_usage[item.value.target] | default([]) })
       }}
-  with_dict: "{{ kubeinit_validations_libvirt_ram_usage }}"
+  loop: "{{ kubeinit_validations_libvirt_ram_usage | dict2items }}"
 
 - name: Debug
   ansible.builtin.debug:
@@ -73,7 +72,7 @@
     kubeinit_validations_libvirt_summarized_ram_usage: "{{ kubeinit_validations_libvirt_summarized_ram_usage|default([]) | combine( {item: my_attribute} ) }}"
   vars:
     my_attribute: "{{ kubeinit_validations_libvirt_combined_ram_usage[item] | map(attribute='ram') | list | sum }}"
-  with_items: "{{ kubeinit_validations_libvirt_combined_ram_usage.keys() | list }}"
+  loop: "{{ kubeinit_validations_libvirt_combined_ram_usage.keys() }}"
 
 - name: Debug
   ansible.builtin.debug:
@@ -82,12 +81,12 @@
 - name: Debug
   ansible.builtin.debug:
     var: item
-  with_dict: "{{ kubeinit_validations_hypervisors_free_ram }}"
+  loop: "{{ kubeinit_validations_hypervisors_free_ram | dict2items }}"
 
 - name: Make sure there is enough available ram
   ansible.builtin.assert:
     that:
       - kubeinit_validations_hypervisors_free_ram[item.key]|int > item.value|float * 1.1
     msg: "It seems there is not enough ram space (Required: {{ kubeinit_validations_libvirt_summarized_ram_usage }} Available: {{ kubeinit_validations_hypervisors_free_ram }})"
-  with_dict: "{{ kubeinit_validations_libvirt_summarized_ram_usage }}"
+  loop: "{{ kubeinit_validations_libvirt_summarized_ram_usage | dict2items }}"
   when: kubeinit_ignore_validation_checks is not defined

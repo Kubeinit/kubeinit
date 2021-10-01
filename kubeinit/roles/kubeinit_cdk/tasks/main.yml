@@ -73,9 +73,7 @@
     name: "{{ hostvars[item].ansible_host }}"
     key: "{{ hostvars[item].ansible_host }} {{ hostvars[item].ssh_host_key_ecdsa }}"
     state: present
-  with_items:
-    - "{{ groups['all_cluster_nodes'] }}"
-    - "{{ groups['extra_nodes'] }}"
+  loop: "{{ groups['all_cluster_nodes'] + groups['extra_nodes'] }}"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 - name: Install the CDK juju installer
@@ -127,8 +125,7 @@
     executable: /bin/bash
   register: _result
   changed_when: "_result.rc == 0"
-  with_items:
-    - "{{ groups['all_cluster_nodes'] }}"
+  loop: "{{ groups['all_cluster_nodes'] }}"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 - name: Verify that all cluster nodes are started

@@ -120,11 +120,9 @@
     - name: Make NetworkManager stop updating resolv.conf
       ansible.builtin.lineinfile:
         dest: "/etc/NetworkManager/NetworkManager.conf"
-        insertafter: "{{ item.inserts }}"
+        insertafter: '^\[main\]'
         state: present
-        line: "{{ item.lines }}"
-      with_items:
-        - {inserts: '^\[main\]', lines: 'dns=none'}
+        line: 'dns=none'
 
     - name: Restart NetworkManager
       ansible.builtin.service:
