@@ -14,47 +14,21 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Fetch the kubeconfig from the first controller node
-  ansible.builtin.slurp:
-    src: ~/.kube/config
-  register: _result_cluster_kubeconfig
-  delegate_to: "{{ kubeinit_first_controller_node }}"
+- name: Prepare services if needed
+  ansible.builtin.include_role:
+    name: kubeinit.kubeinit.kubeinit_services
+    tasks_from: prepare_services.yml
+    public: true
+  vars:
+    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+  when: not task_completed
 
-- name: Create kube directory
-  ansible.builtin.file:
-    path: ~/.kube
-    state: directory
-    mode: '0644'
-  delegate_to: "{{ kubeinit_provision_service_node }}"
-
-- name: Store the kubeconfig to the provision services machine.
-  ansible.builtin.copy:
-    content: "{{ _result_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
-    dest: ~/.kube/config
-    mode: '0644'
-  delegate_to: "{{ kubeinit_provision_service_node }}"
-
-- name: Label compute nodes
-  ansible.builtin.shell: |
-    kubectl label node {{ hostvars[item].fqdn }} node-role.kubernetes.io/worker=
-  args:
-    executable: /bin/bash
-  register: _result
-  changed_when: "_result.rc == 0"
-  loop: "{{ groups['all_compute_nodes'] }}"
-  delegate_to: "{{ kubeinit_provision_service_node }}"
-
-- name: Deploy EKS manifests.
-  ansible.builtin.shell: |
-    kubectl apply -f https://distro.eks.amazonaws.com/crds/releases.distro.eks.amazonaws.com-v1alpha1.yaml
-    kubectl apply -f https://distro.eks.amazonaws.com/kubernetes-1-18/kubernetes-1-18-eks-1.yaml
-    kubectl get release kubernetes-1-18-eks-1
-    kubectl get release kubernetes-1-18-eks-1 -o yaml
-  args:
-    executable: /bin/bash
-  register: _result
-  changed_when: "_result.rc == 0"
-  delegate_to: "{{ kubeinit_provision_service_node }}"
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-post-deployment'
 
 #
 # Configure NFS
@@ -68,3 +42,19 @@
   vars:
     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+- name: Add task-post-deployment to tasks_completed
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-post-deployment']) }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

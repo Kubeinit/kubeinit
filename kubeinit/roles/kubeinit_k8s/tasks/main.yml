@@ -181,6 +181,27 @@
     loop_var: compute_node
   delegate_to: "{{ kubeinit_first_controller_node }}"
 
+# We fetch the kubeconfig from the first controller node
+- name: Copying the kubeconfig to a variable
+  ansible.builtin.slurp:
+    src: ~/.kube/config
+  register: _result_cluster_kubeconfig
+  delegate_to: "{{ kubeinit_first_controller_node }}"
+
+- name: Create kube directory
+  ansible.builtin.file:
+    path: ~/.kube
+    state: directory
+    mode: '0644'
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Storing the master kubeconfig to the services machine.
+  ansible.builtin.copy:
+    content: "{{ _result_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
+    dest: ~/.kube/config
+    mode: '0644'
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
 - name: Add task-deploy-cluster to tasks_completed
   ansible.builtin.add_host:
     name: "{{ kubeinit_cluster_facts_name }}"

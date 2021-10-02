@@ -20,7 +20,7 @@
     name: "{{ kubeinit_nfs_packages }}"
     state: present
 
-- name: "configure NFS shares of CentOS based guests"
+- name: "Configure NFS shares of CentOS based guests"
   ansible.builtin.shell: |
     set -o pipefail
     systemctl enable nfs-server rpcbind
@@ -37,7 +37,7 @@
   changed_when: "_result.rc == 0"
   when: hostvars[kubeinit_deployment_node_name].os == 'centos'
 
-- name: "configure NFS shares of Ubuntu based guests"
+- name: "Configure NFS shares of Ubuntu based guests"
   ansible.builtin.shell: |
     set -o pipefail
     mkdir -p /var/nfsshare
@@ -53,7 +53,7 @@
   when: hostvars[kubeinit_deployment_node_name].os == 'ubuntu' or hostvars[kubeinit_deployment_node_name].os == 'debian'
 
 #
-# add nfs dynamic provisioning
+# Add nfs dynamic provisioning
 #
 
 - name: Add nfs provisioning role
@@ -193,95 +193,3 @@
   changed_when: "_result.rc == 0"
   args:
     executable: /bin/bash
-
-- name: Tasks only needed for Openshift
-  block:
-
-    - name: Add security context constraint for nfs provisioner
-      ansible.builtin.shell: |
-        cat << EOF > ~/nfs_scc.yaml
-        apiVersion: security.openshift.io/v1
-        kind: SecurityContextConstraints
-        metadata:
-          name: nfs-provisioner
-        allowHostDirVolumePlugin: true
-        allowHostIPC: false
-        allowHostNetwork: false
-        allowHostPID: false
-        allowHostPorts: false
-        allowPrivilegedContainer: false
-        allowedCapabilities:
-        - DAC_READ_SEARCH
-        - SYS_RESOURCE
-        defaultAddCapabilities: null
-        fsGroup:
-          type: MustRunAs
-        priority: null
-        readOnlyRootFilesystem: false
-        requiredDropCapabilities:
-        - KILL
-        - MKNOD
-        - SYS_CHROOT
-        runAsUser:
-          type: RunAsAny
-        seLinuxContext:
-          type: MustRunAs
-        supplementalGroups:
-          type: RunAsAny
-        volumes:
-        - configMap
-        - downwardAPI
-        - emptyDir
-        - hostPath
-        - nfs
-        - persistentVolumeClaim
-        - secret
-        EOF
-        export KUBECONFIG=~/.kube/config
-        kubectl apply -f ~/nfs_scc.yaml --request-timeout=1800s
-      register: _result
-      changed_when: "_result.rc == 0"
-      args:
-        executable: /bin/bash
-
-    - name: Apply nfs security policy to nfs user
-      ansible.builtin.shell: |
-        export KUBECONFIG=~/.kube/config
-        oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
-      register: _result
-      changed_when: "_result.rc == 0"
-      args:
-        executable: /bin/bash
-
-    - name: Wait for the image registry operator to start its components
-      ansible.builtin.shell: |
-        export KUBECONFIG=~/.kube/config
-        oc get configs.imageregistry.operator.openshift.io cluster
-      register: _result
-      retries: 60
-      delay: 20
-      until: _result.rc == 0
-      changed_when: "_result.rc == 0"
-      args:
-        executable: /bin/bash
-
-    - name: Patch imageregistry operator to claim storage
-      ansible.builtin.shell: |
-        # We patch the imageregistry operator to create a claim that managed-nfs-storage will satisfy
-        export KUBECONFIG=~/.kube/config
-        oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"storage": {"pvc": {"claim": "" }}}}'
-      register: _result
-      changed_when: "_result.rc == 0"
-      args:
-        executable: /bin/bash
-
-    - name: Patch imageregistry operator to move to Managed state
-      ansible.builtin.shell: |
-        export KUBECONFIG=~/.kube/config
-        oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
-      register: _result
-      changed_when: "_result.rc == 0"
-      args:
-        executable: /bin/bash
-
-  when: kubeinit_inventory_cluster_distro == 'okd'

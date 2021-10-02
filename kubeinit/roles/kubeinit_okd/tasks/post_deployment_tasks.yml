@@ -14,89 +14,155 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Configure the post deployment tasks on the provision service node
+- name: Prepare services if needed
+  ansible.builtin.include_role:
+    name: kubeinit.kubeinit.kubeinit_services
+    tasks_from: prepare_services.yml
+    public: true
+  vars:
+    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+  when: not task_completed
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-post-deployment'
+
+#
+# Configure NFS
+#
+- name: Delegate to provision service node
   block:
 
-    - name: "verify that all the csr are loaded and aproved for the deployed nodes"
-      ansible.builtin.shell: |
-        set -o pipefail
-        export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-        oc get csr -ojson | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve >/dev/null 2>&1; \
-        oc get csr | grep Approved
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
-      retries: 60
-      delay: 60
-      # Per each node we have 2 certs one per kubelet-serving and another per kube-apiserver-client-kubelet
-      until: _result.stdout_lines | default([]) | list | count == ( groups['all_controller_nodes'] | count + groups['all_compute_nodes'] | count ) * 2
-
-    - name: "wait until all nodes are ready"
-      ansible.builtin.shell: |
-        set -o pipefail
-        export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-        oc get nodes | grep " Ready"
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
-      retries: 60
-      delay: 60
-      until: _result.stdout_lines | default([]) | list | count == ( (groups['all_controller_nodes'] | count) + (groups['all_compute_nodes'] | count) )
-
-    - name: Copy the kubeconfig
-      ansible.builtin.shell: |
-        cp ~/install_dir/auth/kubeconfig ~/.kube/config
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
-
-    #
-    # Configure NFS
-    #
     - name: Configure NFS
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_nfs
         public: true
       when: "'nfs' in kubeinit_cluster_hostvars.services"
 
-    #
-    # Deploy KubeVirt
-    #
+    - name: Add security context constraint for nfs provisioner
+      ansible.builtin.shell: |
+        cat << EOF > ~/nfs_scc.yaml
+        apiVersion: security.openshift.io/v1
+        kind: SecurityContextConstraints
+        metadata:
+          name: nfs-provisioner
+        allowHostDirVolumePlugin: true
+        allowHostIPC: false
+        allowHostNetwork: false
+        allowHostPID: false
+        allowHostPorts: false
+        allowPrivilegedContainer: false
+        allowedCapabilities:
+        - DAC_READ_SEARCH
+        - SYS_RESOURCE
+        defaultAddCapabilities: null
+        fsGroup:
+          type: MustRunAs
+        priority: null
+        readOnlyRootFilesystem: false
+        requiredDropCapabilities:
+        - KILL
+        - MKNOD
+        - SYS_CHROOT
+        runAsUser:
+          type: RunAsAny
+        seLinuxContext:
+          type: MustRunAs
+        supplementalGroups:
+          type: RunAsAny
+        volumes:
+        - configMap
+        - downwardAPI
+        - emptyDir
+        - hostPath
+        - nfs
+        - persistentVolumeClaim
+        - secret
+        EOF
+        export KUBECONFIG=~/.kube/config
+        kubectl apply -f ~/nfs_scc.yaml --request-timeout=1800s
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: "'nfs' in kubeinit_cluster_hostvars.services"
+
+    - name: Apply nfs security policy to nfs user
+      ansible.builtin.shell: |
+        export KUBECONFIG=~/.kube/config
+        oc adm policy add-scc-to-user nfs-provisioner -z nfs-client-provisioner
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: "'nfs' in kubeinit_cluster_hostvars.services"
+
+    - name: Wait for the image registry operator to start its components
+      ansible.builtin.shell: |
+        export KUBECONFIG=~/.kube/config
+        oc get configs.imageregistry.operator.openshift.io cluster
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      retries: 60
+      delay: 20
+      until: _result.rc == 0
+      when: "'nfs' in kubeinit_cluster_hostvars.services"
+
+    - name: Patch imageregistry operator to claim storage
+      ansible.builtin.shell: |
+        # We patch the imageregistry operator to create a claim that managed-nfs-storage will satisfy
+        export KUBECONFIG=~/.kube/config
+        oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"storage": {"pvc": {"claim": "" }}}}'
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: "'nfs' in kubeinit_cluster_hostvars.services"
+
+    - name: Patch imageregistry operator to move to Managed state
+      ansible.builtin.shell: |
+        export KUBECONFIG=~/.kube/config
+        oc patch --request-timeout=1800s configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec": {"managementState": "Managed" }}'
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: "'nfs' in kubeinit_cluster_hostvars.services"
+
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+#
+# Deploy KubeVirt
+#
+- block:
     - name: Deploy KubeVirt
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_kubevirt
         public: yes
       when: not kubeinit_okd_openshift_deploy | default(False)
-
-    - name: Get some final cluster information
-      ansible.builtin.shell: |
-        set -eo pipefail
-        echo "show stat" | socat unix-connect:/var/lib/haproxy/stats stdio
-        export KUBECONFIG=~/install_dir/auth/kubeconfig
-        oc get nodes
-      args:
-        executable: /bin/bash
-      ignore_errors: yes
-      register: _result_cluster_info
-      changed_when: "_result_cluster_info.rc == 0"
-
-    - name: Display final debug info
-      ansible.builtin.debug:
-        var: _result_cluster_info
-
-    - name: Print some final data
-      vars:
-        msg: |
-          Get the kubeadmin password from the services machine
-            cat ~/install_dir/auth/kubeadmin-password
-          The OpenShift UI endpoint is:
-            console-openshift-console.apps.{{ kubeinit_cluster_fqdn }}
-      ansible.builtin.debug:
-        msg: "{{ msg.split('\n') }}"
-
   vars:
     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+- name: Add task-post-deployment to tasks_completed
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_facts_name }}"
+    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-post-deployment']) }}"
+
+- name: Update kubeinit_cluster_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+- block:
+    - name: Check to see if we should stop here
+      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+    - name: End play
+      ansible.builtin.meta: end_play
+  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

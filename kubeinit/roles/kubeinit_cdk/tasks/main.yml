@@ -43,17 +43,6 @@
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
   when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed
 
-- name: Add cluster authorized keys in cluster nodes
-  ansible.posix.authorized_key:
-    user: root
-    key: "{{ authorized_key }}"
-    state: present
-  loop: "{{ (groups['all_cluster_nodes'] + groups['extra_nodes']) | product(kubeinit_cluster_hostvars.authorized_keys) }}"
-  vars:
-    cluster_node: "{{ item[0] }}"
-    authorized_key: "{{ item[1] }}"
-  delegate_to: "{{ cluster_node }}"
-
 - name: Render the cluster template
   ansible.builtin.template:
     src: "cloud.yml.j2"
@@ -213,6 +202,14 @@
   register: _result
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Finished deploying cluster
+  ansible.builtin.shell: |
+    echo "Finished deploying CDK cluster"
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
 
 - name: Add task-deploy-cluster to tasks_completed
   ansible.builtin.add_host:

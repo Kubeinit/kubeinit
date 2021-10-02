@@ -43,17 +43,6 @@
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
   when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed
 
-- name: Add cluster authorized keys in cluster nodes
-  ansible.posix.authorized_key:
-    user: root
-    key: "{{ authorized_key }}"
-    state: present
-  loop: "{{ groups['all_cluster_nodes'] | product(kubeinit_cluster_hostvars.authorized_keys) }}"
-  vars:
-    cluster_node: "{{ item[0] }}"
-    authorized_key: "{{ item[1] }}"
-  delegate_to: "{{ cluster_node }}"
-
 - name: Copy cert to pki directory
   ansible.builtin.copy:
     content: "{{ kubeinit_cluster_hostvars.domain_cert }}"
@@ -244,6 +233,48 @@
   loop_control:
     loop_var: compute_node
   delegate_to: "{{ compute_node }}"
+
+- name: Fetch the kubeconfig from the first controller node
+  ansible.builtin.slurp:
+    src: ~/.kube/config
+  register: _result_cluster_kubeconfig
+  delegate_to: "{{ kubeinit_first_controller_node }}"
+
+- name: Create kube directory
+  ansible.builtin.file:
+    path: ~/.kube
+    state: directory
+    mode: '0644'
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Store the kubeconfig to the provision services machine.
+  ansible.builtin.copy:
+    content: "{{ _result_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
+    dest: ~/.kube/config
+    mode: '0644'
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Label compute nodes
+  ansible.builtin.shell: |
+    kubectl label node {{ hostvars[item].fqdn }} node-role.kubernetes.io/worker=
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_compute_nodes'] }}"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Deploy EKS manifests.
+  ansible.builtin.shell: |
+    kubectl apply -f https://distro.eks.amazonaws.com/crds/releases.distro.eks.amazonaws.com-v1alpha1.yaml
+    kubectl apply -f https://distro.eks.amazonaws.com/kubernetes-1-18/kubernetes-1-18-eks-1.yaml
+    kubectl get release kubernetes-1-18-eks-1
+    kubectl get release kubernetes-1-18-eks-1 -o yaml
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
 
 - name: Add task-deploy-cluster to tasks_completed
   ansible.builtin.add_host:
