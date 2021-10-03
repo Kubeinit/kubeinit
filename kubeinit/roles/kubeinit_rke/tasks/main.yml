@@ -43,17 +43,6 @@
     kubeinit_deployment_delegate: "{{ hostvars[cluster_node].target }}"
   when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed
 
-- name: Add cluster authorized keys in cluster nodes
-  ansible.posix.authorized_key:
-    user: root
-    key: "{{ authorized_key }}"
-    state: present
-  loop: "{{ groups['all_cluster_nodes'] | product(kubeinit_cluster_hostvars.authorized_keys) }}"
-  vars:
-    cluster_node: "{{ item[0] }}"
-    authorized_key: "{{ item[1] }}"
-  delegate_to: "{{ cluster_node }}"
-
 - name: Enable insecure registry in Docker
   ansible.builtin.shell: |
     # This is mandatory so the cluster nodes can fetch the
@@ -103,6 +92,13 @@
     cp ~/kube_config_cluster.yml ~/.kube/config
   args:
     executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Touch a file
+  ansible.builtin.command: |
+    touch ~/.kube/config
   register: _result
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
