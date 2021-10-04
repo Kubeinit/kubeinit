@@ -54,7 +54,7 @@ def render_index(gc_token_path):
     for idx, blob in enumerate(filtered):
         print(str(blob))
         fields = blob.split("-")
-        stat = fields[10]
+        stat = fields[9]
         if stat == '0':
             status = 'Passed'
             badge = 'success'
@@ -90,9 +90,8 @@ def render_index(gc_token_path):
                      'masters': fields[2],
                      'workers': fields[3],
                      'hypervisors': fields[4],
-                     'services_type': fields[5],
-                     'launch_from': fields[6],
-                     'job_type': fields[7],
+                     'launch_from': fields[5],
+                     'job_type': fields[6],
                      'id': job_id,
                      'date': date,
                      'badge': badge,
@@ -178,40 +177,40 @@ def get_periodic_jobs_labels(distro='all'):
     """Get the labels for an specific distro."""
     # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
 
-    cdk_configs = ["cdk-libvirt-3-1-3-v-c",
-                   "cdk-libvirt-3-0-1-c-h",
-                   "cdk-libvirt-1-1-1-c-c",
-                   "cdk-libvirt-1-0-1-v-h"]
+    cdk_configs = ["cdk-libvirt-3-1-3-c",
+                   "cdk-libvirt-3-0-1-h",
+                   "cdk-libvirt-1-1-1-c",
+                   "cdk-libvirt-1-0-1-h"]
 
-    okd_configs = ["okd-libvirt-3-1-1-c-h",
-                   "okd-libvirt-3-0-3-v-c",
-                   "okd-libvirt-1-1-1-v-h",
-                   "okd-libvirt-1-0-1-c-c"]
+    okd_configs = ["okd-libvirt-3-1-1-h",
+                   "okd-libvirt-3-0-3-c",
+                   "okd-libvirt-1-1-1-h",
+                   "okd-libvirt-1-0-1-c"]
 
-    rke_configs = ["rke-libvirt-3-1-3-c-h",
-                   "rke-libvirt-3-0-1-v-h",
-                   "rke-libvirt-1-1-1-c-c",
-                   "rke-libvirt-1-0-1-v-c"]
+    rke_configs = ["rke-libvirt-3-1-3-h",
+                   "rke-libvirt-3-0-1-h",
+                   "rke-libvirt-1-1-1-c",
+                   "rke-libvirt-1-0-1-c"]
 
-    k8s_configs = ["k8s-libvirt-3-1-1-v-h",
-                   "k8s-libvirt-3-0-3-c-c",
-                   "k8s-libvirt-1-1-1-c-h",
-                   "k8s-libvirt-1-0-1-v-c"]
+    k8s_configs = ["k8s-libvirt-3-1-1-h",
+                   "k8s-libvirt-3-0-3-c",
+                   "k8s-libvirt-1-1-1-h",
+                   "k8s-libvirt-1-0-1-c"]
 
-    eks_configs = ["eks-libvirt-3-1-3-v-c",
-                   "eks-libvirt-3-0-1-v-h",
-                   "eks-libvirt-1-1-1-c-h",
-                   "eks-libvirt-1-0-1-c-c"]
+    eks_configs = ["eks-libvirt-3-1-3-c",
+                   "eks-libvirt-3-0-1-h",
+                   "eks-libvirt-1-1-1-h",
+                   "eks-libvirt-1-0-1-c"]
 
-    kid_configs = ["kid-libvirt-3-1-1-v-h",
-                   "kid-libvirt-3-0-3-c-h",
-                   "kid-libvirt-1-1-1-v-c",
-                   "kid-libvirt-1-0-1-c-c"]
+    kid_configs = ["kid-libvirt-3-1-1-h",
+                   "kid-libvirt-3-0-3-h",
+                   "kid-libvirt-1-1-1-c",
+                   "kid-libvirt-1-0-1-c"]
 
-    okd_rke_configs = ["okd.rke-libvirt-1-2-1-v-c",
-                       "okd.rke-libvirt-3-1-1-v-h"]
+    okd_rke_configs = ["okd.rke-libvirt-1-2-1-c",
+                       "okd.rke-libvirt-3-1-1-h"]
 
-    if re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[v|c]-[c|h],?)+", distro):
+    if re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", distro):
         print("'kubeinit_ci_utils.py' ==> We are requesting specific job labels")
         req_labels = set(distro.split(","))
         all_labels = set(okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs)

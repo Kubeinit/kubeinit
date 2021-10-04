@@ -32,7 +32,7 @@ def main():
 
     for label in labels:
 
-        if re.match(r"[a-z|0-9|\.]+-[a-z]+-\d+-\d+-\d+-[v|c]-[c|h]", label):
+        if re.match(r"[a-z|0-9|\.]+-[a-z]+-\d+-\d+-\d+-[c|h]", label):
             print("'render_periodic_jobs_page.py' ==> Matching a periodic job label")
             params = label.split("-")
             distro = params[0]
@@ -40,8 +40,7 @@ def main():
             masters = params[2]
             workers = params[3]
             hypervisors = params[4]
-            services_type = params[5]
-            launch_from = params[6]
+            launch_from = params[5]
 
             if distro == 'okd':
                 distro = "Origin Distribution of K8s"
@@ -58,11 +57,6 @@ def main():
             elif distro == 'okd.rke':
                 distro = "OKD/RKE/Submariner"
 
-            if services_type == 'c':
-                services_type = "Containerized"
-            elif services_type == 'v':
-                services_type = "Virtualized"
-
             if launch_from == 'h':
                 launch_from = "Host"
             elif launch_from == 'c':
@@ -77,7 +71,6 @@ def main():
                      'masters': masters,
                      'workers': workers,
                      'hypervisors': hypervisors,
-                     'services_type': services_type,
                      'launch_from': launch_from,
                      'url': "<a href='https://storage.googleapis.com/kubeinit-ci/jobs/" + label + "-periodic-pid-weekly-u/index.html'><img height='20px' src='https://storage.googleapis.com/kubeinit-ci/jobs/" + label + "-periodic-pid-weekly-u/badge_status.svg'/></a>"})
 
