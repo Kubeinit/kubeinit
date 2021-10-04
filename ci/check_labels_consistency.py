@@ -34,7 +34,7 @@ data = resp.json()
 github_public_labels = []
 for label in data:
     label_name = label['name']
-    if re.match(r"[a-z|0-9|\.]+-[a-z]+-[0-9]-[0-9]-[0-9]-[v|c]-[c|h]",
+    if re.match(r"[a-z|0-9|\.]+-[a-z]+-[0-9]-[0-9]-[0-9]-[c|h]",
                 label_name):
         github_public_labels.append(label_name)
 

@@ -29,9 +29,8 @@ DRIVER="${5}"
 MASTERS="${6}"
 WORKERS="${7}"
 HYPERVISORS="${8}"
-SERVICES_TYPE="${9}"
-JOB_TYPE="${10}"
-LAUNCH_FROM="${11}"
+JOB_TYPE="${9}"
+LAUNCH_FROM="${10}"
 
 KUBEINIT_ANSIBLE_VERBOSITY="${KUBEINIT_ANSIBLE_VERBOSITY:-v}"
 
@@ -215,16 +214,6 @@ if [[ "$HYPERVISORS" == "3" ]]; then
     find ./hosts/ -type f -exec sed -i -E -e "/.*bootstrap-01 ansible_host/ s/hypervisor-01/hypervisor-02/g" {} \;
 fi
 
-#
-# We change the way the services node is deployed, by default
-# it will live in a virtual machine if the parameter is changed
-# to container, then all the services will be deployed in a pod
-# in the first hypervisor.
-#
-if [[ "$SERVICES_TYPE" == "c" ]]; then
-    find ./hosts/ -type f -exec sed -i -E -e "/.*service-01 ansible_host/ s/type=virtual/type=container/g" {} \;
-fi
-
 echo "(launch_e2e.sh) ==> The inventory content..."
 cat ./hosts/$DISTRO/inventory || true
 
@@ -313,7 +302,6 @@ echo "(launch_e2e.sh) ==> The driver is: ${DRIVER}" >> ./kubeinit/playbooks/aux_
 echo "(launch_e2e.sh) ==> The amount of master nodes is: ${MASTERS}" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The amount of worker nodes is: ${WORKERS}" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The amount of hypervisors is: ${HYPERVISORS}" >> ./kubeinit/playbooks/aux_info_file.txt
-echo "(launch_e2e.sh) ==> The services type is: ${SERVICES_TYPE}" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The job type is: ${JOB_TYPE}" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The ansible will be launched from: ${LAUNCH_FROM}" >> ./kubeinit/playbooks/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The ansible verbosity is: ${KUBEINIT_ANSIBLE_VERBOSITY}" >> ./kubeinit/playbooks/aux_info_file.txt
