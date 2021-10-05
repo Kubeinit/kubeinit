@@ -176,7 +176,7 @@
 
     - name: Add the cluster network endpoint to the openvswitch bridge
       ansible.builtin.command: |
-        ovs-vsctl add-port br-int {{ ovs_veth_devname }}
+        /usr/bin/ovs-vsctl add-port br-int {{ ovs_veth_devname }}
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -188,13 +188,13 @@
 
     - name: Set the mac address for the ovs port
       ansible.builtin.command: |
-        ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:attached-mac="{{ hostvars[kubeinit_deployment_node_name].mac }}"
+        /usr/bin/ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:attached-mac="{{ hostvars[kubeinit_deployment_node_name].mac }}"
       register: _result
       changed_when: "_result.rc == 0"
 
     - name: Set the interface id for the ovs port
       ansible.builtin.command: |
-        ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:iface-id="{{ hostvars[kubeinit_deployment_node_name].interfaceid }}"
+        /usr/bin/ovs-vsctl set Interface {{ ovs_veth_devname }} external_ids:iface-id="{{ hostvars[kubeinit_deployment_node_name].interfaceid }}"
       register: _result
       changed_when: "_result.rc == 0"
 
