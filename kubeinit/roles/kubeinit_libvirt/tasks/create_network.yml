@@ -232,7 +232,7 @@
     CENTRAL_IP={{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }} # This is the IP of the ovn-central HV
     LOCAL_IP={{ hostvars[ovn_host].ssh_connection_address }} # This is the IP of the current HV
     ENCAP_TYPE={{ kubeinit_libvirt_ovn_encapsulation }}
-    ovs-vsctl set Open_vSwitch . \
+    /usr/bin/ovs-vsctl set Open_vSwitch . \
         external_ids:ovn-remote="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_southbound_port }}" \
         external_ids:ovn-nb="tcp:$CENTRAL_IP:{{ kubeinit_libvirt_ovn_northbound_port }}" \
         external_ids:ovn-encap-ip=$LOCAL_IP \
@@ -240,7 +240,7 @@
         external_ids:system-id="{{ ovn_host }}"
     # On each HV lets create a virtual bridge br-int
     # This bridge will be used when we create the VMs
-    ovs-vsctl --may-exist add-br br-int
+    /usr/bin/ovs-vsctl --may-exist add-br br-int
   args:
     executable: /bin/bash
   register: _result
@@ -259,8 +259,8 @@
     - name: Configure OVN in the ovn-central hypervisor
       ansible.builtin.shell: |
         # Below two commands only for central. For SSL, other steps are required.
-        ovn-nbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_northbound_port }}
-        ovn-sbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_southbound_port }}
+        /usr/bin/ovn-nbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_northbound_port }}
+        /usr/bin/ovn-sbctl set-connection ptcp:{{ kubeinit_libvirt_ovn_southbound_port }}
       args:
         executable: /bin/bash
       register: _result
@@ -275,8 +275,8 @@
         #
         # Create a logical switch
         #
-        ovn-nbctl ls-del sw0
-        ovn-nbctl --wait=hv ls-add sw0
+        /usr/bin/ovn-nbctl ls-del sw0
+        /usr/bin/ovn-nbctl --wait=hv ls-add sw0
       args:
         executable: /bin/bash
       register: _result
@@ -288,12 +288,12 @@
         #
         # We create an OVN port using the interface ID and the mac address of the VM
         #
-        ovn-nbctl --wait=hv lsp-add sw0 {{ hostvars[item].interfaceid }}
+        /usr/bin/ovn-nbctl --wait=hv lsp-add sw0 {{ hostvars[item].interfaceid }}
         #
         # The port name is the interface id of the VM, now we assign the mac address of the VM to the port
         #
-        ovn-nbctl --wait=sb lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
-        ovn-nbctl --wait=sb lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
+        /usr/bin/ovn-nbctl --wait=sb lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
+        /usr/bin/ovn-nbctl --wait=sb lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
       args:
         executable: /bin/bash
       loop: "{{ groups['all_nodes'] }}"
@@ -305,44 +305,44 @@
         #
         # Create a logical router to connect the VMs switch
         #
-        ovn-nbctl --wait=hv lr-add lr0
-        ovn-nbctl --wait=hv lrp-add lr0 lr0-sw0 00:00:00:65:77:09 {{ kubeinit_inventory_network_gateway }}/{{ kubeinit_inventory_network_cidr }}
-        ovn-nbctl --wait=hv lsp-add sw0 sw0-lr0
-        ovn-nbctl lsp-set-type sw0-lr0 router
-        ovn-nbctl lsp-set-addresses sw0-lr0 router
-        ovn-nbctl lsp-set-options sw0-lr0 router-port=lr0-sw0
+        /usr/bin/ovn-nbctl --wait=hv lr-add lr0
+        /usr/bin/ovn-nbctl --wait=hv lrp-add lr0 lr0-sw0 00:00:00:65:77:09 {{ kubeinit_inventory_network_gateway }}/{{ kubeinit_inventory_network_cidr }}
+        /usr/bin/ovn-nbctl --wait=hv lsp-add sw0 sw0-lr0
+        /usr/bin/ovn-nbctl lsp-set-type sw0-lr0 router
+        /usr/bin/ovn-nbctl lsp-set-addresses sw0-lr0 router
+        /usr/bin/ovn-nbctl lsp-set-options sw0-lr0 router-port=lr0-sw0
         #
         # We create the external access switch
         #
-        ovn-nbctl --wait=hv ls-add public
-        ovn-nbctl --wait=hv lrp-add lr0 lr0-public 00:00:20:20:12:13 172.16.0.1/24
-        ovn-nbctl --wait=hv lsp-add public public-lr0
-        ovn-nbctl lsp-set-type public-lr0 router
-        ovn-nbctl lsp-set-addresses public-lr0 router
-        ovn-nbctl lsp-set-options public-lr0 router-port=lr0-public
+        /usr/bin/ovn-nbctl --wait=hv ls-add public
+        /usr/bin/ovn-nbctl --wait=hv lrp-add lr0 lr0-public 00:00:20:20:12:13 172.16.0.1/24
+        /usr/bin/ovn-nbctl --wait=hv lsp-add public public-lr0
+        /usr/bin/ovn-nbctl lsp-set-type public-lr0 router
+        /usr/bin/ovn-nbctl lsp-set-addresses public-lr0 router
+        /usr/bin/ovn-nbctl lsp-set-options public-lr0 router-port=lr0-public
         #
         # Create a localnet port
         #
-        ovn-nbctl --wait=hv lsp-add public public-ln
-        ovn-nbctl lsp-set-type public-ln localnet
-        ovn-nbctl lsp-set-addresses public-ln unknown
-        ovn-nbctl lsp-set-options public-ln network_name=provider
+        /usr/bin/ovn-nbctl --wait=hv lsp-add public public-ln
+        /usr/bin/ovn-nbctl lsp-set-type public-ln localnet
+        /usr/bin/ovn-nbctl lsp-set-addresses public-ln unknown
+        /usr/bin/ovn-nbctl lsp-set-options public-ln network_name=provider
         #
         # We add a bridge mapping from br-ex called provider
         #
-        ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=provider:br-ex
+        /usr/bin/ovs-vsctl set Open_vSwitch . external-ids:ovn-bridge-mappings=provider:br-ex
         #
         # Configuring the chassis gateway to the ovn-central hypervisor
         #
-        ovn-nbctl lrp-set-gateway-chassis lr0-public {{ kubeinit_ovn_central_host }}
-        ovn-nbctl \
+        /usr/bin/ovn-nbctl lrp-set-gateway-chassis lr0-public {{ kubeinit_ovn_central_host }}
+        /usr/bin/ovn-nbctl \
           --id=@gc0 create Gateway_Chassis name=lr0-public chassis_name={{ kubeinit_ovn_central_host }} priority=20 -- \
           set Logical_Router_Port lr0-public 'gateway_chassis=[@gc0]'
-        ovn-nbctl set logical_router_port lr0-public options:redirect-chassis={{ kubeinit_ovn_central_host }}
+        /usr/bin/ovn-nbctl set logical_router_port lr0-public options:redirect-chassis={{ kubeinit_ovn_central_host }}
         #
         # Create an ovs br-ex bridge to connect to the host
         #
-        ovs-vsctl --may-exist add-br br-ex
+        /usr/bin/ovs-vsctl --may-exist add-br br-ex
         ip addr add 172.16.0.254/24 dev br-ex
         ip link set br-ex up
         #
@@ -351,7 +351,7 @@
         # Connectivity from the host to the guest machines
         ip route add {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex
         # Connectivity to external/additional networks
-        ovn-nbctl lr-route-add lr0 0.0.0.0/0 172.16.0.254
+        /usr/bin/ovn-nbctl lr-route-add lr0 0.0.0.0/0 172.16.0.254
         #
         # Disable rp_filter
         #
@@ -396,10 +396,10 @@
   delegate_to: "{{ kubeinit_ovn_central_host }}"
 
 # When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
-# ovn-nbctl show
-# ovn-sbctl show
-# ovs-vsctl show
-# ovs-vsctl list interface veth0-0a000064
+# /usr/bin/ovn-nbctl show
+# /usr/bin/ovn-sbctl show
+# /usr/bin/ovs-vsctl show
+# /usr/bin/ovs-vsctl list interface veth0-0a000064
 
 #
 # Define libvirt common resources and networks
