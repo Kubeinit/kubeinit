@@ -191,13 +191,8 @@ podman run --rm -it \
 
 # Supporters
 
-<a href="https://docs.kubeinit.com/supporters.html#docker"><img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/docker.svg?sanitize=true" alt="Docker"/></a>
-<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
-<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
-<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
-<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
-<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
-<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
-<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
-<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
-<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
+<a href="https://docs.kubeinit.com/supporters.html#docker"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/docker.svg?sanitize=true" alt="Docker"/></a>
+<img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/empty.svg?sanitize=true"/>
+<img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/empty.svg?sanitize=true"/>
+<img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/empty.svg?sanitize=true"/>
+<img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/empty.svg?sanitize=true"/>
