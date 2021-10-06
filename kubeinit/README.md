@@ -188,3 +188,16 @@ podman run --rm -it \
 * [Persistent Volumes And Claims In KubeInit](https://www.anstack.com/blog/2020/09/28/Persistent-volumes-and-claims-in-KubeInit.html)
 * [Deploying Multiple KubeInit Clusters In The Same Hypervisor](https://www.anstack.com/blog/2020/10/04/Multiple-KubeInit-clusters-in-the-same-hypervisor.html)
 * [KubeInit 4-In-1 - Deploying Multiple Kubernetes Distributions (K8S, OKD, RKE, And CDK) With The Same Platform](https://www.anstack.com/blog/2020/10/19/KubeInit-4-in-1-Deploying-multiple-Kubernetes-distributions-K8S-OKD-RKE-and-CDK-with-the-same-platform.html)
+
+# Supporters
+
+<a href="https://docs.kubeinit.com/supporters.html#docker"><img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/docker.svg?sanitize=true" alt="Docker"/></a>
+<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
+<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
+<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
+<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
+<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
+<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
+<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
+<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>
+<img width="10%" height="10%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/images/supporters/empty.svg?sanitize=true"/>

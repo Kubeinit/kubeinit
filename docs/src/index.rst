@@ -50,4 +50,5 @@ Content
    howtos_and_presentations
    inventory_diagrams
    playbook_diagrams
+   supporters
    changelog
