@@ -15,7 +15,7 @@ Docker
 
    .. container:: leftside
 
-      .. figure:: static/supporters/docker.svg
+      .. figure:: _static/supporters/docker.svg
 
    .. container:: rightside
 
