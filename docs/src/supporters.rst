@@ -18,6 +18,7 @@ Docker
    .. container:: leftside
 
       .. figure:: _static/supporters/docker.svg
+         :target: http://www.docker.com
 
    .. container:: rightside
 
@@ -50,26 +51,25 @@ Docker
        .. container:: leftside
 
           .. figure:: _static/supporters/gcp.svg
+             :target: http://cloud.google.com
 
        .. container:: rightside
 
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat.
+          `Google Cloud Platform <https://cloud.google.com/>`_ is a suite of cloud
+          computing services that runs on the same infrastructure that Google uses
+          internally for its end-user products, such as Google Search, Gmail, Google
+          Drive, and YouTube.
+          Alongside a set of management tools, it provides a series of modular
+          cloud services including computing, data storage, data analytics,
+          machine learning, infrastructure as a service, platform as a service,
+          and serverless computing environments.
 
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat.
-
-          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
-          dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
-          proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+          `Google Cloud Platform <https://cloud.google.com/>`_ provides this project
+          with a higher free tier to serve the CDN storage for the CI periodic and
+          per pull request jobs.
+          This allows the project to successfully store each job execution output
+          for further review and debugging purposes. Also, to host a minimum hosted
+          service to test this software platform.
 
     Red Hat
     ~~~~~~~
@@ -79,26 +79,28 @@ Docker
        .. container:: leftside
 
           .. figure:: _static/supporters/rht.svg
+             :target: http://www.redhat.com
 
        .. container:: rightside
 
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat.
+          `Red Hat <https://www.redhat.com/>`_ is the world's leading provider of
+          enterprise open source solutions, using a community-powered approach
+          to deliver high-performing Linux, cloud, container, and Kubernetes
+          technologies. We help you standardize across environments,
+          develop cloud-native applications, and integrate, automate, secure,
+          and manage complex environments with award-winning support, training,
+          and consulting services.
 
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat.
+          Open hybrid cloud is Red Hat's recommended strategy for building,
+          developing, and operating your hybrid landscape of applications,
+          infrastructure, and processes. From your business-critical applications
+          on Red Hat Enterprise Linux, to your container-based applications on
+          Red Hat OpenShift, to all the middleware and automation in between,
+          Red Hat gives you the tools you need to transform, innovate, and compete.
 
-          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
-          dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
-          proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+          `Red Hat <https://redhat.com/>`_ contributes to this project with HW resources
+          to run the internal CI jobs and effectively test all the different use cases
+          that are supported.
 
     IBM
     ~~~
@@ -108,23 +110,24 @@ Docker
        .. container:: leftside
 
           .. figure:: _static/supporters/ibm.svg
+             :target: http://www.ibm.com
 
        .. container:: rightside
 
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat.
+          `International Business Machines <https://www.ibm.com/>`_ (IBM), is a global
+          technology company that provides hardware, software, cloud-based services
+          and cognitive computing.
+          Founded in 1911 following the merger of four companies in New
+          York State by Charles Ranlett Flint, it was originally called
+          Computing-Tabulating-Recording Company. It would be renamed to IBM in 1924.
 
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat. Ut enim ad minim
-          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-          ea commodo consequat.
+          IBM's greatest asset is the IBMer. We believe our strength lies in the
+          diversity of our employees. IBM encourages creative pursuits and passions
+          outside of work, because when IBMers can explore their curiosity, it
+          gives all of us a new outlook on the world and its possibilities for
+          emerging tech. Together, IBM can drive progress through meaningful
+          innovation and action.
 
-          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
-          dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
-          proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+          `IBM <https://www.ibm.com/>`_ contributes to this project with HW resources
+          to run the internal CI jobs and effectively test all the different use cases
+          that are supported.
