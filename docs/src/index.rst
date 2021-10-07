@@ -52,3 +52,4 @@ Content
    playbook_diagrams
    supporters
    changelog
+   notice
