@@ -40,3 +40,64 @@ Docker
       higher 'Docker Hub Rate Limiting', this helps us to effectively build and
       test the different deployment use cases that are supported. This means that
       all container images can be pulled and processed in a streamlined manner.
+
+..
+    Google Cloud Platform
+    ~~~~~~~~~~~~~~~~~~~~~
+
+    .. container:: twocol
+
+       .. container:: leftside
+
+          .. figure:: _static/supporters/gcp.svg
+
+       .. container:: rightside
+
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
+          ea commodo consequat.
+
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+          dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
+          proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+    Red Hat
+    ~~~~~~~
+
+    .. container:: twocol
+
+       .. container:: leftside
+
+          .. figure:: _static/supporters/rht.svg
+
+       .. container:: rightside
+
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
+          ea commodo consequat.
+
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+          dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
+          proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+    IBM
+    ~~~
+
+    .. container:: twocol
+
+       .. container:: leftside
+
+          .. figure:: _static/supporters/ibm.svg
+
+       .. container:: rightside
+
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+          tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+          veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
+          ea commodo consequat.
+
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+          dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
+          proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
