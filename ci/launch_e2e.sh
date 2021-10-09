@@ -465,6 +465,53 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
                 -e @scenario_variables.yml \
                 -e ansible_ssh_user=root \
                 ./playbooks/submariner-subctl-verify.yml
+
+        podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
+            -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
+            -v /etc/hosts:/etc/hosts \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
+            kubeinit/kubeinit \
+                --user root \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
+                --become \
+                --become-user root \
+                -e kubeinit_bind_multicluster_dns_forward_enabled=True \
+                -e @scenario_variables.yml \
+                -e ansible_ssh_user=root \
+                -e kubeinit_stop_after_task=task-cleanup-hypervisors \
+                ./playbooks/okd.yml
+
+        podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
+            -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
+            -v /etc/hosts:/etc/hosts \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
+            kubeinit/kubeinit \
+                --user root \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
+                --become \
+                --become-user root \
+                -e kubeinit_bind_multicluster_dns_forward_enabled=True \
+                -e kubeinit_libvirt_multicluster_keep_predefined_networks=True \
+                -e @scenario_variables.yml \
+                -e ansible_ssh_user=root \
+                -e kubeinit_stop_after_task=task-cleanup-hypervisors \
+                ./playbooks/rke.yml
+
+
     else
         # This will deploy a single kubernetes cluster based
         # on the $DISTRO variable from a container
@@ -486,6 +533,27 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
                 --become-user root \
                 -e @scenario_variables.yml \
                 -e ansible_ssh_user=root \
+                ./playbooks/$DISTRO.yml
+
+        podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
+            -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
+            -v /etc/hosts:/etc/hosts \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
+            kubeinit/kubeinit \
+                --user root \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/$DISTRO/inventory \
+                --become \
+                --become-user root \
+                -e @scenario_variables.yml \
+                -e ansible_ssh_user=root \
+                -e kubeinit_stop_after_task=task-cleanup-hypervisors \
                 ./playbooks/$DISTRO.yml
     fi
 elif [[ "$LAUNCH_FROM" == "h" ]]; then
@@ -547,6 +615,29 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
             -e kubeinit_submariner_is_secondary=True \
             -e @scenario_variables.yml \
             ./playbooks/submariner-subctl-verify.yml
+
+        # Remove the fisrt cluster (okd)
+        ansible-playbook \
+            --user root \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/okd/inventory \
+            --become \
+            --become-user root \
+            -e kubeinit_bind_multicluster_dns_forward_enabled=True \
+            -e @scenario_variables.yml \
+            -e kubeinit_stop_after_task=task-cleanup-hypervisors \
+            ./playbooks/okd.yml
+
+        # Remove the second cluster (rke)
+        ansible-playbook \
+            --user root \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/rke/inventory \
+            --become \
+            --become-user root \
+            -e kubeinit_bind_multicluster_dns_forward_enabled=True \
+            -e kubeinit_libvirt_multicluster_keep_predefined_networks=True \
+            -e @scenario_variables.yml \
+            -e kubeinit_stop_after_task=task-cleanup-hypervisors \
+            ./playbooks/rke.yml
     else
         ansible-playbook \
             --user root \
@@ -554,6 +645,15 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
             --become \
             --become-user root \
             -e @scenario_variables.yml \
+            ./playbooks/$DISTRO.yml
+
+        ansible-playbook \
+            --user root \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} -i ./hosts/$DISTRO/inventory \
+            --become \
+            --become-user root \
+            -e @scenario_variables.yml \
+            -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./playbooks/$DISTRO.yml
     fi
 
