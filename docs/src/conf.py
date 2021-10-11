@@ -50,6 +50,9 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+# Source code links
+github_url = "https://github.com/Kubeinit/kubeinit"
+html_show_sourcelink = False
 
 # -- Options for HTML output -------------------------------------------------
 
