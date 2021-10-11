@@ -9,6 +9,12 @@ Welcome to KubeInit's documentation!
 KubeInit provides Ansible playbooks and roles for the deployment
 and configuration of multiple Kubernetes distributions.
 
+Source code
+===========
+
+The source code of this upstream project is hosted at
+GitHub's `kubeinit repositories <https://github.com/kubeinit/kubeinit/>`_.
+
 Contributors
 ============
 
