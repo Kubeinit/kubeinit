@@ -57,7 +57,7 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     sudo yum install nano git podman -y
 
     # Configure git with some mock data
-    git config --global user.email "bot@kubeinit.com"
+    git config --global user.email "bot@kubeinit.org"
     git config --global user.name "kubeinit-bot"
 
     # ARA required packages

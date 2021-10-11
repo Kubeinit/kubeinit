@@ -26,7 +26,7 @@ def get_banner():
     Get banner method.
 
     This method prints
-    the kubeinit.com banner.
+    the kubeinit.org banner.
     """
     banner = """
 888    d8P           888              8888888          d8b 888
@@ -37,6 +37,6 @@ def get_banner():
 888  Y88b   888  888 888  888 88888888  888   888  888 888 888
 888   Y88b  Y88b 888 888 d88P Y8b.      888   888  888 888 Y88b.
 888    Y88b  "Y88888 88888P"   "Y8888 8888888 888  888 888  "Y888
-  (kubeinit.com) agent version {}
+  (kubeinit.org) agent version {}
 """.format(kubeinit_version)
     return banner

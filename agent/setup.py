@@ -49,7 +49,7 @@ setup(
     description=_DESCRIPTION,
     long_description_content_type='text/markdown',
     long_description=long_description,
-    url='https://www.kubeinit.com',
+    url='https://www.kubeinit.org',
     packages=find_packages(),
     classifiers=[
         'Development Status :: 3 - Alpha',
