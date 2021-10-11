@@ -68,7 +68,7 @@ dashed_version="${current_galaxy_version//./-}"
   "tag_name": "$current_galaxy_version",
   "target_commitish": "$branch",
   "name": "$current_galaxy_version.kubeinit-$timestamp",
-  "body": "Release changelog at: https://docs.kubeinit.com/changelog.html#v$dashed_version-release-date-$permadate",
+  "body": "Release changelog at: https://docs.kubeinit.org/changelog.html#v$dashed_version-release-date-$permadate",
   "draft": false,
   "prerelease": false
 }

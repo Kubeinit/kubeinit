@@ -1,5 +1,5 @@
 <p style="text-align: center" align="center">
-    <a href="https://www.kubeinit.com"><img src="https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo.svg?sanitize=true" alt="The KUBErnetes INITiator"/></a>
+    <a href="https://www.kubeinit.org"><img src="https://raw.githubusercontent.com/Kubeinit/kubeinit/master/images/logo.svg?sanitize=true" alt="The KUBErnetes INITiator"/></a>
 </p>
 
 **The KUBErnetes INITiator**
@@ -7,8 +7,8 @@
 <p style="text-align: center" align="center">
     <a href="https://www.python.org"><img height="30px" src="https://raw.githubusercontent.com/pystol/pystol-docs/master/assets/badges/made-with-python.svg?sanitize=true"/> </a>
     <a href="https://www.ansible.com"><img height="30px" src="https://raw.githubusercontent.com/pystol/pystol-docs/master/assets/badges/made-with-ansible.svg?sanitize=true"/> </a>
-    <a href="https://www.kubeinit.com"><img height="30px" src="https://raw.githubusercontent.com/pystol/pystol-docs/master/assets/badges/made-with-love.svg?sanitize=true"/> </a>
-    <a href="https://www.kubeinit.com"><img height="30px" src="https://raw.githubusercontent.com/pystol/pystol-docs/master/assets/badges/cloud-native.svg?sanitize=true"/> </a>
+    <a href="https://www.kubeinit.org"><img height="30px" src="https://raw.githubusercontent.com/pystol/pystol-docs/master/assets/badges/made-with-love.svg?sanitize=true"/> </a>
+    <a href="https://www.kubeinit.org"><img height="30px" src="https://raw.githubusercontent.com/pystol/pystol-docs/master/assets/badges/cloud-native.svg?sanitize=true"/> </a>
 </p>
 
 <p style="text-align: center" align="center">
@@ -31,7 +31,7 @@ a single command a curated list of prescribed architectures.
 
 ## Documentation
 
-KubeInit's documentation is hosted in [this same repository](https://docs.kubeinit.com).
+KubeInit's documentation is hosted in [this same repository](https://docs.kubeinit.org).
 
 ## Periodic jobs status
 
@@ -192,10 +192,10 @@ podman run --rm -it \
 # Supporters
 
 <p style="text-align: center" align="center">
-    <a href="https://docs.kubeinit.com/supporters.html#docker"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/docker.svg?sanitize=true" alt="Docker"/></a>
+    <a href="https://docs.kubeinit.org/supporters.html#docker"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/docker.svg?sanitize=true" alt="Docker"/></a>
 <!--
-    <a href="https://docs.kubeinit.com/supporters.html#google-cloud-platform"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/gcp.svg?sanitize=true" alt="Google Cloud Platform"/></a>
-    <a href="https://docs.kubeinit.com/supporters.html#red-hat"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/rht.svg?sanitize=true" alt="Red Hat"/></a>
-    <a href="https://docs.kubeinit.com/supporters.html#ibm"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/ibm.svg?sanitize=true" alt="IBM"/></a>
+    <a href="https://docs.kubeinit.org/supporters.html#google-cloud-platform"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/gcp.svg?sanitize=true" alt="Google Cloud Platform"/></a>
+    <a href="https://docs.kubeinit.org/supporters.html#red-hat"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/rht.svg?sanitize=true" alt="Red Hat"/></a>
+    <a href="https://docs.kubeinit.org/supporters.html#ibm"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/ibm.svg?sanitize=true" alt="IBM"/></a>
 -->
 </p>
