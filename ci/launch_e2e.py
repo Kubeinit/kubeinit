@@ -406,7 +406,9 @@ def run_e2e_job(distro, driver, masters, workers,
                                                                                    str(hypervisors),
                                                                                    str(job_type),
                                                                                    str(launch_from))
+        print("'launch_e2e.py' ==> The deployment command is:")
         print(deployment_command)
+
         launch_output = subprocess.run(deployment_command, shell=True, check=True)
         print("'launch_e2e.py' ==> ./ci/launch_e2e.sh output")
         print(launch_output)
