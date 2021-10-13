@@ -113,7 +113,7 @@ or by running it inside a container.</p>
 <li><p>A fresh deployed server with enough RAM and disk space (120GB in RAM and 300GB in disk) and CentOS 8 (it should work also in Fedora/Debian/Ubuntu hosts).</p></li>
 <li><p>We assume that the hypervisor node is called nyctea (defined in the inventory).</p></li>
 <li><p>Have root passwordless access with certificates.</p></li>
-<li><p>Adjust the inventory file to suit your needs i.e. <a class="reference external" href="https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66">the worker nodes</a> you will need in your cluster.</p></li>
+<li><p>Adjust the inventory file to suit your needs.</p></li>
 <li><p>Having podman installed in the machine where you are running ansible-playbook.</p></li>
 </ul>
 </section>
@@ -150,11 +150,10 @@ in a single command and in approximately 30 minutes.</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">git clone https://github.com/Kubeinit/kubeinit.git</span>
 <span class="go">cd kubeinit</span>
 <span class="go">ansible-playbook \</span>
-<span class="go">    --user root \</span>
-<span class="go">    -v -i ./hosts/okd/inventory \</span>
-<span class="go">    --become \</span>
-<span class="go">    --become-user root \</span>
-<span class="go">    ./playbooks/okd.yml</span>
+<span class="go">    -v --user root \</span>
+<span class="go">    -e kubeinit_spec=okd-libvirt-3-2-1 \</span>
+<span class="go">    -i ./kubeinit/inventory \</span>
+<span class="go">    ./kubeinit/playbook.yml</span>
 </pre></div>
 </div>
 <p>After provisioning any of the scenarios, you should have your environment ready to go.
@@ -176,18 +175,15 @@ keys needs to be also updated.</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">git clone https://github.com/Kubeinit/kubeinit.git</span>
 <span class="go">cd kubeinit</span>
 <span class="go">podman build -t kubeinit/kubeinit .</span>
-<span class="go">run_as=&#39;root&#39;</span>
 <span class="go">podman run --rm -it \</span>
-<span class="go">    -v ~/.ssh/id_rsa:/${run_as}/.ssh/id_rsa:z \</span>
-<span class="go">    -v ~/.ssh/id_rsa.pub:/${run_as}/.ssh/id_rsa.pub:z \</span>
-<span class="go">    -v /etc/hosts:/etc/hosts \</span>
+<span class="go">    -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \</span>
+<span class="go">    -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \</span>
+<span class="go">    -v ~/.ssh/config:/root/.ssh/config:z \</span>
 <span class="go">    kubeinit/kubeinit \</span>
-<span class="go">        --user ${run_as} \</span>
-<span class="go">        -v -i ./hosts/okd/inventory \</span>
-<span class="go">        -e ansible_ssh_user=${run_as} \</span>
-<span class="go">        --become \</span>
-<span class="go">        --become-user ${run_as} \</span>
-<span class="go">        ./playbooks/okd.yml</span>
+<span class="go">        -v --user root \</span>
+<span class="go">        -e kubeinit_spec=okd-libvirt-3-2-1 \</span>
+<span class="go">        -i ./kubeinit/inventory \</span>
+<span class="go">        ./kubeinit/playbook.yml</span>
 </pre></div>
 </div>
 </section>
@@ -198,12 +194,11 @@ keys needs to be also updated.</p>
 <span class="go">podman run --rm -it \</span>
 <span class="go">    -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \</span>
 <span class="go">    -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \</span>
-<span class="go">    -v /etc/hosts:/etc/hosts \</span>
+<span class="go">    -v ~/.ssh/config:/root/.ssh/config:z \</span>
 <span class="go">    quay.io/kubeinit/kubeinit:$TAG \</span>
-<span class="go">        --user root \</span>
-<span class="go">        -v -i ./hosts/okd/inventory \</span>
-<span class="go">        --become \</span>
-<span class="go">        --become-user root \</span>
+<span class="go">        -v --user root \</span>
+<span class="go">        -e kubeinit_spec=okd-libvirt-3-2-1 \</span>
+<span class="go">        -i ./hosts/okd/inventory \</span>
 <span class="go">        ./playbooks/okd.yml</span>
 </pre></div>
 </div>
@@ -216,11 +211,11 @@ For example, once logged in the service
 machine a user can execute:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>From the hypervisor node the user should
 <span class="gp"># </span>have passwordless access to the service machine
-<span class="gp">root@mocoloco kubeinit]# </span>ssh root@10.0.0.100
+<span class="gp">root@mocoloco kubeinit]# </span>ssh -i ~/.ssh/rkecluster_id_rsa root@10.0.0.253
 <span class="go">Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-53-generic x86_64)</span>
 <span class="go">  System load:  0.0                Users logged in:               0</span>
 <span class="go">  Usage of /:   2.5% of 147.34GB   IPv4 address for docker0:      172.17.0.1</span>
-<span class="go">  Memory usage: 4%                 IPv4 address for enp1s0:       10.0.0.100</span>
+<span class="go">  Memory usage: 4%                 IPv4 address for enp1s0:       10.0.0.253</span>
 <span class="go">  Swap usage:   0%                 IPv4 address for vetha0e3a877: 172.16.16.1</span>
 <span class="go">  Processes:    186</span>
 
@@ -249,12 +244,11 @@ machine a user can execute:</p>
 In case a user needs to remove the resources created by Kubeinit execute
 from the project’s root folder:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">ansible-playbook \</span>
-<span class="go">    --user root \</span>
-<span class="go">    -v -i ./hosts/okd/inventory \</span>
+<span class="go">    -v --user root \</span>
+<span class="go">    -e kubeinit_spec=okd-libvirt-3-2-1 \</span>
 <span class="go">    -e kubeinit_stop_after_task=task-cleanup-hypervisors \</span>
-<span class="go">    --become \</span>
-<span class="go">    --become-user root \</span>
-<span class="go">    ./playbooks/okd.yml</span>
+<span class="go">    -i ./kubeinit/inventory \</span>
+<span class="go">    ./kubeinit/playbook.yml</span>
 </pre></div>
 </div>
 <p>In this case the deployment will stop just after cleaning the

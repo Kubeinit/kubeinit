@@ -268,7 +268,36 @@ Marcy]</p></li>
 </section>
 <section id="refactor">
 <h3>Refactor<a class="headerlink" href="#refactor" title="Permalink to this headline"></a></h3>
-<ul class="simple">
+<ul>
+<li><p>Consolidate all distro inventories. [Glenn Marcy]</p>
+<ul>
+<li><p>Remove distro-specific inventory files and playbooks.  All
+inventory is now generated dynamically from a much smaller
+common static inventory, ./kubeinit/inventory, and the new
+kubeinit_spec variable that is passed on the command line.
+The syntax for that value is:</p>
+<blockquote>
+<div><p>&lt;distro&gt;-&lt;driver&gt;-&lt;controllers&gt;-&lt;computes&gt;-&lt;hypervisors&gt;</p>
+</div></blockquote>
+</li>
+<li><p>Remove instructions for adding hypervisor host entries to the
+/etc/hosts file of machine where the ansible playbook is run.
+It is sufficient to just add aliases for any hypervisor hosts
+in the inventory to ~/.ssh/config entries.</p></li>
+<li><p>Update examples in documentation to match new CLI syntax.</p></li>
+<li><p>Test paths for okd.rke/submariner deployments have been removed
+temporarily as we work on the new support for multiple deployed
+clusters on the same hypervisor hosts.</p></li>
+<li><p>Simplify inventory network configuration to generate any needed
+network addresses from the cluster network dynamically.  Only
+the CIDR for the cluster network is required, which still has
+the same 10.0.0.0/24 default.</p></li>
+<li><p>Change EKS to lookup current stable kubernetes release from the
+distribution website.</p></li>
+<li><p>Update OKD release to 4.8 and FCOS/RHCOS releases from 33/4.7 to
+34/4.8 respectively.</p></li>
+</ul>
+</li>
 <li><p>Move tasks from post-deployment to deploy-cluster. [Glenn Marcy]</p></li>
 <li><p>Replace with_items with loop and other updates. [Glenn Marcy]</p></li>
 </ul>
