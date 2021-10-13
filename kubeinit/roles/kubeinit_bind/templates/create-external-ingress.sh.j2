@@ -82,17 +82,17 @@ oauth-openshift.apps.{{ kubeinit_cluster_fqdn }}.             IN      A       ${
 EOF
 
 # Tear down any remants from previous executions of this script
-if podman container exists {{ kubeinit_inventory_cluster_name }}-ingress-bind; then podman stop {{ kubeinit_inventory_cluster_name }}-ingress-bind; fi
+if podman container exists {{ kubeinit_cluster_name }}-ingress-bind; then podman stop {{ kubeinit_cluster_name }}-ingress-bind; fi
 
 # Create a volume to provide a cache for the bind server
-if [ "$(podman volume ls --filter 'name={{ kubeinit_inventory_cluster_name }}-bind-cache' --format {% raw %}'{{ .Name }}'{% endraw %})" != "" ]; then podman volume rm {{ kubeinit_inventory_cluster_name }}-bind-cache; fi
-podman volume create {{ kubeinit_inventory_cluster_name }}-bind-cache
-podman run --rm --name {{ kubeinit_inventory_cluster_name }}-set-bind-cache-owner -v {{ kubeinit_inventory_cluster_name }}-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind chown bind:bind /var/cache/bind
+if [ "$(podman volume ls --filter 'name={{ kubeinit_cluster_name }}-bind-cache' --format {% raw %}'{{ .Name }}'{% endraw %})" != "" ]; then podman volume rm {{ kubeinit_cluster_name }}-bind-cache; fi
+podman volume create {{ kubeinit_cluster_name }}-bind-cache
+podman run --rm --name {{ kubeinit_cluster_name }}-set-bind-cache-owner -v {{ kubeinit_cluster_name }}-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind chown bind:bind /var/cache/bind
 
 # Create a pod for our container with dns nameserver and search options
 # If you would also like to add a container running VNC you can add this option to the end of the command on the next line: -p ${KUBEINIT_INGRESS_IP}:5901:5901
-if podman pod exists {{ kubeinit_inventory_cluster_name }}-ingress-pod; then podman pod rm {{ kubeinit_inventory_cluster_name }}-ingress-pod; fi
-podman pod create --name {{ kubeinit_inventory_cluster_name }}-ingress-pod --dns ${KUBEINIT_INGRESS_IP} --dns 8.8.8.8 --dns-search {{ kubeinit_cluster_fqdn }}
+if podman pod exists {{ kubeinit_cluster_name }}-ingress-pod; then podman pod rm {{ kubeinit_cluster_name }}-ingress-pod; fi
+podman pod create --name {{ kubeinit_cluster_name }}-ingress-pod --dns ${KUBEINIT_INGRESS_IP} --dns 8.8.8.8 --dns-search {{ kubeinit_cluster_fqdn }}
 
 # Use overlay for .ssh folder when available
 if [ "$ID" == "centos" ]; then
@@ -102,10 +102,10 @@ else
 fi
 
 # Run the ingress container on the host network mounting required volumes
-podman run --rm -d --pod {{ kubeinit_inventory_cluster_name }}-ingress-pod --name {{ kubeinit_inventory_cluster_name }}-ingress-bind --network host -v /root/.ssh:/root/.ssh:${overlay} -v /var/kubeinit/bind:/etc/bind:Z -v {{ kubeinit_inventory_cluster_name }}-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind
+podman run --rm -d --pod {{ kubeinit_cluster_name }}-ingress-pod --name {{ kubeinit_cluster_name }}-ingress-bind --network host -v /root/.ssh:/root/.ssh:${overlay} -v /var/kubeinit/bind:/etc/bind:Z -v {{ kubeinit_cluster_name }}-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind
 
 # Create ssh tunnels in the running container for all the ports served by the cluster haproxy service
-podman exec {{ kubeinit_inventory_cluster_name }}-ingress-bind ssh -i ~/.ssh/{{ kubeinit_inventory_cluster_name }}_id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -N -f -L ${KUBEINIT_INGRESS_IP}:80:${KUBEINIT_HAPROXY_IP}:80 -L ${KUBEINIT_INGRESS_IP}:443:${KUBEINIT_HAPROXY_IP}:443 -L ${KUBEINIT_INGRESS_IP}:6443:${KUBEINIT_HAPROXY_IP}:6443 -L ${KUBEINIT_INGRESS_IP}:8443:${KUBEINIT_HAPROXY_IP}:8443 -L ${KUBEINIT_INGRESS_IP}:9000:${KUBEINIT_HAPROXY_IP}:9000 -L ${KUBEINIT_INGRESS_IP}:22623:${KUBEINIT_HAPROXY_IP}:22623 root@${KUBEINIT_HAPROXY_IP}
+podman exec {{ kubeinit_cluster_name }}-ingress-bind ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -N -f -L ${KUBEINIT_INGRESS_IP}:80:${KUBEINIT_HAPROXY_IP}:80 -L ${KUBEINIT_INGRESS_IP}:443:${KUBEINIT_HAPROXY_IP}:443 -L ${KUBEINIT_INGRESS_IP}:6443:${KUBEINIT_HAPROXY_IP}:6443 -L ${KUBEINIT_INGRESS_IP}:8443:${KUBEINIT_HAPROXY_IP}:8443 -L ${KUBEINIT_INGRESS_IP}:9000:${KUBEINIT_HAPROXY_IP}:9000 -L ${KUBEINIT_INGRESS_IP}:22623:${KUBEINIT_HAPROXY_IP}:22623 root@${KUBEINIT_HAPROXY_IP}
 
 # Open firewall ports for external access
 if systemctl is-active firewalld; then

@@ -51,32 +51,41 @@ presented in the [periodic job execution page](periodic_jobs.md).
 ## Requirements
 
 * A fresh deployed server with enough RAM and disk space (120GB in RAM and 300GB in disk) and CentOS 8 (it should work also in Fedora/Debian/Ubuntu hosts).
-* Adjust the inventory file to suit your needs i.e. [the worker nodes](https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66)
- you will need in your cluster.
-* By default the hypervisor node is called nyctea (defined in the inventory). Replace it with the hostname you specified if you changed it.
+* Adjust the inventory file to suit your needs.
+* By default the first hypervisor node is called nyctea (defined in the inventory). Replace it with the hostname you specified if you changed it.
+  You can also use the names in the inventory as aliases for your own hostnames using ~/.ssh/config (described in more detail below).
 * Have root passwordless access with certificates.
 * Having podman installed in the machine where you are running ansible-playbook.
 
-### Check if nyctea is reachable
+### Check if nyctea is reachable via passwordless root access
+
+If you need to setup aliases in ssh for nyctea, tyto, strix, or any other hypervisor hosts that
+you have added or are mentioned in the inventory, you can create a file named config in ~/.ssh
+with contents like this:
 
 ```bash
-ping nyctea
-nslookup nyctea
+echo "Host nyctea" >> ~/.ssh/config
+echo "  Hostname actual_hostname" >> ~/.ssh/config
 ```
 
-If you are not able to reach the hosts,
-edit your /etc/hosts, your DNS or your inventory files.
+For example, if you have a deployed server that you can already ssh into as root called `server.mysite.local`
+you can create a ~/.ssh/config with these contents:
 
-### Passwordless root access
+```
+Host nyctea
+  Hostname server.mysite.local
+```
+
+Now you should be ready to try access to your ansible host like this:
 
 ```bash
 ssh root@nyctea
 ```
 
-If it fails. check if you have a ssh key, and generate one if you don't
+If it fails. check if you have an ssh key, and generate one if you don't
 
 ```bash
-if [ -f /root/.ssh/id_rsa ]; then
+if [ -f ~/.ssh/id_rsa ]; then
   ssh-keygen
   ssh-copy-id /root/.ssh/id_rsa root@nyctea
 fi
@@ -89,8 +98,8 @@ ansible-playbook command, or by running it inside a container.
 
 ## Directly executing the deployment playbook
 
-The following example command will deploy a multi-master OKD 4.5 cluster with 1 worker node
-in a single command and in approximately 30 minutes.
+The following example command will deploy an OKD 4.8 cluster with a 3 node control-plane
+and 1 worker node in a single command and in approximately 30 minutes.
 
 ```bash
 # Install the requirements assuming python3/pip3 is installed
@@ -115,11 +124,10 @@ ansible-galaxy collection install --force --force-with-deps releases/kubeinit-ku
 
 # Run the playbook
 ansible-playbook \
-    --user root \
-    -v -i ./hosts/okd/inventory \
-    --become \
-    --become-user root \
-    ./playbooks/okd.yml
+    -v --user root \
+    -e kubeinit_spec=okd-libvirt-3-1-1 \
+    -i ./kubeinit/inventory \
+    ./kubeinit/playbook.yml
 ```
 
 After provisioning any of the scenarios, you should have your environment ready to go.
@@ -149,17 +157,15 @@ git clone https://github.com/Kubeinit/kubeinit.git
 cd kubeinit
 podman build -t kubeinit/kubeinit .
 
-run_as='root'
 podman run --rm -it \
-    -v ~/.ssh/id_rsa:/${run_as}/.ssh/id_rsa:z \
-    -v ~/.ssh/id_rsa.pub:/${run_as}/.ssh/id_rsa.pub:z \
-    -v /etc/hosts:/etc/hosts \
+    -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+    -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
+    -v ~/.ssh/config:/root/.ssh/config:z \
     kubeinit/kubeinit \
-        --user ${run_as} \
-        -v -i ./hosts/okd/inventory \
-        --become \
-        --become-user ${run_as} \
-        ./playbooks/okd.yml
+        -v --user root \
+        -e kubeinit_spec=okd-libvirt-3-1-1 \
+        -i ./kubeinit/inventory \
+        ./kubeinit/playbook.yml
 ```
 
 ### Running from a release
@@ -169,14 +175,13 @@ podman run --rm -it \
 TAG=$(curl --silent "https://api.github.com/repos/kubeinit/kubeinit/releases/latest" | jq -r .tag_name)
 podman run --rm -it \
     -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
-    -v ~/.ssh/id_rsa.pub:/${run_as}/.ssh/id_rsa.pub:z \
-    -v /etc/hosts:/etc/hosts \
+    -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
+    -v ~/.ssh/config:/root/.ssh/config:z \
     quay.io/kubeinit/kubeinit:$TAG \
-        --user root \
-        -v -i ./hosts/okd/inventory \
-        --become \
-        --become-user root \
-        ./playbooks/okd.yml
+        -v --user root \
+        -e kubeinit_spec=okd-libvirt-3-1-1 \
+        -i ./kubeinit/inventory \
+        ./kubeinit/playbook.yml
 ```
 
 # HowTo's and presentations

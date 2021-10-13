@@ -40,10 +40,6 @@ jobs:
         sudo python3 -m pip install --upgrade virtualenv
         sudo python3 -m pip install --upgrade setuptools
         sudo python3 -m pip install -r ./test-requirements.txt
-    - name: Prepare connection to nyctea
-      run: |
-        iface_ip=$(hostname -i)
-        sudo echo "${iface_ip} nyctea.local nyctea" | sudo tee -a /etc/hosts
     - name: Check SSH config
       run: |
         cat > sshd_config <<EOF
@@ -67,19 +63,14 @@ jobs:
             chmod 600 ~/.ssh/authorized_keys
             chmod 700 ~/.ssh
             sudo chmod -c 0755 ~/
+            echo "Host nyctea" > ~/.ssh/config
+            echo "  Hostname $(hostname)" >> ~/.ssh/config
             ls -la ~/.ssh
             # echo "Test to nyctea"
             # ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no $(whoami)@nyctea
             # echo "Test to localhost"
             # ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no $(whoami)@localhost
         EOF
-    - name: Adjust CDK inventory
-      run: |
-        sed -i -E "s/.*controller-02/#controller-02/g" ./hosts/cdk/inventory
-        sed -i -E "s/.*controller-03/#controller-03/g" ./hosts/cdk/inventory
-        sed -i -E "s/.*compute-01/#compute-01/g" ./hosts/cdk/inventory
-        sed -i -E "s/.*compute-02/#compute-02/g" ./hosts/cdk/inventory
-        sed -i -E "/service-01 ansible_host/ s/type=virtual/type=container/g" ./hosts/cdk/inventory
     - name: Run the deployment from a container
       run: |
         # There is no need to install the collection before this step.
@@ -91,14 +82,14 @@ jobs:
             podman run --rm -it \
                 -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
                 -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
-                -v /etc/hosts:/etc/hosts \
+                -v ~/.ssh/config:/root/.ssh/config:z \
                 kubeinit/kubeinit \
                     -v \
-                    -e ansible_ssh_user=root \
+                    -e kubeinit_spec=cdk-libvirt-1-0-1-c \
                     -e kubeinit_stop_after_task='task-prepare-cluster' \
                     -e kubeinit_libvirt_create_cloud_user=true \
                     -e kubeinit_inventory_hosted_deployment=true \
                     -e kubeinit_ignore_validation_checks=true \
-                    -i ./hosts/cdk/inventory \
-                    ./playbooks/cdk.yml
+                    -i ./kubeinit/inventory \
+                    ./kubeinit/playbook.yml
         EOF

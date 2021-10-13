@@ -14,28 +14,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Prepare services if needed
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_services
-    tasks_from: prepare_services.yml
-    public: true
-  vars:
-    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
-  when: not task_completed
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-cluster'
-
 - name: Deploy the cluster bootstrap node
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
     tasks_from: deploy_coreos_guest.yml
     public: yes
-  loop: "{{ groups['extra_nodes'] }}"
+  loop: "{{ groups['all_extra_nodes'] }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -68,7 +52,7 @@
   retries: 60
   delay: 60
   delegate_to: "{{ kubeinit_provision_service_node }}"
-  until: _result.stdout_lines | default([]) | list | count == groups['all_controller_nodes'] | count
+  until: _result.stdout_lines | default([]) | list | length == kubeinit_controller_count|int
 
 - name: Use single node cluster
   ansible.builtin.shell: |
@@ -103,12 +87,12 @@
   register: _result
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
-  when: (groups['all_controller_nodes'] | count) == 1
+  when: kubeinit_controller_count|int == 1
 
 # This can take a lot of time until the cluster converges
 - name: Wait for bootstrap to complete
   ansible.builtin.shell: |
-    openshift-install gather --dir install_dir bootstrap --bootstrap {{ hostvars[groups['extra_nodes'][0]].ansible_host }} \
+    openshift-install gather --dir install_dir bootstrap --bootstrap {{ hostvars[groups['all_extra_nodes'][0]].ansible_host }} \
         {% for node in groups['all_controller_nodes'] %}{% raw %} --master {% endraw %}{{ hostvars[node].ansible_host }}{% endfor %}
 
     openshift-install --dir=install_dir/ wait-for bootstrap-complete --log-level info
@@ -156,7 +140,7 @@
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2"
 
   vars:
-    kubeinit_deployment_node_name: "{{ groups['extra_nodes'][0] }}"
+    kubeinit_deployment_node_name: "{{ groups['all_extra_nodes'][0] }}"
   delegate_to: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
 - name: Deploy the cluster compute nodes
@@ -164,7 +148,7 @@
     name: kubeinit.kubeinit.kubeinit_libvirt
     tasks_from: deploy_coreos_guest.yml
     public: yes
-  loop: "{{ groups['all_compute_nodes'] }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -187,8 +171,9 @@
       changed_when: "_result.rc == 0"
       retries: 60
       delay: 60
-      # Per each node we have 2 certs one per kubelet-serving and another per kube-apiserver-client-kubelet
-      until: _result.stdout_lines | default([]) | list | count == ( groups['all_controller_nodes'] | count + groups['all_compute_nodes'] | count ) * 2
+      # Per each node we have 2 csrs, one per kubelet-serving and another per kube-apiserver-client-kubelet
+      # Per cluster we have an additonal csr per kube-apiserver-client for openshift-authenticator
+      until: _result.stdout_lines | default([]) | list | length == (kubeinit_cluster_node_count|int * 2) + 1
 
     - name: "wait until all nodes are ready"
       ansible.builtin.shell: |
@@ -201,7 +186,7 @@
       changed_when: "_result.rc == 0"
       retries: 60
       delay: 60
-      until: _result.stdout_lines | default([]) | list | count == ( (groups['all_controller_nodes'] | count) + (groups['all_compute_nodes'] | count) )
+      until: _result.stdout_lines | default([]) | list | length == kubeinit_cluster_node_count|int
 
     - name: Copy the kubeconfig
       ansible.builtin.shell: |
@@ -239,19 +224,3 @@
   vars:
     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-
-- name: Add task-deploy-cluster to tasks_completed
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
-    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-deploy-cluster']) }}"
-
-- name: Update kubeinit_cluster_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

@@ -14,28 +14,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Prepare services if needed
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_services
-    tasks_from: prepare_services.yml
-    public: true
-  vars:
-    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
-  when: not task_completed
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-cluster'
-
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
     tasks_from: deploy_ubuntu_guest.yml
     public: yes
-  loop: "{{ groups['all_cluster_nodes'] + groups['extra_nodes'] }}"
+  loop: "{{ groups['all_cluster_nodes'] + groups['all_extra_nodes'] }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
@@ -62,7 +46,7 @@
     name: "{{ hostvars[item].ansible_host }}"
     key: "{{ hostvars[item].ansible_host }} {{ hostvars[item].ssh_host_key_ecdsa }}"
     state: present
-  loop: "{{ groups['all_cluster_nodes'] + groups['extra_nodes'] }}"
+  loop: "{{ groups['all_cluster_nodes'] + groups['all_extra_nodes'] }}"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 - name: Install the CDK juju installer
@@ -78,7 +62,7 @@
 
 - name: Add the CDK cluster
   ansible.builtin.shell: |
-    juju add-cloud --client {{ kubeinit_inventory_cluster_name }} -f cloud.yml
+    juju add-cloud --client {{ kubeinit_cluster_name }} -f cloud.yml
   args:
     executable: /bin/bash
   register: _result
@@ -90,7 +74,7 @@
     juju bootstrap --no-gui \
         --debug \
         --bootstrap-series=focal \
-        manual/root@{{ hostvars[groups['extra_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
+        manual/root@{{ hostvars[groups['all_extra_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
   args:
     executable: /bin/bash
   register: _result
@@ -128,7 +112,7 @@
   retries: 60
   delay: 60
   delegate_to: "{{ kubeinit_provision_service_node }}"
-  until: _result.stdout_lines | list | count == ( groups['all_cluster_nodes'] | count )
+  until: _result.stdout_lines | list | length == kubeinit_cluster_node_count|int
 
 - name: Deploy CDK
   ansible.builtin.shell: |
@@ -157,7 +141,7 @@
   args:
     executable: /bin/bash
   vars:
-    all_controllers_healthy_text: "Healthy with {{ kubeinit_controller_count }} known peer{{ 's' if (kubeinit_controller_count | int > 1) }}"
+    all_controllers_healthy_text: "Healthy with {{ kubeinit_controller_count }} known peer{{ 's' if (kubeinit_controller_count|int > 1) }}"
   register: _result
   changed_when: "_result.rc == 0"
   retries: 100
@@ -210,19 +194,3 @@
     executable: /bin/bash
   register: _result
   changed_when: "_result.rc == 0"
-
-- name: Add task-deploy-cluster to tasks_completed
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
-    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-deploy-cluster']) }}"
-
-- name: Update kubeinit_cluster_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

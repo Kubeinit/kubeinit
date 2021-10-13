@@ -22,8 +22,8 @@
   ansible.builtin.shell: |
     curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo \
       https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8_Stream/devel:kubic:libcontainers:stable.repo
-    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_kubernetes_version }}.repo \
-      https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_kubernetes_version }}/CentOS_8_Stream/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_inventory_kubernetes_version }}.repo
+    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_k8s_kubernetes_version }}.repo \
+      https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_k8s_kubernetes_version }}/CentOS_8_Stream/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_k8s_kubernetes_version }}.repo
   args:
     executable: /bin/bash
   register: _result
@@ -81,7 +81,7 @@
 #
 
 - name: Install requirements
-  ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_inventory_kubernetes_version }}.* kubeadm-{{ kubeinit_inventory_kubernetes_version }}.* kubectl-{{ kubeinit_inventory_kubernetes_version }}.* --disableexcludes=kubernetes
+  ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_k8s_kubernetes_version }}.* kubeadm-{{ kubeinit_k8s_kubernetes_version }}.* kubectl-{{ kubeinit_k8s_kubernetes_version }}.* --disableexcludes=kubernetes
   register: _result
   changed_when: "_result.rc == 0"
 

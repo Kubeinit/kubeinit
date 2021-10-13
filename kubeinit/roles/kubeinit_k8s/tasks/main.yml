@@ -14,22 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Prepare services if needed
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_services
-    tasks_from: prepare_services.yml
-    public: true
-  vars:
-    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
-  when: not task_completed
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-cluster'
-
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
@@ -76,7 +60,7 @@
         content: "{{ k8s_controller_join_key }}"
         dest: ~/k8s_controller_join_key
         mode: '0644'
-      when: (kubeinit_controller_count | int) > 1
+      when: kubeinit_controller_count|int > 1
 
     - name: Create kube directory
       ansible.builtin.file:
@@ -103,7 +87,7 @@
         content: "{{ _result_join_command.stdout }}"
         dest: ~/k8s_token
         mode: '0644'
-      when: (kubeinit_controller_count | int) > 1
+      when: kubeinit_controller_count|int > 1
 
     - name: Install Network Add-on
       ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
@@ -129,7 +113,7 @@
   loop_control:
     loop_var: controller_node
   delegate_to: "{{ controller_node }}"
-  when: (kubeinit_controller_count | int) > 1 and controller_node not in kubeinit_first_controller_node
+  when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node
 
 - name: Create kube directory
   ansible.builtin.file:
@@ -140,7 +124,7 @@
   loop_control:
     loop_var: controller_node
   delegate_to: "{{ controller_node }}"
-  when: (kubeinit_controller_count | int) > 1 and controller_node not in kubeinit_first_controller_node
+  when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node
 
 - name: Copying required files
   ansible.builtin.shell: |
@@ -154,7 +138,7 @@
   loop_control:
     loop_var: controller_node
   delegate_to: "{{ controller_node }}"
-  when: (kubeinit_controller_count | int) > 1 and controller_node not in kubeinit_first_controller_node
+  when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node
 
 - name: Join compute nodes with kubernetes control plane
   ansible.builtin.shell: |
@@ -165,7 +149,7 @@
     executable: /bin/bash
   register: _result
   changed_when: "_result.rc == 0"
-  loop: "{{ groups['all_compute_nodes'] }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
   loop_control:
     loop_var: compute_node
   delegate_to: "{{ compute_node }}"
@@ -176,7 +160,7 @@
    kubectl label node {{ hostvars[compute_node].fqdn }} node-role.kubernetes.io/worker=
   register: _result
   changed_when: "_result.rc == 0"
-  loop: "{{ groups['all_compute_nodes'] }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
   loop_control:
     loop_var: compute_node
   delegate_to: "{{ kubeinit_first_controller_node }}"
@@ -201,19 +185,3 @@
     dest: ~/.kube/config
     mode: '0644'
   delegate_to: "{{ kubeinit_provision_service_node }}"
-
-- name: Add task-deploy-cluster to tasks_completed
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
-    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-deploy-cluster']) }}"
-
-- name: Update kubeinit_cluster_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

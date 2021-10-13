@@ -26,66 +26,80 @@
         that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
+      tags: common_tasks
   tasks:
-    - name: task-prepare-hypervisors
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_prepare
-        tasks_from: prepare_hypervisors.yml
-        public: true
+    - debug:
+        msg: "You can use '--start-at-task task-prepare-hypervisors' once you reach this point."
+      tags: omit_from_grapher
+    - block:
+        - name: task-prepare-hypervisors
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_prepare
+            tasks_from: prepare_hypervisors.yml
+            public: true
+      tags: common_tasks
 
 - name: Prepare all hypervisor hosts to deploy service and cluster nodes
   hosts: hypervisor_hosts
   gather_facts: false
   tasks:
-    - name: Prepare each hypervisor in the deployment
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_prepare
-        tasks_from: prepare_hypervisor.yml
-        public: true
+    - block:
+        - name: Prepare each hypervisor in the deployment
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_prepare
+            tasks_from: prepare_hypervisor.yml
+            public: true
+          when: inventory_hostname in hostvars['kubeinit-facts'].hypervisors
+      tags: common_tasks
 
 - name: Main deployment play for creating a cluster
   hosts: localhost
   become: false
   gather_facts: false
   tasks:
-    - name: task-prepare-environment
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_prepare
-        public: true
-    - name: task-cleanup-hypervisors
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_prepare
-        tasks_from: cleanup_hypervisors.yml
-        public: true
-    - name: task-run-validations
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_validations
-        public: true
-    - name: task-create-network
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_libvirt
-        tasks_from: create_network.yml
-        public: true
-    - name: task-create-services
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_services
-        public: true
-    - name: task-prepare-cluster
-      ansible.builtin.include_role:
-        name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-        tasks_from: prepare_cluster.yml
-        public: true
-    - name: task-download-images
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_libvirt
-        tasks_from: download_cloud_images.yml
-        public: true
-    - name: task-deploy-cluster
-      ansible.builtin.include_role:
-        name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-        public: true
-    - name: task-post-deployment
-      ansible.builtin.include_role:
-        name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_inventory_cluster_distro }}"
-        tasks_from: post_deployment_tasks.yml
-        public: true
+    - block:
+        - name: task-prepare-environment
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_prepare
+            public: true
+        - name: task-cleanup-hypervisors
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_prepare
+            tasks_from: cleanup_hypervisors.yml
+            public: true
+        - name: task-run-validations
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_validations
+            public: true
+        - name: task-create-network
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_libvirt
+            tasks_from: create_network.yml
+            public: true
+        - name: task-create-services
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_services
+            public: true
+      tags: common_tasks
+    - block:
+        - name: task-prepare-cluster
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_prepare
+            tasks_from: prepare_cluster.yml
+            public: true
+        - name: task-download-images
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_libvirt
+            tasks_from: download_cloud_images.yml
+            public: true
+        - name: task-deploy-cluster
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_prepare
+            tasks_from: deploy_cluster.yml
+            public: true
+        - name: task-post-deployment
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_prepare
+            tasks_from: post_deployment.yml
+            public: true
+      tags: distro_tasks

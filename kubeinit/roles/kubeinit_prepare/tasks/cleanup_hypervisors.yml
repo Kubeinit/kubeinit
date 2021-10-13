@@ -14,25 +14,26 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- block:
+    - name: Prepare environment if needed
+      ansible.builtin.include_role:
+        name: kubeinit.kubeinit.kubeinit_prepare
+        public: true
+      vars:
+        task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+      when: not task_completed
+
+    - block:
+        - name: Check to see if we should stop here
+          ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-cleanup-hypervisors'
+  tags: omit_from_grapher
 
 #
 # Cleanup all resources left over from previous cluster deployment
 #
-
-- name: Prepare environment if needed
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_prepare
-    public: true
-  vars:
-    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
-  when: not task_completed
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-cleanup-hypervisors'
 
 - name: Get list of existing remote system connection definitions
   ansible.builtin.shell: |
@@ -177,7 +178,7 @@
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
-    service_name: "{{ kubeinit_inventory_cluster_name }}-{{ cluster_role_item[1] }}"
+    service_name: "{{ kubeinit_cluster_name }}-{{ cluster_role_item[1] }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
 - name: Remove any previous services podman pods
@@ -251,7 +252,7 @@
   vars:
     service_node: "{{ orphaned_pod_vol[0] }}"
     volume: "{{ orphaned_pod_vol[1] }}"
-    cluster_pattern: "{{ kubeinit_inventory_cluster_name }}-.*"
+    cluster_pattern: "{{ kubeinit_cluster_name }}-.*"
   when: volume.Name is match(cluster_pattern)
 
 - name: Remove any previous kubeinit podman volumes
@@ -335,18 +336,20 @@
     tasks_from: cleanup_libvirt.yml
     public: true
 
-- name: Add task-cleanup-hypervisors to tasks_completed
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
-    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-cleanup-hypervisors']) }}"
-
-- name: Update kubeinit_cluster_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
-
 - block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+    - name: Add task-cleanup-hypervisors to tasks_completed
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_cluster_facts_name }}"
+        tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-cleanup-hypervisors']) }}"
+
+    - name: Update kubeinit_cluster_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+    - block:
+        - name: Check to see if we should stop here
+          ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+  tags: omit_from_grapher

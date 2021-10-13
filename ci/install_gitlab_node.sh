@@ -113,14 +113,12 @@ python3 -m pip install \
 # we run the server (api-server) in a pod so we dont need to install it anymore
 sudo python3 -m pip install --upgrade ara
 
-echo "nyctea" > /etc/hostname
-iface_ip=$(ip route get "8.8.8.8" | grep -Po '(?<=(src )).*(?= uid| proto)')
-echo "${iface_ip} nyctea" >> /etc/hosts
-cd
 mkdir -p ~/.ssh
 # In the case the key already exists we wont overwrite it
 ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa <<< n || true
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+echo "Host nyctea" > ~/.ssh/config
+echo "  Hostname $(hostname)" >> ~/.ssh/config
 ssh -oStrictHostKeyChecking=no root@nyctea uptime
 
 mv /var/lib/libvirt /home/

@@ -100,9 +100,9 @@
     grep vmx /proc/cpuinfo
   args:
     executable: /bin/bash
-  ignore_errors: yes
   register: _result_intel_processor
   changed_when: "_result_intel_processor.rc == 0"
+  failed_when: _result_intel_processor is not defined
 
 - name: Check if AMD virtualization is supported
   ansible.builtin.shell: |
@@ -110,9 +110,9 @@
     grep svm /proc/cpuinfo
   args:
     executable: /bin/bash
-  ignore_errors: yes
   register: _result_amd_processor
   changed_when: "_result_amd_processor.rc == 0"
+  failed_when: _result_amd_processor is not defined
 
 - name: Fail in case no Intel or AMD virtualization support is not detected and is not a hosted deployment.
   ansible.builtin.fail:
