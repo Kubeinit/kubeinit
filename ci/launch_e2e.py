@@ -16,6 +16,13 @@ License for the specific language governing permissions and limitations
 under the License.
 """
 
+#############################################
+# Any change done in this file needs to be  #
+# force pushed first to the GitLab instance #
+# so the changes are refreshed when the job #
+# starts to run                             #
+#############################################
+
 import os
 import re
 import shutil
@@ -104,7 +111,7 @@ def main(cluster_type, job_type):
                                                                                           workers,
                                                                                           hypervisors,
                                                                                           launch_from))
-                    repository = repo.name
+                    repository = 'kubeinit/kubeinit'
                     branch_name = branch.name
                     pr_number = pr.number
                     start_time = time.time()
@@ -312,6 +319,7 @@ def main(cluster_type, job_type):
                                                                                           hypervisors,
                                                                                           launch_from))
                     repository = repo.name
+                    print("'launch_e2e.py' ==> The repository name is: " + repository)
                     branch_name = branch.name
                     pr_number = pr.number
                     start_time = time.time()
@@ -395,7 +403,6 @@ def run_e2e_job(distro, driver, masters, workers,
                        right_color='green')
     try:
         print("'launch_e2e.py' ==> We call the downstream job configuring its parameters")
-        print("'launch_e2e.py' ==> Deployment command")
         deployment_command = "./ci/launch_e2e.sh %s %s %s %s %s %s %s %s %s %s" % (str(repository),
                                                                                    str(branch_name),
                                                                                    str(pr_number),

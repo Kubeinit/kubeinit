@@ -113,8 +113,8 @@ Running from a release
         quay.io/kubeinit/kubeinit:$TAG \
             -v --user root \
             -e kubeinit_spec=okd-libvirt-3-2-1 \
-            -i ./hosts/okd/inventory \
-            ./playbooks/okd.yml
+            -i ./kubeinit/inventory \
+            ./kubeinit/playbook.yml
 
 Accessing the cluster resources
 -------------------------------

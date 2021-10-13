@@ -114,6 +114,8 @@ python3 -m pip install \
 sudo python3 -m pip install --upgrade ara
 
 mkdir -p ~/.ssh
+touch ~/.ssh/config
+
 # In the case the key already exists we wont overwrite it
 ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa <<< n || true
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys

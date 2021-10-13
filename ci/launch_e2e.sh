@@ -180,9 +180,10 @@ echo "(launch_e2e.sh) ==> The amount of master nodes is: ${MASTERS}" >> ./kubein
 echo "(launch_e2e.sh) ==> The amount of worker nodes is: ${WORKERS}" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The amount of hypervisors is: ${HYPERVISORS}" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The job type is: ${JOB_TYPE}" >> ./kubeinit/aux_info_file.txt
-echo "(launch_e2e.sh) ==> The ansible will be launched from: ${LAUNCH_FROM}" >> ./kubeinit/aux_info_file.txt
-echo "(launch_e2e.sh) ==> The ansible verbosity is: ${KUBEINIT_ANSIBLE_VERBOSITY}" >> ./kubeinit/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The ansible deployment will be launched from: ${LAUNCH_FROM}" >> ./kubeinit/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The ansible verbosity level is: -${KUBEINIT_ANSIBLE_VERBOSITY}" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The job URL: ${CI_JOB_URL}" >> ./kubeinit/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The kubeinit spec string is: ${KUBEINIT_SPEC}" >> ./kubeinit/aux_info_file.txt
 
 #
 # This logic allows to record specific files or content before starting
@@ -194,6 +195,7 @@ echo "(launch_e2e.sh) ==> The job URL: ${CI_JOB_URL}" >> ./kubeinit/aux_info_fil
 
 echo "(launch_e2e.sh) ==> Running record tasks ..."
 tee ./playbook_tmp.yml << endoffile
+---
 - name: Record useful files and variables to the deployment
   hosts: localhost
   tasks:
@@ -209,10 +211,15 @@ tee ./playbook_tmp.yml << endoffile
         key: inventory
         value: "{{ lookup('file', './inventory') }}"
         type: text
+
 endoffile
+
+# This will concatenate to the deployment playbook
+# the initial ARA playbook to record some details
+# related to the deployment
+sed -i 's/---//g' ./kubeinit/playbook.yml
 cat ./kubeinit/playbook.yml >> ./playbook_tmp.yml
 mv ./playbook_tmp.yml ./kubeinit/playbook.yml
-sed -i 's/---//g' ./kubeinit/playbook.yml
 
 #
 # The last step is to run the deployment
@@ -235,8 +242,11 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
     #
     podman build -t kubeinit/kubeinit .
 
+    #
     # This will deploy a single kubernetes cluster based
-    # on the $DISTRO variable from a container
+    # on the $KUBEINIT_SPEC variable from a container
+    #
+
     podman run --rm -it \
         --name kubeinit-runner \
         --pod ara-pod \
@@ -248,9 +258,9 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
         -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
         -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
         -e ARA_API_SERVER="http://127.0.0.1:8000" \
-        kubeinit/kubeinit \
+        localhost/kubeinit/kubeinit:latest \
             --user root \
-            ${KUBEINIT_ANSIBLE_VERBOSITY} \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} \
             -i ./kubeinit/inventory \
             -e kubeinit_spec=${KUBEINIT_SPEC} \
             ./kubeinit/playbook.yml
@@ -266,24 +276,26 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
         -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
         -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
         -e ARA_API_SERVER="http://127.0.0.1:8000" \
-        kubeinit/kubeinit \
+        localhost/kubeinit/kubeinit:latest \
             --user root \
-            ${KUBEINIT_ANSIBLE_VERBOSITY} \
+            -${KUBEINIT_ANSIBLE_VERBOSITY} \
             -i ./kubeinit/inventory \
             -e kubeinit_spec=${KUBEINIT_SPEC} \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./kubeinit/playbook.yml
+
 elif [[ "$LAUNCH_FROM" == "h" ]]; then
+
     ansible-playbook \
         --user root \
-        ${KUBEINIT_ANSIBLE_VERBOSITY} \
+        -${KUBEINIT_ANSIBLE_VERBOSITY} \
         -i ./kubeinit/inventory \
         -e kubeinit_spec=${KUBEINIT_SPEC} \
         ./kubeinit/playbook.yml
 
     ansible-playbook \
         --user root \
-        ${KUBEINIT_ANSIBLE_VERBOSITY} \
+        -${KUBEINIT_ANSIBLE_VERBOSITY} \
         -i ./kubeinit/inventory \
         -e kubeinit_spec=${KUBEINIT_SPEC} \
         -e kubeinit_stop_after_task=task-cleanup-hypervisors \
