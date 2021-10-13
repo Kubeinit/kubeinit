@@ -23,22 +23,267 @@
     ansible_connection: local
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
 
-- name: Gather localhost and hypervisor facts
+- name: Prepare inventory using command-line specification
+  ansible.builtin.set_fact:
+    kubeinit_spec_parts: "{{ kubeinit_spec.split('-') | default([]) }}"
+
+- name: Assert we have a minimum number of spec parts
+  ansible.builtin.assert:
+    msg: "Usage: -e kubeinit_spec=<distro>-<driver>-<controllers>-<computes>-<hypervisors>[-<ignored>]"
+    that: kubeinit_spec_parts | length >= 5
+
+- name: Set facts from spec parts
+  ansible.builtin.set_fact:
+    kubeinit_spec_distro: "{{ kubeinit_spec_parts[0] }}"
+    kubeinit_spec_driver: "{{ kubeinit_spec_parts[1] }}"
+    kubeinit_spec_controllers: "{{ kubeinit_spec_parts[2] }}"
+    kubeinit_spec_computes: "{{ kubeinit_spec_parts[3] }}"
+    kubeinit_spec_hypervisors: "{{ kubeinit_spec_parts[4] }}"
+
+- name: Assert spec constraints
+  ansible.builtin.assert:
+    that:
+      - kubeinit_spec_distro in ['cdk', 'eks', 'k8s', 'kid', 'okd', 'rke']
+      - kubeinit_spec_driver in ['libvirt']
+      - kubeinit_spec_controllers in ['1', '3', '5']
+      - kubeinit_spec_computes|int >= 0
+      - kubeinit_spec_computes|int <= 10
+      - kubeinit_spec_hypervisors|int >= 0
+      - kubeinit_spec_hypervisors|int <= (groups['hypervisor_hosts'] | length)
+
+- name: Add kubeinit_spec facts to cluster facts
+  ansible.builtin.add_host:
+    name: 'kubeinit-facts'
+    distro: "{{ kubeinit_spec_distro }}"
+    controller_count: "{{ kubeinit_spec_controllers }}"
+    compute_count: "{{ kubeinit_spec_computes }}"
+    node_count: "{{ kubeinit_spec_controllers|int + kubeinit_spec_computes|int }}"
+    hypervisors: "{{ groups['hypervisor_hosts'][0:kubeinit_spec_hypervisors|int] }}"
+
+- name: Set cluster name facts from inventory
+  ansible.builtin.set_fact:
+    kubeinit_cluster_name: "{{ kubeinit_inventory_cluster_name | default(kubeinit_spec_distro + 'cluster') }}"
+
+- name: Set cluster name facts from inventory
+  ansible.builtin.set_fact:
+    kubeinit_cluster_fqdn: "{{ kubeinit_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+
+- name: Create a pseudo-host to hold the facts for the cluster as a whole
+  ansible.builtin.add_host:
+    name: 'kubeinit-facts'
+    cluster_name: "{{ kubeinit_cluster_name }}"
+    cluster_fqdn: "{{ kubeinit_cluster_fqdn }}"
+
+- name: Set facts from inventory network
+  ansible.builtin.set_fact:
+    kubeinit_cluster_network_name: "{{ kubeinit_inventory_network_name }}"
+    kubeinit_cluster_network: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4('net') }}"
+    kubeinit_cluster_prefix: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4('prefix') }}"
+    kubeinit_cluster_netmask: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4('netmask') | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_gateway: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4(kubeinit_inventory_gateway_offset|int) | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_nameserver: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4(kubeinit_inventory_nameserver_offset|int) | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_first_available: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4(kubeinit_inventory_dhcp_start_offset|int) }}"
+
+- name: Assert additional constraints
+  ansible.builtin.assert:
+    that:
+      - kubeinit_cluster_prefix|int < 30
+
+- name: Add cluster network facts to cluster facts
+  ansible.builtin.add_host:
+    name: 'kubeinit-facts'
+    network_name: "{{ kubeinit_cluster_network_name }}"
+    network: "{{ kubeinit_cluster_network }}"
+    prefix: "{{ kubeinit_cluster_prefix }}"
+    netmask: "{{ kubeinit_cluster_netmask }}"
+    gateway: "{{ kubeinit_cluster_gateway }}"
+    nameserver: "{{ kubeinit_cluster_nameserver }}"
+
+- name: Assign controller_nodes addresses
+  ansible.builtin.add_host:
+    name: "{{ controller_node }}"
+    group: ['controller_nodes', 'inventory_nodes']
+    ansible_host: "{{ kubeinit_cluster_first_available | ansible.netcommon.ipmath(ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
+  loop: "{{ range(kubeinit_spec_controllers|int) | list }}"
+  loop_control:
+    extended: true
+  vars:
+    controller_node: "{{ kubeinit_inventory_controller_name_pattern | format(ansible_loop.index) }}"
+
+- name: Advance first_available
+  ansible.builtin.set_fact:
+    kubeinit_cluster_first_available: "{{ kubeinit_cluster_first_available | ansible.netcommon.ipmath(kubeinit_spec_controllers|int) }}"
+
+- name: Assign compute_nodes addresses
+  ansible.builtin.add_host:
+    name: "{{ compute_node }}"
+    group: ['compute_nodes', 'inventory_nodes']
+    ansible_host: "{{ kubeinit_cluster_first_available | ansible.netcommon.ipmath(ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
+  loop: "{{ range(kubeinit_spec_computes|int) | list }}"
+  loop_control:
+    extended: true
+  vars:
+    compute_node: "{{ kubeinit_inventory_compute_name_pattern | format(ansible_loop.index) }}"
+
+- name: Advance first_available
+  ansible.builtin.set_fact:
+    kubeinit_cluster_first_available: "{{ kubeinit_cluster_first_available | ansible.netcommon.ipmath(kubeinit_spec_computes|int) }}"
+
+- name: Assign extra_nodes addresses
+  ansible.builtin.add_host:
+    name: "{{ hostvars[extra_node].inventory_hostname }}"
+    group: ['extra_nodes', 'inventory_nodes']
+    ansible_host: "{{ kubeinit_cluster_first_available | ansible.netcommon.ipv4('address') }}"
+  loop: "{{ groups['extra_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: extra_node
+    extended: true
+  when: hostvars[extra_node].distro == kubeinit_spec_distro
+
+- name: Advance first_available
+  ansible.builtin.set_fact:
+    kubeinit_cluster_first_available: "{{ kubeinit_cluster_first_available | ansible.netcommon.ipmath(1) }}"
+  loop: "{{ groups['extra_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: extra_node
+  when: hostvars[extra_node].distro == kubeinit_spec_distro
+
+- name: Assign service_nodes addresses
+  ansible.builtin.add_host:
+    name: "{{ hostvars[service_node].inventory_hostname }}"
+    group: ['service_nodes', 'inventory_nodes']
+    ansible_host: "{{ kubeinit_cluster_nameserver | ansible.netcommon.ipv4(0 - ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
+  loop: "{{ groups['service_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: service_node
+    extended: true
+
+- name: Set cluster dhcp facts
+  ansible.builtin.set_fact:
+    kubeinit_cluster_dhcp_start: "{{ kubeinit_cluster_first_available | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_dhcp_end: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4(kubeinit_inventory_dhcp_end_offset|int) | ansible.netcommon.ipv4('address') }}"
+
+- name: Set cluster dhcp range size
+  ansible.builtin.set_fact:
+    kubeinit_cluster_dhcp_count: "{{ (kubeinit_cluster_dhcp_end | ansible.netcommon.ipv4('int') | int) - (kubeinit_cluster_dhcp_start | ansible.netcommon.ipv4('int') | int) + 1 }}"
+
+- name: Assert sufficient dhcp range
+  ansible.builtin.assert:
+    that:
+      - kubeinit_cluster_dhcp_count|int > 0
+
+- name: Assign dhcp facts
+  ansible.builtin.add_host:
+    name: 'kubeinit-facts'
+    dhcp_start: "{{ kubeinit_cluster_dhcp_start }}"
+    dhcp_end: "{{ kubeinit_cluster_dhcp_end }}"
+
+- name: Debug inventory_nodes ansible_host
+  ansible.builtin.debug:
+    var: hostvars[inventory_node].ansible_host
+  loop: "{{ groups['inventory_nodes'] }}"
+  loop_control:
+    loop_var: inventory_node
+
+- name: Gather hypervisor and localhost facts
   ansible.builtin.include_tasks: gather_host_facts.yml
-  loop: "{{ groups['hypervisor_hosts'] | union(['localhost']) }}"
+  loop: "{{ hostvars['kubeinit-facts'].hypervisors | union(['localhost']) }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
     kubeinit_deployment_node_name: "{{ cluster_role_item }}"
 
-- name: Create a pseudo-host to hold the facts for the cluster as a whole
+- name: Determine the hypervisor target for all inventory nodes
+  ansible.builtin.set_fact:
+    node_targets: "{{ (node_targets | default([])) | union([inventory_node] | product(hostvars[inventory_node].target_order.split(',') | reverse)) }}"
+  loop: "{{ groups['inventory_nodes'] }}"
+  loop_control:
+    loop_var: inventory_node
+
+- name: Assign the first requested hypervisor available for each node
   ansible.builtin.add_host:
-    name: 'kubeinit-facts'
-    tasks_completed: "{{ ['task-gather-hypervisor-facts'] }}"
+    name: "{{ inventory_node }}"
+    target: "{{ hostvars[inventory_node].target | default(candidate) }}"
+  loop: "{{ node_targets }}"
+  vars:
+    inventory_node: "{{ item[0] }}"
+    candidate: "{{ item[1] }}"
+  when: candidate in hostvars['kubeinit-facts'].hypervisors
+
+- name: Debug inventory_nodes target
+  ansible.builtin.debug:
+    var: hostvars[inventory_node].target
+  loop: "{{ groups['inventory_nodes'] }}"
+  loop_control:
+    loop_var: inventory_node
+
+- name: Use cluster name as random number seed
+  ansible.builtin.set_fact:
+    _random_mac: "{{ '52:54:00' | community.general.random_mac(seed=kubeinit_cluster_name) }}"
+    _random_uuid: "{{ 999999 | random(seed=kubeinit_cluster_name) | to_uuid }}"
+
+- name: Assign remaining controller_nodes facts
+  ansible.builtin.add_host:
+    name: "{{ controller_node }}"
+    group: ['controller_nodes', 'inventory_nodes']
+    os: "{{ hostvars[controller_node].os[kubeinit_spec_distro] }}"
+    mac: "{{ hostvars[controller_node].mac | default('52:54:00' | community.general.random_mac) }}"
+    interfaceid: "{{ hostvars[controller_node].interfaceid | default(999999 | random | to_uuid) }}"
+  loop: "{{ range(kubeinit_spec_controllers|int) | list }}"
+  loop_control:
+    extended: true
+  vars:
+    controller_node: "{{ kubeinit_inventory_controller_name_pattern | format(ansible_loop.index) }}"
+
+- name: Assign remaining compute_nodes facts
+  ansible.builtin.add_host:
+    name: "{{ compute_node }}"
+    group: ['compute_nodes', 'inventory_nodes']
+    os: "{{ hostvars[compute_node].os[kubeinit_spec_distro] }}"
+    mac: "{{ hostvars[compute_node].mac | default('52:54:00' | community.general.random_mac) }}"
+    interfaceid: "{{ hostvars[compute_node].interfaceid | default(999999 | random | to_uuid) }}"
+  loop: "{{ range(kubeinit_spec_computes|int) | list }}"
+  loop_control:
+    extended: true
+  vars:
+    compute_node: "{{ kubeinit_inventory_compute_name_pattern | format(ansible_loop.index) }}"
+
+- name: Assign remaining extra_nodes facts
+  ansible.builtin.add_host:
+    name: "{{ hostvars[extra_node].inventory_hostname }}"
+    group: ['extra_nodes', 'inventory_nodes']
+    os: "{{ hostvars[extra_node].os[kubeinit_spec_distro] }}"
+    ram: "{{ hostvars[extra_node].ram[kubeinit_spec_distro] }}"
+    mac: "{{ hostvars[extra_node].mac | default('52:54:00' | community.general.random_mac) }}"
+    interfaceid: "{{ hostvars[extra_node].interfaceid | default(999999 | random | to_uuid) }}"
+  loop: "{{ groups['extra_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: extra_node
+    extended: true
+  when: hostvars[extra_node].distro == kubeinit_spec_distro
+
+- name: Assign remaining service_nodes facts
+  ansible.builtin.add_host:
+    name: "{{ hostvars[service_node].inventory_hostname }}"
+    group: ['service_nodes', 'inventory_nodes']
+    os: "{{ hostvars[service_node].os[kubeinit_spec_distro] }}"
+    mac: "{{ hostvars[service_node].mac | default('52:54:00' | community.general.random_mac) }}"
+    interfaceid: "{{ hostvars[service_node].interfaceid | default(999999 | random | to_uuid) }}"
+  loop: "{{ groups['service_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: service_node
+    extended: true
 
 - block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars['kubeinit-facts'].tasks_completed
+    - name: Add tasks-gather-facts to tasks completed
+      ansible.builtin.add_host:
+        name: 'kubeinit-facts'
+        tasks_completed: "{{ ['task-gather-facts'] }}"
+
+    - block:
+        - name: Check to see if we should stop here
+          ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars['kubeinit-facts'].tasks_completed
+  tags: omit_from_grapher

@@ -14,43 +14,34 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-#
-# Include Libvirt validations
-#
-
 - block:
-    - name: Cleanup hypervisors if needed
+    - name: Prepare environment if not prepared
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_prepare
-        tasks_from: cleanup_hypervisors.yml
         public: true
       vars:
-        task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
-      when: not task_completed
+        environment_facts_set: "{{ kubeinit_cluster_facts_name is defined }}"
+      when: not environment_facts_set
 
     - block:
         - name: Check to see if we should stop here
           ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-run-validations'
+      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-cluster'
   tags: omit_from_grapher
 
-- name: Check that the hypervisor has enough disk space
-  ansible.builtin.include_tasks: 10_libvirt_free_space.yml
-
-- name: Check that the hypervisor has enough RAM
-  ansible.builtin.include_tasks: 20_libvirt_available_ram.yml
-
-- name: Check that the hypervisor has enough cores
-  ansible.builtin.include_tasks: 30_libvirt_check_cpu_cores.yml
+- name: Delegate to the distro role to prepare the cluster
+  ansible.builtin.include_role:
+    name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}"
+    tasks_from: prepare_cluster.yml
+    public: true
 
 - block:
-    - name: Add task-run-validations to tasks_completed
+    - name: Add task-prepare-cluster to tasks_completed
       ansible.builtin.add_host:
         name: "{{ kubeinit_cluster_facts_name }}"
-        tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-run-validations']) }}"
+        tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-prepare-cluster']) }}"
 
     - name: Update kubeinit_cluster_hostvars
       ansible.builtin.set_fact:

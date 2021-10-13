@@ -14,25 +14,23 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-#
-# "kubeinit_services" tasks
-#
-
-- name: Create network if needed
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_libvirt
-    tasks_from: create_network.yml
-    public: true
-  vars:
-    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
-  when: not task_completed
-
 - block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-services'
+    - name: Create network if needed
+      ansible.builtin.include_role:
+        name: kubeinit.kubeinit.kubeinit_libvirt
+        tasks_from: create_network.yml
+        public: true
+      vars:
+        task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+      when: not task_completed
+
+    - block:
+        - name: Check to see if we should stop here
+          ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-services'
+  tags: omit_from_grapher
 
 - name: Setup the services pod
   ansible.builtin.include_tasks: 00_create_service_pod.yml
@@ -62,18 +60,20 @@
     kubeinit_deployment_pod_name: "{{ hostvars[cluster_role_item].guest_name }}-pod"
     kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
 
-- name: Add task-create-services to tasks_completed
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
-    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-create-services']) }}"
-
-- name: Update kubeinit_cluster_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
-
 - block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+    - name: Add task-create-services to tasks_completed
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_cluster_facts_name }}"
+        tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-create-services']) }}"
+
+    - name: Update kubeinit_cluster_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+    - block:
+        - name: Check to see if we should stop here
+          ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+  tags: omit_from_grapher

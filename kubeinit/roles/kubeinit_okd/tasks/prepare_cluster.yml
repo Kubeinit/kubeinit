@@ -14,21 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Prepare environment if not prepared
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_prepare
-    public: true
-  vars:
-    environment_facts_set: "{{ kubeinit_cluster_facts_name is defined }}"
-  when: not environment_facts_set
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-cluster'
-
 - name: Override initial pullsecret with fake auth
   ansible.builtin.set_fact:
     kubeinit_okd_registry_pullsecret: '  { "auths": { "fakeregistry:5000": { "auth": "foo" } } }'
@@ -211,22 +196,6 @@
 
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
-- name: Add task-prepare-cluster to tasks_completed
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
-    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-prepare-cluster']) }}"
-
-- name: Update kubeinit_cluster_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
-
-- block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
-
 - name: Download CoreOS libvirt images
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
@@ -288,7 +257,7 @@
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
-      when: kubeinit_compute_count | int == 0
+      when: not kubeinit_compute_count|int > 0
 
     - name: Disable master schedulable if there is at least one worker node
       ansible.builtin.shell: |
@@ -302,7 +271,7 @@
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
-      when: kubeinit_compute_count | int > 0
+      when: kubeinit_compute_count|int > 0
 
     - name: Render ignition files
       ansible.builtin.shell: |

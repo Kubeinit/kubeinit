@@ -17,21 +17,24 @@
 #
 # Configure OVN on all the HVs
 #
-- name: Cleanup hypervisors if needed
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_prepare
-    tasks_from: cleanup_hypervisors.yml
-    public: true
-  vars:
-    task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
-  when: not task_completed
 
 - block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-network'
+    - name: Cleanup hypervisors if needed
+      ansible.builtin.include_role:
+        name: kubeinit.kubeinit.kubeinit_prepare
+        tasks_from: cleanup_hypervisors.yml
+        public: true
+      vars:
+        task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
+      when: not task_completed
+
+    - block:
+        - name: Check to see if we should stop here
+          ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-network'
+  tags: omit_from_grapher
 
 #
 # We install all OVN requirements in the ovn-central host
@@ -149,7 +152,7 @@
 
 - name: Enable OVN NAT in firewalld
   ansible.posix.firewalld:
-    rich_rule: "rule family=ipv4 source address={{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} masquerade"
+    rich_rule: "rule family=ipv4 source address={{ kubeinit_cluster_network }} masquerade"
     permanent: true
     state: enabled
     immediate: true
@@ -306,7 +309,7 @@
         # Create a logical router to connect the VMs switch
         #
         /usr/bin/ovn-nbctl --wait=hv lr-add lr0
-        /usr/bin/ovn-nbctl --wait=hv lrp-add lr0 lr0-sw0 00:00:00:65:77:09 {{ kubeinit_inventory_network_gateway }}/{{ kubeinit_inventory_network_cidr }}
+        /usr/bin/ovn-nbctl --wait=hv lrp-add lr0 lr0-sw0 00:00:00:65:77:09 {{ kubeinit_cluster_gateway }}/{{ kubeinit_cluster_prefix }}
         /usr/bin/ovn-nbctl --wait=hv lsp-add sw0 sw0-lr0
         /usr/bin/ovn-nbctl lsp-set-type sw0-lr0 router
         /usr/bin/ovn-nbctl lsp-set-addresses sw0-lr0 router
@@ -349,7 +352,7 @@
         # Routes
         #
         # Connectivity from the host to the guest machines
-        ip route add {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex
+        ip route add {{ kubeinit_cluster_network }} via 172.16.0.1 dev br-ex
         # Connectivity to external/additional networks
         /usr/bin/ovn-nbctl lr-route-add lr0 0.0.0.0/0 172.16.0.254
         #
@@ -375,7 +378,7 @@
         # Get the external interface name
         iface=$(ip route get "8.8.8.8" | grep -Po '(?<=(dev )).*(?= src| proto)')
         #
-        iptables -t nat -A POSTROUTING -s {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} -o $iface -j MASQUERADE
+        iptables -t nat -A POSTROUTING -s {{ kubeinit_cluster_network }} -o $iface -j MASQUERADE
         #
         iptables -A FORWARD -i $iface -j ACCEPT
         iptables -A FORWARD -i br-ex -j ACCEPT
@@ -406,64 +409,59 @@
 #
 - name: Render KubeInit networks for debugging
   ansible.builtin.template:
-    src: "{{ cluster_net.template }}"
-    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ cluster_net.template | regex_replace('.j2$', '') }}"
+    src: cluster-net.xml.j2
+    dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/cluster-net.xml"
     mode: '0644'
-  loop: "{{ groups['all_ovn_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
-  vars:
-    ovn_host: "{{ item[0] }}"
-    cluster_net: "{{ item[1] }}"
-    cluster_network_name: "{{ item[1].name }}"
+  loop: "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: cluster_net.enabled
 
 - name: Define KubeInit networks
   community.libvirt.virt_net:
     command: define
-    name: "{{ cluster_net.name }}"
-    xml: '{{ lookup("template", cluster_net.template) }}'
-  loop: "{{ groups['all_ovn_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
-  vars:
-    ovn_host: "{{ item[0] }}"
-    cluster_net: "{{ item[1] }}"
-    cluster_network_name: "{{ item[1].name }}"
+    name: "{{ kubeinit_cluster_network_name }}"
+    xml: '{{ lookup("template", "cluster-net.xml.j2") }}'
+  loop: "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: cluster_net.enabled and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+  when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 - name: Activate KubeInit networks
   community.libvirt.virt_net:
     state: active
-    name: "{{ cluster_net.name }}"
-  loop: "{{ groups['all_ovn_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
-  vars:
-    ovn_host: "{{ item[0] }}"
-    cluster_net: "{{ item[1] }}"
+    name: "{{ kubeinit_cluster_network_name }}"
+  loop: "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: cluster_net.enabled and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+  when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 - name: Autostart KubeInit networks
   community.libvirt.virt_net:
     autostart: yes
-    name: "{{ cluster_net.name }}"
-  loop: "{{ groups['all_ovn_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
-  vars:
-    ovn_host: "{{ item[0] }}"
-    cluster_net: "{{ item[1] }}"
+    name: "{{ kubeinit_cluster_network_name }}"
+  loop: "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: cluster_net.enabled and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
-
-- name: Add task-create-network to tasks_completed
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
-    tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-create-network']) }}"
-
-- name: Update kubeinit_cluster_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+  when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 - block:
-    - name: Check to see if we should stop here
-      ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
-    - name: End play
-      ansible.builtin.meta: end_play
-  when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+    - name: Add task-create-network to tasks_completed
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_cluster_facts_name }}"
+        tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-create-network']) }}"
+
+    - name: Update kubeinit_cluster_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+
+    - block:
+        - name: Check to see if we should stop here
+          ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+  tags: omit_from_grapher

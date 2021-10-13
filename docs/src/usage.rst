@@ -12,7 +12,7 @@ Requirements
 * A fresh deployed server with enough RAM and disk space (120GB in RAM and 300GB in disk) and CentOS 8 (it should work also in Fedora/Debian/Ubuntu hosts).
 * We assume that the hypervisor node is called nyctea (defined in the inventory).
 * Have root passwordless access with certificates.
-* Adjust the inventory file to suit your needs i.e. `the worker nodes <https://github.com/Kubeinit/kubeinit/blob/master/kubeinit/hosts/okd/inventory#L66>`_ you will need in your cluster.
+* Adjust the inventory file to suit your needs.
 * Having podman installed in the machine where you are running ansible-playbook.
 
 Installing dependencies
@@ -59,11 +59,10 @@ in a single command and in approximately 30 minutes.
     git clone https://github.com/Kubeinit/kubeinit.git
     cd kubeinit
     ansible-playbook \
-        --user root \
-        -v -i ./hosts/okd/inventory \
-        --become \
-        --become-user root \
-        ./playbooks/okd.yml
+        -v --user root \
+        -e kubeinit_spec=okd-libvirt-3-2-1 \
+        -i ./kubeinit/inventory \
+        ./kubeinit/playbook.yml
 
 After provisioning any of the scenarios, you should have your environment ready to go.
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.
@@ -90,18 +89,15 @@ Running from the GIT repository
     git clone https://github.com/Kubeinit/kubeinit.git
     cd kubeinit
     podman build -t kubeinit/kubeinit .
-    run_as='root'
     podman run --rm -it \
-        -v ~/.ssh/id_rsa:/${run_as}/.ssh/id_rsa:z \
-        -v ~/.ssh/id_rsa.pub:/${run_as}/.ssh/id_rsa.pub:z \
-        -v /etc/hosts:/etc/hosts \
+        -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+        -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
+        -v ~/.ssh/config:/root/.ssh/config:z \
         kubeinit/kubeinit \
-            --user ${run_as} \
-            -v -i ./hosts/okd/inventory \
-            -e ansible_ssh_user=${run_as} \
-            --become \
-            --become-user ${run_as} \
-            ./playbooks/okd.yml
+            -v --user root \
+            -e kubeinit_spec=okd-libvirt-3-2-1 \
+            -i ./kubeinit/inventory \
+            ./kubeinit/playbook.yml
 
 Running from a release
 ----------------------
@@ -113,12 +109,11 @@ Running from a release
     podman run --rm -it \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
         -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
-        -v /etc/hosts:/etc/hosts \
+        -v ~/.ssh/config:/root/.ssh/config:z \
         quay.io/kubeinit/kubeinit:$TAG \
-            --user root \
-            -v -i ./hosts/okd/inventory \
-            --become \
-            --become-user root \
+            -v --user root \
+            -e kubeinit_spec=okd-libvirt-3-2-1 \
+            -i ./hosts/okd/inventory \
             ./playbooks/okd.yml
 
 Accessing the cluster resources
@@ -133,11 +128,11 @@ machine a user can execute:
 
     # From the hypervisor node the user should
     # have passwordless access to the service machine
-    root@mocoloco kubeinit]# ssh root@10.0.0.100
+    root@mocoloco kubeinit]# ssh -i ~/.ssh/rkecluster_id_rsa root@10.0.0.253
     Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-53-generic x86_64)
       System load:  0.0                Users logged in:               0
       Usage of /:   2.5% of 147.34GB   IPv4 address for docker0:      172.17.0.1
-      Memory usage: 4%                 IPv4 address for enp1s0:       10.0.0.100
+      Memory usage: 4%                 IPv4 address for enp1s0:       10.0.0.253
       Swap usage:   0%                 IPv4 address for vetha0e3a877: 172.16.16.1
       Processes:    186
 
@@ -167,12 +162,11 @@ from the project's root folder:
 .. code-block:: console
 
     ansible-playbook \
-        --user root \
-        -v -i ./hosts/okd/inventory \
+        -v --user root \
+        -e kubeinit_spec=okd-libvirt-3-2-1 \
         -e kubeinit_stop_after_task=task-cleanup-hypervisors \
-        --become \
-        --become-user root \
-        ./playbooks/okd.yml
+        -i ./kubeinit/inventory \
+        ./kubeinit/playbook.yml
 
 In this case the deployment will stop just after cleaning the
 hypervisors resources. If its required to remove all the guests

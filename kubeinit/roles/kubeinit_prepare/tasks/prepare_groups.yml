@@ -25,7 +25,8 @@
     group: all_controller_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
     target: "{{ hostvars[item].target }}"
-  loop: "{{ groups['controller_nodes'] | default([]) | list }}"
+    os: "{{ hostvars[item].os }}"
+  loop: "{{ groups['controller_nodes'][0:hostvars['kubeinit-facts'].controller_count|int] | default([]) | list }}"
 
 - name: Add all compute nodes to the all_compute_nodes group
   ansible.builtin.add_host:
@@ -34,7 +35,8 @@
     group: all_compute_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
     target: "{{ hostvars[item].target }}"
-  loop: "{{ groups['compute_nodes'] | default([]) | list }}"
+    os: "{{ hostvars[item].os }}"
+  loop: "{{ groups['compute_nodes'][0:hostvars['kubeinit-facts'].compute_count|int] | default([]) | list }}"
 
 - name: Add all controller and compute nodes to the all_cluster_nodes group
   ansible.builtin.add_host:
@@ -42,21 +44,25 @@
     group: all_cluster_nodes
     fqdn: "{{ hostvars[item].fqdn }}"
     target: "{{ hostvars[item].target }}"
-  loop: "{{ groups['all_controller_nodes'] + groups['all_compute_nodes'] }}"
+    os: "{{ hostvars[item].os }}"
+  loop: "{{ groups['all_controller_nodes'] + groups['all_compute_nodes'] | default([]) }}"
 
-- name: Add any extra cluster vm guest nodes to the extra_nodes group
+- name: Add any extra cluster vm guest nodes to the all_extra_nodes group
   ansible.builtin.add_host:
     name: "{{ item }}"
     guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
-    group: extra_nodes
+    group: all_extra_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
     target: "{{ hostvars[item].target }}"
+    os: "{{ hostvars[item].os }}"
+    ram: "{{ hostvars[item].ram }}"
   loop: "{{ groups['extra_nodes'] | default([]) | list }}"
+  when: kubeinit_cluster_distro in hostvars[item].distro
 
 - name: Collect all cluster node hypervisors
   ansible.builtin.set_fact:
     all_cluster_hypervisors: "{{ all_cluster_hypervisors | default([]) | union([hostvars[item].target]) }}"
-  loop: "{{ groups['all_cluster_nodes'] + (groups['extra_nodes'] | default([])) }}"
+  loop: "{{ groups['all_cluster_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
 
 - name: Set all cluster hypervisors fact
   ansible.builtin.add_host:
@@ -71,6 +77,7 @@
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
     services: "{{ hostvars[item].services.split(',') }}"
     target: "{{ hostvars[item].target }}"
+    os: "{{ hostvars[item].os }}"
     type: container
     container_host: "{{ hostvars[item].target }}"
   loop: "{{ groups['service_nodes'] | default([]) | list }}"
@@ -105,8 +112,8 @@
 - name: Check that the dns server address in the inventory matches the bind service node
   ansible.builtin.fail:
     msg:
-      "The kubeinit_inventory_cluster_dns_server and bind service node addresses do not match."
-  when: "'bind' in all_cluster_services and kubeinit_inventory_cluster_dns_server != hostvars[all_cluster_services['bind']].ansible_host"
+      "The kubeinit_cluster_nameserver and bind service node addresses do not match."
+  when: "'bind' in all_cluster_services and kubeinit_cluster_nameserver != hostvars[all_cluster_services['bind']].ansible_host"
 
 - name: Set all services cluster fact
   ansible.builtin.add_host:
@@ -118,14 +125,15 @@
     name: "{{ item }}"
     group: all_nodes
     fqdn: "{{ hostvars[item].fqdn }}"
-  loop: "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] + (groups['extra_nodes'] | default([])) }}"
+    os: "{{ hostvars[item].os }}"
+  loop: "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
 
 - name: Add a default entry for the first hypervisor if there are no bastion_host members
   ansible.builtin.add_host:
     name: "{{ kubeinit_cluster_bastion_name }}"
     group: bastion_host
     target: "{{ groups['hypervisor_hosts'][0] }}"
-  when: "('bastion_host' not in groups) or ((groups['bastion_host'] | list | count) == 0)"
+  when: "('bastion_host' not in groups) or ((groups['bastion_host'] | list | length) == 0)"
 
 - name: Add ansible_host for bastion_host if not defined
   ansible.builtin.add_host:
@@ -147,7 +155,7 @@
     group: ovn_central_host
     target: "{{ groups['hypervisor_hosts'][0] }}"
     ansible_host: "{{ hostvars[groups['hypervisor_hosts'][0]].ansible_host }}"
-  when: "('ovn_central_host' not in groups) or ((groups['ovn_central_host'] | list | count) == 0)"
+  when: "('ovn_central_host' not in groups) or ((groups['ovn_central_host'] | list | length) == 0)"
 
 - name: Add ansible_host for ovn_central_host
   ansible.builtin.add_host:
@@ -196,7 +204,7 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_guest_vms
-  loop: "{{ groups['all_cluster_nodes'] + (groups['extra_nodes'] | default([])) }}"
+  loop: "{{ groups['all_cluster_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
   when: hostvars[item].type == 'virtual'
 
 - name: Collect all of the node aliases

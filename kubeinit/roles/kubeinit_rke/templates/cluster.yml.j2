@@ -16,7 +16,7 @@ nodes:
     labels: {}
     taints: []
 {% endfor %}
-{% for host in groups['all_compute_nodes'] | list %}
+{% for host in groups['all_compute_nodes'] | default([]) | list %}
   - address: {{ host }}.{{ kubeinit_cluster_fqdn }}
     hostname_override: {{ host }}
     user: root
@@ -179,7 +179,7 @@ ingress:
   extra_volumes: []
   extra_volume_mounts: []
   update_strategy: null
-cluster_name: {{ kubeinit_inventory_cluster_name }}
+cluster_name: {{ kubeinit_cluster_name }}
 cloud_provider:
   name: ""
 prefix_path: ""

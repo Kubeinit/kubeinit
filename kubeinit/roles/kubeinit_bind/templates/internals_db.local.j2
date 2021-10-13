@@ -31,13 +31,13 @@ $TTL    604800
 master{{ loop.index - 1 }}.{{ kubeinit_cluster_fqdn }}.       IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 
-{% for host in groups['all_compute_nodes'] | list %}
+{% for host in groups['all_compute_nodes'] | default([]) | list %}
 {{ host }}.{{ kubeinit_cluster_fqdn }}.                       IN      A       {{ hostvars[host].ansible_host }}
 worker{{ loop.index - 1 }}.{{ kubeinit_cluster_fqdn }}.       IN      A       {{ hostvars[host].ansible_host }}
 
 {% endfor %}
 
-{% for host in groups['extra_nodes'] | default([]) | list %}
+{% for host in groups['all_extra_nodes'] | default([]) | list %}
 {{ host }}.{{ kubeinit_cluster_fqdn }}.                       IN      A       {{ hostvars[host].ansible_host }}
 {% endfor %}
 

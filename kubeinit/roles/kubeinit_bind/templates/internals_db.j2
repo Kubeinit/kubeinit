@@ -25,11 +25,11 @@ $TTL    604800
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR master{{ loop.index - 1 }}.{{ kubeinit_cluster_fqdn }}.
 {% endfor %}
 
-{% for host in groups['all_compute_nodes'] | list %}
+{% for host in groups['all_compute_nodes'] | default([]) | list %}
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR worker{{ loop.index - 1 }}.{{ kubeinit_cluster_fqdn }}.
 {% endfor %}
 
-{% for host in groups['extra_nodes'] | default([]) | list %}
+{% for host in groups['all_extra_nodes'] | default([]) | list %}
 {{ hostvars[host].ansible_host.split('.')[-1] }} IN PTR {{ host }}.{{ kubeinit_cluster_fqdn }}.
 {% endfor %}
 

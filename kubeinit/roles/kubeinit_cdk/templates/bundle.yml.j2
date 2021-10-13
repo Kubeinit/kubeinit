@@ -5,7 +5,7 @@
 description: A highly-available, production-grade Kubernetes cluster.
 series: focal
 machines:
-{% for item in groups['all_controller_nodes'] + groups['all_compute_nodes'] %}
+{% for item in groups['all_cluster_nodes'] %}
   "{{ loop.index0 }}":
 {% endfor %}
 applications:
@@ -25,12 +25,12 @@ applications:
     resources:
       easyrsa: 5
     to:
-{% if groups['all_compute_nodes'] | count > 0 %}
+{% if kubeinit_compute_count|int > 0 %}
     # This means that we will deploy the application
     # in the first worker node as the numbering starts
-    # at 0. So, the count of master nodes index will be
-    # the first worker node.
-    - "{{ groups['all_controller_nodes'] | count }}"
+    # at 0. So, the count of controller nodes index will be
+    # the first compute node.
+    - "{{ kubeinit_controller_count }}"
 {% else %}
     - "0"
 {% endif %}
@@ -40,7 +40,7 @@ applications:
       gui-y: '420'
     charm: cs:~containers/etcd-620
     constraints: root-disk=8G
-    num_units: {{ groups['all_controller_nodes'] | count }}
+    num_units: {{ kubeinit_controller_count }}
     options:
       channel: 3.4/stable
     resources:
@@ -70,12 +70,12 @@ applications:
     num_units: 1
     resources: {}
     to:
-{% if groups['all_compute_nodes'] | count > 0 %}
+{% if kubeinit_compute_count|int > 0 %}
     # This means that we will deploy the application
     # in the first worker node as the numbering starts
-    # at 0. So, the count of master nodes index will be
-    # the first worker node.
-    - "{{ groups['all_controller_nodes'] | count }}"
+    # at 0. So, the count of controller nodes index will be
+    # the first compute node.
+    - "{{ kubeinit_controller_count }}"
 {% else %}
     - "0"
 {% endif %}
@@ -85,7 +85,7 @@ applications:
       gui-y: '850'
     charm: cs:~containers/kubernetes-master-1051
     constraints: cores=2 mem=4G root-disk=16G
-    num_units: {{ groups['all_controller_nodes'] | count }}
+    num_units: {{ kubeinit_controller_count }}
     options:
       channel: 1.22/stable
     resources:
@@ -100,7 +100,7 @@ applications:
 {% for item in groups['all_controller_nodes'] %}
     - "{{ loop.index0 }}"
 {% endfor %}
-{% if groups['all_compute_nodes'] | count > 0 %}
+{% if kubeinit_compute_count|int > 0 %}
   kubernetes-worker:
     annotations:
       gui-x: '90'
@@ -108,7 +108,7 @@ applications:
     charm: cs:~containers/kubernetes-worker-801
     constraints: cores=4 mem=4G root-disk=16G
     expose: true
-    num_units: {{ groups['all_compute_nodes'] | count }}
+    num_units: {{ kubeinit_compute_count }}
     options:
       channel: 1.22/stable
     resources:
@@ -120,8 +120,8 @@ applications:
       kubectl: 0
       kubelet: 0
     to:
-{% for item in groups['all_compute_nodes'] %}
-    - "{{ loop.index0 + groups['all_controller_nodes'] | count }}"
+{% for item in groups['all_compute_nodes'] | default([]) %}
+    - "{{ loop.index0 + kubeinit_controller_count|int }}"
 {% endfor %}
 {% endif %}
 relations:
@@ -129,7 +129,7 @@ relations:
   - kubeapi-load-balancer:lb-consumers
 - - kubernetes-master:loadbalancer-internal
   - kubeapi-load-balancer:lb-consumers
-{% if groups['all_compute_nodes'] | count > 0 %}
+{% if kubeinit_compute_count|int > 0 %}
 - - kubernetes-master:kube-control
   - kubernetes-worker:kube-control
 {% endif %}
@@ -139,7 +139,7 @@ relations:
   - easyrsa:client
 - - kubernetes-master:etcd
   - etcd:db
-{% if groups['all_compute_nodes'] | count > 0 %}
+{% if kubeinit_compute_count|int > 0 %}
 - - kubernetes-worker:certificates
   - easyrsa:client
 {% endif %}
@@ -149,7 +149,7 @@ relations:
   - etcd:db
 - - flannel:cni
   - kubernetes-master:cni
-{% if groups['all_compute_nodes'] | count > 0 %}
+{% if kubeinit_compute_count|int > 0 %}
 - - flannel:cni
   - kubernetes-worker:cni
 - - containerd:containerd

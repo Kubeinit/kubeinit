@@ -80,17 +80,13 @@
         virt-install \
             --connect qemu:///system \
             --name={{ hostvars[kubeinit_deployment_node_name].guest_name }} \
-            --memory memory={{ (hostvars[kubeinit_deployment_node_name].ram | int) // 1024 }} \
+            --memory memory={{ hostvars[kubeinit_deployment_node_name].ram|int // 1024 }} \
             --cpuset=auto \
             --vcpus={{ hostvars[kubeinit_deployment_node_name].vcpus }},maxvcpus={{ hostvars[kubeinit_deployment_node_name].maxvcpus }} \
             --os-type=linux \
             --os-variant=rhel8.0 \
             --autostart \
-            {% for net in kubeinit_libvirt_cluster_nets %}
-              {% if net.enabled %}
-                --network network={{ net.name }}{% if net.main %},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }}{% endif %},target.dev=veth0-{{ hostvars[kubeinit_deployment_node_name].ansible_host | ansible.netcommon.ip4_hex }},model=virtio \
-              {% endif %}
-            {% endfor %}
+            --network network={{ kubeinit_cluster_hostvars.network_name }},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }},target.dev=veth0-{{ hostvars[kubeinit_deployment_node_name].ansible_host | ansible.netcommon.ip4_hex }},model=virtio \
             --graphics none \
             --noautoconsole \
             --import \
@@ -192,7 +188,7 @@
 
     - name: Perform any distro-specific post-deployment guest configuration
       ansible.builtin.include_role:
-        name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_inventory_cluster_distro }}"
+        name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}"
         tasks_from: post_configure_guest.yml
         public: true
 

@@ -111,16 +111,11 @@ jobs:
 
       - name: Render the projects roles and inventory diagrams
         run: |
-          distros=()
-          for p in ./hosts/*/
-          do
-            distros=$(echo ${distros} ${p:8:-1})
-          done
 
-          for distro in ${distros}; do
+          for distro in cdk eks k8s kid okd rke; do
               filename=${distro}.yml
-              echo "ansible-playbook-grapher -e kubeinit_inventory_cluster_distro=${distro} ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename"
-              ansible-playbook-grapher -e kubeinit_inventory_cluster_distro=${distro} ./playbooks/$filename --include-role-tasks -o ./docs/src/static/playbook_$filename
+              echo "ansible-playbook-grapher --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} ./kubeinit/playbook.yml --include-role-tasks -o ./docs/src/static/playbook_$filename"
+              ansible-playbook-grapher --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} ./kubeinit/playbook.yml --include-role-tasks -o ./docs/src/static/playbook_$filename
           cat << EOF >> ./docs/src/playbook_diagrams.rst
 
           $filename playbook architecture
@@ -133,10 +128,10 @@ jobs:
           EOF
           done
 
-          for distro in ${distros}; do
+          for distro in cdk eks k8s kid okd rke; do
               filename=${distro}
-              echo "ansible-inventory-grapher -i ./hosts/$filename/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png"
-              ansible-inventory-grapher -i hosts/$filename/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png
+              echo "ansible-inventory-grapher -i ./kubeinit/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png"
+              ansible-inventory-grapher -i ./kubeinit/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png
           cat << EOF >> ./docs/src/inventory_diagrams.rst
 
           $filename inventory architecture

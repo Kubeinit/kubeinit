@@ -20,7 +20,7 @@
 - name: Clean OVN/OVS resources
   ansible.builtin.shell: |
     set -o pipefail
-    ip route del {{ kubeinit_inventory_network_net }}/{{ kubeinit_inventory_network_cidr }} via 172.16.0.1 dev br-ex || true
+    ip route del {{ kubeinit_cluster_network }} via 172.16.0.1 dev br-ex || true
     /usr/bin/ovn-nbctl --if-exists ls-del sw0 || true
     /usr/bin/ovn-nbctl --if-exists lr-del lr0 || true
     /usr/bin/ovn-nbctl --if-exists ls-del public || true
@@ -131,41 +131,38 @@
 - name: Destroy deployment networks
   community.libvirt.virt_net:
     command: destroy
-    name: "{{ cluster_net.name }}"
-  loop: "{{ groups['all_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
+    name: "{{ kubeinit_cluster_network_name }}"
+  loop: "{{ groups['all_hosts'] }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
-    cluster_net: "{{ cluster_role_item[1] }}"
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: cluster_net.name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+  when: kubeinit_cluster_network_name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 - name: Undefine deployment networks
   community.libvirt.virt_net:
     command: undefine
-    name: "{{ cluster_net.name }}"
-  loop: "{{ groups['all_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
+    name: "{{ kubeinit_cluster_network_name }}"
+  loop: "{{ groups['all_hosts'] }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
-    cluster_net: "{{ cluster_role_item[1] }}"
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: cluster_net.name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+  when: kubeinit_cluster_network_name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 - name: Remove the deployment networks
   community.libvirt.virt_net:
     state: absent
-    name: "{{ cluster_net.name }}"
-  loop: "{{ groups['all_hosts'] | product(kubeinit_libvirt_cluster_nets) }}"
+    name: "{{ kubeinit_cluster_network_name }}"
+  loop: "{{ groups['all_hosts'] }}"
   loop_control:
     loop_var: cluster_role_item
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
-    cluster_net: "{{ cluster_role_item[1] }}"
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: cluster_net.name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+  when: kubeinit_cluster_network_name in hostvars[kubeinit_deployment_node_name].libvirt_nets and kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 #
 # Cleanup VMs
