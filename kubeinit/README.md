@@ -198,8 +198,8 @@ podman run --rm -it \
 
 <p style="text-align: center" align="center">
     <a href="https://docs.kubeinit.org/supporters.html#docker"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/docker.svg?sanitize=true" alt="Docker"/></a>
-<!--
     <a href="https://docs.kubeinit.org/supporters.html#google-cloud-platform"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/gcp.svg?sanitize=true" alt="Google Cloud Platform"/></a>
+<!--
     <a href="https://docs.kubeinit.org/supporters.html#red-hat"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/rht.svg?sanitize=true" alt="Red Hat"/></a>
     <a href="https://docs.kubeinit.org/supporters.html#ibm"><img width="20%" height="20%" src="https://raw.githubusercontent.com/kubeinit/kubeinit/main/docs/src/static/supporters/ibm.svg?sanitize=true" alt="IBM"/></a>
 -->

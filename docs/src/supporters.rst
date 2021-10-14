@@ -42,35 +42,35 @@ Docker
       test the different deployment use cases that are supported. This means that
       all container images can be pulled and processed in a streamlined manner.
 
+Google Cloud Platform
+~~~~~~~~~~~~~~~~~~~~~
+
+.. container:: twocol
+
+   .. container:: leftside
+
+      .. figure:: _static/supporters/gcp.svg
+         :target: http://cloud.google.com
+
+   .. container:: rightside
+
+      `Google Cloud Platform <https://cloud.google.com/>`_ is a suite of cloud
+      computing services that runs on the same infrastructure that Google uses
+      internally for its end-user products, such as Google Search, Gmail, Google
+      Drive, and YouTube.
+      Alongside a set of management tools, it provides a series of modular
+      cloud services including computing, data storage, data analytics,
+      machine learning, infrastructure as a service, platform as a service,
+      and serverless computing environments.
+
+      `Google Cloud Platform <https://cloud.google.com/>`_ provides this project
+      with a higher free tier to serve the CDN storage for the CI periodic and
+      per pull request jobs.
+      This allows the project to successfully store each job execution output
+      for further review and debugging purposes. Also, to host a minimum hosted
+      service to test this software platform.
+
 ..
-    Google Cloud Platform
-    ~~~~~~~~~~~~~~~~~~~~~
-
-    .. container:: twocol
-
-       .. container:: leftside
-
-          .. figure:: _static/supporters/gcp.svg
-             :target: http://cloud.google.com
-
-       .. container:: rightside
-
-          `Google Cloud Platform <https://cloud.google.com/>`_ is a suite of cloud
-          computing services that runs on the same infrastructure that Google uses
-          internally for its end-user products, such as Google Search, Gmail, Google
-          Drive, and YouTube.
-          Alongside a set of management tools, it provides a series of modular
-          cloud services including computing, data storage, data analytics,
-          machine learning, infrastructure as a service, platform as a service,
-          and serverless computing environments.
-
-          `Google Cloud Platform <https://cloud.google.com/>`_ provides this project
-          with a higher free tier to serve the CDN storage for the CI periodic and
-          per pull request jobs.
-          This allows the project to successfully store each job execution output
-          for further review and debugging purposes. Also, to host a minimum hosted
-          service to test this software platform.
-
     Red Hat
     ~~~~~~~
 
