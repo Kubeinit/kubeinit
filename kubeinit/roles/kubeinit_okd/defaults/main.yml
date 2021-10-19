@@ -101,3 +101,23 @@ kubeinit_okd_dependencies_installer_aux: "{% if ( kubeinit_okd_openshift_deploy 
 kubeinit_okd_dependencies:
   client: "{{ kubeinit_okd_dependencies_client_aux | replace(' ','') }}"
   installer: "{{ kubeinit_okd_dependencies_installer_aux | replace(' ','') }}"
+
+kubeinit_okd_fcos_release: "34.20210904.3.0"
+kubeinit_okd_rhcos_release: "4.8.2"
+kubeinit_okd_rhcos_release_major_minor: "{{ kubeinit_okd_rhcos_release.split('.')[0] }}.{{ kubeinit_okd_rhcos_release.split('.')[1] }}"
+
+kubeinit_okd_coreos_images:
+  fcos:
+    uri: "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/{{ kubeinit_okd_fcos_release }}/x86_64/"
+    kernel: "fedora-coreos-{{ kubeinit_okd_fcos_release }}-live-kernel-x86_64"
+    initrd: "fedora-coreos-{{ kubeinit_okd_fcos_release }}-live-initramfs.x86_64.img"
+    raw: "fedora-coreos-{{ kubeinit_okd_fcos_release }}-metal.x86_64.raw.xz"
+    sig: "fedora-coreos-{{ kubeinit_okd_fcos_release }}-metal.x86_64.raw.xz.sig"
+    rootfs: "fedora-coreos-{{ kubeinit_okd_fcos_release }}-live-rootfs.x86_64.img"
+  rhcos:
+    uri: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ kubeinit_okd_rhcos_release_major_minor }}/{{ kubeinit_okd_rhcos_release }}/"
+    kernel: "rhcos-{{ kubeinit_okd_rhcos_release }}-x86_64-live-kernel-x86_64"
+    initrd: "rhcos-{{ kubeinit_okd_rhcos_release }}-x86_64-live-initramfs.x86_64.img"
+    raw: "rhcos-{{ kubeinit_okd_rhcos_release }}-x86_64-metal.x86_64.raw.gz"
+    sig: ""
+    rootfs: rhcos-{{ kubeinit_okd_rhcos_release }}-x86_64-live-rootfs.x86_64.img
