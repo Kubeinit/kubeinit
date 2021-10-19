@@ -14,7 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Deploy an OKD guest
+- name: Deploy a CoreOS guest for OKD
   block:
 
     - name: Remove old disk images
@@ -22,19 +22,11 @@
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2"
         state: absent
 
-    - name: Set guest images facts for OKD
+    - name: Set guest images facts
       ansible.builtin.set_fact:
-        kubeinit_libvirt_okd_image_initrd: "{{ kubeinit_libvirt_source_images.coreos.initrd }}"
-        kubeinit_libvirt_okd_image_raw: "{{ kubeinit_libvirt_source_images.coreos.raw }}"
-        kubeinit_libvirt_okd_image_rootfs: "{{ kubeinit_libvirt_source_images.coreos.rootfs }}"
-      when: not kubeinit_okd_openshift_deploy | default(False)
-
-    - name: Set guest images facts for OCP
-      ansible.builtin.set_fact:
-        kubeinit_libvirt_okd_image_initrd: "{{ kubeinit_libvirt_source_images.rhcos.initrd }}"
-        kubeinit_libvirt_okd_image_raw: "{{ kubeinit_libvirt_source_images.rhcos.raw }}"
-        kubeinit_libvirt_okd_image_rootfs: "{{ kubeinit_libvirt_source_images.rhcos.rootfs }}"
-      when: kubeinit_okd_openshift_deploy | default(False)
+        kubeinit_coreos_initrd: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}"
+        kubeinit_coreos_raw: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].raw }}"
+        kubeinit_coreos_rootfs: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].rootfs }}"
 
     - name: "Create VM definition for {{ kubeinit_deployment_node_name }}"
       ansible.builtin.shell: |
@@ -43,7 +35,7 @@
         # Is not possible to render the template as --print-xml > vm.xml
         # If so then is good to have it like 'virsh define vm.xml'
         kernel_args=$(echo "$kernel_args_aux" | paste -sd "" -)
-        kernel_args_aux='initrd=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_initrd }}
+        kernel_args_aux='initrd=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_initrd }}
                          ip=dhcp
                          nameserver={{ kubeinit_bind_service_address }}
                          rd.neednet=1
@@ -52,11 +44,11 @@
                          coreos.inst=yes
                          coreos.inst.insecure=yes
                          coreos.inst.install_dev=/dev/vda
-                         coreos.inst.image_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_raw }}
+                         coreos.inst.image_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_raw }}
                          coreos.inst.ignition_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_ignition_name }}.ign
-                         coreos.live.rootfs_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_rootfs }}'
+                         coreos.live.rootfs_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_rootfs }}'
 
-        kernel_args='initrd=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_initrd }} ip=dhcp nameserver={{ kubeinit_bind_service_address }} rd.neednet=1 console=tty0 console=ttyS0 coreos.inst=yes coreos.inst.insecure=yes coreos.inst.install_dev=/dev/vda coreos.inst.image_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_raw }} coreos.inst.ignition_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_ignition_name }}.ign coreos.live.rootfs_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_libvirt_okd_image_rootfs }}'
+        kernel_args='initrd=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_initrd }} ip=dhcp nameserver={{ kubeinit_bind_service_address }} rd.neednet=1 console=tty0 console=ttyS0 coreos.inst=yes coreos.inst.insecure=yes coreos.inst.install_dev=/dev/vda coreos.inst.image_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_raw }} coreos.inst.ignition_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_ignition_name }}.ign coreos.live.rootfs_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_rootfs }}'
 
         virt-install \
             --connect qemu:///system \

@@ -21,12 +21,12 @@
         tasks_from: prepare_services.yml
         public: true
       vars:
-        task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
-      when: not task_completed
+        services_prepared: "{{ kubeinit_cluster_facts_name is defined }}"
+      when: not services_prepared
 
     - block:
-        - name: Check to see if we should stop here
-          ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+        - name: "Stopping before '{{ kubeinit_stop_before_task }}'"
+          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-post-deployment'
@@ -49,8 +49,8 @@
         kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
 
     - block:
-        - name: Check to see if we should stop here
-          ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: "Stopping after '{{ kubeinit_stop_after_task }}'"
+          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

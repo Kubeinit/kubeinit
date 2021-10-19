@@ -17,7 +17,7 @@
 
 - name: Install NFS packages
   ansible.builtin.package:
-    name: "{{ kubeinit_nfs_packages }}"
+    name: "{{ ['nfs-kernel-server', 'nfs-common'] if (hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian') else ['nfs-utils'] }}"
     state: present
 
 - name: "Configure NFS shares of CentOS based guests"
@@ -158,13 +158,13 @@
                 - name: PROVISIONER_NAME
                   value: k8s-sigs.io/nfs-subdir-external-provisioner
                 - name: NFS_SERVER
-                  value: {{ kubeinit_nfs_host }}
+                  value: {{ kubeinit_nfs_service_address }}
                 - name: NFS_PATH
                   value: /var/nfsshare
           volumes:
             - name: nfs-client-root
               nfs:
-                server: {{ kubeinit_nfs_host }}
+                server: {{ kubeinit_nfs_service_address }}
                 path: /var/nfsshare
     EOF
     export KUBECONFIG=~/.kube/config

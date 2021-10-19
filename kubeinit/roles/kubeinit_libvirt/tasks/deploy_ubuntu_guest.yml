@@ -47,7 +47,7 @@
 
     - name: Grow the partitions
       ansible.builtin.shell: |
-        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_source_images.ubuntu.image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2'
+        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_cloud_images[kubeinit_cluster_distro].image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2'
         qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
       args:
         executable: /bin/bash
@@ -258,8 +258,10 @@
 - name: Check cluster nodes are up and running
   ansible.builtin.include_tasks: 70_check_nodes_up.yml
 
-- name: Gather network and host facts for guest
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_prepare
-    tasks_from: gather_host_facts.yml
-    public: yes
+- block:
+    - name: Gather network and host facts for guest
+      ansible.builtin.include_role:
+        name: kubeinit.kubeinit.kubeinit_prepare
+        tasks_from: gather_host_facts.yml
+        public: yes
+  tags: omit_from_grapher

@@ -18,31 +18,37 @@
     - name: Gather hypervisor facts if needed
       ansible.builtin.include_tasks: prepare_hypervisors.yml
       vars:
-        hypervisor_facts_set: "{{ hostvars['kubeinit-facts'] is defined }}"
-      when: not hypervisor_facts_set
+        hypervisors_prepared: "{{ kubeinit_cluster_facts_name is defined }}"
+      when: not hypervisors_prepared
 
     - name: Add task-prepare-hypervisors to tasks_completed
       ansible.builtin.add_host:
-        name: 'kubeinit-facts'
-        tasks_completed: "{{ hostvars['kubeinit-facts'].tasks_completed | union(['task-prepare-hypervisors']) }}"
+        name: "{{ kubeinit_cluster_facts_name }}"
+        tasks_completed: "{{ hostvars[kubeinit_cluster_facts_name].tasks_completed | union(['task-prepare-hypervisors']) }}"
 
     - block:
-        - name: Check to see if we should stop here
-          ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: "Stopping after '{{ kubeinit_stop_after_task }}'"
+          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars['kubeinit-facts'].tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_cluster_facts_name].tasks_completed
+
+    - block:
+        - name: "Stopping before '{{ kubeinit_stop_before_task }}'"
+          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-environment'
   tags: omit_from_grapher
 
 - name: Define cluster fact names needed to prepare groups
   ansible.builtin.set_fact:
-    kubeinit_cluster_distro: "{{ hostvars['kubeinit-facts'].distro }}"
-    kubeinit_cluster_facts_name: 'kubeinit-facts'
+    kubeinit_cluster_distro: "{{ hostvars[kubeinit_cluster_facts_name].distro }}"
     kubeinit_cluster_bastion_name:
       "{{ 'bastion' if (('bastion_host' not in groups) or ((groups['bastion_host'] | list | length) == 0)) else groups['bastion_host'][0] }}"
     kubeinit_cluster_ovn_central_name:
       "{{ 'ovn-central' if (('ovn_central_host' not in groups) or ((groups['ovn_central_host'] | list | length) == 0)) else groups['ovn_central_host'][0] }}"
-  loop: "{{ ['localhost'] | union(hostvars['kubeinit-facts'].hypervisors) }}"
+  loop: "{{ ['localhost'] | union(hostvars[kubeinit_cluster_facts_name].hypervisors) }}"
   delegate_to: "{{ item }}"
 
 - name: Prepare groups
@@ -54,11 +60,11 @@
     kubeinit_bastion_host: "{{ hostvars[kubeinit_cluster_bastion_name].target }}"
     kubeinit_ovn_central_host: "{{ hostvars[kubeinit_cluster_ovn_central_name].target }}"
     kubeinit_first_controller_node: "{{ groups['all_controller_nodes'][0] }}"
-    kubeinit_hypervisor_count: "{{ hostvars['kubeinit-facts'].hypervisors | length }}"
+    kubeinit_hypervisor_count: "{{ hostvars[kubeinit_cluster_facts_name].hypervisors | length }}"
     kubeinit_controller_count: "{{ groups['all_controller_nodes'] | length }}"
     kubeinit_compute_count: "{{ groups['all_compute_nodes'] | default([]) | length }}"
     kubeinit_cluster_node_count: "{{ groups['all_cluster_nodes'] | default([]) | length }}"
-  loop: "{{ ['localhost'] | union(hostvars['kubeinit-facts'].hypervisors) }}"
+  loop: "{{ ['localhost'] | union(hostvars[kubeinit_cluster_facts_name].hypervisors) }}"
   delegate_to: "{{ item }}"
 
 - name: Install podman if required
@@ -69,6 +75,13 @@
 
 - name: Define service node facts
   ansible.builtin.set_fact:
+    kubeinit_apache_service_name: "{{ kubeinit_cluster_name }}-apache"
+    kubeinit_bind_service_name: "{{ kubeinit_cluster_name }}-bind"
+    kubeinit_dnsmasq_service_name: "{{ kubeinit_cluster_name }}-dnsmasq"
+    kubeinit_haproxy_service_name: "{{ kubeinit_cluster_name }}-haproxy"
+    kubeinit_nexus_service_name: "{{ kubeinit_cluster_name }}-nexus"
+    kubeinit_provision_service_name: "{{ kubeinit_cluster_name }}-provision"
+    kubeinit_registry_service_name: "{{ kubeinit_cluster_name }}-registry"
     kubeinit_apache_service_node: "{{ kubeinit_cluster_hostvars.services['apache'] | default(None) }}"
     kubeinit_bind_service_node: "{{ kubeinit_cluster_hostvars.services['bind'] | default(None) }}"
     kubeinit_dnsmasq_service_node: "{{ kubeinit_cluster_hostvars.services['dnsmasq'] | default(None) }}"
@@ -76,7 +89,7 @@
     kubeinit_nexus_service_node: "{{ kubeinit_cluster_hostvars.services['nexus'] | default(None) }}"
     kubeinit_provision_service_node: "{{ kubeinit_cluster_hostvars.services['provision'] }}"
     kubeinit_registry_service_node: "{{ kubeinit_cluster_hostvars.services['registry'] | default(None) }}"
-  loop: "{{ ['localhost'] | union(hostvars['kubeinit-facts'].hypervisors) }}"
+  loop: "{{ ['localhost'] | union(hostvars[kubeinit_cluster_facts_name].hypervisors) }}"
   delegate_to: "{{ item }}"
 
 - name: Gather facts from bastion host if it is not a hypervisor host
@@ -135,7 +148,17 @@
     kubeinit_service_user: "root"
     kubeinit_service_user_dir: "/root"
     kubeinit_ingress_hostname: "ingress"
-  loop: "{{ ['localhost'] | union(hostvars['kubeinit-facts'].hypervisors) }}"
+    kubeinit_bind_volume_name: "{{ kubeinit_bind_service_name }}-config"
+    kubeinit_nexus_port: "5001"
+    kubeinit_nexus_fqdn: "{{ kubeinit_nexus_service_node }}.{{ kubeinit_cluster_fqdn }}"
+    kubeinit_nexus_fqdn_alt: "nexus.{{ kubeinit_cluster_fqdn }}"
+    kubeinit_nexus_uri: "{{ kubeinit_nexus_service_node }}.{{ kubeinit_cluster_fqdn }}:5001"
+    kubeinit_registry_port: "5000"
+    kubeinit_registry_fqdn: "{{ kubeinit_registry_service_node }}.{{ kubeinit_cluster_fqdn }}"
+    kubeinit_registry_fqdn_alt: "registry.{{ kubeinit_cluster_fqdn }}"
+    kubeinit_registry_uri: "{{ kubeinit_registry_service_node }}.{{ kubeinit_cluster_fqdn }}:5000"
+    kubeinit_services_data_volume: "{{ kubeinit_cluster_name }}-data"
+  loop: "{{ ['localhost'] | union(hostvars[kubeinit_cluster_facts_name].hypervisors) }}"
   delegate_to: "{{ item }}"
 
 - name: Add ssh ProxyCommand option for all nodes
@@ -156,8 +179,8 @@
         kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
 
     - block:
-        - name: Check to see if we should stop here
-          ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: "Stopping after '{{ kubeinit_stop_after_task }}'"
+          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed

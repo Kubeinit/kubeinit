@@ -32,61 +32,26 @@ kubeinit_libvirt_source_keystore_dir: "/home/{{ kubeinit_libvirt_cloud_user }}/.
 kubeinit_libvirt_source_pubkey_file: id_rsa.pub
 kubeinit_libvirt_vms_default_password: asdfasdf
 
-kubeinit_libvirt_centos_release: 20210603.0
-kubeinit_libvirt_fcos_release: 34.20210904.3.0
-kubeinit_libvirt_rhcos_release: 4.8.2
-kubeinit_libvirt_ubuntu_release: "{{ 'focal' if (kubeinit_cluster_distro == 'cdk') else 'hirsute' }}"
+kubeinit_libvirt_centos_release: "20210603.0"
 kubeinit_libvirt_debian_release: "11"
 kubeinit_libvirt_debian_codename: "bullseye"
 
-kubeinit_libvirt_rhcos_release_major_minor: "{{ kubeinit_libvirt_rhcos_release.split('.')[0] }}.{{ kubeinit_libvirt_rhcos_release.split('.')[1] }}"
-
-kubeinit_libvirt_source_images:
-  ubuntu:
-    uri: "https://cloud-images.ubuntu.com/{{ kubeinit_libvirt_ubuntu_release }}/current/"
-    iso: ""
-    image: "{{ kubeinit_libvirt_ubuntu_release }}-server-cloudimg-amd64.img"
-    kernel: ""
-    initrd: ""
-    raw: ""
-    sig: ""
-    rootfs: ""
-  debian:
-    uri: "https://cloud.debian.org/images/cloud/{{ kubeinit_libvirt_debian_codename }}/daily/latest/"
-    iso: ""
+kubeinit_libvirt_cloud_images:
+  cdk:
+    uri: "https://cloud-images.ubuntu.com/focal/current/"
+    image: "focal-server-cloudimg-amd64.img"
+  rke:
+    uri: "https://cloud-images.ubuntu.com/hirsute/current/"
+    image: "hirsute-server-cloudimg-amd64.img"
+  kid:
+    uri: "https://cloud.debian.org/images/cloud/bullseye/daily/latest/"
     image: "debian-{{ kubeinit_libvirt_debian_release }}-genericcloud-amd64-daily.qcow2"
-    kernel: ""
-    initrd: ""
-    raw: ""
-    sig: ""
-    rootfs: ""
-  centos:
+  eks:
     uri: "https://cloud.centos.org/centos/8-stream/x86_64/images/"
-    iso: ""
     image: "CentOS-Stream-GenericCloud-8-{{ kubeinit_libvirt_centos_release }}.x86_64.qcow2"
-    kernel: ""
-    initrd: ""
-    raw: ""
-    sig: ""
-    rootfs: ""
-  coreos:
-    uri: "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/{{ kubeinit_libvirt_fcos_release }}/x86_64/"
-    iso: ""
-    image: ""
-    kernel: "fedora-coreos-{{ kubeinit_libvirt_fcos_release }}-live-kernel-x86_64"
-    initrd: "fedora-coreos-{{ kubeinit_libvirt_fcos_release }}-live-initramfs.x86_64.img"
-    raw: "fedora-coreos-{{ kubeinit_libvirt_fcos_release }}-metal.x86_64.raw.xz"
-    sig: "fedora-coreos-{{ kubeinit_libvirt_fcos_release }}-metal.x86_64.raw.xz.sig"
-    rootfs: "fedora-coreos-{{ kubeinit_libvirt_fcos_release }}-live-rootfs.x86_64.img"
-  rhcos:
-    uri: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ kubeinit_libvirt_rhcos_release_major_minor }}/{{ kubeinit_libvirt_rhcos_release }}/"
-    iso: ""
-    image: ""
-    kernel: "rhcos-{{ kubeinit_libvirt_rhcos_release }}-x86_64-live-kernel-x86_64"
-    initrd: "rhcos-{{ kubeinit_libvirt_rhcos_release }}-x86_64-live-initramfs.x86_64.img"
-    raw: "rhcos-{{ kubeinit_libvirt_rhcos_release }}-x86_64-metal.x86_64.raw.gz"
-    sig: ""
-    rootfs: rhcos-{{ kubeinit_libvirt_rhcos_release }}-x86_64-live-rootfs.x86_64.img
+  k8s:
+    uri: "https://cloud.centos.org/centos/8-stream/x86_64/images/"
+    image: "CentOS-Stream-GenericCloud-8-{{ kubeinit_libvirt_centos_release }}.x86_64.qcow2"
 
 kubeinit_libvirt_destroy_all_guests: False
 

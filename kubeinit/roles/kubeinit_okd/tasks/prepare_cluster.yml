@@ -196,16 +196,79 @@
 
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
-- name: Download CoreOS libvirt images
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_libvirt
-    tasks_from: download_coreos_libvirt_images.yml
-    public: true
+- name: Set name of CoreOS distribution
+  ansible.builtin.set_fact:
+    kubeinit_coreos_distribution: "{{ 'rhcos' if (kubeinit_okd_openshift_deploy) else 'fcos' }}"
+
+- name: Download kernel image
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].kernel }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].kernel }}"
+    force: no
+    mode: '0666'
   loop: "{{ kubeinit_cluster_hostvars.hypervisors }}"
   loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    loop_var: kubeinit_deployment_node_name
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+- name: Download initrd image
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}"
+    force: no
+    mode: '0666'
+  loop: "{{ kubeinit_cluster_hostvars.hypervisors }}"
+  loop_control:
+    loop_var: kubeinit_deployment_node_name
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+- name: Create the treeinfo directory for FCOS
+  ansible.builtin.shell: |
+    cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
+    [general]
+    arch = x86_64
+    family = Fedora CoreOS
+    platforms = x86_64
+    version = kubeinit_libvirt_fcos_release.split(".")[0]
+    [images-x86_64]
+    initrd = {{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}
+    kernel = {{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].kernel }}
+    EOF
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ kubeinit_cluster_hostvars.hypervisors }}"
+  loop_control:
+    loop_var: kubeinit_deployment_node_name
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: not kubeinit_okd_openshift_deploy
+
+- name: Create the treeinfo directory for RHCOS
+  ansible.builtin.shell: |
+    cat <<EOF > {{ kubeinit_libvirt_target_image_dir }}/.treeinfo
+    [general]
+    arch = x86_64
+    family = Red Hat CoreOS
+    platforms = x86_64
+    version = {{ kubeinit_okd_registry_release_tag_aux | default(omit) }}
+    [images-x86_64]
+    initrd = {{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}
+    kernel = {{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].kernel }}
+    EOF
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ kubeinit_cluster_hostvars.hypervisors }}"
+  loop_control:
+    loop_var: kubeinit_deployment_node_name
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: kubeinit_okd_openshift_deploy
 
 - name: Delegate to kubeinit_provision_service_node
   block:
@@ -217,11 +280,30 @@
         mode: 0775
         recurse: yes
 
-    - name: Download CoreOS provision images
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_libvirt
-        tasks_from: download_coreos_provision_images.yml
-        public: true
+    - name: Download initrd image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}"
+        dest: "/var/kubeinit/html/okd4/"
+        mode: 0775
+
+    - name: Download rootfs image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].rootfs }}"
+        dest: "/var/kubeinit/html/okd4/"
+        mode: 0775
+
+    - name: Download raw image
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].raw }}"
+        dest: "/var/kubeinit/html/okd4/"
+        mode: 0775
+
+    - name: Download signature file
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].sig }}"
+        dest: "/var/kubeinit/html/okd4/"
+        mode: 0775
+      when: not kubeinit_okd_openshift_deploy
 
     - name: Render the cluster template
       ansible.builtin.template:

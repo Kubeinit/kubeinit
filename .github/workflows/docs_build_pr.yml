@@ -52,38 +52,130 @@ jobs:
 
       - name: Render the projects roles and inventory diagrams
         run: |
+          set -x
 
-          for distro in cdk eks k8s kid okd rke; do
-              filename=${distro}.yml
-              echo "ansible-playbook-grapher --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} ./kubeinit/playbook.yml --include-role-tasks -o ./docs/src/static/playbook_$filename"
-              ansible-playbook-grapher --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} ./kubeinit/playbook.yml --include-role-tasks -o ./docs/src/static/playbook_$filename
-          cat << EOF >> ./docs/src/playbook_diagrams.rst
+          tasktag=task_gather_facts
+          taskname=$(echo ${tasktag} | tr '_' '-')
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
+          sed -e ':again;$!N;$!b again; s/subgraph "Play #[23]:[^"]*"{[^}]*}//g' -e 's/"Play #1: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
+          cat << EOF >> docs/src/playbook_diagrams.rst
 
-          $filename playbook architecture
+          playbook task ${taskname}
           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-          .. image:: static/playbook_$filename.svg
+          .. image:: static/playbook_${tasktag}.svg
+            :width: 400
+            :alt: Alternative text
+
+          EOF
+
+          tasktag=task_prepare_hypervisors
+          taskname=$(echo ${tasktag} | tr '_' '-')
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
+          sed -e ':again;$!N;$!b again; s/subgraph "Play #[13]:[^"]*"{[^}]*}//g' -e 's/"Play #2: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
+          cat << EOF >> docs/src/playbook_diagrams.rst
+
+          playbook task ${taskname}
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/playbook_${tasktag}.svg
+            :width: 400
+            :alt: Alternative text
+
+          EOF
+
+          for tasktag in task_prepare_environment task_cleanup_hypervisors task_run_validations task_create_network task_create_services; do
+              taskname=$(echo ${tasktag} | tr '_' '-')
+              ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
+              sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
+          cat << EOF >> docs/src/playbook_diagrams.rst
+
+          playbook task ${taskname}
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/playbook_${tasktag}.svg
             :width: 400
             :alt: Alternative text
 
           EOF
           done
 
+          tasktag=task_prepare_cluster
+          taskname=$(echo ${tasktag} | tr '_' '-')
           for distro in cdk eks k8s kid okd rke; do
-              filename=${distro}
-              echo "ansible-inventory-grapher -i ./kubeinit/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png"
-              ansible-inventory-grapher -i ./kubeinit/inventory all -a 'rankdir=LR;' -q | dot -Tpng > ./docs/src/static/inventory_$filename.png
-          cat << EOF >> ./docs/src/inventory_diagrams.rst
+              ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${distro}_${tasktag} --save-dot-file
+              sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${distro}_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${distro}_${tasktag}.svg
+          cat << EOF >> docs/src/playbook_diagrams.rst
 
-          $filename inventory architecture
+          playbook task ${taskname} [${distro}]
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/playbook_${distro}_${tasktag}.svg
+            :width: 400
+            :alt: Alternative text
+
+          EOF
+          done
+
+          tasktag=task_download_images
+          taskname=$(echo ${tasktag} | tr '_' '-')
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
+          sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
+          cat << EOF >> docs/src/playbook_diagrams.rst
+
+          playbook task ${taskname}
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/playbook_${tasktag}.svg
+            :width: 400
+            :alt: Alternative text
+
+          EOF
+
+          tasktag=task_deploy_cluster
+          taskname=$(echo ${tasktag} | tr '_' '-')
+          for distro in cdk eks k8s kid okd rke; do
+              ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${distro}_${tasktag} --save-dot-file
+              sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${distro}_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${distro}_${tasktag}.svg
+          cat << EOF >> docs/src/playbook_diagrams.rst
+
+          playbook task ${taskname} [${distro}]
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/playbook_${distro}_${tasktag}.svg
+            :width: 400
+            :alt: Alternative text
+
+          EOF
+          done
+
+          tasktag=task_post_deployment
+          taskname=$(echo ${tasktag} | tr '_' '-')
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag}  --save-dot-file
+          sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
+          cat << EOF >> docs/src/playbook_diagrams.rst
+
+          playbook task ${taskname}
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/playbook_${tasktag}.svg
+            :width: 400
+            :alt: Alternative text
+
+          EOF
+
+          sed -e '/^juju-controller/d' -e '/^hypervisor-04/d' -e '/^\[controller_nodes\]$/ acontroller-01 target=hypervisor-01\ncontroller-02 target=hypervisor-02\ncontroller-03 target=hypervisor-03' -e '/^\[compute_nodes\]$/ acompute-01 target=hypervisor-01\ncompute-02 target=hypervisor-02' -e '/^service /s/ / target=hypervisor-01 /' -e '/^bootstrap /s/$/ target=hypervisor-03/' kubeinit/inventory > docs/src/static/inventory
+          ansible-inventory-grapher -i docs/src/static/inventory all -a 'rankdir=LR;' --visible-vars=ansible_host --visible-vars=target -t docs/src/static/inventory.j2 | dot -Tpng > docs/src/static/inventory.png
+          cat << EOF >> docs/src/inventory_diagrams.rst
+
+          inventory example for okd-libvirt-3-2-3
           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-          .. image:: static/inventory_$filename.png
+          .. image:: static/inventory.png
             :width: 400
             :alt: Alternative text
 
           EOF
-          done
 
           cat ./docs/src/playbook_diagrams.rst
           cat ./docs/src/inventory_diagrams.rst

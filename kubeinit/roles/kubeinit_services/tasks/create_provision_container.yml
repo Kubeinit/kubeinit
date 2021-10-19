@@ -73,7 +73,7 @@
     - name: Setup Ubuntu container image
       block:
         - name: Create a new working container image
-          ansible.builtin.command: buildah from --name buildah-provision docker.io/ubuntu:{{ kubeinit_libvirt_ubuntu_release }}
+          ansible.builtin.command: buildah from --name buildah-provision docker.io/ubuntu:{{ 'focal' if (kubeinit_cluster_distro == 'cdk') else 'hirsute' }}
           register: _result
           changed_when: "_result.rc == 0"
         - name: Update the container
@@ -375,8 +375,10 @@
   until: "'connected' in _result.stdout"
   delegate_to: "{{ kubeinit_bastion_host }}"
 
-- name: Gather network and host facts for guest
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_prepare
-    tasks_from: gather_host_facts.yml
-    public: yes
+- block:
+    - name: Gather network and host facts for guest
+      ansible.builtin.include_role:
+        name: kubeinit.kubeinit.kubeinit_prepare
+        tasks_from: gather_host_facts.yml
+        public: yes
+  tags: omit_from_grapher

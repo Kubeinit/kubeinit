@@ -14,11 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-#
-# Include Libvirt validations
-#
-
 - block:
     - name: Cleanup hypervisors if needed
       ansible.builtin.include_role:
@@ -26,16 +21,20 @@
         tasks_from: cleanup_hypervisors.yml
         public: true
       vars:
-        task_completed: "{{ hostvars['kubeinit-facts'] is defined }}"
-      when: not task_completed
+        hypervisors_cleaned: "{{ kubeinit_cluster_facts_name is defined }}"
+      when: not hypervisors_cleaned
 
     - block:
-        - name: Check to see if we should stop here
-          ansible.builtin.debug: msg="Stopping before '{{ kubeinit_stop_before_task }}'"
+        - name: "Stopping before '{{ kubeinit_stop_before_task }}'"
+          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-run-validations'
   tags: omit_from_grapher
+
+#
+# Include Libvirt validations
+#
 
 - name: Check that the hypervisor has enough disk space
   ansible.builtin.include_tasks: 10_libvirt_free_space.yml
@@ -57,8 +56,8 @@
         kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
 
     - block:
-        - name: Check to see if we should stop here
-          ansible.builtin.debug: msg="Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: "Stopping after '{{ kubeinit_stop_after_task }}'"
+          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
