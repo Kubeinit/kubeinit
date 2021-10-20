@@ -1,0 +1,29 @@
+digraph "kubeinit/playbook.yml "{
+	graph [concentrate=true ordering=in rankdir=LR ratio=fill]
+	edge [esep=5 sep=10]
+	"kubeinit/playbook.yml" [id=root_node style=dotted]
+	subgraph "Play #1: Initial setup (1) "{
+		"Play #1: Initial setup (1)" [color="#5b693f" fontcolor="#ffffff" id="play_b9c17181-246c-4b96-828e-e93517c1a608" shape=box style=filled tooltip=localhost]
+		"kubeinit/playbook.yml" -> "Play #1: Initial setup (1)" [label=1 color="#5b693f" fontcolor="#5b693f" id="edge_9259df2a-aec8-4925-a5de-896f3e25e8cc" style=bold]
+	}
+	subgraph "Play #2: Prepare all hypervisor hosts to deploy service and cluster nodes (0) "{
+		"Play #2: Prepare all hypervisor hosts to deploy service and cluster nodes (0)" [color="#b82bc6" fontcolor="#ffffff" id="play_169bfd5a-9fa7-4d4c-8d50-03433746fb97" shape=box style=filled tooltip=""]
+		"kubeinit/playbook.yml" -> "Play #2: Prepare all hypervisor hosts to deploy service and cluster nodes (0)" [label=2 color="#b82bc6" fontcolor="#b82bc6" id="edge_768cfe82-1cd1-4bb1-8184-e3cb8b2353b2" style=bold]
+	}
+	subgraph "Play #3: Run cluster deployment on prepared hypervisors (1) "{
+		"Play #3: Run cluster deployment on prepared hypervisors (1)" [color="#f72203" fontcolor="#ffffff" id="play_8395417f-7e45-41d1-9f4d-c001824a9e55" shape=box style=filled tooltip=localhost]
+		"kubeinit/playbook.yml" -> "Play #3: Run cluster deployment on prepared hypervisors (1)" [label=3 color="#f72203" fontcolor="#f72203" id="edge_f01cbd03-17c4-465f-9a56-24471a1e1683" style=bold]
+		"task_c02a0320-0eef-4c57-96a3-bf8abb00fc74" [label="[task] kubeinit.kubeinit.kubeinit_libvirt : Create tuples for hosts and guest vms" id="task_c02a0320-0eef-4c57-96a3-bf8abb00fc74" shape=octagon tooltip="[task] kubeinit.kubeinit.kubeinit_libvirt : Create tuples for hosts and guest vms"]
+		"Play #3: Run cluster deployment on prepared hypervisors (1)" -> "task_c02a0320-0eef-4c57-96a3-bf8abb00fc74" [label="1  [when: hostvars[item[1]].target in item[0]]" color="#f72203" fontcolor="#f72203" id="edge_e40cd5c2-3679-46bf-8411-27f081601a1d" style=bold]
+		"task_f5387f21-c987-4caa-85f4-9bc31cb5a404" [label="[task] kubeinit.kubeinit.kubeinit_libvirt : Create new directories for config files per node" id="task_f5387f21-c987-4caa-85f4-9bc31cb5a404" shape=octagon tooltip="[task] kubeinit.kubeinit.kubeinit_libvirt : Create new directories for config files per node"]
+		"Play #3: Run cluster deployment on prepared hypervisors (1)" -> "task_f5387f21-c987-4caa-85f4-9bc31cb5a404" [label=2 color="#f72203" fontcolor="#f72203" id="edge_485fc99b-cc39-407e-93d6-f456f9f3a3d3" style=bold]
+		"task_bed97988-01f5-42ab-99e4-9af068ff8009" [label="[task] kubeinit.kubeinit.kubeinit_libvirt : Create tuples for hosts and cloud images" id="task_bed97988-01f5-42ab-99e4-9af068ff8009" shape=octagon tooltip="[task] kubeinit.kubeinit.kubeinit_libvirt : Create tuples for hosts and cloud images"]
+		"Play #3: Run cluster deployment on prepared hypervisors (1)" -> "task_bed97988-01f5-42ab-99e4-9af068ff8009" [label="3  [when: hostvars[guest_vm].target in hypervisor and kubeinit_libvirt_cloud_images[kubeinit_cluster_distro] is defined]" color="#f72203" fontcolor="#f72203" id="edge_39ed2adc-ee3e-40dd-9448-79f94933432f" style=bold]
+		"task_8036eb66-241b-4506-8740-7fa13383a140" [label="[task] kubeinit.kubeinit.kubeinit_libvirt : Remove duplicates" id="task_8036eb66-241b-4506-8740-7fa13383a140" shape=octagon tooltip="[task] kubeinit.kubeinit.kubeinit_libvirt : Remove duplicates"]
+		"Play #3: Run cluster deployment on prepared hypervisors (1)" -> "task_8036eb66-241b-4506-8740-7fa13383a140" [label=4 color="#f72203" fontcolor="#f72203" id="edge_76675f43-56a3-4bc8-a7e3-c2da80d3c36c" style=bold]
+		"task_2a2a44ca-b309-42ad-ac49-bbe4b845e481" [label="[task] kubeinit.kubeinit.kubeinit_libvirt : Download cloud images" id="task_2a2a44ca-b309-42ad-ac49-bbe4b845e481" shape=octagon tooltip="[task] kubeinit.kubeinit.kubeinit_libvirt : Download cloud images"]
+		"Play #3: Run cluster deployment on prepared hypervisors (1)" -> "task_2a2a44ca-b309-42ad-ac49-bbe4b845e481" [label=5 color="#f72203" fontcolor="#f72203" id="edge_65d7ef46-0b5f-48a4-9ea6-9c5c1a921759" style=bold]
+		"task_cdc7fa14-34dc-42bf-94ea-0bcfc8c7461f" [label="[task] kubeinit.kubeinit.kubeinit_libvirt : Update packages in cloud images" id="task_cdc7fa14-34dc-42bf-94ea-0bcfc8c7461f" shape=octagon tooltip="[task] kubeinit.kubeinit.kubeinit_libvirt : Update packages in cloud images"]
+		"Play #3: Run cluster deployment on prepared hypervisors (1)" -> "task_cdc7fa14-34dc-42bf-94ea-0bcfc8c7461f" [label=6 color="#f72203" fontcolor="#f72203" id="edge_c69a26e6-d261-4b57-b074-2b7c3f558b2b" style=bold]
+	}
+}
