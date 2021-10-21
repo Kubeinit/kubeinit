@@ -169,17 +169,19 @@ KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 # the name like okd.rke, k8s.rke, or k8s.eks
 #
 if [[ $DISTRO == *.* ]] ; then
-    find ./kubeinit/inventory -type f -exec sed -i -E -e "/kubeinit_inventory_post_deployment_services/ s/none/submariner/g"  {} \;
-    # We enable the second cluster id in the inventory for both the cluster name and the network
-    sed -i -e "/# cluster0/ s/# cluster0/${FIRST_DISTRO}cluster/" kubeinit/inventory
-    sed -i -e "/# cluster1/ s/# cluster1/${SECOND_DISTRO}cluster/" kubeinit/inventory
-
     FIRST_DISTRO="$(cut -d'.' -f1 <<<"${DISTRO}")"
     SECOND_DISTRO="$(cut -d'.' -f2 <<<"${DISTRO}")"
 
     FIRST_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${FIRST_DISTRO}}"
     SECOND_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${SECOND_DISTRO}}"
     KUBEINIT_SPEC="${FIRST_KUBEINIT_SPEC},${SECOND_KUBEINIT_SPEC}"
+
+    # We enable two cluster ids in the inventory for both the cluster name and the network and
+    # add submariner to the post-deployment services
+    sed -i -e "/# cluster0/ s/# cluster0/${FIRST_DISTRO}cluster/" kubeinit/inventory
+    sed -i -e "/# cluster1/ s/# cluster1/${SECOND_DISTRO}cluster/" kubeinit/inventory
+    sed -i -e "/# kimgtnet/ s/# kimgtnet/kimgtnet/" kubeinit/inventory
+    sed -i -e "/kubeinit_inventory_post_deployment_services/ s/none/submariner/" kubeinit/inventory
 fi
 
 #
