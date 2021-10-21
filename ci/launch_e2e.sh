@@ -165,17 +165,21 @@ KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 
 #
 # Check if this is a multicluster deployment
+# this means that the distro has a period in
+# the name like okd.rke, k8s.rke, or k8s.eks
 #
-
-if [[ "$DISTRO" == "okd.rke" ]]; then
+if [[ $DISTRO == *.* ]] ; then
     find ./kubeinit/inventory -type f -exec sed -i -E -e "/kubeinit_inventory_post_deployment_services/ s/none/submariner/g"  {} \;
     # We enable the second cluster id in the inventory for both the cluster name and the network
-    find ./kubeinit/inventory -type f -exec sed -i -E -e "/# kimgtnet1 network/ s/# kimgtnet1 network/kimgtnet1 network/g"  {} \;
-    find ./kubeinit/inventory -type f -exec sed -i -E -e "/# cluster1 network/ s/# cluster1 network/cluster1 network/g"  {} \;
+    sed -i -e "/# cluster0/ s/# cluster0/${FIRST_DISTRO}cluster/" kubeinit/inventory
+    sed -i -e "/# cluster1/ s/# cluster1/${SECOND_DISTRO}cluster/" kubeinit/inventory
 
-    OKD_KUBEINIT_SPEC="${KUBEINIT_SPEC/okd.rke/okd}"
-    RKE_KUBEINIT_SPEC="${KUBEINIT_SPEC/okd.rke/rke}"
-    KUBEINIT_SPEC="${RKE_KUBEINIT_SPEC},${OKD_KUBEINIT_SPEC}"
+    FIRST_DISTRO="$(cut -d'.' -f1 <<<"${DISTRO}")"
+    SECOND_DISTRO="$(cut -d'.' -f2 <<<"${DISTRO}")"
+
+    FIRST_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${FIRST_DISTRO}}"
+    SECOND_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${SECOND_DISTRO}}"
+    KUBEINIT_SPEC="${FIRST_KUBEINIT_SPEC},${SECOND_KUBEINIT_SPEC}"
 fi
 
 #

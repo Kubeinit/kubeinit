@@ -207,13 +207,14 @@ def get_periodic_jobs_labels(distro='all'):
                    "kid-libvirt-1-1-1-c",
                    "kid-libvirt-1-0-1-c"]
 
-    okd_rke_configs = ["okd.rke-libvirt-1-2-1-c",
-                       "okd.rke-libvirt-3-1-1-h"]
+    multicluster_configs = ["k8s.rke-libvirt-1-0-1-h",
+                            "okd.rke-libvirt-1-2-1-c",
+                            "okd.rke-libvirt-3-1-1-h"]
 
     if re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", distro):
         print("'kubeinit_ci_utils.py' ==> We are requesting specific job labels")
         req_labels = set(distro.split(","))
-        all_labels = set(okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs)
+        all_labels = set(okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + multicluster_configs)
         if (req_labels.issubset(all_labels)):
             print("'kubeinit_ci_utils.py' ==> The requested labels are defined correctly")
             return req_labels
@@ -223,32 +224,32 @@ def get_periodic_jobs_labels(distro='all'):
     elif distro == 'random':
         print("'kubeinit_ci_utils.py' ==> Returning 4 random scenarios to test")
         # If the distro parameter is random we return 4 random distros to test
-        all_scenarios = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
+        all_scenarios = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + multicluster_configs
         return random.sample(all_scenarios, 4)
     elif distro == "all":
         print("'kubeinit_ci_utils.py' ==> Appending all configs")
-        return okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + okd_rke_configs
+        return okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + multicluster_configs
     else:
         configs = []
-        if 'okd' in distro and 'okd.rke' not in distro:
+        if '.' in distro:
+            print("'kubeinit_ci_utils.py' ==> Appending the multicluster configs")
+            configs = configs + multicluster_configs
+        elif 'okd' in distro:
             print("'kubeinit_ci_utils.py' ==> Appending OKD configs")
             configs = configs + okd_configs
-        if 'rke' in distro and 'okd.rke' not in distro:
+        elif 'rke' in distro:
             print("'kubeinit_ci_utils.py' ==> Appending RKE configs")
             configs = configs + rke_configs
-        if 'kid' in distro:
+        elif 'kid' in distro:
             print("'kubeinit_ci_utils.py' ==> Appending KID configs")
             configs = configs + kid_configs
-        if 'eks' in distro:
+        elif 'eks' in distro:
             print("'kubeinit_ci_utils.py' ==> Appending EKS configs")
             configs = configs + eks_configs
-        if 'cdk' in distro:
+        elif 'cdk' in distro:
             print("'kubeinit_ci_utils.py' ==> Appending CDK configs")
             configs = configs + cdk_configs
-        if 'k8s' in distro:
+        elif 'k8s' in distro:
             print("'kubeinit_ci_utils.py' ==> Appending K8S configs")
             configs = configs + k8s_configs
-        if 'okd.rke' in distro:
-            print("'kubeinit_ci_utils.py' ==> Appending OKD.RKE configs")
-            configs = configs + okd_rke_configs
         return configs
