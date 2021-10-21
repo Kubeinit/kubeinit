@@ -17,7 +17,7 @@
 - block:
     - block:
         - name: "Stopping before '{{ kubeinit_stop_before_task }}'"
-          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name='kubeinit-facts' playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-gather-facts'
@@ -88,15 +88,27 @@
     cluster_name: "{{ kubeinit_cluster_name }}"
     cluster_fqdn: "{{ kubeinit_cluster_fqdn }}"
 
+- name: Get cluster facts from kubeinit_clusters group
+  ansible.builtin.set_fact:
+    kubeinit_fact_network_name: "{{ hostvars[kubeinit_cluster_name].network_name | default(kubeinit_inventory_network_name) }}"
+
+- name: Get network facts from kubeinit_networks group
+  ansible.builtin.set_fact:
+    kubeinit_fact_network: "{{ hostvars[kubeinit_fact_network_name].network | default(kubeinit_inventory_network) }}"
+    kubeinit_fact_gateway_offset: "{{ hostvars[kubeinit_fact_network_name].gateway_offset | default(kubeinit_inventory_gateway_offset) }}"
+    kubeinit_fact_nameserver_offset: "{{ hostvars[kubeinit_fact_network_name].nameserver_offset | default(kubeinit_inventory_nameserver_offset) }}"
+    kubeinit_fact_dhcp_start_offset: "{{ hostvars[kubeinit_fact_network_name].dhcp_start_offset | default(kubeinit_inventory_dhcp_start_offset) }}"
+    kubeinit_fact_dhcp_end_offset: "{{ hostvars[kubeinit_fact_network_name].dhcp_end_offset | default(kubeinit_inventory_dhcp_end_offset) }}"
+
 - name: Set facts from inventory network
   ansible.builtin.set_fact:
-    kubeinit_cluster_network_name: "{{ kubeinit_inventory_network_name }}"
-    kubeinit_cluster_network: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4('net') }}"
-    kubeinit_cluster_prefix: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4('prefix') }}"
-    kubeinit_cluster_netmask: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4('netmask') | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_gateway: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4(kubeinit_inventory_gateway_offset|int) | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_nameserver: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4(kubeinit_inventory_nameserver_offset|int) | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_next_available: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4(kubeinit_inventory_dhcp_start_offset|int) }}"
+    kubeinit_cluster_network_name: "{{ kubeinit_fact_network_name }}"
+    kubeinit_cluster_network: "{{ kubeinit_fact_network | ansible.netcommon.ipv4('net') }}"
+    kubeinit_cluster_prefix: "{{ kubeinit_fact_network | ansible.netcommon.ipv4('prefix') }}"
+    kubeinit_cluster_netmask: "{{ kubeinit_fact_network | ansible.netcommon.ipv4('netmask') | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_gateway: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_fact_gateway_offset|int) | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_nameserver: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_fact_nameserver_offset|int) | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_next_available: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_fact_dhcp_start_offset|int) }}"
 
 - name: Assert additional constraints
   ansible.builtin.assert:
@@ -175,7 +187,7 @@
 - name: Set cluster dhcp facts
   ansible.builtin.set_fact:
     kubeinit_cluster_dhcp_start: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_dhcp_end: "{{ kubeinit_inventory_network | ansible.netcommon.ipv4(kubeinit_inventory_dhcp_end_offset|int) | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_dhcp_end: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_fact_dhcp_end_offset|int) | ansible.netcommon.ipv4('address') }}"
 
 - name: Set cluster dhcp range size
   ansible.builtin.set_fact:

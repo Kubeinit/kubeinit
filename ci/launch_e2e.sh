@@ -164,6 +164,25 @@ python3 -m pip install -r ./agent/requirements.txt
 KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 
 #
+# Check if this is a multicluster deployment
+# this means that the distro has a period in
+# the name like okd.rke, k8s.rke, or k8s.eks
+#
+if [[ $DISTRO == *.* ]] ; then
+    find ./kubeinit/inventory -type f -exec sed -i -E -e "/kubeinit_inventory_post_deployment_services/ s/none/submariner/g"  {} \;
+    # We enable the second cluster id in the inventory for both the cluster name and the network
+    sed -i -e "/# cluster0/ s/# cluster0/${FIRST_DISTRO}cluster/" kubeinit/inventory
+    sed -i -e "/# cluster1/ s/# cluster1/${SECOND_DISTRO}cluster/" kubeinit/inventory
+
+    FIRST_DISTRO="$(cut -d'.' -f1 <<<"${DISTRO}")"
+    SECOND_DISTRO="$(cut -d'.' -f2 <<<"${DISTRO}")"
+
+    FIRST_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${FIRST_DISTRO}}"
+    SECOND_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${SECOND_DISTRO}}"
+    KUBEINIT_SPEC="${FIRST_KUBEINIT_SPEC},${SECOND_KUBEINIT_SPEC}"
+fi
+
+#
 # Create aux file with environment information
 #
 
@@ -225,10 +244,14 @@ mv ./playbook_tmp.yml ./kubeinit/playbook.yml
 # The last step is to run the deployment
 #
 echo "(launch_e2e.sh) ==> Deploying the cluster ..."
+
 #
 # The deployment playbook can be launched from a container [c]
 # or directly from the host [h]
 #
+
+FAILED="0"
+KUBEINIT_SPEC=${KUBEINIT_SPEC//,/$'\n'}
 
 if [[ "$LAUNCH_FROM" == "c" ]]; then
     # We inject ara in the container in the case we trigger Ansible inside a container
@@ -247,60 +270,78 @@ if [[ "$LAUNCH_FROM" == "c" ]]; then
     # on the $KUBEINIT_SPEC variable from a container
     #
 
-    podman run --rm -it \
-        --name kubeinit-runner \
-        --pod ara-pod \
-        -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
-        -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
-        -v ~/.ssh/config:/root/.ssh/config:z \
-        -e ARA_API_CLIENT="http" \
-        -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
-        -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
-        -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
-        -e ARA_API_SERVER="http://127.0.0.1:8000" \
-        localhost/kubeinit/kubeinit:latest \
+    for SPEC in $KUBEINIT_SPEC; do
+        {
+            podman run --rm -it \
+                --name kubeinit-runner \
+                --pod ara-pod \
+                -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+                -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
+                -v ~/.ssh/config:/root/.ssh/config:z \
+                -e ARA_API_CLIENT="http" \
+                -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+                -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
+                -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+                -e ARA_API_SERVER="http://127.0.0.1:8000" \
+                localhost/kubeinit/kubeinit:latest \
+                    --user root \
+                    -${KUBEINIT_ANSIBLE_VERBOSITY} \
+                    -i ./kubeinit/inventory \
+                    -e kubeinit_spec=${SPEC} \
+                    ./kubeinit/playbook.yml
+        } || {
+            echo "(launch_e2e.sh) ==> The deployment failed, we still need to run the cleanup tasks"
+            FAILED="1"
+        }
+    done
+    for SPEC in $KUBEINIT_SPEC; do
+        podman run --rm -it \
+            --name kubeinit-runner \
+            --pod ara-pod \
+            -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
+            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
+            -v ~/.ssh/config:/root/.ssh/config:z \
+            -e ARA_API_CLIENT="http" \
+            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
+            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
+            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
+            -e ARA_API_SERVER="http://127.0.0.1:8000" \
+            localhost/kubeinit/kubeinit:latest \
+                --user root \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} \
+                -i ./kubeinit/inventory \
+                -e kubeinit_spec=${SPEC} \
+                -e kubeinit_stop_after_task=task-cleanup-hypervisors \
+                ./kubeinit/playbook.yml
+    done
+elif [[ "$LAUNCH_FROM" == "h" ]]; then
+    {
+        for SPEC in $KUBEINIT_SPEC; do
+            ansible-playbook \
+                --user root \
+                -${KUBEINIT_ANSIBLE_VERBOSITY} \
+                -i ./kubeinit/inventory \
+                -e kubeinit_spec=${SPEC} \
+                ./kubeinit/playbook.yml
+        done
+    } || {
+        echo "(launch_e2e.sh) ==> The deployment failed, we still need to run the cleanup tasks"
+        FAILED="1"
+    }
+    for SPEC in $KUBEINIT_SPEC; do
+        ansible-playbook \
             --user root \
             -${KUBEINIT_ANSIBLE_VERBOSITY} \
             -i ./kubeinit/inventory \
-            -e kubeinit_spec=${KUBEINIT_SPEC} \
-            ./kubeinit/playbook.yml
-
-    podman run --rm -it \
-        --name kubeinit-runner \
-        --pod ara-pod \
-        -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
-        -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
-        -v ~/.ssh/config:/root/.ssh/config:z \
-        -e ARA_API_CLIENT="http" \
-        -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
-        -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
-        -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
-        -e ARA_API_SERVER="http://127.0.0.1:8000" \
-        localhost/kubeinit/kubeinit:latest \
-            --user root \
-            -${KUBEINIT_ANSIBLE_VERBOSITY} \
-            -i ./kubeinit/inventory \
-            -e kubeinit_spec=${KUBEINIT_SPEC} \
+            -e kubeinit_spec=${SPEC} \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./kubeinit/playbook.yml
-
-elif [[ "$LAUNCH_FROM" == "h" ]]; then
-
-    ansible-playbook \
-        --user root \
-        -${KUBEINIT_ANSIBLE_VERBOSITY} \
-        -i ./kubeinit/inventory \
-        -e kubeinit_spec=${KUBEINIT_SPEC} \
-        ./kubeinit/playbook.yml
-
-    ansible-playbook \
-        --user root \
-        -${KUBEINIT_ANSIBLE_VERBOSITY} \
-        -i ./kubeinit/inventory \
-        -e kubeinit_spec=${KUBEINIT_SPEC} \
-        -e kubeinit_stop_after_task=task-cleanup-hypervisors \
-        ./kubeinit/playbook.yml
+    done
 else
     echo "(launch_e2e.sh) ==> The parameter launch from do not match a valid value [c|h]"
+    exit 1
+fi
+if [[ "$FAILED" == "1" ]]; then
+    echo "(launch_e2e.sh) ==> The deployment command failed, this script must fail"
     exit 1
 fi

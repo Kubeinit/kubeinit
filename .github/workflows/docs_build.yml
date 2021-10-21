@@ -166,7 +166,12 @@ jobs:
 
           EOF
 
-          sed -e '/^juju-controller/d' -e '/^hypervisor-04/d' -e '/^\[controller_nodes\]$/ acontroller-01 target=hypervisor-01\ncontroller-02 target=hypervisor-02\ncontroller-03 target=hypervisor-03' -e '/^\[compute_nodes\]$/ acompute-01 target=hypervisor-01\ncompute-02 target=hypervisor-02' -e '/^service /s/ / target=hypervisor-01 /' -e '/^bootstrap /s/$/ target=hypervisor-03/' kubeinit/inventory > docs/src/static/inventory
+          sed -e '/^juju-controller/d' \
+              -e '/^hypervisor-04/d' \
+              -e '/^\[controller_nodes\]$/ acontroller-01 target=hypervisor-01\ncontroller-02 target=hypervisor-02\ncontroller-03 target=hypervisor-03' \
+              -e '/^\[compute_nodes\]$/ acompute-01 target=hypervisor-01\ncompute-02 target=hypervisor-02' \
+              -e '/^service /s/ / target=hypervisor-01 /' \
+              -e '/^bootstrap /s/$/ target=hypervisor-03/' kubeinit/inventory > docs/src/static/inventory
           ansible-inventory-grapher -i docs/src/static/inventory all -a 'rankdir=LR;' --visible-vars=ansible_host --visible-vars=target -t docs/src/static/inventory.j2 | dot -Tpng > docs/src/static/inventory.png
           cat << EOF >> docs/src/inventory_diagrams.rst
 
