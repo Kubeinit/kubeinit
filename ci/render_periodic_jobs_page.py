@@ -54,7 +54,7 @@ def main():
                 distro = "Canonical Distribution of K8s"
             elif distro == 'k8s':
                 distro = "Vanilla K8s"
-            elif '.' in distro == 'okd.rke':
+            elif '.' in distro:
                 distro = distro.upper().replace('.', '/')
 
             if launch_from == 'h':
