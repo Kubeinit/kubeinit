@@ -181,7 +181,13 @@ if [[ $DISTRO == *.* ]] ; then
     sed -i -e "/# cluster0/ s/# cluster0/${FIRST_DISTRO}cluster/" kubeinit/inventory
     sed -i -e "/# cluster1/ s/# cluster1/${SECOND_DISTRO}cluster/" kubeinit/inventory
     sed -i -e "/# kimgtnet/ s/# kimgtnet/kimgtnet/" kubeinit/inventory
-    sed -i -e "/kubeinit_inventory_post_deployment_services/ s/none/submariner/" kubeinit/inventory
+
+    # We will enable only submariner in the
+    # case of having a multicluster deployment
+    # for okd.rke
+    if [[ "$DISTRO" == "okd.rke" ]]; then
+        sed -i -e "/kubeinit_inventory_post_deployment_services/ s/none/submariner/" kubeinit/inventory
+    fi
 fi
 
 #

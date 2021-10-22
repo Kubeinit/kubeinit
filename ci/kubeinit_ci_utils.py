@@ -231,25 +231,25 @@ def get_periodic_jobs_labels(distro='all'):
         return okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + multicluster_configs
     else:
         configs = []
-        if '.' in distro:
+        if '.' in distro or "multicluster" in distro:
             print("'kubeinit_ci_utils.py' ==> Appending the multicluster configs")
             configs = configs + multicluster_configs
-        elif 'okd' in distro:
+        if 'okd' in distro and '.' not in distro:
             print("'kubeinit_ci_utils.py' ==> Appending OKD configs")
             configs = configs + okd_configs
-        elif 'rke' in distro:
+        if 'rke' in distro and '.' not in distro:
             print("'kubeinit_ci_utils.py' ==> Appending RKE configs")
             configs = configs + rke_configs
-        elif 'kid' in distro:
+        if 'kid' in distro and '.' not in distro:
             print("'kubeinit_ci_utils.py' ==> Appending KID configs")
             configs = configs + kid_configs
-        elif 'eks' in distro:
+        if 'eks' in distro and '.' not in distro:
             print("'kubeinit_ci_utils.py' ==> Appending EKS configs")
             configs = configs + eks_configs
-        elif 'cdk' in distro:
+        if 'cdk' in distro and '.' not in distro:
             print("'kubeinit_ci_utils.py' ==> Appending CDK configs")
             configs = configs + cdk_configs
-        elif 'k8s' in distro:
+        if 'k8s' in distro and '.' not in distro:
             print("'kubeinit_ci_utils.py' ==> Appending K8S configs")
             configs = configs + k8s_configs
         return configs
