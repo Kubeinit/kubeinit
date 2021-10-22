@@ -54,8 +54,8 @@ def main():
                 distro = "Canonical Distribution of K8s"
             elif distro == 'k8s':
                 distro = "Vanilla K8s"
-            elif distro == 'okd.rke':
-                distro = "OKD/RKE/Submariner"
+            elif '.' in distro == 'okd.rke':
+                distro = distro.upper().replace('.', '/')
 
             if launch_from == 'h':
                 launch_from = "Host"
