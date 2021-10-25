@@ -43,36 +43,41 @@
 - name: Remove any old dnsmasq buildah container
   ansible.builtin.shell: |
     set -o pipefail
-    buildah rm buildah-dnsmasq || true
+    buildah rm {{ kubeinit_cluster_name }}-dnsmasq || true
   args:
     executable: /bin/bash
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create a new working container image
-  ansible.builtin.command: buildah from --name buildah-dnsmasq quay.io/poseidon/dnsmasq
+  ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-dnsmasq quay.io/poseidon/dnsmasq
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Update the container
-  ansible.builtin.command: buildah run buildah-dnsmasq -- apk upgrade
+  ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-dnsmasq -- apk upgrade
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Copy generated dnsmasq.conf into container
-  ansible.builtin.command: buildah copy buildah-dnsmasq {{ kubeinit_dnsmasq_config_file }} /etc/dnsmasq.conf
+  ansible.builtin.command: buildah copy {{ kubeinit_cluster_name }}-dnsmasq {{ kubeinit_dnsmasq_config_file }} /etc/dnsmasq.conf
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Commit the container image
-  ansible.builtin.command: buildah commit buildah-dnsmasq kubeinit/kubeinit-dnsmasq:latest
+  ansible.builtin.command: buildah commit {{ kubeinit_cluster_name }}-dnsmasq kubeinit/{{ kubeinit_cluster_name }}-dnsmasq:latest
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Remove the buildah container
+  ansible.builtin.command: buildah rm {{ kubeinit_cluster_name }}-dnsmasq
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create a podman container to serve the dnsmasq
   containers.podman.podman_container:
     name: "{{ kubeinit_dnsmasq_service_name }}"
-    image: kubeinit/kubeinit-dnsmasq:latest
+    image: kubeinit/{{ kubeinit_cluster_name }}-dnsmasq:latest
     pod: "{{ kubeinit_deployment_pod_name }}"
     state: stopped
     cap_add:

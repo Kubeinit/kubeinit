@@ -25,9 +25,9 @@
     - name: Remove any old buildah container
       ansible.builtin.shell: |
         set -eo pipefail
-        if [ "$(buildah ls --filter 'name=buildah-provision' --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]
+        if [ "$(buildah ls --filter 'name={{ kubeinit_cluster_name }}-provision' --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]
         then
-          buildah rm buildah-provision
+          buildah rm {{ kubeinit_cluster_name }}-provision
         fi
       args:
         executable: /bin/bash
@@ -37,15 +37,15 @@
     - name: Setup CentOS container image
       block:
         - name: Create a new working container image (CentOS)
-          ansible.builtin.command: buildah from --name buildah-provision quay.io/centos/centos:stream8
+          ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-provision quay.io/centos/centos:stream8
           register: _result
           changed_when: "_result.rc == 0"
         - name: Update the container
-          ansible.builtin.command: buildah run buildah-provision -- dnf update -q -y
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- dnf update -q -y
           register: _result
           changed_when: "_result.rc == 0"
         - name: Install commands and services we will need
-          ansible.builtin.command: buildah run buildah-provision -- dnf install -q -y systemd openssh openssh-server openssh-clients procps iproute iputils net-tools python3 python3-pip jq
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- dnf install -q -y systemd openssh openssh-server openssh-clients procps iproute iputils net-tools python3 python3-pip jq
           register: _result
           changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'centos'
@@ -53,19 +53,19 @@
     - name: Setup Debian container image
       block:
         - name: Create a new working container image
-          ansible.builtin.command: buildah from --name buildah-provision docker.io/debian:{{ kubeinit_libvirt_debian_release }}
+          ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-provision docker.io/debian:{{ kubeinit_libvirt_debian_release }}
           register: _result
           changed_when: "_result.rc == 0"
         - name: Update the container
-          ansible.builtin.command: buildah run buildah-provision -- apt-get update -q -y
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- apt-get update -q -y
           register: _result
           changed_when: "_result.rc == 0"
         - name: Install commands and services we will need
-          ansible.builtin.command: buildah run buildah-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
           register: _result
           changed_when: "_result.rc == 0"
         - name: Missing privilege separation directory
-          ansible.builtin.command: buildah run buildah-provision -- mkdir -p /run/sshd
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- mkdir -p /run/sshd
           register: _result
           changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'debian'
@@ -73,45 +73,50 @@
     - name: Setup Ubuntu container image
       block:
         - name: Create a new working container image
-          ansible.builtin.command: buildah from --name buildah-provision docker.io/ubuntu:{{ 'focal' if (kubeinit_cluster_distro == 'cdk') else 'hirsute' }}
+          ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-provision docker.io/ubuntu:{{ 'focal' if (kubeinit_cluster_distro == 'cdk') else 'hirsute' }}
           register: _result
           changed_when: "_result.rc == 0"
         - name: Update the container
-          ansible.builtin.command: buildah run buildah-provision -- apt-get update -q -y
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- apt-get update -q -y
           register: _result
           changed_when: "_result.rc == 0"
         - name: Install commands and services we will need
-          ansible.builtin.command: buildah run buildah-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
           register: _result
           changed_when: "_result.rc == 0"
         - name: Create folder normally done by service ssh start
-          ansible.builtin.command: buildah run buildah-provision -- mkdir /run/sshd
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- mkdir /run/sshd
           register: _result
           changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'ubuntu'
 
     - name: Set working directory inside container
-      ansible.builtin.command: buildah config --workingdir {{ kubeinit_service_user_dir }} buildah-provision
+      ansible.builtin.command: buildah config --workingdir {{ kubeinit_service_user_dir }} {{ kubeinit_cluster_name }}-provision
       register: _result
       changed_when: "_result.rc == 0"
 
     - name: Generate system ssh keys
-      ansible.builtin.command: buildah run buildah-provision -- bash -c "(cd /etc/ssh; ssh-keygen -A)"
+      ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- bash -c "(cd /etc/ssh; ssh-keygen -A)"
       register: _result
       changed_when: "_result.rc == 0"
 
     - name: Clear cmd
-      ansible.builtin.command: buildah config --cmd '' buildah-provision
+      ansible.builtin.command: buildah config --cmd '' {{ kubeinit_cluster_name }}-provision
       register: _result
       changed_when: "_result.rc == 0"
 
     - name: Set entrypoint
-      ansible.builtin.command: buildah config --entrypoint '["/sbin/init"]' buildah-provision
+      ansible.builtin.command: buildah config --entrypoint '["/sbin/init"]' {{ kubeinit_cluster_name }}-provision
       register: _result
       changed_when: "_result.rc == 0"
 
     - name: Commit the image
-      ansible.builtin.command: buildah commit buildah-provision kubeinit/kubeinit-provision:latest
+      ansible.builtin.command: buildah commit {{ kubeinit_cluster_name }}-provision kubeinit/{{ kubeinit_cluster_name }}-provision:latest
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Remove the buildah container
+      ansible.builtin.command: buildah rm {{ kubeinit_cluster_name }}-provision
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -123,7 +128,7 @@
     - name: Create podman provision container
       containers.podman.podman_container:
         name: "{{ kubeinit_provision_service_name }}"
-        image: kubeinit/kubeinit-provision:latest
+        image: kubeinit/{{ kubeinit_cluster_name }}-provision:latest
         pod: "{{ kubeinit_deployment_pod_name }}"
         state: stopped
         cap_add:

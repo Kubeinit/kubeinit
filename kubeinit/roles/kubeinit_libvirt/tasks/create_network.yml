@@ -182,53 +182,65 @@
   delegate_to: "{{ ovn_host }}"
   when: hostvars[ovn_host].firewalld_is_active
 
-- name: Enable and start OVN services in the ovn-central hypervisor (CentOS based)
-  ansible.builtin.service:
-    name: "{{ item }}"
-    state: restarted
-    enabled: yes
-  loop:
-    - openvswitch
-    - ovn-northd
-    - ovn-controller
+- name: Only restart if this is the only cluster network
+  block:
+
+    - name: Enable and start OVN services in the ovn-central hypervisor (CentOS based)
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: restarted
+        enabled: yes
+      loop:
+        - openvswitch
+        - ovn-northd
+        - ovn-controller
+      delegate_to: "{{ kubeinit_ovn_central_host }}"
+      when: hostvars[kubeinit_ovn_central_host].distribution_family != 'Debian'
+
+    - name: Enable and start OVN services in the rest of the hypervisors (CentOS based)
+      ansible.builtin.service:
+        name: "{{ service_name }}"
+        state: restarted
+        enabled: yes
+      loop: "{{ kubeinit_other_ovn_hosts | default([]) | product(['openvswitch', 'ovn-controller']) }}"
+      vars:
+        ovn_host: "{{ item[0] }}"
+        service_name: "{{ item[1] }}"
+      delegate_to: "{{ ovn_host }}"
+      when: hostvars[ovn_host].distribution_family != 'Debian'
+
+    - name: Enable and start OVN services in the ovn-central hypervisor (Ubuntu based)
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: restarted
+        enabled: yes
+      loop:
+        - ovs-vswitchd
+        - ovn-central
+        - ovn-controller
+      delegate_to: "{{ kubeinit_ovn_central_host }}"
+      when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian'
+
+    - name: Enable and start OVN services in the rest of the hypervisors (Ubuntu based)
+      ansible.builtin.service:
+        name: "{{ service_name }}"
+        state: restarted
+        enabled: yes
+      loop: "{{ kubeinit_other_ovn_hosts | default([]) | product(['ovs-vswitchd', 'ovn-controller']) }}"
+      vars:
+        ovn_host: "{{ item[0] }}"
+        service_name: "{{ item[1] }}"
+      delegate_to: "{{ ovn_host }}"
+      when: hostvars[ovn_host].distribution_family == 'Debian'
+
+  when: kubeinit_destroy_ovn_network
+
+- name: Wait for changes to propagate
+  ansible.builtin.command: |
+    /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+  register: _result
+  changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_ovn_central_host }}"
-  when: hostvars[kubeinit_ovn_central_host].distribution_family != 'Debian'
-
-- name: Enable and start OVN services in the rest of the hypervisors (CentOS based)
-  ansible.builtin.service:
-    name: "{{ service_name }}"
-    state: restarted
-    enabled: yes
-  loop: "{{ kubeinit_other_ovn_hosts | default([]) | product(['openvswitch', 'ovn-controller']) }}"
-  vars:
-    ovn_host: "{{ item[0] }}"
-    service_name: "{{ item[1] }}"
-  delegate_to: "{{ ovn_host }}"
-  when: hostvars[ovn_host].distribution_family != 'Debian'
-
-- name: Enable and start OVN services in the ovn-central hypervisor (Ubuntu based)
-  ansible.builtin.service:
-    name: "{{ item }}"
-    state: restarted
-    enabled: yes
-  loop:
-    - ovs-vswitchd
-    - ovn-central
-    - ovn-controller
-  delegate_to: "{{ kubeinit_ovn_central_host }}"
-  when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian'
-
-- name: Enable and start OVN services in the rest of the hypervisors (Ubuntu based)
-  ansible.builtin.service:
-    name: "{{ service_name }}"
-    state: restarted
-    enabled: yes
-  loop: "{{ kubeinit_other_ovn_hosts | default([]) | product(['ovs-vswitchd', 'ovn-controller']) }}"
-  vars:
-    ovn_host: "{{ item[0] }}"
-    service_name: "{{ item[1] }}"
-  delegate_to: "{{ ovn_host }}"
-  when: hostvars[ovn_host].distribution_family == 'Debian'
 
 - name: Configure OVS on the Hypervisors
   ansible.builtin.shell: |
@@ -252,6 +264,14 @@
   loop_control:
     loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
+  when: kubeinit_destroy_ovn_network
+
+- name: Wait for changes to propagate
+  ansible.builtin.command: |
+    /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_ovn_central_host }}"
 
 #
 # OVN post deployment configuration steps.
@@ -268,6 +288,13 @@
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
+      when: kubeinit_destroy_ovn_network
+
+    - name: Wait for changes to propagate
+      ansible.builtin.command: |
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+      register: _result
+      changed_when: "_result.rc == 0"
 
     #
     # We create the OVN switch that will be bound to each chassis (hypervisor)
@@ -278,28 +305,39 @@
         #
         # Create a logical switch
         #
-        /usr/bin/ovn-nbctl ls-del sw0
-        /usr/bin/ovn-nbctl --wait=hv ls-add sw0
+        /usr/bin/ovn-nbctl ls-del sw-{{ kubeinit_cluster_name }}
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time ls-add sw-{{ kubeinit_cluster_name }}
       args:
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
-      when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+    - name: Wait for changes to propagate
+      ansible.builtin.command: |
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Create OVS/OVN bindings for the VMs ports
       ansible.builtin.shell: |
         #
         # We create an OVN port using the interface ID and the mac address of the VM
         #
-        /usr/bin/ovn-nbctl --wait=hv lsp-add sw0 {{ hostvars[item].interfaceid }}
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lsp-add sw-{{ kubeinit_cluster_name }} {{ hostvars[item].interfaceid }}
         #
         # The port name is the interface id of the VM, now we assign the mac address of the VM to the port
         #
-        /usr/bin/ovn-nbctl --wait=sb lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
-        /usr/bin/ovn-nbctl --wait=sb lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
+        /usr/bin/ovn-nbctl --wait=sb --wait=sb --timeout=30 --print-wait-time lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
+        /usr/bin/ovn-nbctl --wait=sb --wait=sb --timeout=30 --print-wait-time lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
       args:
         executable: /bin/bash
       loop: "{{ groups['all_nodes'] }}"
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Wait for changes to propagate
+      ansible.builtin.command: |
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -308,25 +346,20 @@
         #
         # Create a logical router to connect the VMs switch
         #
-        /usr/bin/ovn-nbctl --wait=hv lr-add lr0
-        /usr/bin/ovn-nbctl --wait=hv lrp-add lr0 lr0-sw0 00:00:00:65:77:09 {{ kubeinit_cluster_gateway }}/{{ kubeinit_cluster_prefix }}
-        /usr/bin/ovn-nbctl --wait=hv lsp-add sw0 sw0-lr0
-        /usr/bin/ovn-nbctl lsp-set-type sw0-lr0 router
-        /usr/bin/ovn-nbctl lsp-set-addresses sw0-lr0 router
-        /usr/bin/ovn-nbctl lsp-set-options sw0-lr0 router-port=lr0-sw0
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lr-add lr0
         #
         # We create the external access switch
         #
-        /usr/bin/ovn-nbctl --wait=hv ls-add public
-        /usr/bin/ovn-nbctl --wait=hv lrp-add lr0 lr0-public 00:00:20:20:12:13 172.16.0.1/24
-        /usr/bin/ovn-nbctl --wait=hv lsp-add public public-lr0
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time ls-add public
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lrp-add lr0 lr0-public {{ '00:00:20' | community.general.random_mac }} 172.16.0.1/24
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lsp-add public public-lr0
         /usr/bin/ovn-nbctl lsp-set-type public-lr0 router
         /usr/bin/ovn-nbctl lsp-set-addresses public-lr0 router
         /usr/bin/ovn-nbctl lsp-set-options public-lr0 router-port=lr0-public
         #
         # Create a localnet port
         #
-        /usr/bin/ovn-nbctl --wait=hv lsp-add public public-ln
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lsp-add public public-ln
         /usr/bin/ovn-nbctl lsp-set-type public-ln localnet
         /usr/bin/ovn-nbctl lsp-set-addresses public-ln unknown
         /usr/bin/ovn-nbctl lsp-set-options public-ln network_name=provider
@@ -351,8 +384,6 @@
         #
         # Routes
         #
-        # Connectivity from the host to the guest machines
-        ip route add {{ kubeinit_cluster_network }} via 172.16.0.1 dev br-ex
         # Connectivity to external/additional networks
         /usr/bin/ovn-nbctl lr-route-add lr0 0.0.0.0/0 172.16.0.254
         #
@@ -361,6 +392,39 @@
         sysctl net.ipv4.conf.all.rp_filter=2
       args:
         executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: kubeinit_destroy_ovn_network
+
+    - name: Wait for changes to propagate
+      ansible.builtin.command: |
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Attach our cluster network to the logical router
+      ansible.builtin.shell: |
+        #
+        # Create a logical router to connect the VMs switch
+        #
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lrp-add lr0 lr0-sw-{{ kubeinit_cluster_name }} {{ '00:00:00' | community.general.random_mac }} {{ kubeinit_cluster_gateway }}/{{ kubeinit_cluster_prefix }}
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lsp-add sw-{{ kubeinit_cluster_name }} sw-{{ kubeinit_cluster_name }}-lr0
+        /usr/bin/ovn-nbctl lsp-set-type sw-{{ kubeinit_cluster_name }}-lr0 router
+        /usr/bin/ovn-nbctl lsp-set-addresses sw-{{ kubeinit_cluster_name }}-lr0 router
+        /usr/bin/ovn-nbctl lsp-set-options sw-{{ kubeinit_cluster_name }}-lr0 router-port=lr0-sw-{{ kubeinit_cluster_name }}
+        #
+        # Routes
+        #
+        # Connectivity from the host to the guest machines
+        ip route add {{ kubeinit_cluster_network }} via 172.16.0.1 dev br-ex
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Wait for changes to propagate
+      ansible.builtin.command: |
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -426,7 +490,6 @@
   loop_control:
     loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 - name: Activate KubeInit networks
   community.libvirt.virt_net:
@@ -436,7 +499,6 @@
   loop_control:
     loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 - name: Autostart KubeInit networks
   community.libvirt.virt_net:
@@ -446,7 +508,6 @@
   loop_control:
     loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
 
 - block:
     - name: Add task-create-network to tasks_completed

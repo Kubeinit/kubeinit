@@ -57,6 +57,18 @@
     state: absent
   loop: "{{ kubeinit_cluster_hostvars.node_aliases }}"
 
+- name: Reset ssh keys in hypervisors
+  ansible.builtin.known_hosts:
+    name: "{{ node_alias }}"
+    state: absent
+  loop: "{{ groups['all_hosts'] | product(kubeinit_cluster_hostvars.node_aliases | flatten | unique) }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item[0] }}"
+    node_alias: "{{ cluster_role_item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+
 - name: Remove any existing ssh tunnels on bastion host
   ansible.builtin.shell: |
     set -eo pipefail
