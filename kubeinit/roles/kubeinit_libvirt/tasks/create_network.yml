@@ -237,7 +237,7 @@
 
 - name: Wait for changes to propagate
   ansible.builtin.command: |
-    /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+    /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 sync
   register: _result
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_ovn_central_host }}"
@@ -268,7 +268,7 @@
 
 - name: Wait for changes to propagate
   ansible.builtin.command: |
-    /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+    /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 sync
   register: _result
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_ovn_central_host }}"
@@ -292,7 +292,7 @@
 
     - name: Wait for changes to propagate
       ansible.builtin.command: |
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 sync
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -306,7 +306,7 @@
         # Create a logical switch
         #
         /usr/bin/ovn-nbctl ls-del sw-{{ kubeinit_cluster_name }}
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time ls-add sw-{{ kubeinit_cluster_name }}
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 ls-add sw-{{ kubeinit_cluster_name }}
       args:
         executable: /bin/bash
       register: _result
@@ -314,7 +314,7 @@
 
     - name: Wait for changes to propagate
       ansible.builtin.command: |
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 sync
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -323,12 +323,12 @@
         #
         # We create an OVN port using the interface ID and the mac address of the VM
         #
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lsp-add sw-{{ kubeinit_cluster_name }} {{ hostvars[item].interfaceid }}
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 lsp-add sw-{{ kubeinit_cluster_name }} {{ hostvars[item].interfaceid }}
         #
         # The port name is the interface id of the VM, now we assign the mac address of the VM to the port
         #
-        /usr/bin/ovn-nbctl --wait=sb --wait=sb --timeout=30 --print-wait-time lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
-        /usr/bin/ovn-nbctl --wait=sb --wait=sb --timeout=30 --print-wait-time lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
+        /usr/bin/ovn-nbctl --wait=sb --wait=sb --timeout=30 lsp-set-addresses {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
+        /usr/bin/ovn-nbctl --wait=sb --wait=sb --timeout=30 lsp-set-port-security {{ hostvars[item].interfaceid }} "{{ hostvars[item].mac }} {{ hostvars[item].ansible_host }}"
       args:
         executable: /bin/bash
       loop: "{{ groups['all_nodes'] }}"
@@ -337,7 +337,7 @@
 
     - name: Wait for changes to propagate
       ansible.builtin.command: |
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 sync
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -346,20 +346,20 @@
         #
         # Create a logical router to connect the VMs switch
         #
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lr-add lr0
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 lr-add lr0
         #
         # We create the external access switch
         #
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time ls-add public
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lrp-add lr0 lr0-public {{ '00:00:20' | community.general.random_mac }} 172.16.0.1/24
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lsp-add public public-lr0
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 ls-add public
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 lrp-add lr0 lr0-public {{ '00:00:20' | community.general.random_mac }} 172.16.0.1/24
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 lsp-add public public-lr0
         /usr/bin/ovn-nbctl lsp-set-type public-lr0 router
         /usr/bin/ovn-nbctl lsp-set-addresses public-lr0 router
         /usr/bin/ovn-nbctl lsp-set-options public-lr0 router-port=lr0-public
         #
         # Create a localnet port
         #
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lsp-add public public-ln
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 lsp-add public public-ln
         /usr/bin/ovn-nbctl lsp-set-type public-ln localnet
         /usr/bin/ovn-nbctl lsp-set-addresses public-ln unknown
         /usr/bin/ovn-nbctl lsp-set-options public-ln network_name=provider
@@ -398,7 +398,7 @@
 
     - name: Wait for changes to propagate
       ansible.builtin.command: |
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 sync
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -407,8 +407,8 @@
         #
         # Create a logical router to connect the VMs switch
         #
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lrp-add lr0 lr0-sw-{{ kubeinit_cluster_name }} {{ '00:00:00' | community.general.random_mac }} {{ kubeinit_cluster_gateway }}/{{ kubeinit_cluster_prefix }}
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time lsp-add sw-{{ kubeinit_cluster_name }} sw-{{ kubeinit_cluster_name }}-lr0
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 lrp-add lr0 lr0-sw-{{ kubeinit_cluster_name }} {{ '00:00:00' | community.general.random_mac }} {{ kubeinit_cluster_gateway }}/{{ kubeinit_cluster_prefix }}
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 lsp-add sw-{{ kubeinit_cluster_name }} sw-{{ kubeinit_cluster_name }}-lr0
         /usr/bin/ovn-nbctl lsp-set-type sw-{{ kubeinit_cluster_name }}-lr0 router
         /usr/bin/ovn-nbctl lsp-set-addresses sw-{{ kubeinit_cluster_name }}-lr0 router
         /usr/bin/ovn-nbctl lsp-set-options sw-{{ kubeinit_cluster_name }}-lr0 router-port=lr0-sw-{{ kubeinit_cluster_name }}
@@ -424,7 +424,7 @@
 
     - name: Wait for changes to propagate
       ansible.builtin.command: |
-        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 --print-wait-time sync
+        /usr/bin/ovn-nbctl --wait=hv --wait=sb --timeout=30 sync
       register: _result
       changed_when: "_result.rc == 0"
 
