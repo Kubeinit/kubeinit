@@ -42,6 +42,19 @@ if [[ "$REPOSITORY" == "kubeinit/kubeinit" ]]; then
     REPOSITORY="${KUBEINIT_MAIN_CI_REPOSITORY}"
 fi
 
+if [ -f /etc/redhat-release ]; then
+    OS_VERSION=$(cat /etc/redhat-release)
+elif [ -f /etc/fedora-release ]; then
+    OS_VERSION=$(cat /etc/fedora-release)
+elif [ -f /etc/debian_version ]; then
+    OS_VERSION=$(cat /etc/debian_version)
+elif [ -f /etc/lsb-release ]; then
+    OS_VERSION=$(cat /etc/lsb-release)
+else
+    OS_VERSION="Unknown"
+fi
+
+echo "(launch_e2e.sh) ==> Hosts OS $OS_VERSION"
 echo "(launch_e2e.sh) ==> The repository is $REPOSITORY"
 echo "(launch_e2e.sh) ==> The branch is $BRANCH_NAME"
 echo "(launch_e2e.sh) ==> The pull request is $PULL_REQUEST"
@@ -50,7 +63,6 @@ echo "(launch_e2e.sh) ==> The driver is $DRIVER"
 echo "(launch_e2e.sh) ==> The amount of master nodes is $MASTERS"
 echo "(launch_e2e.sh) ==> The amount of worker nodes is $WORKERS"
 echo "(launch_e2e.sh) ==> The amount of hypervisors is $HYPERVISORS"
-echo "(launch_e2e.sh) ==> The services type is $SERVICES_TYPE"
 echo "(launch_e2e.sh) ==> The job type is $JOB_TYPE"
 echo "(launch_e2e.sh) ==> The ansible will be launched from $LAUNCH_FROM"
 echo "(launch_e2e.sh) ==> The ansible verbosity is $KUBEINIT_ANSIBLE_VERBOSITY"
@@ -196,6 +208,7 @@ fi
 
 kubeinit -b > ./kubeinit/aux_info_file.txt
 echo "" >> ./kubeinit/aux_info_file.txt
+echo "(launch_e2e.sh) ==> Hosts OS: ${OS_VERSION}" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> Date: $(date +"%Y.%m.%d.%H.%M.%S")" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> Kubeinit agent/cli version: $(kubeinit -v) " >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The repository is: ${REPOSITORY}" >> ./kubeinit/aux_info_file.txt
