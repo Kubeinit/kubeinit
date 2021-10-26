@@ -81,6 +81,16 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     if ! rpm -qa | grep gitlab-runner; then
         sudo rpm -ivh --replacepkgs gitlab-runner_amd64.rpm
     fi
+
+    echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+    sysctl -p
+fi
+
+if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
+    # Debian or Ubuntu
+    echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+    sysctl -p
 fi
 
 # Make sure ansible is removed
@@ -148,4 +158,11 @@ sudo gitlab-runner register --non-interactive \
 sudo gitlab-runner start
 
 sudo sed -i 's/enforcing/disabled/g' /etc/selinux/config /etc/selinux/config
+
+echo "-----------------------------------------------------------"
+echo "| Make sure IPv6 is disabled in all the other hypervisors |"
+echo "| also disable selinux everywhere                         |"
+echo "| if this is a cluster deployed in multiple hosts         |"
+echo "-----------------------------------------------------------"
+
 sudo reboot
