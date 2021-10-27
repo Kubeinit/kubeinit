@@ -47,11 +47,20 @@ if [ -f /etc/redhat-release ]; then
 elif [ -f /etc/fedora-release ]; then
     OS_VERSION=$(cat /etc/fedora-release)
 elif [ -f /etc/debian_version ]; then
-    OS_VERSION=$(cat /etc/debian_version)
+    OS_VERSION="Debian $(cat /etc/debian_version)"
 elif [ -f /etc/lsb-release ]; then
-    OS_VERSION=$(cat /etc/lsb-release)
+    source /etc/lsb-release
+    OS_VERSION=${DISTRIB_DESCRIPTION}
 else
     OS_VERSION="Unknown"
+fi
+
+#
+# For the multinode deployment we only support a 2 nodes cluster
+#
+if [[ "$HYPERVISORS" != "1" && "$HYPERVISORS" != "2" ]]; then
+    echo "(launch_e2e.sh) ==> We only support 1 and 2 nodes clusters"
+    exit 1
 fi
 
 echo "(launch_e2e.sh) ==> Hosts OS $OS_VERSION"
@@ -167,6 +176,15 @@ podman exec -it api-server /bin/bash -c "ara-manage migrate"
 #
 # End ARA configuration
 #
+
+# #
+# # Adjust the inventory
+# #
+# # This is dinamically alocated based on the spec string
+# if [[ "$HYPERVISORS" == "2" ]]; then
+#     # We enable the other HV
+#     sed -i -e "/# hypervisor-02 ansible_host=tyto/ s/# //g" kubeinit/inventory
+# fi
 
 #
 # Install the CLI/agent

@@ -87,6 +87,8 @@ def main(cluster_type, job_type):
                 labels = [item.name for item in pr.labels]
                 sha = pr.head.sha
                 execute = False
+                print("'launch_e2e.py' ==> The current labels in PR: " + str(pr.number) + " are:")
+                print(labels)
                 for label in labels:
                     # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
                     if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-" + c_type + "-[c|h]", label):
@@ -176,7 +178,11 @@ def main(cluster_type, job_type):
                         exit(1)
                 else:
                     print("'launch_e2e.py' ==> No need to do anything")
-                    exit()
+                    print("'launch_e2e.py' ==> Trying another PR...")
+                    # We can not have exit() here, in that case we will be
+                    # checking only the first PR, if the first PR do not have
+                    # the labels, then we need to check the next one until we find a
+                    # PR with the labels.
 
     #
     # KubeInit's periodic job check
