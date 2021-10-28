@@ -14,32 +14,36 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Install podman if it is not already installed
-  block:
+#
+# We should already have podman in all the distros we use.
+#
 
-    - name: Add kubic repo for latest podman (Debian)
-      ansible.builtin.shell: |
-        set -eo pipefail
-        version_id=$(sed -n -e 's/^VERSION_ID="\(.*\)"/\1/p' /etc/os-release)
-        echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_${version_id}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-        curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_${version_id}/Release.key" | apt-key add -
-        apt-get update
-      args:
-        executable: /bin/bash
-      when: hostvars[kubeinit_deployment_delegate].os == 'debian'
-
-    - name: Add kubic repo for latest podman (Ubuntu)
-      ansible.builtin.shell: |
-        set -eo pipefail
-        version_id=$(sed -n -e 's/^VERSION_ID="\(.*\)"/\1/p' /etc/os-release)
-        echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-        curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/Release.key" | apt-key add -
-        apt-get update
-      args:
-        executable: /bin/bash
-      when: hostvars[kubeinit_deployment_delegate].os == 'ubuntu'
-
-  when: not hostvars[kubeinit_deployment_delegate].podman_is_installed
+# - name: Install podman if it is not already installed
+#   block:
+#
+#     - name: Add kubic repo for latest podman (Debian)
+#       ansible.builtin.shell: |
+#         set -eo pipefail
+#         version_id=$(sed -n -e 's/^VERSION_ID="\(.*\)"/\1/p' /etc/os-release)
+#         echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_${version_id}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+#         curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_${version_id}/Release.key" | apt-key add -
+#         apt-get update
+#       args:
+#         executable: /bin/bash
+#       when: hostvars[kubeinit_deployment_delegate].os == 'debian'
+#
+#     - name: Add kubic repo for latest podman (Ubuntu)
+#       ansible.builtin.shell: |
+#         set -eo pipefail
+#         version_id=$(sed -n -e 's/^VERSION_ID="\(.*\)"/\1/p' /etc/os-release)
+#         echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+#         curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/Release.key" | apt-key add -
+#         apt-get update
+#       args:
+#         executable: /bin/bash
+#       when: hostvars[kubeinit_deployment_delegate].os == 'ubuntu'
+#
+#   when: not hostvars[kubeinit_deployment_delegate].podman_is_installed
 
 - name: Install common requirements
   ansible.builtin.package:
