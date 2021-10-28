@@ -211,6 +211,12 @@ gitlab-runner register --non-interactive \
 
 gitlab-runner start
 
+echo "-----------------------------------------------------------------"
+echo "| Make sure the inventory hosts are reached not using 127.0.0.1 |"
+echo "| instead by the node FQDN or the external IP address of the    |"
+echo "| machines                                                      |"
+echo "-----------------------------------------------------------------"
+
 echo "-----------------------------------------------------------"
 echo "| Make sure IPv6 is disabled in all the other hypervisors |"
 echo "| also disable selinux everywhere                         |"
