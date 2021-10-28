@@ -14,6 +14,18 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Add the Podman Ubuntu package repository to Apt
+  ansible.builtin.shell: |
+    set -eo pipefail
+    version_id=$(sed -n -e 's/^VERSION_ID="\(.*\)"/\1/p' /etc/os-release)
+    echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+    curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${version_id}/Release.key" | apt-key add -
+    apt-get update
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+
 - name: Prepare podman
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_prepare
