@@ -34,43 +34,87 @@ if [[ -z "${GITLAB_CI_CLUSTER_TYPE}" ]]; then
     echo "Exiting..."
     exit 1
 fi
+if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root"
+    echo "Exiting..."
+    exit 1
+fi
+
+# Check disk free space
+if [ -d "/home/libvirt" ]; then
+    file_space="/home/libvirt"
+elif [ -d "/var/lib/libvirt" ]; then
+    file_space="/var/lib/libvirt"
+else
+    file_space="/var/lib/"
+fi
+dspace=$(df -BG ${file_space} | \
+    jq -R -s '
+        split("\n") |
+        .[] |
+        if test("^/") then
+            gsub(" +"; " ") | split(" ") | {mount: .[0], spacetotal: .[1], spaceused: .[2], spaceavail: .[3]}
+        else
+            empty
+        end
+    ' | jq .spaceavail | tr -d '"')
+
+dspaceint=$(echo $dspace | sed 's/G//')
+dspacereq="250"
+if [ "$dspaceint" -gt "$dspacereq" ]; then
+    echo "There is enough disk space"
+else
+    echo "There is not enough disk space, at least $dspacereq"
+    echo "Check the space in $file_space"
+    df -h
+    echo "If /home has all the space..."
+    echo "Try: mv /var/lib/libvirt /home/"
+    echo "     mkdir -p /home/libvirt/"
+    echo "     ln -sf /home/libvirt/ /var/lib/libvirt"
+    echo "Exiting..."
+    exit 1
+fi
 
 GITLAB_CI_HOST_NAME=$(hostname)
+
+#
+# Make sure there is no IPv6
+#
+echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.conf
+sysctl -p
 
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     # Fedora or CentOS or RHEL
     touch /etc/redhat-release
     touch /etc/fedora-release
-    sudo yum update -y
+    yum update -y
 
     if grep -q Fedora "/etc/fedora-release";
     then
-        sudo yum groupinstall "Virtualization" -y
+        yum groupinstall "Virtualization" -y
     else
-        sudo yum groupinstall "Virtualization Host" -y
+        yum groupinstall "Virtualization Host" -y
     fi
 
     # Common requirements
-    sudo yum install git lvm2 -y
-    sudo yum install python3-libvirt python3-lxml libvirt -y
-    sudo yum install python3 python3-pip -y
-    sudo yum install nano git podman -y
-
-    # Configure git with some mock data
-    git config --global user.email "bot@kubeinit.org"
-    git config --global user.name "kubeinit-bot"
+    yum install git lvm2 -y
+    yum install python3-libvirt python3-lxml libvirt -y
+    yum install python3 python3-pip -y
+    yum install nano git podman -y
+    sed -i 's/enforcing/disabled/g' /etc/selinux/config /etc/selinux/config
 
     # ARA required packages
-    sudo yum install gcc python3-devel libffi-devel openssl-devel redhat-rpm-config -y
-    sudo yum install sqlite -y
+    yum install gcc python3-devel libffi-devel openssl-devel redhat-rpm-config -y
+    yum install sqlite -y
     # We might try in the future to move to MySQL insteadof sqlite
-    # sudo yum install mysql-server mysql-common mysql-devel mysql-libs python3-PyMySQL -y
+    # yum install mysql-server mysql-common mysql-devel mysql-libs python3-PyMySQL -y
     # pip3 install mysqlclient
     # Make sure that NOBODY can access the server without a password
     # mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'password'; FLUSH PRIVILEGES;"
     # Any subsequent tries to run queries this way will get access denied because lack of usr/pwd param
-    # sudo systemctl start mysqld
-    # sudo systemctl status mysqld
+    # systemctl start mysqld
+    # systemctl status mysqld
 
     # mysql -u root -ppassword -e "DROP DATABASE ara;"
     # mysql -u root -ppassword -e "CREATE DATABASE ara;"
@@ -79,26 +123,38 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     curl -LJO https://gitlab-runner-downloads.s3.amazonaws.com/latest/rpm/gitlab-runner_amd64.rpm
 
     if ! rpm -qa | grep gitlab-runner; then
-        sudo rpm -ivh --replacepkgs gitlab-runner_amd64.rpm
+        rpm -ivh --replacepkgs gitlab-runner_amd64.rpm
     fi
-
-    echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
-    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
-    sysctl -p
 fi
 
-if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
-    # Debian or Ubuntu
-    echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
-    sysctl -p
+if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
+    # Virtualization dependencies
+    apt-get install -y qemu-kvm libvirt-daemon  bridge-utils virtinst libvirt-daemon-system
+
+    apt-get install -y liberror-perl git-man git
+    apt-get install -y podman python3-pip sudo python3-lxml curl git
+
+    # ARA dependencies
+    apt-get install -y build-essential python3-dev sqlite3
+
+    # Install GitLab runner binary
+    curl -LJO "https://gitlab-runner-downloads.s3.amazonaws.com/latest/deb/gitlab-runner_amd64.deb"
+    dpkg -i gitlab-runner_amd64.deb
+
 fi
+
+# Configure git with the bot account
+git config --global user.email "bot@kubeinit.org"
+git config --global user.name "kubeinit-bot"
 
 # Make sure ansible is removed
 if command -v ansible; then
     apath=$(python3 -m pip show ansible | grep Location | awk '{ print $2 }')
     python3 -m pip uninstall ansible -y
-    sudo rm -rf "$apath/ansible*"
+    rm -rf "$apath/ansible*"
 fi
+
+python3 -m pip install --ignore-installed PyYAML
 
 # Install dependencies
 python3 -m pip install \
@@ -119,9 +175,9 @@ python3 -m pip install \
 # Install and configure ara
 # There are problems with multithread ara, we keep the last
 # single thread version
-# sudo python3 -m pip install --upgrade "ara[server]"==1.5.6
+# python3 -m pip install --upgrade "ara[server]"==1.5.6
 # we run the server (api-server) in a pod so we dont need to install it anymore
-sudo python3 -m pip install --upgrade ara
+python3 -m pip install --upgrade ara
 
 mkdir -p ~/.ssh
 touch ~/.ssh/config
@@ -133,20 +189,18 @@ echo "Host nyctea" > ~/.ssh/config
 echo "  Hostname $(hostname)" >> ~/.ssh/config
 ssh -oStrictHostKeyChecking=no root@nyctea uptime
 
-mv /var/lib/libvirt /home/
-sudo mkdir -p /home/libvirt/
-sudo ln -sf /home/libvirt/ /var/lib/libvirt
+echo "nyctea" > /etc/hostname
 
-echo "gitlab-runner:gitlab-runner" | sudo chpasswd
+echo "gitlab-runner:gitlab-runner" | chpasswd
 echo "gitlab-runner ALL=(root) NOPASSWD:ALL" \
-    | sudo tee /etc/sudoers.d/gitlab-runner
-sudo chmod 0440 /etc/sudoers.d/gitlab-runner
+    | tee /etc/sudoers.d/gitlab-runner
+chmod 0440 /etc/sudoers.d/gitlab-runner
 
 # We run the uninstall as is running under the gitlab-runner user
-sudo gitlab-runner uninstall
-sudo gitlab-runner install --user root
+gitlab-runner uninstall
+gitlab-runner install --user root
 
-sudo gitlab-runner register --non-interactive \
+gitlab-runner register --non-interactive \
                             --url https://gitlab.com/ \
                             --registration-token ${GITLAB_CI_TOKEN} \
                             --executor shell \
@@ -155,9 +209,7 @@ sudo gitlab-runner register --non-interactive \
                             --docker-pull-policy always \
                             --tag-list kubeinit-ci-${GITLAB_CI_CLUSTER_TYPE}
 
-sudo gitlab-runner start
-
-sudo sed -i 's/enforcing/disabled/g' /etc/selinux/config /etc/selinux/config
+gitlab-runner start
 
 echo "-----------------------------------------------------------"
 echo "| Make sure IPv6 is disabled in all the other hypervisors |"
@@ -165,4 +217,5 @@ echo "| also disable selinux everywhere                         |"
 echo "| if this is a cluster deployed in multiple hosts         |"
 echo "-----------------------------------------------------------"
 
-sudo reboot
+echo "Reboot this machine now!!!!!"
+echo "reboot"
