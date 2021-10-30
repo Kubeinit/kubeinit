@@ -17,19 +17,108 @@
 #
 # Cleanup OVN network
 #
-- name: Clean OVN/OVS resources
-  ansible.builtin.shell: |
-    set -o pipefail
-    ip route del {{ kubeinit_cluster_network }} via 172.16.0.1 dev br-ex || true
-    /usr/bin/ovn-nbctl --if-exists ls-del sw0 || true
-    /usr/bin/ovn-nbctl --if-exists lr-del lr0 || true
-    /usr/bin/ovn-nbctl --if-exists ls-del public || true
-    /usr/bin/ovs-vsctl --if-exists del-br br-int || true
-    /usr/bin/ovs-vsctl --if-exists del-br br-ex || true
-    ip link del genev_sys_6081 || true
-    ovs-dpctl del-dp ovs-system || true
-  args:
-    executable: /bin/bash
+
+- name: Clean OVN/OVS resources (route)
+  ansible.builtin.command: ip route del {{ kubeinit_cluster_network }} via 172.16.0.1 dev br-ex
+  ignore_errors: true
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Clean OVN/OVS resources (sw0)
+  ansible.builtin.command: /usr/bin/ovn-nbctl --if-exists ls-del sw0
+  ignore_errors: true
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Clean OVN/OVS resources (lr0)
+  ansible.builtin.command: /usr/bin/ovn-nbctl --if-exists lr-del lr0
+  ignore_errors: true
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Clean OVN/OVS resources (public)
+  ansible.builtin.command: /usr/bin/ovn-nbctl --if-exists ls-del public
+  ignore_errors: true
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Clean OVN/OVS resources (br-int)
+  openvswitch.openvswitch.openvswitch_bridge:
+    bridge: br-int
+    state: absent
+  ignore_errors: true
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Clean OVN/OVS resources (br-ex)
+  openvswitch.openvswitch.openvswitch_bridge:
+    bridge: br-ex
+    state: absent
+  ignore_errors: true
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Clean OVN/OVS resources (genev_sys_6081)
+  ansible.builtin.command: ip link del genev_sys_6081
+  ignore_errors: true
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: cluster_role_item
+  vars:
+    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  when: >
+    kubeinit_libvirt_destroy_nets|bool and not kubeinit_libvirt_multicluster_keep_predefined_networks
+
+- name: Clean OVN/OVS resources (ovs-system)
+  ansible.builtin.command: ovs-dpctl del-dp ovs-system
+  ignore_errors: true
   register: _result
   changed_when: "_result.rc == 0"
   loop: "{{ groups['all_hosts'] }}"
