@@ -257,18 +257,21 @@ tee ./playbook_tmp.yml << endoffile
 - name: Record useful files and variables to the deployment
   hosts: localhost
   tasks:
-    # Relative to the kubeinit folder
-    - name: Record deployment extra information
-      ara_record:
-        key: extra_information
-        value: "{{ lookup('file', './aux_info_file.txt') }}"
-        type: text
-
-    - name: Record host file
-      ara_record:
-        key: inventory
-        value: "{{ lookup('file', './inventory') }}"
-        type: text
+    - name: Debug message
+      ansible.builtin.debug:
+        msg: "This is a simple test"
+    # # Relative to the kubeinit folder
+    # - name: Record deployment extra information
+    #   ara_record:
+    #     key: extra_information
+    #     value: "{{ lookup('file', './aux_info_file.txt') }}"
+    #     type: text
+    #
+    # - name: Record host file
+    #   ara_record:
+    #     key: inventory
+    #     value: "{{ lookup('file', './inventory') }}"
+    #     type: text
 
 endoffile
 
