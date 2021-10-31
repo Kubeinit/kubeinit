@@ -40,6 +40,13 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
+if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
+    yum install -y jq
+fi
+if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
+    apt-get install -y jq
+fi
+
 # Check disk free space
 if [ -d "/home/libvirt" ]; then
     file_space="/home/libvirt"
@@ -78,46 +85,35 @@ fi
 GITLAB_CI_HOST_NAME=$(hostname)
 
 #
+# SSH access
+#
+
+mkdir -p ~/.ssh
+touch ~/.ssh/config
+ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa <<< n || true
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+INGRESS_IP=$(ip route get "8.8.8.8" | grep -Po '(?<=(src )).*(?= uid)')
+echo "${INGRESS_IP}    nyctea" >> /etc/hosts
+echo "nyctea" > /etc/hostname
+
+#
 # Make sure there is no IPv6
 #
 echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
 echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.conf
 sysctl -p
 
+#
+# FIXME:TODO: Include the prepare podman playbook instead of
+# installing packages directly
+#
+
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
-    # Fedora or CentOS or RHEL
-    touch /etc/redhat-release
-    touch /etc/fedora-release
-    yum update -y
-
-    if grep -q Fedora "/etc/fedora-release";
-    then
-        yum groupinstall "Virtualization" -y
-    else
-        yum groupinstall "Virtualization Host" -y
-    fi
-
-    # Common requirements
-    yum install git lvm2 -y
-    yum install python3-libvirt python3-lxml libvirt -y
-    yum install python3 python3-pip -y
-    yum install nano git podman -y
-    sed -i 's/enforcing/disabled/g' /etc/selinux/config /etc/selinux/config
+    yum install -y nano git podman curl python3 python3-pip
 
     # ARA required packages
-    yum install gcc python3-devel libffi-devel openssl-devel redhat-rpm-config -y
-    yum install sqlite -y
-    # We might try in the future to move to MySQL insteadof sqlite
-    # yum install mysql-server mysql-common mysql-devel mysql-libs python3-PyMySQL -y
-    # pip3 install mysqlclient
-    # Make sure that NOBODY can access the server without a password
-    # mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'password'; FLUSH PRIVILEGES;"
-    # Any subsequent tries to run queries this way will get access denied because lack of usr/pwd param
-    # systemctl start mysqld
-    # systemctl status mysqld
-
-    # mysql -u root -ppassword -e "DROP DATABASE ara;"
-    # mysql -u root -ppassword -e "CREATE DATABASE ara;"
+    yum install -y gcc python3-devel libffi-devel openssl-devel redhat-rpm-config
+    yum install -y sqlite
 
     # Install GitLab runner binary
     curl -LJO https://gitlab-runner-downloads.s3.amazonaws.com/latest/rpm/gitlab-runner_amd64.rpm
@@ -128,14 +124,11 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
 fi
 
 if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
-    # Virtualization dependencies
-    apt-get install -y qemu-kvm libvirt-daemon  bridge-utils virtinst libvirt-daemon-system
-
-    apt-get install -y liberror-perl git-man git
-    apt-get install -y podman python3-pip sudo python3-lxml curl git
+    apt-get install -y nano git podman curl python3 python3-pip
 
     # ARA dependencies
-    apt-get install -y build-essential python3-dev sqlite3
+    apt-get install -y build-essential python3-dev
+    apt-get install -y sqlite3
 
     # Install GitLab runner binary
     curl -LJO "https://gitlab-runner-downloads.s3.amazonaws.com/latest/deb/gitlab-runner_amd64.deb"
@@ -144,6 +137,7 @@ if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
 fi
 
 # Configure git with the bot account
+git config --global init.defaultBranch main
 git config --global user.email "bot@kubeinit.org"
 git config --global user.name "kubeinit-bot"
 
@@ -179,37 +173,34 @@ python3 -m pip install \
 # we run the server (api-server) in a pod so we dont need to install it anymore
 python3 -m pip install --upgrade ara
 
-mkdir -p ~/.ssh
-touch ~/.ssh/config
-
-# In the case the key already exists we wont overwrite it
-ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa <<< n || true
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-echo "Host nyctea" > ~/.ssh/config
-echo "  Hostname $(hostname)" >> ~/.ssh/config
-ssh -oStrictHostKeyChecking=no root@nyctea uptime
-
-echo "nyctea" > /etc/hostname
-
-echo "gitlab-runner:gitlab-runner" | chpasswd
-echo "gitlab-runner ALL=(root) NOPASSWD:ALL" \
-    | tee /etc/sudoers.d/gitlab-runner
-chmod 0440 /etc/sudoers.d/gitlab-runner
-
-# We run the uninstall as is running under the gitlab-runner user
 gitlab-runner uninstall
 gitlab-runner install --user root
 
-gitlab-runner register --non-interactive \
-                            --url https://gitlab.com/ \
-                            --registration-token ${GITLAB_CI_TOKEN} \
-                            --executor shell \
-                            --output-limit 10000 \
-                            --name ${GITLAB_CI_HOST_NAME} \
-                            --docker-pull-policy always \
-                            --tag-list kubeinit-ci-${GITLAB_CI_CLUSTER_TYPE}
+gitlab-runner register \
+    --non-interactive \
+    --url https://gitlab.com/ \
+    --registration-token ${GITLAB_CI_TOKEN} \
+    --executor shell \
+    --output-limit 10000 \
+    --name ${GITLAB_CI_HOST_NAME} \
+    --docker-pull-policy always \
+    --tag-list kubeinit-ci-${GITLAB_CI_CLUSTER_TYPE}
 
 gitlab-runner start
+
+ssh -oStrictHostKeyChecking=no root@nyctea uptime
+
+CONTAINER_RUNTIME=$(podman system info --format=json | jq .host.ociRuntime.name)
+
+echo "-----------------------------------------------------------------"
+echo "| Make sure the container runtime is CRUN                       |"
+echo "| currently is: ${CONTAINER_RUNTIME}                                            |"
+echo "-----------------------------------------------------------------"
+
+if [[ "$CONTAINER_RUNTIME" == "runc" ]]; then
+    echo "****** ERROR:FATAL: Container runtime must be crun ******"
+    echo "****** ERROR:FATAL: Container runtime must be crun ******"
+fi
 
 echo "-----------------------------------------------------------------"
 echo "| Make sure the inventory hosts are reached not using 127.0.0.1 |"
