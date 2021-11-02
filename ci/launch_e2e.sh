@@ -34,7 +34,7 @@ LAUNCH_FROM="${10}"
 
 KUBEINIT_SPEC="${DISTRO}-${DRIVER}-${MASTERS}-${WORKERS}-${HYPERVISORS}-${LAUNCH_FROM}"
 
-KUBEINIT_ANSIBLE_VERBOSITY="${KUBEINIT_ANSIBLE_VERBOSITY:--v}"
+KUBEINIT_ANSIBLE_VERBOSITY="${KUBEINIT_ANSIBLE_VERBOSITY:=v}"
 
 KUBEINIT_MAIN_CI_REPOSITORY="https://github.com/kubeinit/kubeinit.git"
 
@@ -46,14 +46,15 @@ if [ -f /etc/redhat-release ]; then
     OS_VERSION=$(cat /etc/redhat-release)
 elif [ -f /etc/fedora-release ]; then
     OS_VERSION=$(cat /etc/fedora-release)
-elif [ -f /etc/debian_version ]; then
-    OS_VERSION="Debian $(cat /etc/debian_version)"
 elif [ -f /etc/lsb-release ]; then
     source /etc/lsb-release
     OS_VERSION=${DISTRIB_DESCRIPTION}
+elif [ -f /etc/debian_version ]; then
+    OS_VERSION="Debian $(cat /etc/debian_version)"
 else
     OS_VERSION="Unknown"
 fi
+OS_VERSION="${OS_VERSION} - $(uname -a)"
 
 #
 # For the multinode deployment we only support a 2 nodes cluster
@@ -161,8 +162,11 @@ echo "(launch_e2e.sh) ==> Allow queries from anywhere and restart the api-server
 until [ -f ~/.ara/server/settings.yaml ]; do
     sleep 5
 done
-sed -i "s/  - ::1/  - '*'/" ~/.ara/server/settings.yaml
-podman restart api-server
+
+# If we need to make changes to the ara api container
+# we can update the settings.yaml file and restart the container
+# sed -i "s/  - ::1/  - '*'/" ~/.ara/server/settings.yaml
+# podman restart api-server
 
 echo "(launch_e2e.sh) ==> Configuring ara callback ..."
 export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
@@ -189,7 +193,6 @@ podman exec -it api-server /bin/bash -c "ara-manage migrate"
 #
 # Install the CLI/agent
 #
-
 python3 -m pip install -r ./agent/requirements.txt
 KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 
@@ -239,7 +242,7 @@ echo "(launch_e2e.sh) ==> The amount of worker nodes is: ${WORKERS}" >> ./kubein
 echo "(launch_e2e.sh) ==> The amount of hypervisors is: ${HYPERVISORS}" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The job type is: ${JOB_TYPE}" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The ansible deployment will be launched from: ${LAUNCH_FROM}" >> ./kubeinit/aux_info_file.txt
-echo "(launch_e2e.sh) ==> The ansible verbosity level is: -${KUBEINIT_ANSIBLE_VERBOSITY}" >> ./kubeinit/aux_info_file.txt
+echo "(launch_e2e.sh) ==> The ansible verbosity level is: ${KUBEINIT_ANSIBLE_VERBOSITY}" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The job URL: ${CI_JOB_URL}" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The kubeinit spec string is: ${KUBEINIT_SPEC}" >> ./kubeinit/aux_info_file.txt
 
@@ -257,21 +260,18 @@ tee ./playbook_tmp.yml << endoffile
 - name: Record useful files and variables to the deployment
   hosts: localhost
   tasks:
-    - name: Debug message
-      ansible.builtin.debug:
-        msg: "This is a simple test"
-    # # Relative to the kubeinit folder
-    # - name: Record deployment extra information
-    #   ara_record:
-    #     key: extra_information
-    #     value: "{{ lookup('file', './aux_info_file.txt') }}"
-    #     type: text
-    #
-    # - name: Record host file
-    #   ara_record:
-    #     key: inventory
-    #     value: "{{ lookup('file', './inventory') }}"
-    #     type: text
+    # Relative to the kubeinit folder
+    - name: Record deployment extra information
+      ara_record:
+        key: extra_information
+        value: "{{ lookup('file', './aux_info_file.txt') }}"
+        type: text
+
+    - name: Record host file
+      ara_record:
+        key: inventory
+        value: "{{ lookup('file', './inventory') }}"
+        type: text
 
 endoffile
 
@@ -295,73 +295,12 @@ echo "(launch_e2e.sh) ==> Deploying the cluster ..."
 FAILED="0"
 KUBEINIT_SPEC=${KUBEINIT_SPEC//,/$'\n'}
 
-if [[ "$LAUNCH_FROM" == "c" ]]; then
-    # We inject ara in the container in the case we trigger Ansible inside a container
-    # so we can fetch back the results
-    sed -i -E -e "s/python3 -m pip install --no-cache-dir --upgrade/python3 -m pip install --no-cache-dir --upgrade ara/g" Dockerfile
-    #
-    # In case ARA is not logging data, the variable
-    # ANSIBLE_CALLBACK_PLUGINS with the plugin path
-    # /usr/local/lib/python3.6/site-packages/ara/plugins/callback
-    # might changed to another locatin, check this first.
-    #
-    podman build -t kubeinit/kubeinit .
-
-    #
-    # This will deploy a single kubernetes cluster based
-    # on the $KUBEINIT_SPEC variable from a container
-    #
-
-    for SPEC in $KUBEINIT_SPEC; do
-        {
-            podman run --rm -it \
-                --name kubeinit-runner \
-                --pod ara-pod \
-                -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
-                -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
-                -v ~/.ssh/config:/root/.ssh/config:z \
-                -e ARA_API_CLIENT="http" \
-                -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
-                -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
-                -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
-                -e ARA_API_SERVER="http://127.0.0.1:8000" \
-                localhost/kubeinit/kubeinit:latest \
-                    --user root \
-                    -${KUBEINIT_ANSIBLE_VERBOSITY} \
-                    -i ./kubeinit/inventory \
-                    -e kubeinit_spec=${SPEC} \
-                    ./kubeinit/playbook.yml
-        } || {
-            echo "(launch_e2e.sh) ==> The deployment failed, we still need to run the cleanup tasks"
-            FAILED="1"
-        }
-    done
-    for SPEC in $KUBEINIT_SPEC; do
-        podman run --rm -it \
-            --name kubeinit-runner \
-            --pod ara-pod \
-            -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
-            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
-            -v ~/.ssh/config:/root/.ssh/config:z \
-            -e ARA_API_CLIENT="http" \
-            -e ANSIBLE_CALLBACK_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/callback" \
-            -e ANSIBLE_ACTION_PLUGINS="/usr/local/lib/python3.6/site-packages/ara/plugins/action" \
-            -e ANSIBLE_LOAD_CALLBACK_PLUGINS=true \
-            -e ARA_API_SERVER="http://127.0.0.1:8000" \
-            localhost/kubeinit/kubeinit:latest \
-                --user root \
-                -${KUBEINIT_ANSIBLE_VERBOSITY} \
-                -i ./kubeinit/inventory \
-                -e kubeinit_spec=${SPEC} \
-                -e kubeinit_stop_after_task=task-cleanup-hypervisors \
-                ./kubeinit/playbook.yml
-    done
-elif [[ "$LAUNCH_FROM" == "h" ]]; then
+if [[ "$LAUNCH_FROM" == "h" ]]; then
     {
         for SPEC in $KUBEINIT_SPEC; do
             ansible-playbook \
                 --user root \
-                -${KUBEINIT_ANSIBLE_VERBOSITY} \
+                -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
                 -i ./kubeinit/inventory \
                 -e kubeinit_spec=${SPEC} \
                 ./kubeinit/playbook.yml
@@ -373,7 +312,7 @@ elif [[ "$LAUNCH_FROM" == "h" ]]; then
     for SPEC in $KUBEINIT_SPEC; do
         ansible-playbook \
             --user root \
-            -${KUBEINIT_ANSIBLE_VERBOSITY} \
+            -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
             -i ./kubeinit/inventory \
             -e kubeinit_spec=${SPEC} \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
