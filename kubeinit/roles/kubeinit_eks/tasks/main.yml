@@ -248,6 +248,22 @@
   loop: "{{ groups['all_compute_nodes'] | default([]) }}"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
+- name: Allow schedule workloads in controller nodes if there are no compute nodes
+  ansible.builtin.shell: |
+    set -o pipefail
+    for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.spec.taints[]?.key=="node-role.kubernetes.io/master") | .metadata.labels."kubernetes.io/hostname"');
+    do
+      kubectl taint node ${node} node-role.kubernetes.io/master:NoSchedule-
+    done
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  when: not kubeinit_compute_count|int > 0
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+
 - name: Deploy EKS manifests.
   ansible.builtin.shell: |
     kubectl apply -f https://distro.eks.amazonaws.com/crds/releases.distro.eks.amazonaws.com-v1alpha1.yaml
