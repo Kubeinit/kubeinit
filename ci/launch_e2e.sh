@@ -298,6 +298,7 @@ KUBEINIT_SPEC=${KUBEINIT_SPEC//,/$'\n'}
 if [[ "$LAUNCH_FROM" == "h" ]]; then
     {
         for SPEC in $KUBEINIT_SPEC; do
+            echo "(launch_e2e.sh) ==> Deploying ${SPEC}"
             ansible-playbook \
                 --user root \
                 -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
@@ -310,6 +311,7 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
         FAILED="1"
     }
     for SPEC in $KUBEINIT_SPEC; do
+        echo "(launch_e2e.sh) ==> Cleaning ${SPEC}"
         ansible-playbook \
             --user root \
             -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
