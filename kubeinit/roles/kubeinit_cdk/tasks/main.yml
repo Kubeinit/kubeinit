@@ -92,7 +92,8 @@
 
 - name: Add machines
   ansible.builtin.shell: |
-    juju add-machine --debug ssh:root@{{ hostvars[item].ansible_host }} > juju-add-machine-{{ item }}.log 2>&1
+    juju add-machine --debug \
+        ssh:root@{{ hostvars[item].ansible_host }} > juju-add-machine-{{ item }}.log 2>&1
   args:
     executable: /bin/bash
   register: _result
@@ -115,7 +116,10 @@
 
 - name: Deploy CDK
   ansible.builtin.shell: |
-    juju deploy ./bundle.yml --force --map-machines=existing{% for item in groups['all_cluster_nodes'] -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
+    juju deploy \
+        ./bundle.yml \
+        --force \
+        --map-machines=existing{% for item in groups['all_cluster_nodes'] -%},{{ loop.index0 }}={{ loop.index0 }}{%- endfor %}
   args:
     executable: /bin/bash
   register: _result
@@ -124,19 +128,12 @@
   delegate_to: "{{ kubeinit_provision_service_node }}"
   until: _result.rc == 0
 
-- name: Get cluster status
-  ansible.builtin.shell: |
-    juju status
-  args:
-    executable: /bin/bash
-  register: _result
-  changed_when: "_result.rc == 0"
-  delegate_to: "{{ kubeinit_provision_service_node }}"
-
 - name: Verify that the etcd cluster is up and healthy
   ansible.builtin.shell: |
     set -o pipefail
-    juju status --format=json | sed 's/application-status/application_status/g' | jq -r .applications.etcd.application_status.message
+    juju status --format=json | \
+        sed 's/application-status/application_status/g' | \
+        jq -r .applications.etcd.application_status.message
   args:
     executable: /bin/bash
   vars:
@@ -148,6 +145,24 @@
   delegate_to: "{{ kubeinit_provision_service_node }}"
   until: all_controllers_healthy_text == _result.stdout
 
+- name: Verify that the kubernetes_master application is up and healthy
+  ansible.builtin.shell: |
+    set -o pipefail
+    juju status --format=json | \
+        sed 's/application-status/application_status/g' | \
+        sed 's/kubernetes-master/kubernetes_master/g' | \
+        jq -r .applications.kubernetes_master.application_status.message
+  args:
+    executable: /bin/bash
+  vars:
+    healthy_text: "Kubernetes master running."
+  register: _result
+  changed_when: "_result.rc == 0"
+  retries: 100
+  delay: 60
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+  until: healthy_text == _result.stdout
+
 - name: Create kube directory
   ansible.builtin.file:
     path: ~/.kube
@@ -155,26 +170,14 @@
     mode: '0755'
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
-- name: Make sure the kubeconfig file exists in the first controller node
-  ansible.builtin.stat:
-    path: ~/.kube/config
+- name: Get the kubectl binary and kubeconfig from the first controller node
+  ansible.builtin.shell: |
+    juju scp kubernetes-master/0:/usr/bin/kubectl /usr/bin/kubectl
+    juju scp kubernetes-master/0:config ~/.kube/config
+  args:
+    executable: /bin/bash
   register: _result
-  retries: 60
-  delay: 60
-  until: _result.stat.exists
-  delegate_to: "{{ kubeinit_first_controller_node }}"
-
-- name: Copy the kubeconfig to a variable
-  ansible.builtin.slurp:
-    src: ~/.kube/config
-  register: _result_cluster_kubeconfig
-  delegate_to: "{{ kubeinit_first_controller_node }}"
-
-- name: Storing the master kubeconfig to the services machine.
-  ansible.builtin.copy:
-    content: "{{ _result_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
-    dest: ~/.kube/config
-    mode: '0644'
+  changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 - name: Autoload kubeconfig
@@ -185,17 +188,6 @@
   register: _result
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
-
-# - name: Get the kubectl binary from the first controller node
-#   ansible.builtin.shell: |
-#     set -eo pipefail
-#     juju scp kubernetes-master/0:kubectl ~/bin/kubectl
-#     kubectl cluster-info
-#   args:
-#     executable: /bin/bash
-#   register: _result
-#   changed_when: "_result.rc == 0"
-#   delegate_to: "{{ kubeinit_provision_service_node }}"
 
 - name: Finished deploying cluster
   ansible.builtin.shell: |
