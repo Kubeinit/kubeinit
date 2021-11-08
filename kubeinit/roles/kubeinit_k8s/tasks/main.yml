@@ -165,6 +165,21 @@
     loop_var: compute_node
   delegate_to: "{{ kubeinit_first_controller_node }}"
 
+- name: Allow schedule workloads in controller nodes if there are no compute nodes
+  ansible.builtin.shell: |
+    set -o pipefail
+    dnf install -y jq
+    for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.spec.taints[]?.key=="node-role.kubernetes.io/master") | .metadata.labels."kubernetes.io/hostname"');
+    do
+      kubectl taint node ${node} node-role.kubernetes.io/master:NoSchedule-
+    done
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  when: not kubeinit_compute_count|int > 0
+  delegate_to: "{{ kubeinit_first_controller_node }}"
+
 # We fetch the kubeconfig from the first controller node
 - name: Copying the kubeconfig to a variable
   ansible.builtin.slurp:

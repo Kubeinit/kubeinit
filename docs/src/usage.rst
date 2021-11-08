@@ -15,6 +15,20 @@ Requirements
 * Adjust the inventory file to suit your needs.
 * Having podman installed in the machine where you are running ansible-playbook.
 
+Multiple hypervisors support
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Currently, it is supported the deployment of multiple Kubernetes clusters
+in multiple hosts. While it is supported to deploy different Kubernetes distributions
+based in different guest OS, for example Vanilla Kubernetes that is based in CentOS and
+OKD based in Fedora CoreOS the operative system of the hosts must be the same, this means
+to have 3 hypervisors (chassis) based in Debian that will host any of the currently supported
+distribution.
+
+**Any deployment based on mixed versions of the Hypervisors OS is not supported.**
+This is motivated on the potential failures due to mismatch in OVS/OVN and Kernel
+versions.
+
 Installing dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~
 
