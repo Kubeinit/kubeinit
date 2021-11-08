@@ -51,6 +51,7 @@ Content
    contributing
    installation
    usage
+   architecture
    roles
    modules
    howtos_and_presentations
