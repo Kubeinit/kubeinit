@@ -21,10 +21,9 @@
     public: yes
   loop: "{{ groups['all_extra_nodes'] }}"
   loop_control:
-    loop_var: cluster_role_item
+    loop_var: kubeinit_deployment_node_name
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
     kubeinit_ignition_name: bootstrap
 
 - name: Deploy the cluster controller nodes
@@ -34,10 +33,9 @@
     public: yes
   loop: "{{ groups['all_controller_nodes'] }}"
   loop_control:
-    loop_var: cluster_role_item
+    loop_var: kubeinit_deployment_node_name
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
     kubeinit_ignition_name: master
 
 - name: Verify that controller nodes are ok
@@ -107,7 +105,7 @@
 
 - name: Remove bootstrap node from haproxy config
   ansible.builtin.command: |
-    podman --remote --connection {{ kubeinit_haproxy_service_node }} exec {{ kubeinit_haproxy_service_name }} sed -i '/bootstrap/s/^/#/' /usr/local/etc/haproxy/haproxy.cfg
+    podman --remote --connection {{ hostvars[kubeinit_haproxy_service_node].target }} exec {{ kubeinit_haproxy_service_name }} sed -i '/bootstrap/s/^/#/' /usr/local/etc/haproxy/haproxy.cfg
   register: _result
   changed_when: "_result.rc == 0"
   delegate_to: localhost
@@ -150,10 +148,9 @@
     public: yes
   loop: "{{ groups['all_compute_nodes'] | default([]) }}"
   loop_control:
-    loop_var: cluster_role_item
+    loop_var: kubeinit_deployment_node_name
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
     kubeinit_ignition_name: worker
 
 - name: Complete the cluster deployment on the provision service node

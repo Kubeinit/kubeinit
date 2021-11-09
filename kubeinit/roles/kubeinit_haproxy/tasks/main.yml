@@ -37,36 +37,46 @@
 - name: Remove any old haproxy buildah container
   ansible.builtin.shell: |
     set -o pipefail
-    buildah rm buildah-haproxy || true
+    buildah rm {{ kubeinit_cluster_name }}-haproxy || true
   args:
     executable: /bin/bash
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create a new working container image
-  ansible.builtin.command: buildah from --name buildah-haproxy docker.io/library/haproxy:2.3
+  ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-haproxy docker.io/library/haproxy:2.3
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Update the container
-  ansible.builtin.command: buildah run buildah-haproxy -- apt-get -y update
+  ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-haproxy -- apt-get -y update
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Copy generated haproxy.cfg into container
-  ansible.builtin.command: buildah copy buildah-haproxy {{ kubeinit_haproxy_config_file }} /usr/local/etc/haproxy/haproxy.cfg
+  ansible.builtin.command: buildah copy {{ kubeinit_cluster_name }}-haproxy {{ kubeinit_haproxy_config_file }} /usr/local/etc/haproxy/haproxy.cfg
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Set kubeinit-cluster-name label
+  ansible.builtin.command: buildah config --label kubeinit-cluster-name={{ kubeinit_cluster_name }} {{ kubeinit_cluster_name }}-haproxy
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Commit the container image
-  ansible.builtin.command: buildah commit buildah-haproxy kubeinit/kubeinit-haproxy:latest
+  ansible.builtin.command: buildah commit {{ kubeinit_cluster_name }}-haproxy kubeinit/{{ kubeinit_cluster_name }}-haproxy:latest
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Remove the buildah container
+  ansible.builtin.command: buildah rm {{ kubeinit_cluster_name }}-haproxy
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create a podman container to serve the haproxy
   containers.podman.podman_container:
     name: "{{ kubeinit_haproxy_service_name }}"
-    image: kubeinit/kubeinit-haproxy:latest
+    image: kubeinit/{{ kubeinit_cluster_name }}-haproxy:latest
     pod: "{{ kubeinit_deployment_pod_name }}"
     state: stopped
     volumes:

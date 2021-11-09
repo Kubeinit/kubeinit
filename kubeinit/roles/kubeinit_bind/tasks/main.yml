@@ -37,29 +37,39 @@
 - name: Remove any old bind buildah container
   ansible.builtin.shell: |
     set -o pipefail
-    buildah rm buildah-bind || true
+    buildah rm {{ kubeinit_cluster_name }}-bind || true
   args:
     executable: /bin/bash
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create a new working container image
-  ansible.builtin.command: buildah from --name buildah-bind --volume {{ kubeinit_bind_directory }}:/bind-config:Z docker.io/internetsystemsconsortium/bind9:9.11
+  ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-bind --volume {{ kubeinit_bind_directory }}:/bind-config:Z docker.io/internetsystemsconsortium/bind9:9.11
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Update the container
-  ansible.builtin.command: buildah run buildah-bind -- apt-get -y update
+  ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-bind -- apt-get -y update
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Copy original contents to /bind-config folder
-  ansible.builtin.command: buildah run buildah-bind -- cp -pr /etc/bind/. /bind-config/.
+  ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-bind -- cp -pr /etc/bind/. /bind-config/.
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Set kubeinit-cluster-name label
+  ansible.builtin.command: buildah config --label kubeinit-cluster-name={{ kubeinit_cluster_name }} {{ kubeinit_cluster_name }}-bind
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Commit the container image
-  ansible.builtin.command: buildah commit buildah-bind kubeinit/kubeinit-bind:latest
+  ansible.builtin.command: buildah commit {{ kubeinit_cluster_name }}-bind kubeinit/{{ kubeinit_cluster_name }}-bind:latest
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Remove the buildah container
+  ansible.builtin.command: buildah rm {{ kubeinit_cluster_name }}-bind
   register: _result
   changed_when: "_result.rc == 0"
 
@@ -96,7 +106,7 @@
 - name: Create a podman container to serve the Bind server
   containers.podman.podman_container:
     name: "{{ kubeinit_bind_service_name }}"
-    image: kubeinit/kubeinit-bind:latest
+    image: kubeinit/{{ kubeinit_cluster_name }}-bind:latest
     pod: "{{ kubeinit_deployment_pod_name }}"
     state: stopped
     volumes:

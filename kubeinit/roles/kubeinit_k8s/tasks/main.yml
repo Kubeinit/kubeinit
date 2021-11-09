@@ -21,10 +21,9 @@
     public: yes
   loop: "{{ groups['all_cluster_nodes'] }}"
   loop_control:
-    loop_var: cluster_role_item
+    loop_var: kubeinit_deployment_node_name
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
   when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed
 
 - name: Setup the first controller node

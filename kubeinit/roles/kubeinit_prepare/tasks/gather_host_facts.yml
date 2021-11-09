@@ -103,6 +103,24 @@
         podman_installed: "{{ podman_state != '' }}"
         podman_active: "{{ true if podman_state == 'running' else false }}"
 
+    - name: Set ovs_vswitchd_state to unknown
+      ansible.builtin.set_fact:
+        ovs_vswitchd_state: 'unknown'
+
+    - name: Set ovs_vswitchd_state when ovs-vswitchd is defined
+      ansible.builtin.set_fact:
+        ovs_vswitchd_state: "{{ _result_services.ansible_facts.services['ovs-vswitchd'].state }}"
+      when: _result_services.ansible_facts.services['ovs-vswitchd'] is defined
+
+    - name: Set ovs_vswitchd_state when ovs-vswitchd.service is defined
+      ansible.builtin.set_fact:
+        ovs_vswitchd_state: "{{ _result_services.ansible_facts.services['ovs-vswitchd.service'].state }}"
+      when: _result_services.ansible_facts.services['ovs-vswitchd.service'] is defined
+
+    - name: Set ovs_vswitchd_active
+      ansible.builtin.set_fact:
+        ovs_vswitchd_active: "{{ true if ovs_vswitchd_state == 'running' else false }}"
+
     - name: Clear libvirtd_state
       ansible.builtin.set_fact:
         libvirtd_state: ''
@@ -161,6 +179,7 @@
         firewalld_is_active: "{{ firewalld_active }}"
         podman_is_installed: "{{ podman_installed }}"
         podman_is_active: "{{ podman_active }}"
+        ovs_is_active: "{{ ovs_vswitchd_active }}"
         libvirt_nets: "{{ _result_nets.list_nets | default([]) }}"
         libvirt_vms: "{{ _result_vms.list_vms | default([]) }}"
         public_key: "{{ _result_keypair.public_key | default(omit) }}"

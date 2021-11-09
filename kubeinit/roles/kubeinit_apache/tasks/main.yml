@@ -20,34 +20,44 @@
     name: "buildah"
 
 - name: Create a new working container image
-  ansible.builtin.command: buildah from --name buildah-apache docker.io/httpd:2.4
+  ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-apache docker.io/httpd:2.4
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Update the container
-  ansible.builtin.command: buildah run buildah-apache -- apt-get -y update
+  ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-apache -- apt-get -y update
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Replace port 80 with 8080
-  ansible.builtin.command: buildah run buildah-apache -- sed -i -e 's/^Listen 80$/Listen 8080/' /usr/local/apache2/conf/httpd.conf
+  ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-apache -- sed -i -e 's/^Listen 80$/Listen 8080/' /usr/local/apache2/conf/httpd.conf
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create link to kubeinit folder
-  ansible.builtin.command: buildah run buildah-apache -- ln -s /var/kubeinit/html/ /usr/local/apache2/htdocs/kubeinit
+  ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-apache -- ln -s /var/kubeinit/html/ /usr/local/apache2/htdocs/kubeinit
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Set kubeinit-cluster-name label
+  ansible.builtin.command: buildah config --label kubeinit-cluster-name={{ kubeinit_cluster_name }} {{ kubeinit_cluster_name }}-apache
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Commit the container image
-  ansible.builtin.command: buildah commit buildah-apache kubeinit/kubeinit-apache:latest
+  ansible.builtin.command: buildah commit {{ kubeinit_cluster_name }}-apache kubeinit/{{ kubeinit_cluster_name }}-apache:latest
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Remove the buildah container
+  ansible.builtin.command: buildah rm {{ kubeinit_cluster_name }}-apache
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create a podman container to serve the Apache server
   containers.podman.podman_container:
     name: "{{ kubeinit_apache_service_name }}"
-    image: kubeinit/kubeinit-apache:latest
+    image: kubeinit/{{ kubeinit_cluster_name }}-apache:latest
     state: stopped
     pod: "{{ kubeinit_deployment_pod_name }}"
     volumes:

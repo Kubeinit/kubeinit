@@ -36,9 +36,12 @@
 #
 - name: Create tuples for hosts and guest vms
   ansible.builtin.set_fact:
-    all_hosts_guest_vms: "{{ (all_hosts_guest_vms | default([])) + ([item[0]] | product([item[1]])) }}"
+    all_hosts_guest_vms: "{{ (all_hosts_guest_vms | default([])) + ([hypervisor] | product([guest_vm])) }}"
   loop: "{{ groups['all_hosts'] | product(groups['all_guest_vms']) }}"
-  when: hostvars[item[1]].target in item[0]
+  vars:
+    hypervisor: "{{ item[0] }}"
+    guest_vm: "{{ item[1] }}"
+  when: hostvars[guest_vm].target in hypervisor
 
 - name: Create new directories for config files per node
   ansible.builtin.file:
@@ -55,11 +58,10 @@
 - name: Create tuples for hosts and cloud images
   ansible.builtin.set_fact:
     all_hosts_cloud_images: "{{ (all_hosts_cloud_images | default([])) + ([hypervisor] | product([kubeinit_libvirt_cloud_images[kubeinit_cluster_distro]])) }}"
-  loop: "{{ groups['all_hosts'] | product(groups['all_guest_vms']) }}"
+  loop: "{{ all_hosts_guest_vms }}"
   vars:
     hypervisor: "{{ item[0] }}"
-    guest_vm: "{{ item[1] }}"
-  when: hostvars[guest_vm].target in hypervisor and kubeinit_libvirt_cloud_images[kubeinit_cluster_distro] is defined
+  when: kubeinit_libvirt_cloud_images[kubeinit_cluster_distro] is defined
 
 - name: Remove duplicates
   ansible.builtin.set_fact:
@@ -102,7 +104,7 @@
         kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
 
     - block:
-        - name: "Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: Stop after 'task-download-images' when requested
           ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play

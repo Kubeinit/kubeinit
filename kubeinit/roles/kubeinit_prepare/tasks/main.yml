@@ -27,7 +27,7 @@
         tasks_completed: "{{ hostvars[kubeinit_cluster_facts_name].tasks_completed | union(['task-prepare-hypervisors']) }}"
 
     - block:
-        - name: "Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: Stop after 'task-prepare-hypervisors' when requested
           ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
@@ -179,7 +179,7 @@
         kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
 
     - block:
-        - name: "Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: Stop after 'task-prepare-environment' when requested
           ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play

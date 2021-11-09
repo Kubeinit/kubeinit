@@ -23,12 +23,14 @@ fi
 # configuration assets from the docker hub container image
 rm -rf /var/kubeinit/bind
 mkdir -p /var/kubeinit/bind
-if [ "$(buildah ls --filter 'name=buildah-external' --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]; then buildah rm buildah-external; fi
-buildah from --name buildah-external -v /var/kubeinit/bind:/var/kubeinit/bind:Z docker.io/internetsystemsconsortium/bind9:9.11
-buildah run buildah-external -- apt-get update -y
-buildah run buildah-external -- apt-get install -y openssh-client
-buildah run buildah-external -- cp -pr /etc/bind/. /var/kubeinit/bind/.
-buildah commit buildah-external kubeinit/kubeinit-ingress-bind
+if [ "$(buildah ls --filter 'name={{ kubeinit_cluster_name }}-external' --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]; then buildah rm {{ kubeinit_cluster_name }}-external; fi
+buildah from --name {{ kubeinit_cluster_name }}-external -v /var/kubeinit/bind:/var/kubeinit/bind:Z docker.io/internetsystemsconsortium/bind9:9.11
+buildah run {{ kubeinit_cluster_name }}-external -- apt-get update -y
+buildah run {{ kubeinit_cluster_name }}-external -- apt-get install -y openssh-client
+buildah run {{ kubeinit_cluster_name }}-external -- cp -pr /etc/bind/. /var/kubeinit/bind/.
+buildah config --label kubeinit-cluster-name={{ kubeinit_cluster_name }} {{ kubeinit_cluster_name }}-external
+buildah commit {{ kubeinit_cluster_name }}-external kubeinit/{{ kubeinit_cluster_name }}-ingress-bind
+buildah rm {{ kubeinit_cluster_name }}-external
 
 # Remove default-zones include from named.conf
 sed -i -e '/include "\/etc\/bind\/named.conf.default-zones\";/d' /var/kubeinit/bind/named.conf
@@ -87,7 +89,7 @@ if podman container exists {{ kubeinit_cluster_name }}-ingress-bind; then podman
 # Create a volume to provide a cache for the bind server
 if [ "$(podman volume ls --filter 'name={{ kubeinit_cluster_name }}-bind-cache' --format {% raw %}'{{ .Name }}'{% endraw %})" != "" ]; then podman volume rm {{ kubeinit_cluster_name }}-bind-cache; fi
 podman volume create {{ kubeinit_cluster_name }}-bind-cache
-podman run --rm --name {{ kubeinit_cluster_name }}-set-bind-cache-owner -v {{ kubeinit_cluster_name }}-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind chown bind:bind /var/cache/bind
+podman run --rm --name {{ kubeinit_cluster_name }}-set-bind-cache-owner -v {{ kubeinit_cluster_name }}-bind-cache:/var/cache/bind:Z kubeinit/{{ kubeinit_cluster_name }}-ingress-bind chown bind:bind /var/cache/bind
 
 # Create a pod for our container with dns nameserver and search options
 # If you would also like to add a container running VNC you can add this option to the end of the command on the next line: -p ${KUBEINIT_INGRESS_IP}:5901:5901
@@ -102,7 +104,7 @@ else
 fi
 
 # Run the ingress container on the host network mounting required volumes
-podman run --rm -d --pod {{ kubeinit_cluster_name }}-ingress-pod --name {{ kubeinit_cluster_name }}-ingress-bind --network host -v /root/.ssh:/root/.ssh:${overlay} -v /var/kubeinit/bind:/etc/bind:Z -v {{ kubeinit_cluster_name }}-bind-cache:/var/cache/bind:Z kubeinit/kubeinit-ingress-bind
+podman run --rm -d --pod {{ kubeinit_cluster_name }}-ingress-pod --name {{ kubeinit_cluster_name }}-ingress-bind --network host -v /root/.ssh:/root/.ssh:${overlay} -v /var/kubeinit/bind:/etc/bind:Z -v {{ kubeinit_cluster_name }}-bind-cache:/var/cache/bind:Z kubeinit/{{ kubeinit_cluster_name }}-ingress-bind
 
 # Create ssh tunnels in the running container for all the ports served by the cluster haproxy service
 podman exec {{ kubeinit_cluster_name }}-ingress-bind ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -N -f -L ${KUBEINIT_INGRESS_IP}:80:${KUBEINIT_HAPROXY_IP}:80 -L ${KUBEINIT_INGRESS_IP}:443:${KUBEINIT_HAPROXY_IP}:443 -L ${KUBEINIT_INGRESS_IP}:6443:${KUBEINIT_HAPROXY_IP}:6443 -L ${KUBEINIT_INGRESS_IP}:8443:${KUBEINIT_HAPROXY_IP}:8443 -L ${KUBEINIT_INGRESS_IP}:9000:${KUBEINIT_HAPROXY_IP}:9000 -L ${KUBEINIT_INGRESS_IP}:22623:${KUBEINIT_HAPROXY_IP}:22623 root@${KUBEINIT_HAPROXY_IP}

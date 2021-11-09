@@ -36,12 +36,11 @@
   ansible.builtin.include_tasks: 00_create_service_pod.yml
   loop: "{{ groups['all_service_nodes'] }}"
   loop_control:
-    loop_var: cluster_role_item
+    loop_var: kubeinit_deployment_node_name
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_bridge_name: "{{ hostvars[cluster_role_item].guest_name }}-bridge"
-    kubeinit_deployment_pod_name: "{{ hostvars[cluster_role_item].guest_name }}-pod"
-    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_bridge_name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}-bridge"
+    kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}-pod"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
 - name: Prepare the credentials we are going to use in the cluster
   ansible.builtin.include_tasks: prepare_credentials.yml
@@ -54,11 +53,10 @@
   ansible.builtin.include_tasks: start_services_containers.yml
   loop: "{{ groups['all_service_nodes'] }}"
   loop_control:
-    loop_var: cluster_role_item
+    loop_var: kubeinit_deployment_node_name
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
-    kubeinit_deployment_pod_name: "{{ hostvars[cluster_role_item].guest_name }}-pod"
-    kubeinit_deployment_delegate: "{{ hostvars[cluster_role_item].target }}"
+    kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}-pod"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
 - block:
     - name: Add task-create-services to tasks_completed
@@ -71,7 +69,7 @@
         kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
 
     - block:
-        - name: "Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: Stop after 'task-create-services' when requested
           ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play

@@ -41,7 +41,7 @@
       set -eo pipefail
       cp /opt/sonatype/nexus/etc/nexus-default.properties /nexus-data/etc/nexus.properties
       sed -i -e 's/^\([^#]\)/# \1/' -e 's/^# nexus-args=/nexus-args=/' -e 's/jetty-http/jetty-https/' -e 's/# application-port=8081/application-port-ssl=8443/' -e '$ a ssl.etc=${karaf.data}/etc/ssl' -e '$ a nexus.scripts.allowCreation=true' /nexus-data/etc/nexus.properties
-      sed -i -e '/New id="sslContextFactory"/ a REPLACE_ME' -e 's;REPLACE_ME;    <Set name="certAlias">kubeinit-nexus</Set>;' /opt/sonatype/nexus/etc/jetty/jetty-https.xml
+      sed -i -e '/New id="sslContextFactory"/ a REPLACE_ME' -e 's;REPLACE_ME;    <Set name="certAlias">{{ kubeinit_cluster_name }}-nexus</Set>;' /opt/sonatype/nexus/etc/jetty/jetty-https.xml
     dest: "{{ kubeinit_nexus_directory_data }}/update-props.sh"
     mode: '0644'
 
@@ -53,105 +53,115 @@
 - name: Remove any old nexus buildah container
   ansible.builtin.shell: |
     set -o pipefail
-    buildah rm buildah-nexus || true
+    buildah rm {{ kubeinit_cluster_name }}-nexus || true
   args:
     executable: /bin/bash
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create a new working container image
-  ansible.builtin.command: buildah from --name buildah-nexus --volume "{{ kubeinit_nexus_directory_data }}:/nexus-data" docker.io/sonatype/nexus3:3.30.0
+  ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-nexus --volume "{{ kubeinit_nexus_directory_data }}:/nexus-data" docker.io/sonatype/nexus3:3.30.0
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Set working directory inside container
-  ansible.builtin.command: buildah config --workingdir /nexus-data/tmp buildah-nexus
+  ansible.builtin.command: buildah config --workingdir /nexus-data/tmp {{ kubeinit_cluster_name }}-nexus
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Update image
-  ansible.builtin.command: buildah run --user root:root buildah-nexus -- dnf update -q -y
+  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- dnf update -q -y
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create java keystore
-  ansible.builtin.command: buildah run --user root:root buildah-nexus -- keytool -genkeypair -keystore keystore.jks -storepass password -keypass password -alias kubeinit-nexus -keyalg RSA -keysize 2048 -validity 5000 -dname "CN=*.{{ kubeinit_cluster_fqdn }}, OU={{ kubeinit_common_certificate_organizational_unit }}, O={{ kubeinit_common_certificate_organization }}, L={{ kubeinit_common_certificate_locality }}, ST={{ kubeinit_common_certificate_state }}, C={{ kubeinit_common_certificate_country }}" -ext "SAN=DNS:{{ kubeinit_nexus_fqdn }},IP:{{ kubeinit_nexus_service_address }}" -ext "BC=ca:true"
+  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- keytool -genkeypair -keystore keystore.jks -storepass password -keypass password -alias {{ kubeinit_cluster_name }}-nexus -keyalg RSA -keysize 2048 -validity 5000 -dname "CN=*.{{ kubeinit_cluster_fqdn }}, OU={{ kubeinit_common_certificate_organizational_unit }}, O={{ kubeinit_common_certificate_organization }}, L={{ kubeinit_common_certificate_locality }}, ST={{ kubeinit_common_certificate_state }}, C={{ kubeinit_common_certificate_country }}" -ext "SAN=DNS:{{ kubeinit_nexus_fqdn }},IP:{{ kubeinit_nexus_service_address }}" -ext "BC=ca:true"
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Copy keystore file
-  ansible.builtin.command: buildah run --user root:root buildah-nexus -- keytool -importkeystore -srckeystore keystore.jks -srcstorepass password -destkeystore keystore.jks -deststoretype pkcs12
+  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- keytool -importkeystore -srckeystore keystore.jks -srcstorepass password -destkeystore keystore.jks -deststoretype pkcs12
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Copy keystore file
-  ansible.builtin.command: buildah run --user root:root buildah-nexus -- keytool -export -alias kubeinit-nexus -keystore keystore.jks -storepass password -rfc -file public.cert
+  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- keytool -export -alias {{ kubeinit_cluster_name }}-nexus -keystore keystore.jks -storepass password -rfc -file public.cert
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Copy keystore file
-  ansible.builtin.command: buildah run --user root:root buildah-nexus -- cp keystore.jks public.cert /nexus-data/etc/ssl/
+  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- cp keystore.jks public.cert /nexus-data/etc/ssl/
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Link keystore file to alternate location
-  ansible.builtin.command: buildah run --user root:root buildah-nexus -- ln -s /nexus-data/etc/ssl/keystore.jks /opt/sonatype/nexus/etc/ssl/keystore.jks
+  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- ln -s /nexus-data/etc/ssl/keystore.jks /opt/sonatype/nexus/etc/ssl/keystore.jks
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Run script to update properties
-  ansible.builtin.command: buildah run --user root:root buildah-nexus -- bash /nexus-data/update-props.sh
+  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- bash /nexus-data/update-props.sh
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Set owner of nexus data to nexus
-  ansible.builtin.command: buildah run --user root:root buildah-nexus -- chown -R nexus:nexus /nexus-data
+  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- chown -R nexus:nexus /nexus-data
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Set kubeinit-cluster-name label
+  ansible.builtin.command: buildah config --label kubeinit-cluster-name={{ kubeinit_cluster_name }} {{ kubeinit_cluster_name }}-nexus
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Commit the container image
-  ansible.builtin.command: buildah commit buildah-nexus kubeinit/kubeinit-nexus:latest
+  ansible.builtin.command: buildah commit {{ kubeinit_cluster_name }}-nexus kubeinit/{{ kubeinit_cluster_name }}-nexus:latest
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Remove the buildah container
+  ansible.builtin.command: buildah rm {{ kubeinit_cluster_name }}-nexus
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create a podman volume for nexus data
   containers.podman.podman_volume:
-    name: "kubeinit-nexus-data"
+    name: "{{ kubeinit_cluster_name }}-nexus-data"
     state: present
     recreate: yes
 
 - name: Set nexus as owner of the volume root
   containers.podman.podman_container:
     name: "{{ kubeinit_nexus_service_name }}-set-owner"
-    image: kubeinit/kubeinit-nexus:latest
+    image: kubeinit/{{ kubeinit_cluster_name }}-nexus:latest
     state: started
     detach: no
     remove: yes
     user: root
     command: chown nexus:nexus /mnt
     volumes:
-      - "kubeinit-nexus-data:/mnt"
+      - "{{ kubeinit_cluster_name }}-nexus-data:/mnt"
 
 - name: Copy data into nexus-data volume
   containers.podman.podman_container:
     name: "{{ kubeinit_nexus_service_name }}-copy-data"
-    image: kubeinit/kubeinit-nexus:latest
+    image: kubeinit/{{ kubeinit_cluster_name }}-nexus:latest
     state: started
     detach: no
     remove: yes
     command: cp -pr /mnt/etc /nexus-data/
     volumes:
-      - "kubeinit-nexus-data:/nexus-data"
+      - "{{ kubeinit_cluster_name }}-nexus-data:/nexus-data"
       - "{{ kubeinit_nexus_directory_data }}:/mnt"
 
 - name: Create a podman container to serve nexus
   containers.podman.podman_container:
     name: "{{ kubeinit_nexus_service_name }}"
-    image: kubeinit/kubeinit-nexus:latest
+    image: kubeinit/{{ kubeinit_cluster_name }}-nexus:latest
     pod: "{{ kubeinit_deployment_pod_name }}"
     state: stopped
     volumes:
-      - "kubeinit-nexus-data:/nexus-data"
+      - "{{ kubeinit_cluster_name }}-nexus-data:/nexus-data"
       - "{{ kubeinit_services_data_volume }}:/var/kubeinit"
   register: _result_container_info
 
@@ -180,7 +190,7 @@
 
 - name: Copy out admin password
   ansible.builtin.command: |
-    podman cp kubeinit-nexus:/nexus-data/admin.password "{{ kubeinit_nexus_directory_data }}/admin.password"
+    podman cp {{ kubeinit_cluster_name }}-nexus:/nexus-data/admin.password "{{ kubeinit_nexus_directory_data }}/admin.password"
   register: _result
   changed_when: "_result.rc == 0"
 
