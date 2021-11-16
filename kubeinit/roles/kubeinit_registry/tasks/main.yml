@@ -20,24 +20,34 @@
     name: "buildah"
 
 - name: Create a new working container image
-  ansible.builtin.command: buildah from --name buildah-registry docker.io/library/registry:2
+  ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-registry docker.io/library/registry:2
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Update the container
-  ansible.builtin.command: buildah run buildah-registry -- apk upgrade
+  ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-registry -- apk upgrade
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Set kubeinit-cluster-name label
+  ansible.builtin.command: buildah config --label kubeinit-cluster-name={{ kubeinit_cluster_name }} {{ kubeinit_cluster_name }}-registry
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Commit the container image
-  ansible.builtin.command: buildah commit buildah-registry kubeinit/kubeinit-registry:latest
+  ansible.builtin.command: buildah commit {{ kubeinit_cluster_name }}-registry kubeinit/{{ kubeinit_cluster_name }}-registry:latest
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Remove the buildah container
+  ansible.builtin.command: buildah rm {{ kubeinit_cluster_name }}-registry
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create a podman container to serve the registry
   containers.podman.podman_container:
     name: "{{ kubeinit_registry_service_name }}"
-    image: kubeinit/kubeinit-registry:latest
+    image: kubeinit/{{ kubeinit_cluster_name }}-registry:latest
     pod: "{{ kubeinit_deployment_pod_name }}"
     init: true
     state: stopped
@@ -59,10 +69,10 @@
 - name: Copy kubeinit registry secrets into registry container
   ansible.builtin.shell: |
     set -eo pipefail
-    podman --remote --connection {{ kubeinit_registry_service_node }} cp {{ kubeinit_registry_service_name }}:{{ kubeinit_registry_directory_auth }} - | \
-      podman --remote --connection {{ kubeinit_registry_service_node }} cp - "{{ kubeinit_registry_service_name }}:/"
-    podman --remote --connection {{ kubeinit_registry_service_node }} cp {{ kubeinit_registry_service_name }}:{{ kubeinit_registry_directory_cert }} - | \
-      podman --remote --connection {{ kubeinit_registry_service_node }} cp - "{{ kubeinit_registry_service_name }}:/"
+    podman --remote --connection {{ hostvars[kubeinit_registry_service_node].target }} cp {{ kubeinit_registry_service_name }}:{{ kubeinit_registry_directory_auth }} - | \
+      podman --remote --connection {{ hostvars[kubeinit_registry_service_node].target }} cp - "{{ kubeinit_registry_service_name }}:/"
+    podman --remote --connection {{ hostvars[kubeinit_registry_service_node].target }} cp {{ kubeinit_registry_service_name }}:{{ kubeinit_registry_directory_cert }} - | \
+      podman --remote --connection {{ hostvars[kubeinit_registry_service_node].target }} cp - "{{ kubeinit_registry_service_name }}:/"
   args:
     executable: /bin/bash
   register: _result

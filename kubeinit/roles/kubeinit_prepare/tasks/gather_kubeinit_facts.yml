@@ -215,9 +215,7 @@
   ansible.builtin.include_tasks: gather_host_facts.yml
   loop: "{{ hostvars[kubeinit_cluster_facts_name].hypervisors | union(['localhost']) }}"
   loop_control:
-    loop_var: cluster_role_item
-  vars:
-    kubeinit_deployment_node_name: "{{ cluster_role_item }}"
+    loop_var: kubeinit_deployment_node_name
 
 - name: Determine the hypervisor target for all inventory nodes
   ansible.builtin.set_fact:
@@ -317,7 +315,7 @@
         tasks_completed: "{{ ['task-gather-facts'] }}"
 
     - block:
-        - name: "Stopping after '{{ kubeinit_stop_after_task }}'"
+        - name: Stop after 'task-gather-facts' when requested
           ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play

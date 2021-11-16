@@ -64,10 +64,14 @@
     all_cluster_hypervisors: "{{ all_cluster_hypervisors | default([]) | union([hostvars[item].target]) }}"
   loop: "{{ groups['all_cluster_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
 
-- name: Set all cluster hypervisors fact
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
-    hypervisors: "{{ all_cluster_hypervisors }}"
+- name: Show the before and after values of the hypervisors fact
+  ansible.builtin.debug: msg="{{ hostvars[kubeinit_cluster_facts_name].hypervisors }} ==> {{ all_cluster_hypervisors }}"
+
+# TODO: check later to see if this would be a useful optimization
+# - name: Set all cluster hypervisors fact
+#   ansible.builtin.add_host:
+#     name: "{{ kubeinit_cluster_facts_name }}"
+#     hypervisors: "{{ all_cluster_hypervisors }}"
 
 - name: Add all service nodes to the all_service_nodes group
   ansible.builtin.add_host:
