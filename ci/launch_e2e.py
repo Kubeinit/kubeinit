@@ -40,10 +40,8 @@ from kubeinit_ci_utils import (get_periodic_jobs_labels,
 
 from pybadges import badge
 
-#
-# We only execute the e2e jobs for those PR having
-# `whitelist_domain` as part of the committer's email
-#
+
+GH_LABELS = []
 
 
 def main(cluster_type, job_type):
@@ -85,6 +83,16 @@ def main(cluster_type, job_type):
                                      sort='created',
                                      base=branch.name):
                 labels = [item.name for item in pr.labels]
+
+                #
+                # Adjust dinamically the verbosity based on a GH label.
+                #
+                ansible_label = 'verbosity'
+                ansible_label_found = next((s for s in labels if ansible_label in s), None)
+                if ansible_label_found:
+                    global GH_LABELS
+                    GH_LABELS.append('GH_ANSIBLE_VERBOSITY=' + ansible_label_found.split("=")[1])
+
                 sha = pr.head.sha
                 execute = False
                 print("'launch_e2e.py' ==> The current labels in PR: " + str(pr.number) + " are:")
@@ -409,16 +417,20 @@ def run_e2e_job(distro, driver, masters, workers,
                        right_color='green')
     try:
         print("'launch_e2e.py' ==> We call the downstream job configuring its parameters")
-        deployment_command = "./ci/launch_e2e.sh %s %s %s %s %s %s %s %s %s %s" % (str(repository),
-                                                                                   str(branch_name),
-                                                                                   str(pr_number),
-                                                                                   str(distro),
-                                                                                   str(driver),
-                                                                                   str(masters),
-                                                                                   str(workers),
-                                                                                   str(hypervisors),
-                                                                                   str(job_type),
-                                                                                   str(launch_from))
+
+        # The first parameter of the command are the variables values we might append to
+        # the deployment command
+        deployment_command = "%s ./ci/launch_e2e.sh %s %s %s %s %s %s %s %s %s %s" % (str(' '.join(GH_LABELS)),
+                                                                                      str(repository),
+                                                                                      str(branch_name),
+                                                                                      str(pr_number),
+                                                                                      str(distro),
+                                                                                      str(driver),
+                                                                                      str(masters),
+                                                                                      str(workers),
+                                                                                      str(hypervisors),
+                                                                                      str(job_type),
+                                                                                      str(launch_from))
         print("'launch_e2e.py' ==> The deployment command is:")
         print(deployment_command)
 
