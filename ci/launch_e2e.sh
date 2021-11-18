@@ -310,6 +310,29 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
         echo "(launch_e2e.sh) ==> The deployment failed, we still need to run the cleanup tasks"
         FAILED="1"
     }
+
+    if [[ "$JOB_TYPE" == "pr" ]]; then
+        #
+        # This while true will provide the feature of adding the label 'waitfordebug'
+        # to any PR in the main repository, if this label is found, then we will wait for
+        # 10 minutes until the label is removed from the pull request, after the label is
+        # removed the cleanup tasks will be executed.
+        #
+        while true; do
+            waitfordebug=$(curl \
+                            --silent \
+                            --location \
+                            --request GET "https://api.github.com/repos/kubeinit/kubeinit/issues/${PULL_REQUEST}/labels" | \
+                            jq -c '.[] | select(.name | contains("waitfordebug")).name' | tr -d '"')
+            if [ "$waitfordebug" == "waitfordebug" ]; then
+                echo "Wait for debugging the environment for 10 minutes"
+                sleep 600
+            else
+                break
+            fi
+        done
+    fi
+
     for SPEC in $KUBEINIT_SPEC; do
         echo "(launch_e2e.sh) ==> Cleaning ${SPEC}"
         ansible-playbook \
