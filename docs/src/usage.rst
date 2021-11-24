@@ -68,6 +68,7 @@ Kubeinit spec
 Currently the inventory to deploy the clusters is dynamic,
 this means that it is configured based on the variables that are
 passed to the deployment command.
+The first hypervisor is denoted also as the bastion host or |Dagger|.
 
 In particular the `kubeinit_spec` variable will determine the
 amount of controller nodes, compute nodes, and hypervisors that
@@ -120,8 +121,8 @@ the hypervisor's IP address. Also when running the
 deployment as a user different than root, the
 keys needs to be also updated.
 
-|bull| Running from the GIT repository
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Running from the GIT repository
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: console
 
@@ -138,8 +139,8 @@ keys needs to be also updated.
             -i ./kubeinit/inventory \
             ./kubeinit/playbook.yml
 
-|bull| Running from a release
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Running from a release
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: console
 
@@ -158,8 +159,8 @@ keys needs to be also updated.
 Connecting to the cluster
 -------------------------
 
-|bull| Accessing the cluster resources internally
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Accessing the cluster resources internally
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Once the deployment is finished the machine used
 for provisioning the cluster have access to both
@@ -197,8 +198,8 @@ For instance:
     .kube/config
 
 
-|bull| Accessing the cluster resources externally
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Accessing the cluster resources externally
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When the services deployment is executed
 one of the tasks in the kubeinit_bind role
@@ -250,4 +251,6 @@ in the hypervisors its also possible to add the following variable
    docs pages, this is fetched from Docutils
    https://docutils.sourceforge.io/docutils/parsers/rst/include/
 
+.. include:: static/parsers/xhtml1-lat1.txt
+.. include:: static/parsers/xhtml1-special.txt
 .. include:: static/parsers/xhtml1-symbol.txt
