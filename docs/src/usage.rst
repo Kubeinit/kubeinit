@@ -15,22 +15,8 @@ Requirements
 * Adjust the inventory file to suit your needs.
 * Having podman installed in the machine where you are running ansible-playbook.
 
-Multiple hypervisors support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Currently, it is supported the deployment of multiple Kubernetes clusters
-in multiple hosts. While it is supported to deploy different Kubernetes distributions
-based in different guest OS, for example Vanilla Kubernetes that is based in CentOS and
-OKD based in Fedora CoreOS the operative system of the hosts must be the same, this means
-to have 3 hypervisors (chassis) based in Debian that will host any of the currently supported
-distribution.
-
-**Any deployment based on mixed versions of the Hypervisors OS is not supported.**
-This is motivated on the potential failures due to mismatch in OVS/OVN and Kernel
-versions.
-
 Installing dependencies
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 KubeInit calls additional Ansible collections that needs to be installed.
 If there are dependencies issues when executing the collection, install
@@ -62,8 +48,45 @@ repository.
     ansible-galaxy collection build -v --force --output-path releases/
     ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
 
+Multiple hypervisors support
+----------------------------
+
+Currently, it is supported the deployment of multiple Kubernetes clusters
+in multiple hosts. While it is supported to deploy different Kubernetes distributions
+based in different guest OS, for example Vanilla Kubernetes that is based in CentOS and
+OKD based in Fedora CoreOS the operative system of the hosts must be the same, this means
+to have 3 hypervisors (chassis) based in Debian that will host any of the currently supported
+distribution.
+
+**Any deployment based on mixed versions of the Hypervisors OS is not supported.**
+This is motivated on the potential failures due to mismatch in OVS/OVN and Kernel
+versions.
+
+Kubeinit spec
+-------------
+
+Currently the inventory to deploy the clusters is dynamic,
+this means that it is configured based on the variables that are
+passed to the deployment command.
+
+In particular the `kubeinit_spec` variable will determine the
+amount of controller nodes, compute nodes, and hypervisors that
+will be used.
+
+The current supported syntax of this variable is:
+
+`<distro>-<driver>-<controllers>-<computes>-<hypervisors>`
+
+For example, combinations like okd-libvirt-1-2-1, k8s-libvirt-3-1-1,
+eks-libvirt-1-0-1 are all valid.
+
+
+Deployment
+~~~~~~~~~~
+
+
 Directly executing the deployment playbook
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 The following example command will deploy a multi-master OKD 4.5 cluster with 1 worker node
 in a single command and in approximately 30 minutes.
@@ -81,26 +104,10 @@ in a single command and in approximately 30 minutes.
 After provisioning any of the scenarios, you should have your environment ready to go.
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.
 
-Kubeinit spec
-~~~~~~~~~~~~~
 
-Currently the inventory to deploy the clusters is dynamic,
-this means that it is configured based on the variables that are
-passed to the deployment command.
-
-In particular the `kubeinit_spec` variable will determine the
-amount of controller nodes, compute nodes, and hypervisors that
-will be used.
-
-The current supported syntax of this variable is:
-
-<distro>-<driver>-<controllers>-<computes>-<hypervisors>
-
-For example, combinations like okd-libvirt-1-2-1, k8s-libvirt-3-1-1,
-eks-libvirt-1-0-1 are all valid.
 
 Running the deployment command from a container
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 The whole process is explained in the `HowTo's <https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html>`_.
 The following commands build a container image with the project inside of it, and then
@@ -147,6 +154,9 @@ Running from a release
             -e kubeinit_spec=okd-libvirt-3-2-1 \
             -i ./kubeinit/inventory \
             ./kubeinit/playbook.yml
+
+Connecting to the cluster
+<<<<<<<<<<<<<<<<<<<<<<<<<
 
 Accessing the cluster resources internally
 ------------------------------------------
@@ -216,7 +226,7 @@ from the external machine if you have a similar configuration in the
     nameserver 8.8.8.8
 
 Cleaning up the environment
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 Each time a cluster is deployed, all the previously created resources are removed.
 In case a user needs to remove the resources created by Kubeinit execute
