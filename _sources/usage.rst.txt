@@ -81,6 +81,24 @@ in a single command and in approximately 30 minutes.
 After provisioning any of the scenarios, you should have your environment ready to go.
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.
 
+Kubeinit spec
+~~~~~~~~~~~~~
+
+Currently the inventory to deploy the clusters is dynamic,
+this means that it is configured based on the variables that are
+passed to the deployment command.
+
+In particular the `kubeinit_spec` variable will determine the
+amount of controller nodes, compute nodes, and hypervisors that
+will be used.
+
+The current supported syntax of this variable is:
+
+<distro>-<driver>-<controllers>-<computes>-<hypervisors>
+
+For example, combinations like okd-libvirt-1-2-1, k8s-libvirt-3-1-1,
+eks-libvirt-1-0-1 are all valid.
+
 Running the deployment command from a container
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
