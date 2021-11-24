@@ -57,19 +57,27 @@
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Usage</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#multiple-hypervisors-support">Multiple hypervisors support</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#installing-dependencies">Installing dependencies</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#directly-executing-the-deployment-playbook">Directly executing the deployment playbook</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#kubeinit-spec">Kubeinit spec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#running-the-deployment-command-from-a-container">Running the deployment command from a container</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#running-from-the-git-repository">Running from the GIT repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#running-from-a-release">Running from a release</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#accessing-the-cluster-resources-internally">Accessing the cluster resources internally</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#accessing-the-cluster-resources-externally">Accessing the cluster resources externally</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#installing-dependencies">Installing dependencies</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#multiple-hypervisors-support">Multiple hypervisors support</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#kubeinit-spec">Kubeinit spec</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#cleaning-up-the-environment">Cleaning up the environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#deployment">Deployment</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#directly-executing-the-deployment-playbook">Directly executing the deployment playbook</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-the-deployment-command-from-a-container">Running the deployment command from a container</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#running-from-the-git-repository">Running from the GIT repository</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-from-a-release">Running from a release</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#connecting-to-the-cluster">Connecting to the cluster</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#accessing-the-cluster-resources-internally">Accessing the cluster resources internally</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#accessing-the-cluster-resources-externally">Accessing the cluster resources externally</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#cleaning-up-the-environment">Cleaning up the environment</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
@@ -120,21 +128,8 @@ or by running it inside a container.</p>
 <li><p>Adjust the inventory file to suit your needs.</p></li>
 <li><p>Having podman installed in the machine where you are running ansible-playbook.</p></li>
 </ul>
-</section>
-<section id="multiple-hypervisors-support">
-<h2>Multiple hypervisors support<a class="headerlink" href="#multiple-hypervisors-support" title="Permalink to this headline"></a></h2>
-<p>Currently, it is supported the deployment of multiple Kubernetes clusters
-in multiple hosts. While it is supported to deploy different Kubernetes distributions
-based in different guest OS, for example Vanilla Kubernetes that is based in CentOS and
-OKD based in Fedora CoreOS the operative system of the hosts must be the same, this means
-to have 3 hypervisors (chassis) based in Debian that will host any of the currently supported
-distribution.</p>
-<p><strong>Any deployment based on mixed versions of the Hypervisors OS is not supported.</strong>
-This is motivated on the potential failures due to mismatch in OVS/OVN and Kernel
-versions.</p>
-</section>
 <section id="installing-dependencies">
-<h2>Installing dependencies<a class="headerlink" href="#installing-dependencies" title="Permalink to this headline"></a></h2>
+<h3>Installing dependencies<a class="headerlink" href="#installing-dependencies" title="Permalink to this headline"></a></h3>
 <p>KubeInit calls additional Ansible collections that needs to be installed.
 If there are dependencies issues when executing the collection, install
 them by executing:</p>
@@ -159,8 +154,36 @@ repository.</p>
 </pre></div>
 </div>
 </section>
+<section id="multiple-hypervisors-support">
+<h3>Multiple hypervisors support<a class="headerlink" href="#multiple-hypervisors-support" title="Permalink to this headline"></a></h3>
+<p>Currently, it is supported the deployment of multiple Kubernetes clusters
+in multiple hosts. While it is supported to deploy different Kubernetes distributions
+based in different guest OS, for example Vanilla Kubernetes that is based in CentOS and
+OKD based in Fedora CoreOS the operative system of the hosts must be the same, this means
+to have 3 hypervisors (chassis) based in Debian that will host any of the currently supported
+distribution.</p>
+<p><strong>Any deployment based on mixed versions of the Hypervisors OS is not supported.</strong>
+This is motivated on the potential failures due to mismatch in OVS/OVN and Kernel
+versions.</p>
+</section>
+<section id="kubeinit-spec">
+<h3>Kubeinit spec<a class="headerlink" href="#kubeinit-spec" title="Permalink to this headline"></a></h3>
+<p>Currently the inventory to deploy the clusters is dynamic,
+this means that it is configured based on the variables that are
+passed to the deployment command.</p>
+<p>In particular the <cite>kubeinit_spec</cite> variable will determine the
+amount of controller nodes, compute nodes, and hypervisors that
+will be used.</p>
+<p>The current supported syntax of this variable is:</p>
+<p><cite>&lt;distro&gt;-&lt;driver&gt;-&lt;controllers&gt;-&lt;computes&gt;-&lt;hypervisors&gt;</cite></p>
+<p>For example, combinations like okd-libvirt-1-2-1, k8s-libvirt-3-1-1,
+eks-libvirt-1-0-1 are all valid.</p>
+</section>
+</section>
+<section id="deployment">
+<h2>Deployment<a class="headerlink" href="#deployment" title="Permalink to this headline"></a></h2>
 <section id="directly-executing-the-deployment-playbook">
-<h2>Directly executing the deployment playbook<a class="headerlink" href="#directly-executing-the-deployment-playbook" title="Permalink to this headline"></a></h2>
+<h3>Directly executing the deployment playbook<a class="headerlink" href="#directly-executing-the-deployment-playbook" title="Permalink to this headline"></a></h3>
 <p>The following example command will deploy a multi-master OKD 4.5 cluster with 1 worker node
 in a single command and in approximately 30 minutes.</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">git clone https://github.com/Kubeinit/kubeinit.git</span>
@@ -175,21 +198,8 @@ in a single command and in approximately 30 minutes.</p>
 <p>After provisioning any of the scenarios, you should have your environment ready to go.
 To connect to the nodes from the hypervisor use the IP addresses from the inventory files.</p>
 </section>
-<section id="kubeinit-spec">
-<h2>Kubeinit spec<a class="headerlink" href="#kubeinit-spec" title="Permalink to this headline"></a></h2>
-<p>Currently the inventory to deploy the clusters is dynamic,
-this means that it is configured based on the variables that are
-passed to the deployment command.</p>
-<p>In particular the <cite>kubeinit_spec</cite> variable will determine the
-amount of controller nodes, compute nodes, and hypervisors that
-will be used.</p>
-<p>The current supported syntax of this variable is:</p>
-<p>&lt;distro&gt;-&lt;driver&gt;-&lt;controllers&gt;-&lt;computes&gt;-&lt;hypervisors&gt;</p>
-<p>For example, combinations like okd-libvirt-1-2-1, k8s-libvirt-3-1-1,
-eks-libvirt-1-0-1 are all valid.</p>
-</section>
 <section id="running-the-deployment-command-from-a-container">
-<h2>Running the deployment command from a container<a class="headerlink" href="#running-the-deployment-command-from-a-container" title="Permalink to this headline"></a></h2>
+<h3>Running the deployment command from a container<a class="headerlink" href="#running-the-deployment-command-from-a-container" title="Permalink to this headline"></a></h3>
 <p>The whole process is explained in the <a class="reference external" href="https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html">HowTo’s</a>.
 The following commands build a container image with the project inside of it, and then
 launches the container executing the ansible-playbook command with all the
@@ -200,7 +210,7 @@ the hypervisor’s IP address. Also when running the
 deployment as a user different than root, the
 keys needs to be also updated.</p>
 <section id="running-from-the-git-repository">
-<h3>Running from the GIT repository<a class="headerlink" href="#running-from-the-git-repository" title="Permalink to this headline"></a></h3>
+<h4>Running from the GIT repository<a class="headerlink" href="#running-from-the-git-repository" title="Permalink to this headline"></a></h4>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">git clone https://github.com/Kubeinit/kubeinit.git</span>
 <span class="go">cd kubeinit</span>
 <span class="go">podman build -t kubeinit/kubeinit .</span>
@@ -217,7 +227,7 @@ keys needs to be also updated.</p>
 </div>
 </section>
 <section id="running-from-a-release">
-<h3>Running from a release<a class="headerlink" href="#running-from-a-release" title="Permalink to this headline"></a></h3>
+<h4>Running from a release<a class="headerlink" href="#running-from-a-release" title="Permalink to this headline"></a></h4>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>Get the latest release tag
 <span class="go">TAG=$(curl --silent &quot;https://api.github.com/repos/kubeinit/kubeinit/releases/latest&quot; | jq -r .tag_name)</span>
 <span class="go">podman run --rm -it \</span>
@@ -232,8 +242,11 @@ keys needs to be also updated.</p>
 </pre></div>
 </div>
 </section>
+</section>
+<section id="connecting-to-the-cluster">
+<h3>Connecting to the cluster<a class="headerlink" href="#connecting-to-the-cluster" title="Permalink to this headline"></a></h3>
 <section id="accessing-the-cluster-resources-internally">
-<h3>Accessing the cluster resources internally<a class="headerlink" href="#accessing-the-cluster-resources-internally" title="Permalink to this headline"></a></h3>
+<h4>Accessing the cluster resources internally<a class="headerlink" href="#accessing-the-cluster-resources-internally" title="Permalink to this headline"></a></h4>
 <p>Once the deployment is finished the machine used
 for provisioning the cluster have access to both
 the pod services and instances created.
@@ -269,7 +282,7 @@ For instance:</p>
 </div>
 </section>
 <section id="accessing-the-cluster-resources-externally">
-<h3>Accessing the cluster resources externally<a class="headerlink" href="#accessing-the-cluster-resources-externally" title="Permalink to this headline"></a></h3>
+<h4>Accessing the cluster resources externally<a class="headerlink" href="#accessing-the-cluster-resources-externally" title="Permalink to this headline"></a></h4>
 <p>When the services deployment is executed
 one of the tasks in the kubeinit_bind role
 will create an external ingress script on the primary
@@ -292,7 +305,7 @@ from the external machine if you have a similar configuration in the
 </section>
 </section>
 <section id="cleaning-up-the-environment">
-<h2>Cleaning up the environment<a class="headerlink" href="#cleaning-up-the-environment" title="Permalink to this headline"></a></h2>
+<h3>Cleaning up the environment<a class="headerlink" href="#cleaning-up-the-environment" title="Permalink to this headline"></a></h3>
 <p>Each time a cluster is deployed, all the previously created resources are removed.
 In case a user needs to remove the resources created by Kubeinit execute
 from the project’s root folder:</p>
@@ -308,6 +321,7 @@ from the project’s root folder:</p>
 hypervisors resources. If its required to remove all the guests
 in the hypervisors its also possible to add the following variable
 <cite>-e kubeinit_libvirt_destroy_all_guests=True</cite></p>
+</section>
 </section>
 </section>
 
