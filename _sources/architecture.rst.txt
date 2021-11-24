@@ -6,8 +6,20 @@ This section provides an overall
 view of the project's architectural design
 and components.
 
-Services pod
-~~~~~~~~~~~~
+Kubeinit design
+~~~~~~~~~~~~~~~
+
+High-level development goals
+----------------------------
+
+Challenges of the problem domain
+--------------------------------
+
+Basic Ansible workflow design
+-----------------------------
+
+Infrastructure services (Services pod)
+--------------------------------------
 
 Each cluster deployment requires a set of infrastructure
 services to support its correct functioning, the current
