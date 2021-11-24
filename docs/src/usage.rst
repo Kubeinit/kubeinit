@@ -148,18 +148,20 @@ Running from a release
             -i ./kubeinit/inventory \
             ./kubeinit/playbook.yml
 
-Accessing the cluster resources
--------------------------------
+Accessing the cluster resources internally
+------------------------------------------
 
-Once the deployment is finished the service
-node has access to the cluster resources.
-For example, once logged in the service
-machine a user can execute:
+Once the deployment is finished the machine used
+for provisioning the cluster have access to both
+the pod services and instances created.
+The SSH keys are stored in the .ssh folder from the
+home folder of the user triggering the deployment.
+For instance:
 
 .. code-block:: console
 
     # From the hypervisor node the user should
-    # have passwordless access to the service machine
+    # have passwordless access to the services pod
     root@mocoloco kubeinit]# ssh -i ~/.ssh/rkecluster_id_rsa root@10.0.0.253
     Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-53-generic x86_64)
       System load:  0.0                Users logged in:               0
@@ -183,6 +185,35 @@ machine a user can execute:
     # The cluster config file is also copied to the default folder.
     root@rke-service-01:~# ls .kube/config
     .kube/config
+
+
+Accessing the cluster resources externally
+------------------------------------------
+
+When the services deployment is executed
+one of the tasks in the kubeinit_bind role
+will create an external ingress script on the primary
+(bastion) hypervisor called create-external-ingress.sh.
+
+Running that script will create the required tunnels
+for all the service endpoints on the cluster.
+
+A user should be able to fetch the kubeadmin password running a command like:
+
+.. code-block:: console
+
+    echo $(ssh root@nyctea ssh root@10.0.0.100 cat install_dir/auth/kubeadmin-password)
+
+The console should be available at
+https://console-openshift-console.apps.okdcluster.kubeinit.local
+from the external machine if you have a similar configuration in the
+`/etc/resolv.conf`.
+
+.. code-block:: console
+
+    search okdcluster.kubeinit.local
+    nameserver <ip of nyctea>
+    nameserver 8.8.8.8
 
 Cleaning up the environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -6,8 +6,8 @@ This section provides an overall
 view of the project's architectural design
 and components.
 
-Service pod
-~~~~~~~~~~~
+Services pod
+~~~~~~~~~~~~
 
 Each cluster deployment requires a set of infrastructure
 services to support its correct functioning, the current
