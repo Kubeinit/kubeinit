@@ -1,8 +1,3 @@
-.. No Errors Test Project documentation master file, created by
-   sphinx-quickstart on Sun Aug 09 17:07:56 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to KubeInit's documentation!
 ====================================
 
@@ -10,13 +5,13 @@ KubeInit provides Ansible playbooks and roles for the deployment
 and configuration of multiple Kubernetes distributions.
 
 Source code
-===========
+~~~~~~~~~~~
 
 The source code of this upstream project is hosted at
 GitHub's `kubeinit repositories <https://github.com/kubeinit/kubeinit/>`_.
 
 Contributors
-============
+~~~~~~~~~~~~
 
 First thing first, thank you to all KubeInit's contributors.
 
@@ -27,7 +22,7 @@ First thing first, thank you to all KubeInit's contributors.
 
 
 Mission
-=======
+~~~~~~~
 
 KubeInit's mission is to have a fully automated way to deploy in a single command a curated list of
 prescribed architectures based on the following principles **(G.I.V.E.)**.
@@ -43,7 +38,7 @@ prescribed architectures based on the following principles **(G.I.V.E.)**.
     <p><span style="font-weight: bold; font-size: 200%;color: #000;">E</span>ngage with the upstream community for giving and receiving feedback, and cross-pollination to spark and amplify creativity, serendipity, and interdisciplinary friction.</p>
 
 Content
-=======
+~~~~~~~
 
 .. toctree::
    :maxdepth: 2
