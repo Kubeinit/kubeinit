@@ -65,7 +65,8 @@
 <li class="toctree-l2"><a class="reference internal" href="#running-the-deployment-command-from-a-container">Running the deployment command from a container</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#running-from-the-git-repository">Running from the GIT repository</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#running-from-a-release">Running from a release</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#accessing-the-cluster-resources">Accessing the cluster resources</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#accessing-the-cluster-resources-internally">Accessing the cluster resources internally</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#accessing-the-cluster-resources-externally">Accessing the cluster resources externally</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#cleaning-up-the-environment">Cleaning up the environment</a></li>
@@ -231,14 +232,16 @@ keys needs to be also updated.</p>
 </pre></div>
 </div>
 </section>
-<section id="accessing-the-cluster-resources">
-<h3>Accessing the cluster resources<a class="headerlink" href="#accessing-the-cluster-resources" title="Permalink to this headline"></a></h3>
-<p>Once the deployment is finished the service
-node has access to the cluster resources.
-For example, once logged in the service
-machine a user can execute:</p>
+<section id="accessing-the-cluster-resources-internally">
+<h3>Accessing the cluster resources internally<a class="headerlink" href="#accessing-the-cluster-resources-internally" title="Permalink to this headline"></a></h3>
+<p>Once the deployment is finished the machine used
+for provisioning the cluster have access to both
+the pod services and instances created.
+The SSH keys are stored in the .ssh folder from the
+home folder of the user triggering the deployment.
+For instance:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>From the hypervisor node the user should
-<span class="gp"># </span>have passwordless access to the service machine
+<span class="gp"># </span>have passwordless access to the services pod
 <span class="gp">root@mocoloco kubeinit]# </span>ssh -i ~/.ssh/rkecluster_id_rsa root@10.0.0.253
 <span class="go">Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-53-generic x86_64)</span>
 <span class="go">  System load:  0.0                Users logged in:               0</span>
@@ -262,6 +265,28 @@ machine a user can execute:</p>
 <span class="gp"># </span>The cluster config file is also copied to the default folder.
 <span class="gp">root@rke-service-01:~# </span>ls .kube/config
 <span class="go">.kube/config</span>
+</pre></div>
+</div>
+</section>
+<section id="accessing-the-cluster-resources-externally">
+<h3>Accessing the cluster resources externally<a class="headerlink" href="#accessing-the-cluster-resources-externally" title="Permalink to this headline"></a></h3>
+<p>When the services deployment is executed
+one of the tasks in the kubeinit_bind role
+will create an external ingress script on the primary
+(bastion) hypervisor called create-external-ingress.sh.</p>
+<p>Running that script will create the required tunnels
+for all the service endpoints on the cluster.</p>
+<p>A user should be able to fetch the kubeadmin password running a command like:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">echo $(ssh root@nyctea ssh root@10.0.0.100 cat install_dir/auth/kubeadmin-password)</span>
+</pre></div>
+</div>
+<p>The console should be available at
+<a class="reference external" href="https://console-openshift-console.apps.okdcluster.kubeinit.local">https://console-openshift-console.apps.okdcluster.kubeinit.local</a>
+from the external machine if you have a similar configuration in the
+<cite>/etc/resolv.conf</cite>.</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">search okdcluster.kubeinit.local</span>
+<span class="go">nameserver &lt;ip of nyctea&gt;</span>
+<span class="go">nameserver 8.8.8.8</span>
 </pre></div>
 </div>
 </section>
