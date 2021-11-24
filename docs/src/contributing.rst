@@ -6,8 +6,58 @@ Communication
 ~~~~~~~~~~~~~
 * Join the `kubeinit Slack channel <https://kubernetes.slack.com/archives/C01FKK19T0B>`__.
 
+
+
+Development environment setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+Contributing Code
+~~~~~~~~~~~~~~~~~
+
+Contributing Documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you notice missing or erroneous documentation, you can either
+create an `issue on Github
+<https://github.com/kubeinit/kubeinit/issues>`_, or you can create
+a `pull request <https://github.com/kubeinit/kubeinit/pulls>`_
+with the desired documentation changes.
+
+Documentation sources in the repository:
+
+-  The majority of documentation is located under ``docs/src`` folder.
+
+-  Individual roles have a readme file under
+   ``kubeinit/roles/<ROLE>/README.md`` (Ansible Galaxy requirement).
+
+-  Modules are documented directly in their Python file
+   ``kubeinit/plugins/modules/<MODULE>.py`` (Ansible convention).
+
+
+Rendering the Documentation
+---------------------------
+
+After you make your change and before you submit a pull request, it's
+good to verify that the changes you made are getting rendered into
+HTML correctly.
+
+From the docs folder docs/src execute:
+
+::
+
+   make html
+
+You can inspect the rendered documentation by opening
+``docs/src/_build/html/index.html`` in your web browser.
+
+
+General Contribution Guidelines
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Creating new roles automatically
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------
 
 Adding roles into this project is easy and starts with a compatible skeleton.
 
@@ -29,7 +79,7 @@ From the repository root directory execute:
 This command will generate the role, initial molecule default tests, and the documentation stub.
 
 Linting new roles and code
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 It is possible to run a lint check automatically before pushing
 code or pull requests.
@@ -43,7 +93,7 @@ From the repository root directory execute:
 If the test pass all the executed tests should have succeeded.
 
 Linting commits
-~~~~~~~~~~~~~~~
+---------------
 
 For every pull request is executed a syntax check, this is
 for multiple reasons.
@@ -52,7 +102,7 @@ for multiple reasons.
 - Simple navigation through git history (e.g. ignoring style changes).
 
 Format
-------
+^^^^^^
 
 .. code-block:: console
 
@@ -82,20 +132,20 @@ Accepted types:
 - `revert`: reverting a change
 
 Message subject (first line)
-----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The first line cannot be longer than 70 characters, the second line is always
 blank and other lines should be wrapped at 80 characters. The type and scope
 should always be lowercase as shown below.
 
 Message body
-------------
+^^^^^^^^^^^^
 
 Uses the imperative, present tense: “change” not “changed” nor “changes” and
 includes motivation for the change and contrasts with previous behavior.
 
 Footer
-------
+^^^^^^
 
 An optional, last line separated by a blank line with keywords like:
 
@@ -115,7 +165,7 @@ or
 
 
 Examples
---------
+^^^^^^^^
 
 OK:
 
@@ -135,9 +185,11 @@ WRONG:
     This feature adds a new role to implement
     an awesome new feature.
 
+CI usage
+~~~~~~~~
 
-Internal CI usage
-~~~~~~~~~~~~~~~~~
+Public facing CI
+----------------
 
 The following diagram describes the internal usage of GitHub actions
 and GitLab to run the end-to-end jobs.
@@ -145,3 +197,16 @@ and GitLab to run the end-to-end jobs.
     .. image:: static/plantuml/github_workflow.png
       :width: 100%
       :alt: Sequence diagram of the CI GitHub workflow for the e2e jobs
+
+Internal facing CI
+------------------
+
+Development environments
+------------------------
+
+Releasing Kubeinit
+~~~~~~~~~~~~~~~~~~
+
+Kubeinit is released in both
+`Ansible Galaxy <https://galaxy.ansible.com/kubeinit/kubeinit>`_, and
+`Pypi <https://pypi.org/project/kubeinit/>`_.

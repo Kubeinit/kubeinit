@@ -4,11 +4,24 @@ Welcome to KubeInit's documentation!
 KubeInit provides Ansible playbooks and roles for the deployment
 and configuration of multiple Kubernetes distributions.
 
-Source code
-~~~~~~~~~~~
+Community
+~~~~~~~~~
 
-The source code of this upstream project is hosted at
-GitHub's `kubeinit repositories <https://github.com/kubeinit/kubeinit/>`_.
+The `source code of Kubeinit <https://github.com/kubeinit/kubeinit>`_
+is hosted on GitHub.
+
+For issue reports please use the GitHub
+`Kubeinit issue tracker <https://github.com/kubeinit/kubeinit/issues>`_.
+
+To get help, feel free to also create an
+`issue <https://github.com/kubeinit/kubeinit/issues>`_
+on GitHub with your question.
+
+For a more interactive chat, join the the channel
+`#kubeinit <https://kubernetes.slack.com/archives/C01FKK19T0B>`_.
+
+If you want to contribute to the project (code, docs, ...), please
+refer to the `contributing docs <contributing.html>`_.
 
 Contributors
 ~~~~~~~~~~~~
@@ -43,10 +56,9 @@ Content
 .. toctree::
    :maxdepth: 2
 
-   contributing
-   installation
    usage
    architecture
+   contributing
    roles
    modules
    howtos_and_presentations
