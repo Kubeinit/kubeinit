@@ -86,7 +86,7 @@ Deployment
 
 
 Directly executing the deployment playbook
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+------------------------------------------
 
 The following example command will deploy a multi-master OKD 4.5 cluster with 1 worker node
 in a single command and in approximately 30 minutes.
@@ -107,7 +107,7 @@ To connect to the nodes from the hypervisor use the IP addresses from the invent
 
 
 Running the deployment command from a container
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------
 
 The whole process is explained in the `HowTo's <https://www.anstack.com/blog/2020/09/11/Deploying-KubeInit-from-a-container.html>`_.
 The following commands build a container image with the project inside of it, and then
@@ -121,7 +121,7 @@ deployment as a user different than root, the
 keys needs to be also updated.
 
 Running from the GIT repository
--------------------------------
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 .. code-block:: console
 
@@ -139,7 +139,7 @@ Running from the GIT repository
             ./kubeinit/playbook.yml
 
 Running from a release
-----------------------
+<<<<<<<<<<<<<<<<<<<<<<
 
 .. code-block:: console
 
@@ -156,10 +156,10 @@ Running from a release
             ./kubeinit/playbook.yml
 
 Connecting to the cluster
-<<<<<<<<<<<<<<<<<<<<<<<<<
+-------------------------
 
 Accessing the cluster resources internally
-------------------------------------------
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 Once the deployment is finished the machine used
 for provisioning the cluster have access to both
@@ -198,7 +198,7 @@ For instance:
 
 
 Accessing the cluster resources externally
-------------------------------------------
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 When the services deployment is executed
 one of the tasks in the kubeinit_bind role
@@ -226,7 +226,7 @@ from the external machine if you have a similar configuration in the
     nameserver 8.8.8.8
 
 Cleaning up the environment
-<<<<<<<<<<<<<<<<<<<<<<<<<<<
+---------------------------
 
 Each time a cluster is deployed, all the previously created resources are removed.
 In case a user needs to remove the resources created by Kubeinit execute
