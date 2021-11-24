@@ -51,8 +51,12 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # Source code links
-github_url = "https://github.com/Kubeinit/kubeinit"
-html_show_sourcelink = False
+html_context = {
+  'display_github': True,
+  'github_user': 'kubeinit',
+  'github_repo': 'kubeinit',
+  'github_version': 'main/docs/src/',
+}
 
 # -- Options for HTML output -------------------------------------------------
 
