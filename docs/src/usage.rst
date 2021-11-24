@@ -120,8 +120,8 @@ the hypervisor's IP address. Also when running the
 deployment as a user different than root, the
 keys needs to be also updated.
 
-Running from the GIT repository
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+|bull| Running from the GIT repository
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: console
 
@@ -138,8 +138,8 @@ Running from the GIT repository
             -i ./kubeinit/inventory \
             ./kubeinit/playbook.yml
 
-Running from a release
-<<<<<<<<<<<<<<<<<<<<<<
+|bull| Running from a release
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: console
 
@@ -158,8 +158,8 @@ Running from a release
 Connecting to the cluster
 -------------------------
 
-Accessing the cluster resources internally
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+|bull| Accessing the cluster resources internally
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Once the deployment is finished the machine used
 for provisioning the cluster have access to both
@@ -197,8 +197,8 @@ For instance:
     .kube/config
 
 
-Accessing the cluster resources externally
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+|bull| Accessing the cluster resources externally
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When the services deployment is executed
 one of the tasks in the kubeinit_bind role
@@ -245,3 +245,9 @@ In this case the deployment will stop just after cleaning the
 hypervisors resources. If its required to remove all the guests
 in the hypervisors its also possible to add the following variable
 `-e kubeinit_libvirt_destroy_all_guests=True`
+
+.. We define some macros to add symbols when required to the
+   docs pages, this is fetched from Docutils
+   https://docutils.sourceforge.io/docutils/parsers/rst/include/
+
+.. include:: static/parsers/xhtml1-symbol.txt
