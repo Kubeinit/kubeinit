@@ -2,6 +2,10 @@
 Usage
 =====
 
+KubeInit is an Ansible collection, to use it
+the only installation requirement is to have Python 3
+and Ansible +2.9.
+
 There are two ways of launching KubeInit, directly using the
 ansible-playbook command from the project's source code,
 or by running it inside a container.

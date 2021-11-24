@@ -52,10 +52,10 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # Source code links
 html_context = {
-  'display_github': True,
-  'github_user': 'kubeinit',
-  'github_repo': 'kubeinit',
-  'github_version': 'main/docs/src/',
+    'display_github': True,
+    'github_user': 'kubeinit',
+    'github_repo': 'kubeinit',
+    'github_version': 'main/docs/src/',
 }
 
 # -- Options for HTML output -------------------------------------------------
