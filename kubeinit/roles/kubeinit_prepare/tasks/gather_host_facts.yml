@@ -62,6 +62,14 @@
         msg: "The host \"{{ hostvars[kubeinit_deployment_node_name].ansible_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
       when: not distro_family is defined
 
+    - name: Gather the package facts
+      ansible.builtin.package_facts:
+      register: _result_packages
+
+    - name: Set podman_installed
+      ansible.builtin.set_fact:
+        podman_installed: "{{ true if ('podman' in ansible_facts.packages) else false }}"
+
     - name: Gather the services facts
       ansible.builtin.service_facts:
       register: _result_services
@@ -100,7 +108,6 @@
 
     - name: Set podman_active
       ansible.builtin.set_fact:
-        podman_installed: "{{ podman_state != '' }}"
         podman_active: "{{ true if podman_state == 'running' else false }}"
 
     - name: Set ovs_vswitchd_state to unknown
@@ -151,9 +158,11 @@
       register: _result_vms
       when: libvirtd_active and kubeinit_deployment_node_name in groups['hypervisor_hosts']
 
-    - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa) on hypervisor hosts
+    - name: Generate an OpenSSH keypair on hypervisor hosts
       community.crypto.openssh_keypair:
-        path: "~/.ssh/{{ kubeinit_cluster_name }}_id_rsa"
+        path: "~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }}"
+        type: "{{ kubeinit_common_ssh_keytype }}"
+        comment: "{{ kubeinit_cluster_name }} {{ kubeinit_deployment_node_name }}"
         regenerate: 'never'
       register: _result_keypair
       when: kubeinit_deployment_node_name in (['localhost'] + groups['hypervisor_hosts'])
