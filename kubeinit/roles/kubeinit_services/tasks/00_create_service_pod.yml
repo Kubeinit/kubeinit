@@ -68,7 +68,7 @@
 
     - name: Need an ssh tunnel from the bastion host through the ovn-central host to the service node
       ansible.builtin.command: |
-        ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -M -S "~/.ssh/cm-%r@%h:%p" -N -f -L "{{ kubeinit_bastion_host_address }}:{{ podman_remote_ssh_port }}:{{ podman_remote_ssh_host }}:22" "{{ podman_intermediate_ssh_host }}"
+        ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -M -S "~/.ssh/cm-%r@%h:%p" -N -f -L "{{ kubeinit_bastion_host_address }}:{{ podman_remote_ssh_port }}:{{ podman_remote_ssh_host }}:22" "{{ podman_intermediate_ssh_host }}"
 
     - name: Open firewall port 6222 on bastion
       ansible.posix.firewalld:
@@ -98,7 +98,7 @@
 
 - name: Add remote system connection definition for bastion hypervisor
   ansible.builtin.command: |
-    podman --remote system connection add "{{ hostvars[kubeinit_deployment_node_name].target }}" --identity "~/.ssh/{{ kubeinit_cluster_name }}_id_rsa" "ssh://{{ kubeinit_service_user }}@{{ kubeinit_bastion_host_address }}:{{ podman_remote_ssh_port }}{{ _result_systemd_runtime_path.stdout }}/podman/podman.sock"
+    podman --remote system connection add "{{ hostvars[kubeinit_deployment_node_name].target }}" --identity "~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }}" "ssh://{{ kubeinit_service_user }}@{{ kubeinit_bastion_host_address }}:{{ podman_remote_ssh_port }}{{ _result_systemd_runtime_path.stdout }}/podman/podman.sock"
   register: _result
   changed_when: "_result.rc == 0"
   delegate_to: localhost

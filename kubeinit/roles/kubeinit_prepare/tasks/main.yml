@@ -102,9 +102,11 @@
             kubeinit_deployment_node_name: "{{ kubeinit_bastion_host }}"
       tags: omit_from_grapher
 
-    - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa) on bastion host
+    - name: Generate an OpenSSH keypair bastion host
       community.crypto.openssh_keypair:
-        path: "~/.ssh/{{ kubeinit_cluster_name }}_id_rsa"
+        path: "~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }}"
+        type: "{{ kubeinit_common_ssh_keytype }}"
+        comment: "{{ kubeinit_cluster_name }} {{ kubeinit_bastion_host }}"
         regenerate: 'never'
       register: _result_cluster_keypair
       delegate_to: "{{ kubeinit_bastion_host }}"
@@ -165,7 +167,7 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     ansible_ssh_common_args: >-
-      {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_cluster_name }}_id_rsa -o ProxyCommand="ssh {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_cluster_name }}_id_rsa -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ansible_host }}"
+      {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -o ProxyCommand="ssh {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ansible_host }}"
   loop: "{{ groups['all_nodes'] }}"
 
 - block:
