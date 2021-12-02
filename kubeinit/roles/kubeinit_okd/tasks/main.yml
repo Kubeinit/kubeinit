@@ -156,26 +156,11 @@
 - name: Complete the cluster deployment on the provision service node
   block:
 
-    - name: "verify that all the csr are loaded and aproved for the deployed nodes"
-      ansible.builtin.shell: |
-        set -o pipefail
-        export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-        oc get csr -ojson | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve >/dev/null 2>&1; \
-        oc get csr | grep Approved
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
-      retries: 60
-      delay: 60
-      # Per each node we have 2 csrs, one per kubelet-serving and another per kube-apiserver-client-kubelet
-      # Per cluster we have an additonal csr per kube-apiserver-client for openshift-authenticator
-      until: _result.stdout_lines | default([]) | list | length == (kubeinit_cluster_node_count|int * 2) + 1
-
     - name: "wait until all nodes are ready"
       ansible.builtin.shell: |
         set -o pipefail
         export KUBECONFIG=~/install_dir/auth/kubeconfig; \
+        oc get csr -ojson | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve >/dev/null 2>&1; \
         oc get nodes | grep " Ready"
       args:
         executable: /bin/bash
