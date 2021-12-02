@@ -75,13 +75,13 @@ def render_index(gc_token_path):
         if m and status == "Periodic":
             date = m.group(0)
         else:
-            date = fields[9]
+            date = fields[8]
 
         m = re.search("https:\\/\\/gitlab\\.com\\/kubeinit\\/kubeinit\\/-\\/jobs\\/[0-9]+", resp.text)
         if m and status == "Periodic":
             job_id = m.group(0).split('/')[-1]
         else:
-            job_id = fields[8]
+            job_id = fields[7]
 
         jobs.append({'status': status,
                      'index': idx,
