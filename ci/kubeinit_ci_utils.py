@@ -61,9 +61,6 @@ def render_index(gc_token_path):
         elif stat == '1':
             status = 'Failed'
             badge = 'danger'
-        elif stat == 'u':
-            status = 'Periodic'
-            badge = 'primary'
         else:
             status = 'Running'
             badge = 'warning'
@@ -72,16 +69,36 @@ def render_index(gc_token_path):
         resp = requests.get(url=extra_data_date_url)
 
         m = re.search("[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]", resp.text)
-        if m and status == "Periodic":
+        # stat == 'u' means that this is a periodic job
+        if m and stat == 'u':
             date = m.group(0)
         else:
             date = fields[8]
 
         m = re.search("https:\\/\\/gitlab\\.com\\/kubeinit\\/kubeinit\\/-\\/jobs\\/[0-9]+", resp.text)
-        if m and status == "Periodic":
+        # stat == 'u' means that this is a periodic job
+        if m and stat == 'u':
             job_id = m.group(0).split('/')[-1]
         else:
             job_id = fields[7]
+
+        m = re.search("The pull request is: [0-9]+", resp.text)
+        # status == 'Passed' or 'Failed' it means that this is a pr job
+        if m and (status == "Passed" or status == "Failed"):
+            pr_number = str(m.group(0).split(' ')[-1])
+        else:
+            pr_number = 'Periodic'
+
+        index_data_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/index.html'
+        resp = requests.get(url=index_data_url)
+
+        m = re.search("btn-danger", resp.text)
+        if m and stat == 'u':
+            status = 'Failed'
+            badge = 'danger'
+        else:
+            status = 'Passed'
+            badge = 'success'
 
         jobs.append({'status': status,
                      'index': idx,
@@ -93,6 +110,7 @@ def render_index(gc_token_path):
                      'launch_from': fields[5],
                      'job_type': fields[6],
                      'id': job_id,
+                     'pr_number': pr_number,
                      'date': date,
                      'badge': badge,
                      'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/index.html'})

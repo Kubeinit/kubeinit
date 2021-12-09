@@ -113,9 +113,6 @@ ansible-galaxy collection build -v --force --output-path releases/
 ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
 cd ..
 
-echo "(launch_e2e.sh) ==> The inventory content..."
-cat ./kubeinit/inventory || true
-
 #
 # Begin ARA configuration
 #
@@ -204,24 +201,26 @@ KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 if [[ $DISTRO == *.* ]] ; then
     FIRST_DISTRO="$(cut -d'.' -f1 <<<"${DISTRO}")"
     SECOND_DISTRO="$(cut -d'.' -f2 <<<"${DISTRO}")"
-
     FIRST_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${FIRST_DISTRO}}"
     SECOND_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${SECOND_DISTRO}}"
     KUBEINIT_SPEC="${FIRST_KUBEINIT_SPEC},${SECOND_KUBEINIT_SPEC}"
-
-    # We enable two cluster ids in the inventory for both the cluster name and the network and
-    # add submariner to the post-deployment services
-    sed -i -e "/# cluster0/ s/# cluster0/${FIRST_DISTRO}cluster/" kubeinit/inventory
-    sed -i -e "/# cluster1/ s/# cluster1/${SECOND_DISTRO}cluster/" kubeinit/inventory
-    sed -i -e "/# kimgtnet/ s/# kimgtnet/kimgtnet/" kubeinit/inventory
 
     # We will enable only submariner in the
     # case of having a multicluster deployment
     # for okd.rke
     if [[ "$DISTRO" == "okd.rke" ]]; then
-        sed -i -e "/kubeinit_inventory_post_deployment_services/ s/none/submariner/" kubeinit/inventory
+        # TODO:FIXME: Submariner might be configured like
+        # submariner=broker or submariner=secondary
+        POST_DEPLOYMENT_SERVICES='submariner'
+    # We enable two cluster ids in the inventory for both the cluster name and the network
+    sed -i -e "/# cluster0/ s/# cluster0/${FIRST_DISTRO}cluster/" kubeinit/inventory
+    sed -i -e "/# cluster1/ s/# cluster1/${SECOND_DISTRO}cluster/" kubeinit/inventory
+    sed -i -e "/# kimgtnet/ s/# kimgtnet/kimgtnet/" kubeinit/inventory
     fi
 fi
+
+echo "(launch_e2e.sh) ==> The inventory content..."
+cat ./kubeinit/inventory || true
 
 #
 # Create aux file with environment information
@@ -299,10 +298,13 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
     {
         for SPEC in $KUBEINIT_SPEC; do
             echo "(launch_e2e.sh) ==> Deploying ${SPEC}"
+            CLUSTER_NAME="$(cut -d'-' -f1 <<<"${SPEC}")"
             ansible-playbook \
                 --user root \
                 -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
                 -i ./kubeinit/inventory \
+                -e kubeinit_inventory_cluster_name=${CLUSTER_NAME}cluster \
+                -e kubeinit_inventory_post_deployment_services="${POST_DEPLOYMENT_SERVICES:-none}" \
                 -e kubeinit_spec=${SPEC} \
                 ./kubeinit/playbook.yml
         done
@@ -335,10 +337,13 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
 
     for SPEC in $KUBEINIT_SPEC; do
         echo "(launch_e2e.sh) ==> Cleaning ${SPEC}"
+        CLUSTER_NAME="$(cut -d'-' -f1 <<<"${SPEC}")"
         ansible-playbook \
             --user root \
             -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
             -i ./kubeinit/inventory \
+            -e kubeinit_inventory_cluster_name=${CLUSTER_NAME}cluster \
+            -e kubeinit_inventory_post_deployment_services="${POST_DEPLOYMENT_SERVICES:-none}" \
             -e kubeinit_spec=${SPEC} \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./kubeinit/playbook.yml

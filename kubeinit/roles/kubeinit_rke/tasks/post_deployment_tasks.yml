@@ -42,16 +42,16 @@
 #
 # Deploy Submariner
 #
-# - block:
-#     - name: Deploy Submariner
-#       ansible.builtin.include_role:
-#         name: kubeinit.kubeinit.kubeinit_submariner
-#         public: yes
-#       vars:
-#         kubeinit_submariner_is_broker: true
-#         kubeinit_submariner_is_secondary: false
-#         kubeinit_submariner_deploy_stable: true
-#       when: 'submariner' in kubeinit_inventory_post_deployment_services | default(False)
-#   vars:
-#     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
-#   delegate_to: "{{ kubeinit_deployment_node_name }}"
+- block:
+    - name: Deploy Submariner
+      ansible.builtin.include_role:
+        name: kubeinit.kubeinit.kubeinit_submariner
+        public: yes
+      vars:
+        kubeinit_submariner_is_broker: false
+        kubeinit_submariner_is_secondary: true
+        kubeinit_submariner_deploy_stable: true
+      when: "'submariner' in kubeinit_fact_post_deployment_services | default(False)"
+  vars:
+    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

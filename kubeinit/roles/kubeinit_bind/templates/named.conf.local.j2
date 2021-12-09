@@ -29,23 +29,21 @@ view "internal" {
         file "/etc/bind/kubeinit/zones/internals/db.{{ kubeinit_bind_service_address | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
     };
 
-{% if kubeinit_bind_multicluster_dns_forward_enabled and kubeinit_cluster_distro == "okd" %}
-    zone "{{ lookup('ini', 'kubeinit_cluster_name section=all:vars file='+kubeinit_bind_multicluster_rke_inventory) }}.{{ lookup('ini', 'kubeinit_inventory_cluster_domain section=all:vars file='+kubeinit_bind_multicluster_rke_inventory) }}" IN {
+{% for cluster in groups['kubeinit_clusters'] | list %}
+    {% if not cluster == kubeinit_cluster_name %}
+        {% set cluster_net_name = hostvars[cluster].network_name %}
+        {% set cluster_nameserver_net = hostvars[cluster_net_name].network %}
+        {% set cluster_nameserver_offset = hostvars[cluster_net_name].nameserver_offset %}
+        {% set cluster_nameserver_addr = cluster_nameserver_net | ansible.netcommon.ipv4(cluster_nameserver_offset|int) | ansible.netcommon.ipv4('address') %}
+    zone "{{ cluster }}.{{ kubeinit_inventory_cluster_domain }}" IN {
         type forward;
         forward only;
         forwarders {
-            {{ lookup('ini', 'kubeinit_inventory_cluster_nameserver section=all:vars file='+kubeinit_bind_multicluster_rke_inventory) }};
+            {{ cluster_nameserver_addr }};
         };
     };
-{% elif kubeinit_bind_multicluster_dns_forward_enabled and kubeinit_cluster_distro == "rke" %}
-    zone "{{ lookup('ini', 'kubeinit_cluster_name section=all:vars file='+kubeinit_bind_multicluster_okd_inventory) }}.{{ lookup('ini', 'kubeinit_inventory_cluster_domain section=all:vars file='+kubeinit_bind_multicluster_okd_inventory) }}" IN {
-        type forward;
-        forwarders {
-            {{ lookup('ini', 'kubeinit_inventory_cluster_nameserver section=all:vars file='+kubeinit_bind_multicluster_okd_inventory) }};
-        };
-    };
-{% endif %}
-
+    {% endif %}
+{% endfor %}
 };
 
 acl bridge {
