@@ -115,12 +115,12 @@ git clone https://github.com/Kubeinit/kubeinit.git
 cd kubeinit
 
 # Install the Ansible collection requirements
-ansible-galaxy collection install --force -r kubeinit/requirements.yml
+ansible-galaxy collection install --force --requirements-file kubeinit/requirements.yml
 
 # Build and install the collection
 rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
-ansible-galaxy collection build -v --force --output-path releases/
-ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
+ansible-galaxy collection build kubeinit --verbose --force --output-path releases/
+ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat kubeinit/galaxy.yml | shyaml get-value version`.tar.gz
 
 # Run the playbook
 ansible-playbook \
