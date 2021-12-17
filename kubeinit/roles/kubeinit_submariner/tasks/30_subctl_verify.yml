@@ -19,19 +19,20 @@
     - name: "Sleep for {{ kubeinit_submariner_subctl_verify_pre_sleep_timeout }} seconds until the cluster converges"
       ansible.builtin.wait_for:
         timeout: "{{ kubeinit_submariner_subctl_verify_pre_sleep_timeout }}"
-      when: kubeinit_submariner_subctl_verify_pre_sleep|bool
+      when: kubeinit_submariner_subctl_verify_pre_sleep|bool and kubeinit_submariner_is_secondary|bool
 
-    - name: Execute subctl verify
-      ansible.builtin.shell: |
-        set -o pipefail
-        set -e
-        export PATH=$PATH:~/.local/bin
-        subctl verify ~/kubeconfig_okd ~/kubeconfig_rke \
-            --operation-timeout {{ kubeinit_submariner_subctl_verify_operation_timeout }} \
-            --connection-attempts {{ kubeinit_submariner_subctl_verify_connection_attempts }} \
-            --connection-timeout {{ kubeinit_submariner_subctl_verify_connection_timeout }} \
-            --only {{ kubeinit_submariner_subctl_verify_only }}{% if groups['all_compute_nodes'] | list | length > 1 and kubeinit_submariner_subctl_verify_enable_disruptive %},gateway-failover --enable-disruptive{% endif %}
-      args:
-        executable: /bin/bash
-      register: subma_subctl_verify
-      changed_when: "subma_subctl_verify.rc == 0"
+#   - name: Execute subctl verify
+#     ansible.builtin.shell: |
+#       set -o pipefail
+#       set -e
+#       export PATH=$PATH:~/.local/bin
+#       subctl verify --kubecontexts ~/kubeconfig_okd,~/kubeconfig_rke \
+#           --operation-timeout {{ kubeinit_submariner_subctl_verify_operation_timeout }} \
+#           --connection-attempts {{ kubeinit_submariner_subctl_verify_connection_attempts }} \
+#           --connection-timeout {{ kubeinit_submariner_subctl_verify_connection_timeout }} \
+#           --only {{ kubeinit_submariner_subctl_verify_only }}{% if groups['all_compute_nodes'] | list | length > 1 and kubeinit_submariner_subctl_verify_enable_disruptive %},gateway-failover --enable-disruptive{% endif %}
+#     args:
+#       executable: /bin/bash
+#     register: subma_subctl_verify
+#     changed_when: "subma_subctl_verify.rc == 0"
+#     when: kubeinit_submariner_is_secondary|bool
