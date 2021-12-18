@@ -1,0 +1,52 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- block:
+    - name: Prepare environment if needed
+      ansible.builtin.include_tasks: prepare_environment.yml
+      vars:
+        environment_prepared: "{{ kubeinit_setup_facts_name is defined }}"
+      when: not environment_prepared
+
+    - block:
+        - name: "Stop before 'task-cleanup-deployment' when requested"
+          ansible.builtin.add_host: name="{{ kubeinit_setup_facts_name }}" playbook_terminated=true
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-cleanup-deployment'
+  tags: omit_from_grapher
+
+- name: Cleanup previous kubeinit setup
+  ansible.builtin.debug:
+    msg: "Add cleanup tasks after deployment tasks are written and tested"
+
+- block:
+    - name: Add task-cleanup-deployment to tasks_completed
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_setup_facts_name }}"
+        tasks_completed: "{{ kubeinit_setup_hostvars.tasks_completed | union(['task-cleanup-deployment']) }}"
+
+    - name: Update kubeinit_setup_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_setup_hostvars: "{{ hostvars[kubeinit_setup_facts_name] }}"
+
+    - block:
+        - name: Stop after 'task-cleanup-deployment' when requested
+          ansible.builtin.add_host: name="{{ kubeinit_setup_facts_name }}" playbook_terminated=true
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_setup_hostvars.tasks_completed
+  tags: omit_from_grapher
