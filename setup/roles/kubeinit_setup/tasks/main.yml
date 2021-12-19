@@ -1,0 +1,172 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- block:
+    - name: Prepare environment if needed
+      ansible.builtin.include_tasks: prepare_environment.yml
+      vars:
+        environment_prepared: "{{ kubeinit_setup_facts_name is defined }}"
+      when: not environment_prepared
+
+    - block:
+        - name: "Stop before 'task-deploy-setup' when requested"
+          ansible.builtin.add_host: name="{{ kubeinit_setup_facts_name }}" playbook_terminated=true
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-setup'
+  tags: omit_from_grapher
+
+- name: Delegate to kubeinit_setup_host_name
+  block:
+
+    - name: Install latest pip module
+      ansible.builtin.pip:
+        name: pip
+        state: latest
+        extra_args: --user
+
+    - name: Install latest cryptography module
+      ansible.builtin.pip:
+        name: cryptography
+        state: latest
+        extra_args: --user
+
+    - name: Install latest shyaml ansible netaddr modules
+      ansible.builtin.pip:
+        name:
+          - shyaml
+          - ansible
+          - netaddr
+        state: latest
+        extra_args: --user
+
+    - name: Clone the kubeinit git repo
+      ansible.builtin.git:
+        clone: true
+        dest: ~/kubeinit
+        repo: https://github.com/Kubeinit/kubeinit.git
+        version: main
+
+    - name: Install ansible-galaxy requirements
+      community.general.ansible_galaxy_install:
+        type: collection
+        requirements_file: ~/kubeinit/kubeinit/requirements.yml
+        force: true
+
+    - name: Remove any existing kubeinit/kubeinit galaxy collection
+      ansible.builtin.file:
+        path: ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
+        state: absent
+
+    - name: Build the kubeinit/kubeinit galaxy collection
+      ansible.builtin.command:
+        chdir: ~/kubeinit
+        cmd: ansible-galaxy collection build kubeinit --verbose --force --output-path releases/
+      register: _result
+
+    - name: Read the kubeinit/galaxy.xml file
+      ansible.builtin.command:
+        chdir: ~/kubeinit
+        cmd: cat kubeinit/galaxy.yml
+      register: _result
+
+    - name: Set galaxy file facts
+      ansible.builtin.set_fact:
+        galaxy_facts: "{{ _result.stdout | from_yaml }}"
+
+    - name: Install the kubeinit/kubeinit galaxy collection
+      ansible.builtin.command:
+        chdir: ~/kubeinit
+        cmd: ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-{{ galaxy_facts.version }}.tar.gz
+      register: _result
+      failed_when: _result is not defined
+
+    - name: Create ~/.ssh/config from template
+      ansible.builtin.template:
+        src: ssh-config.j2
+        dest: ~/.ssh/config
+        mode: '0644'
+
+    - name: Generate an OpenSSH keypair for setup_host to have remote access to hypervisor hosts
+      community.crypto.openssh_keypair:
+        path: "{{ kubeinit_setup_keypair_path }}"
+        type: "{{ kubeinit_common_ssh_keytype }}"
+        comment: "{{ kubeinit_setup_host_fqdn }}"
+        regenerate: 'never'
+      register: _result_setup_keypair
+
+    - name: Add host keys to known_hosts
+      ansible.builtin.known_hosts:
+        name: "{{ hostvars[item].ansible_host }}"
+        key: "{{ hostvars[item].ansible_host }} {{ hostvars[item].ssh_host_key_ecdsa }}"
+        state: present
+      loop: "{{ groups['hypervisor_hosts'] }}"
+
+    - name: Add setup_host public key to hypervisor hosts
+      ansible.posix.authorized_key:
+        user: root
+        key: "{{ _result_setup_keypair.public_key }}"
+        comment: "{{ _result_setup_keypair.comment }}"
+        state: present
+      loop: "{{ groups['hypervisor_hosts'] }}"
+      loop_control:
+        loop_var: hypervisor_host
+      vars:
+        ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+      delegate_to: "{{ hypervisor_host }}"
+
+    - name: Confirm access to hypervisors from setup host and user
+      ansible.builtin.shell: |
+        set -o pipefail
+        ssh \
+            -i {{ kubeinit_setup_keypair_path }} \
+            -o ConnectTimeout=5 \
+            -o BatchMode=yes \
+            -o UserKnownHostsFile=/dev/null \
+            -o StrictHostKeyChecking=accept-new \
+            root@{{ hostvars[hypervisor_host].ansible_host }} 'echo connected' || true
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      retries: 30
+      delay: 10
+      until: "'connected' in _result.stdout"
+      loop: "{{ groups['hypervisor_hosts'] }}"
+      loop_control:
+        loop_var: hypervisor_host
+
+  environment:
+    PATH: "{{ hostvars[kubeinit_setup_host_name].remote_home }}/.local/bin:{{ hostvars[kubeinit_setup_host_name].remote_path }}"
+  delegate_to: "{{ kubeinit_setup_host_name }}"
+
+- block:
+    - name: Add task-deploy-setup to tasks_completed
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_setup_facts_name }}"
+        tasks_completed: "{{ kubeinit_setup_hostvars.tasks_completed | union(['task-deploy-setup']) }}"
+
+    - name: Update kubeinit_setup_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_setup_hostvars: "{{ hostvars[kubeinit_setup_facts_name] }}"
+
+    - block:
+        - name: Stop after 'task-deploy-setup' when requested
+          ansible.builtin.add_host: name="{{ kubeinit_setup_facts_name }}" playbook_terminated=true
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_setup_hostvars.tasks_completed
+  tags: omit_from_grapher

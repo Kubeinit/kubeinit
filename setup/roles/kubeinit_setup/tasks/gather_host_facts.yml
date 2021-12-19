@@ -1,0 +1,144 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Delegate to kubeinit_setup_gather_host
+  block:
+
+    - name: Gather network facts
+      ansible.builtin.gather_facts:
+        gather_subset: "!all,network"
+      register: _result_facts
+
+    - name: Set distro_family for CentOS
+      ansible.builtin.set_fact:
+        distro_family: "CentOS"
+        host_os: "centos"
+      when: _result_facts.ansible_facts.ansible_distribution == 'CentOS'
+
+    - name: Set distro_family for RedHat
+      ansible.builtin.set_fact:
+        distro_family: "CentOS"
+        host_os: "redhat"
+      when: _result_facts.ansible_facts.ansible_distribution == 'RedHat'
+
+    - name: Set distro_family for Fedora
+      ansible.builtin.set_fact:
+        distro_family: "Fedora"
+        host_os: "fedora"
+      when: _result_facts.ansible_facts.ansible_distribution == 'Fedora'
+
+    - name: Set distro_family for Debian
+      ansible.builtin.set_fact:
+        distro_family: "Debian"
+        host_os: "debian"
+      when: _result_facts.ansible_facts.ansible_distribution == 'Debian'
+
+    - name: Set distro_family for Ubuntu
+      ansible.builtin.set_fact:
+        distro_family: "Debian"
+        host_os: "ubuntu"
+      when: _result_facts.ansible_facts.ansible_distribution == 'Ubuntu'
+
+    - name: Fails if OS is not supported
+      ansible.builtin.fail:
+        msg: "The host \"{{ hostvars[kubeinit_setup_gather_host].ansible_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
+      when: not distro_family is defined
+
+    - name: Gather the package facts
+      ansible.builtin.package_facts:
+      register: _result_packages
+
+    - name: Set podman_installed
+      ansible.builtin.set_fact:
+        podman_installed: "{{ true if ('podman' in _result_packages.ansible_facts.packages) else false }}"
+
+    - name: Gather the services facts
+      ansible.builtin.service_facts:
+      register: _result_services
+
+    - name: Set firewalld_state to unknown
+      ansible.builtin.set_fact:
+        firewalld_state: 'unknown'
+
+    - name: Set firewalld_state when firewalld is defined
+      ansible.builtin.set_fact:
+        firewalld_state: "{{ _result_services.ansible_facts.services['firewalld'].state }}"
+      when: _result_services.ansible_facts.services['firewalld'] is defined
+
+    - name: Set firewalld_state when firewalld.service is defined
+      ansible.builtin.set_fact:
+        firewalld_state: "{{ _result_services.ansible_facts.services['firewalld.service'].state }}"
+      when: _result_services.ansible_facts.services['firewalld.service'] is defined
+
+    - name: Set firewalld_active
+      ansible.builtin.set_fact:
+        firewalld_active: "{{ true if firewalld_state == 'running' else false }}"
+
+    - name: Clear podman_state
+      ansible.builtin.set_fact:
+        podman_state: ''
+
+    - name: Set podman_state when podman is defined
+      ansible.builtin.set_fact:
+        podman_state: "{{ _result_services.ansible_facts.services['podman'].state }}"
+      when: _result_services.ansible_facts.services['podman'] is defined
+
+    - name: Set podman_state when podman.service is defined
+      ansible.builtin.set_fact:
+        podman_state: "{{ _result_services.ansible_facts.services['podman.service'].state }}"
+      when: _result_services.ansible_facts.services['podman.service'] is defined
+
+    - name: Set podman_active
+      ansible.builtin.set_fact:
+        podman_active: "{{ true if podman_state == 'running' else false }}"
+
+    - name: Set ssh_host_key_info
+      ansible.builtin.set_fact:
+        ssh_host_key_info: "{{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype }} {{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public }}"
+      when: >
+        _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype is defined and
+        _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public is defined
+
+    - name: Add ansible facts to hostvars
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_setup_gather_host }}"
+        ansible_default_ipv4_address: "{{ _result_facts.ansible_facts.ansible_default_ipv4.address | default(omit) }}"
+        ansible_hostname: "{{ _result_facts.ansible_facts.ansible_hostname }}"
+        ansible_distribution: "{{ _result_facts.ansible_facts.ansible_distribution }}"
+        ansible_distribution_major_version: "{{ _result_facts.ansible_facts.ansible_distribution_major_version }}"
+        distribution_family: "{{ distro_family }}"
+        ssh_host_key_ecdsa: "{{ ssh_host_key_info | default(omit) }}"
+        os: "{{ hostvars[kubeinit_setup_gather_host].os if (hostvars[kubeinit_setup_gather_host].os is defined) else host_os }}"
+        firewalld_is_active: "{{ firewalld_active }}"
+        podman_is_installed: "{{ podman_installed }}"
+        podman_is_active: "{{ podman_active }}"
+        remote_path: "{{ _result_facts.ansible_facts.ansible_env['PATH'] }}"
+        remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
+        ssh_connection_address: "{{ 'localhost' if (kubeinit_setup_gather_host == 'localhost') else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
+        runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
+
+    - name: Update kubeinit_setup_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_setup_hostvars: "{{ hostvars[kubeinit_setup_facts_name] }}"
+      when: kubeinit_setup_hostvars is defined
+
+    - name: Clear results
+      ansible.builtin.set_fact:
+        _result_facts: null
+        _result_packages: null
+        _result_services: null
+
+  delegate_to: "{{ kubeinit_setup_gather_host }}"

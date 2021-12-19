@@ -1,0 +1,10 @@
+Host *
+  IdentityFile ~/.ssh/kubeinit_setup_id_{{ kubeinit_common_ssh_keytype }}
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking accept-new
+
+{% for host in groups['hypervisor_hosts'] | list %}
+Host {{ host }}
+  Hostname {{ hostvars[host].ssh_connection_address }}
+
+{% endfor %}
