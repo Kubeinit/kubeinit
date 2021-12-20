@@ -91,14 +91,13 @@ def render_index(gc_token_path):
 
         m = re.search("https:\\/\\/gitlab\\.com\\/kubeinit\\/kubeinit\\/-\\/jobs\\/[0-9]+", resp.text)
         # stat == 'u' means that this is a periodic job
-        if m and stat == 'u':
+        if m:
             job_id = m.group(0).split('/')[-1]
         else:
-            job_id = fields[7]
+            job_id = 'Missing field in the record data.'
 
         m = re.search("The pull request is: [0-9]+", resp.text)
-        # not stat == 'u' means that this is a PR job
-        if m and not stat == 'u':
+        if m:
             pr_number = str(m.group(0).split(' ')[-1])
         else:
             pr_number = 'Periodic'
