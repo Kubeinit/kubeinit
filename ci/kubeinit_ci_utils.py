@@ -85,14 +85,14 @@ def render_index(gc_token_path):
         m = re.search("[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]", resp.text)
         # stat == 'u' means that this is a periodic job
         if m and stat == 'u':
-            date = m.group(0)
+            date = str(m.group(0))
         else:
             date = fields[8]
 
         m = re.search("https:\\/\\/gitlab\\.com\\/kubeinit\\/kubeinit\\/-\\/jobs\\/[0-9]+", resp.text)
         # stat == 'u' means that this is a periodic job
         if m:
-            job_id = m.group(0).split('/')[-1]
+            job_id = str(m.group(0))
         else:
             job_id = 'Missing field in the record data.'
 
