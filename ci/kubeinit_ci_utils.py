@@ -61,12 +61,26 @@ def render_index(gc_token_path):
         elif stat == '1':
             status = 'Failed'
             badge = 'danger'
+        # If not stat == 'u' it means this is a PR job
+        # we check the index content to verify it didnt fail.
+        elif stat == 'u':
+            index_data_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/index.html'
+            resp = requests.get(url=index_data_url, timeout=5)
+            m = re.search("btn-danger", resp.text)
+            if m:
+                print("'kubeinit_ci_utils.py' ==> The periodic job failed...")
+                status = 'Failed'
+                badge = 'danger'
+            else:
+                print("'kubeinit_ci_utils.py' ==> The periodic job passed...")
+                status = 'Passed'
+                badge = 'success'
         else:
             status = 'Running'
             badge = 'warning'
 
         extra_data_date_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/records/1.html'
-        resp = requests.get(url=extra_data_date_url)
+        resp = requests.get(url=extra_data_date_url, timeout=5)
 
         m = re.search("[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]", resp.text)
         # stat == 'u' means that this is a periodic job
@@ -83,22 +97,11 @@ def render_index(gc_token_path):
             job_id = fields[7]
 
         m = re.search("The pull request is: [0-9]+", resp.text)
-        # status == 'Passed' or 'Failed' it means that this is a pr job
-        if m and (status == "Passed" or status == "Failed"):
+        # not stat == 'u' means that this is a PR job
+        if m and not stat == 'u':
             pr_number = str(m.group(0).split(' ')[-1])
         else:
             pr_number = 'Periodic'
-
-        index_data_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/index.html'
-        resp = requests.get(url=index_data_url)
-
-        m = re.search("btn-danger", resp.text)
-        if m and stat == 'u':
-            status = 'Failed'
-            badge = 'danger'
-        else:
-            status = 'Passed'
-            badge = 'success'
 
         jobs.append({'status': status,
                      'index': idx,
