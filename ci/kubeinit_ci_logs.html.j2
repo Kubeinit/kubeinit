@@ -151,8 +151,8 @@ $(document).ready(function(){
             </tr>
           </thead>
           <tbody>
-            {% for job in jobs %}
-            {% if job.job_type == 'periodic' %}
+            {% for job in jobs|sort(attribute='distro') %}
+            {% if job.job_type|lower == 'periodic' %}
                 <tr data-status="{{ job.status }}">
                 <td><a href="{{ job.id }}">{{ job.id.split('/')[-1] }}</a></td>
                 <td>Periodic</td>
@@ -167,8 +167,8 @@ $(document).ready(function(){
                 </tr>
             {% endif %}
             {%- endfor %}
-            {% for job in jobs %}
-            {% if job.job_type != 'periodic' %}
+            {% for job in jobs|sort(attribute='date', reverse = True) %}
+            {% if job.job_type|lower != 'periodic' %}
                 <tr data-status="{{ job.status }}">
                 <td><a href="{{ job.id }}">{{ job.id.split('/')[-1] }}</a></td>
                 <td>{{ job.pr_number }}</td>
