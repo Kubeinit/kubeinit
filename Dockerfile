@@ -10,7 +10,7 @@ RUN set -x && \
     echo "==> Installing dependencies..."  && \
     microdnf upgrade -y && microdnf install -y dnf && \
     dnf upgrade -y && dnf install -y \
-        python3 openssh-clients iproute jq && \
+        python39 python39-pip openssh-clients iproute jq && \
     \
     echo "==> Setting up ssh options..."  && \
     mkdir /root/.ssh && \
@@ -18,13 +18,15 @@ RUN set -x && \
     echo "  StrictHostKeyChecking no" >> /root/.ssh/config && \
     echo "  IdentityFile /root/.ssh/id_rsa" >> /root/.ssh/config && \
     \
-    echo "==> Adding Python runtime and deps..."  && \
+    echo "==> Adding Python runtime and deps..." && \
+    python3 -m pip install --upgrade --ignore-installed PyYAML && \
+    python3 -m pip install --upgrade pip && \
+    python3 -m pip install --upgrade virtualenv && \
+    python3 -m pip install --upgrade setuptools && \
     python3 -m pip install --no-cache-dir --upgrade \
-        pip \
         shyaml \
-        cryptography==3.3.2 \
-        ansible==3.4.0 \
-        netaddr
+        netaddr && \
+    python3 -m pip install ansible==5.1.0
 
 COPY . .
 
