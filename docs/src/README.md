@@ -9,7 +9,7 @@ cd
 cd kubeinit
 rm -rf releases
 mkdir -p releases
-ansible-galaxy collection build kubeinit -v --force --output-path releases/
+ansible-galaxy collection build kubeinit --verbose --force --output-path releases/
 cd releases
 LATEST=$(ls kubeinit-kubeinit*.tar.gz | grep -v latest | sort -V | tail -n1)
 ln -sf $LATEST kubeinit-kubeinit-latest.tar.gz
