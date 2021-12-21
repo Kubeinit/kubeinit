@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 #############################################################################
 #                                                                           #
@@ -103,7 +104,7 @@ if [ "$publish" == "1" ]; then
     docker build . --file Dockerfile --tag quay.io/kubeinit/kubeinit:$current_galaxy_version
     docker push quay.io/kubeinit/kubeinit:$current_galaxy_version
 
-    echo 'Building and pushing the Ansible collecction to Ansible Galaxy...'
+    echo 'Building and pushing the Ansible collection to Ansible Galaxy...'
     cd ./kubeinit/
     mkdir -p releases
     ansible-galaxy collection build -v --force --output-path releases/
@@ -111,5 +112,5 @@ if [ "$publish" == "1" ]; then
         releases/$current_galaxy_namespace-$current_galaxy_name-$current_galaxy_version.tar.gz --api-key $GALAXY_KEY
 
     echo 'Building and pushing a new tag GitHub...'
-    curl --data "$(generate_post_data)" "https://api.github.com/repos/kubeinit/kubeinit/releases?access_token=$GITHUB_TOKEN"
+    curl -H "Authorization: token $GITHUB_TOKEN" --data "$(generate_post_data)" "https://api.github.com/repos/kubeinit/kubeinit/releases"
 fi
