@@ -21,12 +21,12 @@
         tasks_from: cleanup_hypervisors.yml
         public: true
       vars:
-        hypervisors_cleaned: "{{ kubeinit_cluster_facts_name is defined }}"
+        hypervisors_cleaned: "{{ kubeinit_facts_name is defined }}"
       when: not hypervisors_cleaned
 
     - block:
         - name: "Stop before 'task-run-validations' when requested"
-          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-run-validations'
@@ -48,17 +48,17 @@
 - block:
     - name: Add task-run-validations to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_cluster_facts_name }}"
-        tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-run-validations']) }}"
+        name: "{{ kubeinit_facts_name }}"
+        tasks_completed: "{{ kubeinit_facts_hostvars.tasks_completed | union(['task-run-validations']) }}"
 
-    - name: Update kubeinit_cluster_hostvars
+    - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
     - block:
         - name: Stop after 'task-run-validations' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed
   tags: omit_from_grapher

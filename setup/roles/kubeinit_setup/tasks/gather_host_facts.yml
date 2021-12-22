@@ -14,7 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Delegate to kubeinit_setup_gather_host
+- name: Delegate to _param_gather_host
   block:
 
     - name: Gather network facts
@@ -54,7 +54,7 @@
 
     - name: Fails if OS is not supported
       ansible.builtin.fail:
-        msg: "The host \"{{ hostvars[kubeinit_setup_gather_host].ansible_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
+        msg: "The host \"{{ hostvars[_param_gather_host].ansible_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
       when: not distro_family is defined
 
     - name: Gather the package facts
@@ -114,26 +114,26 @@
 
     - name: Add ansible facts to hostvars
       ansible.builtin.add_host:
-        name: "{{ kubeinit_setup_gather_host }}"
+        name: "{{ _param_gather_host }}"
         ansible_default_ipv4_address: "{{ _result_facts.ansible_facts.ansible_default_ipv4.address | default(omit) }}"
         ansible_hostname: "{{ _result_facts.ansible_facts.ansible_hostname }}"
         ansible_distribution: "{{ _result_facts.ansible_facts.ansible_distribution }}"
         ansible_distribution_major_version: "{{ _result_facts.ansible_facts.ansible_distribution_major_version }}"
         distribution_family: "{{ distro_family }}"
         ssh_host_key_ecdsa: "{{ ssh_host_key_info | default(omit) }}"
-        os: "{{ hostvars[kubeinit_setup_gather_host].os if (hostvars[kubeinit_setup_gather_host].os is defined) else host_os }}"
+        os: "{{ hostvars[_param_gather_host].os if (hostvars[_param_gather_host].os is defined) else host_os }}"
         firewalld_is_active: "{{ firewalld_active }}"
         podman_is_installed: "{{ podman_installed }}"
         podman_is_active: "{{ podman_active }}"
         remote_path: "{{ _result_facts.ansible_facts.ansible_env['PATH'] }}"
         remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
-        ssh_connection_address: "{{ 'localhost' if (kubeinit_setup_gather_host == 'localhost') else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
+        ssh_connection_address: "{{ 'localhost' if (_param_gather_host == 'localhost') else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
         runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
 
-    - name: Update kubeinit_setup_hostvars
+    - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_setup_hostvars: "{{ hostvars[kubeinit_setup_facts_name] }}"
-      when: kubeinit_setup_hostvars is defined
+        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+      when: kubeinit_facts_hostvars is defined
 
     - name: Clear results
       ansible.builtin.set_fact:
@@ -141,4 +141,4 @@
         _result_packages: null
         _result_services: null
 
-  delegate_to: "{{ kubeinit_setup_gather_host }}"
+  delegate_to: "{{ _param_gather_host }}"

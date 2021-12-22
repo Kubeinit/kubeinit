@@ -26,7 +26,7 @@
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
     target: "{{ hostvars[item].target }}"
     os: "{{ hostvars[item].os }}"
-  loop: "{{ groups['controller_nodes'][0:hostvars['kubeinit-facts'].controller_count|int] | default([]) | list }}"
+  loop: "{{ groups['controller_nodes'][0:hostvars['kubeinit-cluster-facts'].controller_count|int] | default([]) | list }}"
 
 - name: Add all compute nodes to the all_compute_nodes group
   ansible.builtin.add_host:
@@ -36,7 +36,7 @@
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
     target: "{{ hostvars[item].target }}"
     os: "{{ hostvars[item].os }}"
-  loop: "{{ groups['compute_nodes'][0:hostvars['kubeinit-facts'].compute_count|int] | default([]) | list }}"
+  loop: "{{ groups['compute_nodes'][0:hostvars['kubeinit-cluster-facts'].compute_count|int] | default([]) | list }}"
 
 - name: Add all controller and compute nodes to the all_cluster_nodes group
   ansible.builtin.add_host:

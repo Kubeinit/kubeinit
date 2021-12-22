@@ -148,9 +148,11 @@
         tasks_from: create_managed_service.yml
         public: true
       vars:
-        kubeinit_services_systemd_service_name: "{{ kubeinit_provision_service_name }}"
-        kubeinit_services_podman_container_name: "{{ _result_container_info.container.Name }}"
-        kubeinit_services_podman_container_pidfile: "{{ _result_container_info.container.ConmonPidFile }}"
+        _param_service_user_dir: "{{ kubeinit_service_user_dir }}"
+        _param_service_user: "{{ kubeinit_service_user }}"
+        _param_systemd_service_name: "{{ kubeinit_provision_service_name }}"
+        _param_podman_container_name: "{{ _result_container_info.container.Name }}"
+        _param_podman_container_pidfile: "{{ _result_container_info.container.ConmonPidFile }}"
 
   delegate_to: "{{ kubeinit_deployment_delegate }}"
 
@@ -346,6 +348,11 @@
     ansible_ssh_pipelining: False
   delegate_to: "{{ kubeinit_provision_service_name }}"
 
+- name: Set public_key hostvar for provision service
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_provision_service_node }}"
+    public_key: "{{ _result_provision_service_keypair.public_key }}"
+
 - name: Add provision service public key to cluster authorized_keys
   ansible.builtin.set_fact:
     authorized_keys_with_provision: "{{ kubeinit_cluster_hostvars.authorized_keys | union([_result_provision_service_keypair.public_key]) }}"
@@ -388,9 +395,11 @@
   delegate_to: "{{ kubeinit_bastion_host }}"
 
 - block:
-    - name: Gather network and host facts for guest
+    - name: Gather network and host facts for provision service
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_prepare
         tasks_from: gather_host_facts.yml
         public: yes
+      vars:
+        _param_gather_host: "{{ kubeinit_deployment_node_name }}"
   tags: omit_from_grapher

@@ -70,19 +70,40 @@
       ansible.builtin.command: |
         ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -M -S "~/.ssh/cm-%r@%h:%p" -N -f -L "{{ kubeinit_bastion_host_address }}:{{ podman_remote_ssh_port }}:{{ podman_remote_ssh_host }}:22" "{{ podman_intermediate_ssh_host }}"
 
+    - name: Gather current firewall rules
+      ansible.posix.firewalld_info:
+        active_zones: true
+      register: _result_firewalld_info
+      when: hostvars[kubeinit_bastion_host].firewalld_is_active
+
+    - name: Check firewalld ports for existing entries
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_bastion_host }}"
+        add_bastion_ssh_tunnel: "{{ true if (['6222', 'tcp'] not in default_zone_info.ports) else false }}"
+        reload_firewalld: "{{ true if (['6222', 'tcp'] not in default_zone_info.ports) else false }}"
+      vars:
+        default_zone_info: "{{ _result_firewalld_info.firewalld_info.zones[_result_firewalld_info.firewalld_info.default_zone] }}"
+
     - name: Open firewall port 6222 on bastion
       ansible.posix.firewalld:
         port: 6222/tcp
         state: enabled
         permanent: true
-      when: hostvars[kubeinit_bastion_host].firewalld_is_active
+      when: hostvars[kubeinit_bastion_host].add_bastion_ssh_tunnel | default(false)
 
     - name: Reload firewalld service
-      ansible.builtin.shell: |
+      ansible.builtin.command: |
         firewall-cmd --reload
-      args:
-        executable: /bin/bash
-      when: hostvars[kubeinit_bastion_host].firewalld_is_active
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: hostvars[kubeinit_bastion_host].reload_firewalld | default(false)
+
+    - name: Reload podman networks
+      ansible.builtin.command: |
+        podman network reload --all
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: hostvars[kubeinit_bastion_host].reload_firewalld | default(false) and hostvars[kubeinit_bastion_host].podman_is_installed | default(false)
 
     - name: Create route to cluster network on bastion host
       ansible.builtin.shell: |
@@ -91,6 +112,8 @@
         ip route add {{ kubeinit_cluster_network }} via {{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}
       args:
         executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
       when: false and kubeinit_ovn_central_host not in kubeinit_bastion_host
 
   delegate_to: "{{ kubeinit_bastion_host }}"

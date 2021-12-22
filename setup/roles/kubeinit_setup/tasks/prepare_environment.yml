@@ -18,24 +18,23 @@
     - name: Gather kubeinit setup facts if needed
       ansible.builtin.include_tasks: gather_setup_facts.yml
       vars:
-        facts_prepared: "{{ kubeinit_setup_facts_name is defined }}"
+        facts_prepared: "{{ kubeinit_facts_name is defined }}"
       when: not facts_prepared
 
     - block:
         - name: "Stop before 'task-prepare-environment' when requested"
-          ansible.builtin.add_host: name="{{ kubeinit_setup_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-environment'
   tags: omit_from_grapher
 
-- name: Define kubeinit_setup_hostvars
+- name: Define kubeinit_facts_hostvars
   ansible.builtin.set_fact:
-    kubeinit_setup_hostvars: "{{ hostvars[kubeinit_setup_facts_name] }}"
+    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
 - name: Define setup fact names needed to prepare groups
   ansible.builtin.set_fact:
-    kubeinit_setup_hypervisor_count: "{{ kubeinit_setup_hostvars.hypervisors | length }}"
     kubeinit_setup_host_name:
       "{{ 'kubeinit-setup' if (('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)) else groups['setup_host'][0] }}"
 
@@ -50,8 +49,8 @@
   ansible.builtin.add_host:
     name: "{{ kubeinit_setup_host_name }}"
     group: setup_host
-    remote_user: "{{ kubeinit_setup_hostvars.remote_user }}"
-    ansible_ssh_user: "{{ kubeinit_setup_hostvars.remote_user }}"
+    remote_user: "{{ kubeinit_facts_hostvars.remote_user }}"
+    ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
     ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
 
 - name: Add ansible_host for setup_host if not defined
@@ -80,13 +79,13 @@
   vars:
     ansible_ssh_user: "{{ hostvars[groups['setup_host'][0]].remote_user }}"
     ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-    kubeinit_setup_gather_host: "{{ kubeinit_setup_host_name }}"
+    _param_gather_host: "{{ kubeinit_setup_host_name }}"
 
 - name: Define additional host facts
   ansible.builtin.set_fact:
-    kubeinit_setup_host_fqdn: "{{ kubeinit_setup_host_name }}.{{ kubeinit_setup_inventory_domain }}"
+    kubeinit_setup_host_fqdn: "{{ kubeinit_setup_host_name }}.{{ kubeinit_inventory_setup_domain }}"
     kubeinit_setup_host_address: "{{ hostvars[kubeinit_setup_host_name].ssh_connection_address }}"
-    kubeinit_setup_host_user: "{{ kubeinit_setup_hostvars.remote_user }}"
+    kubeinit_setup_host_user: "{{ kubeinit_facts_hostvars.remote_user }}"
     kubeinit_setup_keypair_path: "~/.ssh/kubeinit_setup_id_{{ kubeinit_common_ssh_keytype }}"
 
 - name: Confirm presence of podman and git packages
@@ -108,26 +107,26 @@
 
 - name: Gather hypervisor host facts
   ansible.builtin.include_tasks: gather_host_facts.yml
-  loop: "{{ kubeinit_setup_hostvars.hypervisors }}"
+  loop: "{{ groups['hypervisor_hosts'] }}"
   loop_control:
-    loop_var: kubeinit_setup_gather_host
+    loop_var: _param_gather_host
   vars:
     ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
 
 - block:
     - name: Add task-prepare-environment to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_setup_facts_name }}"
-        tasks_completed: "{{ kubeinit_setup_hostvars.tasks_completed | union(['task-prepare-environment']) }}"
+        name: "{{ kubeinit_facts_name }}"
+        tasks_completed: "{{ kubeinit_facts_hostvars.tasks_completed | union(['task-prepare-environment']) }}"
 
-    - name: Update kubeinit_setup_hostvars
+    - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_setup_hostvars: "{{ hostvars[kubeinit_setup_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
     - block:
         - name: Stop after 'task-prepare-environment' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_setup_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_setup_hostvars.tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed
   tags: omit_from_grapher

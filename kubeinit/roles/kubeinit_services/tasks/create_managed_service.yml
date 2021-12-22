@@ -17,36 +17,36 @@
 
 - name: Ensure user specific systemd instance are persistent
   ansible.builtin.command: |
-    /usr/bin/loginctl enable-linger {{ kubeinit_service_user }}
+    /usr/bin/loginctl enable-linger {{ _param_service_user }}
   register: _result
   changed_when: "_result.rc == 0"
 
 - name: Create systemd user directory
   ansible.builtin.file:
-    path: "{{ kubeinit_service_user_dir }}/.config/systemd/user"
+    path: "{{ _param_service_user_dir }}/.config/systemd/user"
     state: directory
-    owner: "{{ kubeinit_service_user }}"
-    group: "{{ kubeinit_service_user }}"
+    owner: "{{ _param_service_user }}"
+    group: "{{ _param_service_user }}"
     mode: '0775'
 
 - name: Copy the podman systemd service file
   ansible.builtin.copy:
     content: |
       [Unit]
-      Description=Podman {{ kubeinit_services_systemd_service_name }}.service
+      Description=Podman {{ _param_systemd_service_name }}.service
       [Service]
       Restart=on-failure
-      ExecStart=/usr/bin/podman start {{ kubeinit_services_podman_container_name }}
-      ExecStop=/usr/bin/podman stop -t 10 {{ kubeinit_services_podman_container_name }}
+      ExecStart=/usr/bin/podman start {{ _param_podman_container_name }}
+      ExecStop=/usr/bin/podman stop -t 10 {{ _param_podman_container_name }}
       SuccessExitStatus=143
       KillMode=none
       Type=forking
-      PIDFile={{ kubeinit_services_podman_container_pidfile }}
+      PIDFile={{ _param_podman_container_pidfile }}
       [Install]
       WantedBy=default.target
-    dest: "{{ kubeinit_service_user_dir }}/.config/systemd/user/{{ kubeinit_services_systemd_service_name }}.service"
-    owner: "{{ kubeinit_service_user }}"
-    group: "{{ kubeinit_service_user }}"
+    dest: "{{ _param_service_user_dir }}/.config/systemd/user/{{ _param_systemd_service_name }}.service"
+    owner: "{{ _param_service_user }}"
+    group: "{{ _param_service_user }}"
     mode: '0644'
 
 - name: Reload systemd service
@@ -56,17 +56,17 @@
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Enable {{ kubeinit_services_systemd_service_name }}.service
+- name: Enable {{ _param_systemd_service_name }}.service
   ansible.builtin.systemd:
-    name: "{{ kubeinit_services_systemd_service_name }}"
+    name: "{{ _param_systemd_service_name }}"
     enabled: yes
     scope: user
   environment:
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
-- name: Start {{ kubeinit_services_systemd_service_name }}.service
+- name: Start {{ _param_systemd_service_name }}.service
   ansible.builtin.systemd:
-    name: "{{ kubeinit_services_systemd_service_name }}"
+    name: "{{ _param_systemd_service_name }}"
     state: started
     scope: user
   environment:

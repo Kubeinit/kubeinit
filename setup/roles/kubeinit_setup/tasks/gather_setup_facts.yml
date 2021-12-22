@@ -34,28 +34,23 @@
 
 - name: Set hostname we use to store setup facts
   ansible.builtin.set_fact:
-    kubeinit_setup_facts_name: 'kubeinit-setup-facts'
+    kubeinit_facts_name: 'kubeinit-setup-facts'
 
-- name: Set remote user fact from inventory
-  ansible.builtin.set_fact:
-    kubeinit_setup_remote_user: "{{ kubeinit_setup_inventory_remote_user | default('root') }}"
-
-- name: Add group facts to setup facts
+- name: Add remote_user fact
   ansible.builtin.add_host:
-    name: "{{ kubeinit_setup_facts_name }}"
-    remote_user: "{{ kubeinit_setup_remote_user }}"
-    hypervisors: "{{ groups['hypervisor_hosts'] }}"
+    name: "{{ kubeinit_facts_name }}"
+    remote_user: "{{ kubeinit_inventory_remote_user | default('root') }}"
 
 - block:
     - name: Add tasks-gather-facts to tasks completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_setup_facts_name }}"
+        name: "{{ kubeinit_facts_name }}"
         tasks_completed: "{{ ['task-gather-facts'] }}"
 
     - block:
         - name: Stop after 'task-gather-facts' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_setup_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_setup_facts_name].tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_facts_name].tasks_completed
   tags: omit_from_grapher

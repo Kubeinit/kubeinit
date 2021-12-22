@@ -21,12 +21,12 @@
         tasks_from: cleanup_hypervisors.yml
         public: true
       vars:
-        hypervisors_cleaned: "{{ kubeinit_cluster_facts_name is defined }}"
+        hypervisors_cleaned: "{{ kubeinit_facts_name is defined }}"
       when: not hypervisors_cleaned
 
     - block:
         - name: "Stop before 'task-create-network' when requested"
-          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-network'
@@ -130,6 +130,34 @@
   delegate_to: "{{ ovn_host }}"
   when: hostvars[ovn_host].distribution_family == 'Debian'
 
+#
+# Configure firewalld as needed
+#
+- name: Gather current firewalld rules for ovn hosts
+  ansible.posix.firewalld_info:
+    active_zones: true
+  register: _result_firewalld_info
+  loop: "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: ovn_host
+  delegate_to: "{{ ovn_host }}"
+  when: hostvars[ovn_host].firewalld_is_active
+
+- name: Set fact for expected rich_rule result
+  ansible.builtin.set_fact:
+    rich_rule_result: "rule family=\"ipv4\" source address=\"{{ kubeinit_cluster_network }}\" masquerade"
+
+- name: Check firewalld services and rich_rules for existing entries
+  ansible.builtin.add_host:
+    name: "{{ item.ovn_host }}"
+    add_ovn_rich_rule: "{{ true if (rich_rule_result not in default_zone_info.rich_rules) else false }}"
+    add_ovn_central_service: "{{ true if ('ovn-central-firewall-service' not in default_zone_info.services) else false }}"
+    add_ovn_host_service: "{{ true if ('ovn-host-firewall-service' not in default_zone_info.services) else false }}"
+    reload_firewalld: "{{ true if ('ovn-host-firewall-service' not in default_zone_info.services) else false }}"
+  loop: "{{ _result_firewalld_info.results }}"
+  vars:
+    default_zone_info: "{{ item.firewalld_info.zones[item.firewalld_info.default_zone] }}"
+
 - name: Refresh firewalld services list to pick up ovn services
   ansible.builtin.command: |
     firewall-cmd --reload
@@ -139,7 +167,7 @@
   loop_control:
     loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: hostvars[ovn_host].firewalld_is_active
+  when: hostvars[ovn_host].reload_firewalld | default(false)
 
 - name: Enable OVN central in firewalld
   ansible.posix.firewalld:
@@ -148,7 +176,7 @@
     state: enabled
     immediate: true
   delegate_to: "{{ kubeinit_ovn_central_host }}"
-  when: hostvars[kubeinit_ovn_central_host].firewalld_is_active
+  when: hostvars[kubeinit_ovn_central_host].add_ovn_central_service | default(false)
 
 - name: Enable OVN NAT in firewalld
   ansible.posix.firewalld:
@@ -157,7 +185,7 @@
     state: enabled
     immediate: true
   delegate_to: "{{ kubeinit_ovn_central_host }}"
-  when: hostvars[kubeinit_ovn_central_host].firewalld_is_active
+  when: hostvars[kubeinit_ovn_central_host].add_ovn_rich_rule | default(false)
 
 - name: Enable OVN host in firewalld
   ansible.posix.firewalld:
@@ -169,7 +197,7 @@
   loop_control:
     loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: hostvars[ovn_host].firewalld_is_active
+  when: hostvars[ovn_host].add_ovn_host_service | default(false)
 
 - name: Refresh firewalld services list
   ansible.builtin.command: |
@@ -180,7 +208,18 @@
   loop_control:
     loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
-  when: hostvars[ovn_host].firewalld_is_active
+  when: hostvars[ovn_host].reload_firewalld | default(false)
+
+- name: Reload podman networks
+  ansible.builtin.command: |
+    podman network reload --all
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_ovn_hosts'] }}"
+  loop_control:
+    loop_var: ovn_host
+  delegate_to: "{{ ovn_host }}"
+  when: hostvars[ovn_host].reload_firewalld | default(false) and hostvars[ovn_host].podman_is_installed | default(false)
 
 - name: Only restart if this is the only cluster network
   block:
@@ -521,17 +560,17 @@
 - block:
     - name: Add task-create-network to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_cluster_facts_name }}"
-        tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-create-network']) }}"
+        name: "{{ kubeinit_facts_name }}"
+        tasks_completed: "{{ kubeinit_facts_hostvars.tasks_completed | union(['task-create-network']) }}"
 
-    - name: Update kubeinit_cluster_hostvars
+    - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
     - block:
         - name: Stop after 'task-create-network' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed
   tags: omit_from_grapher

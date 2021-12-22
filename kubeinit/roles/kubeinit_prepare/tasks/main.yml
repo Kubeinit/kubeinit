@@ -18,28 +18,32 @@
     - name: Gather hypervisor facts if needed
       ansible.builtin.include_tasks: prepare_hypervisors.yml
       vars:
-        hypervisors_prepared: "{{ kubeinit_cluster_facts_name is defined }}"
+        hypervisors_prepared: "{{ kubeinit_facts_name is defined }}"
       when: not hypervisors_prepared
 
     - name: Add task-prepare-hypervisors to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_cluster_facts_name }}"
-        tasks_completed: "{{ hostvars[kubeinit_cluster_facts_name].tasks_completed | union(['task-prepare-hypervisors']) }}"
+        name: "{{ kubeinit_facts_name }}"
+        tasks_completed: "{{ hostvars[kubeinit_facts_name].tasks_completed | union(['task-prepare-hypervisors']) }}"
 
     - block:
         - name: Stop after 'task-prepare-hypervisors' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_cluster_facts_name].tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_facts_name].tasks_completed
 
     - block:
         - name: "Stop before 'task-prepare-environment' when requested"
-          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-environment'
   tags: omit_from_grapher
+
+- name: Define kubeinit_facts_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
 - name: Define cluster fact names needed to prepare groups
   ansible.builtin.set_fact:
@@ -99,7 +103,7 @@
         - name: Gather facts from bastion_host if needed
           ansible.builtin.include_tasks: gather_host_facts.yml
           vars:
-            kubeinit_deployment_node_name: "{{ kubeinit_bastion_host }}"
+            _param_gather_host: "{{ kubeinit_bastion_host }}"
       tags: omit_from_grapher
 
     - name: Generate an OpenSSH keypair bastion host
@@ -110,6 +114,11 @@
         regenerate: 'never'
       register: _result_cluster_keypair
       delegate_to: "{{ kubeinit_bastion_host }}"
+
+    - name: Set public_key hostvar for bastion host
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_bastion_host }}"
+        public_key: "{{ _result_cluster_keypair.public_key }}"
 
     - name: Add bastion host public key to cluster authorized_keys
       ansible.builtin.set_fact:
@@ -173,17 +182,17 @@
 - block:
     - name: Add task-prepare-environment to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_cluster_facts_name }}"
-        tasks_completed: "{{ kubeinit_cluster_hostvars.tasks_completed | union(['task-prepare-environment']) }}"
+        name: "{{ kubeinit_facts_name }}"
+        tasks_completed: "{{ kubeinit_facts_hostvars.tasks_completed | union(['task-prepare-environment']) }}"
 
-    - name: Update kubeinit_cluster_hostvars
+    - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
     - block:
         - name: Stop after 'task-prepare-environment' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_cluster_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_cluster_hostvars.tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed
   tags: omit_from_grapher
