@@ -25,3 +25,13 @@ run-multinode:
   only:
     variables:
       - $CLUSTER_TYPE == "multinode"
+
+merge-request:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  tags:
+    - kubeinit-merge-request
+  script:
+    - echo "bash -x ./ci/gitlab_merge_request.sh"
+    - bash -x ./ci/gitlab_merge_request.sh

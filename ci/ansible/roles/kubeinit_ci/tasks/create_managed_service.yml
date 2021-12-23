@@ -1,0 +1,73 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+- name: Ensure user specific systemd instance are persistent
+  ansible.builtin.command: |
+    /usr/bin/loginctl enable-linger {{ _param_service_user }}
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Create systemd user directory
+  ansible.builtin.file:
+    path: "{{ _param_service_user_dir }}/.config/systemd/user"
+    state: directory
+    owner: "{{ _param_service_user }}"
+    group: "{{ _param_service_user }}"
+    mode: '0775'
+
+- name: Copy the podman systemd service file
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Podman {{ _param_systemd_service_name }}.service
+      [Service]
+      Restart=on-failure
+      ExecStart=/usr/bin/podman start {{ _param_podman_container_name }}
+      ExecStop=/usr/bin/podman stop -t 10 {{ _param_podman_container_name }}
+      SuccessExitStatus=143
+      KillMode=none
+      Type=forking
+      PIDFile={{ _param_podman_container_pidfile }}
+      [Install]
+      WantedBy=default.target
+    dest: "{{ _param_service_user_dir }}/.config/systemd/user/{{ _param_systemd_service_name }}.service"
+    owner: "{{ _param_service_user }}"
+    group: "{{ _param_service_user }}"
+    mode: '0644'
+
+- name: Reload systemd service
+  ansible.builtin.systemd:
+    daemon_reexec: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Enable {{ _param_systemd_service_name }}.service
+  ansible.builtin.systemd:
+    name: "{{ _param_systemd_service_name }}"
+    enabled: yes
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
+
+- name: Start {{ _param_systemd_service_name }}.service
+  ansible.builtin.systemd:
+    name: "{{ _param_systemd_service_name }}"
+    state: started
+    scope: user
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"

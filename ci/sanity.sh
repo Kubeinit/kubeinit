@@ -32,8 +32,10 @@ cd ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
 export HOME=$(eval echo ~$USER)
 
 ansible-test sanity \
+    --skip-test ansible-doc \
+    --skip-test validate-modules \
     --skip-test pylint \
     --skip-test future-import-boilerplate \
     --skip-test shebang \
     --skip-test metaclass-boilerplate \
-    -v --docker --python 2.7
+    -v --docker --python 3.9
