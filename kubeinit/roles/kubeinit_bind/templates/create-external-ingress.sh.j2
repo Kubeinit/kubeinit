@@ -12,7 +12,7 @@ KUBEINIT_INGRESS_IP=$(ip route get "8.8.8.8" | grep -Po '(?<=(src )).*(?= uid)')
 KUBEINIT_HAPROXY_IP={{ kubeinit_haproxy_service_address }}
 
 # Install buildah and podman
-if [ "$ID" == "centos" ]; then
+if [ "$ID" == "centos" -o "$ID" == "fedora" ]; then
   dnf install -y buildah podman
 else
   apt update
@@ -97,7 +97,7 @@ if podman pod exists {{ kubeinit_cluster_name }}-ingress-pod; then podman pod rm
 podman pod create --name {{ kubeinit_cluster_name }}-ingress-pod --dns ${KUBEINIT_INGRESS_IP} --dns 8.8.8.8 --dns-search {{ kubeinit_cluster_fqdn }}
 
 # Use overlay for .ssh folder when available
-if [ "$ID" == "centos" ]; then
+if [ "$ID" == "centos" -o "$ID" == "fedora" ]; then
   overlay=O
 else
   overlay=ro
