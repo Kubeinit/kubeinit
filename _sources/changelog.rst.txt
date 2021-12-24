@@ -29,6 +29,7 @@ Chore
 
 CI
 ~~
+- Initial support for gitlab merge requests. [Glenn Marcy]
 - Update to Ansible 5. [Carlos Camacho]
 
   This commit tests Ansible 5 in the release
@@ -232,6 +233,14 @@ Features
 
 Fixes
 ~~~~~
+- External ingress fedora support. [Glenn Marcy]
+- Fixes to Dockerfile and centos prereqs. [Glenn Marcy]
+
+  This commit updates the Dockerfile to
+  - Set the permission of the /root/.ssh folder to 0700
+  - Align the .ssh/config contents with the ansible ssh common args
+  Also add jq to the package prereqs for Centos family hosts
+- Handle when firewalld is not active. [Glenn Marcy]
 - Add a blocking timeout to get results. [Carlos Camacho]
 
   This commit includes a timeout to fetch the
@@ -283,6 +292,20 @@ Fixes
 
 Refactor
 ~~~~~~~~
+- Cleanup several areas before gitlab-ci changes. [Glenn Marcy]
+
+  This commit includes the following changes:
+  - Change parameter vars passed to the create_managed_service
+    and gather_host_facts tasks to begin with _param_ prefix.
+  - Distribute the juju client key to all cluster nodes for
+    cdk deployments.
+  - Separate kubeinit cluster facts from the facts used for
+    controlling the kubeinit playbook flow.
+  - Check for existing firewalld rules so that we only make
+    changes when necessary. If we do reload firewalld then
+    also reload podman networks to rebuild iptable rules.
+  - Store public key for each host in hostvars.
+  - Update setup tasks to follow these same conventions.
 - Support multiple clusters per inventory. [Glenn Marcy]
 
   This commit adds support for multiple clusters deployed from the

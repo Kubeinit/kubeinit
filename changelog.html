@@ -203,6 +203,7 @@ future supporters.</p>
 <section id="ci">
 <h3>CI<a class="headerlink" href="#ci" title="Permalink to this headline"></a></h3>
 <ul>
+<li><p>Initial support for gitlab merge requests. [Glenn Marcy]</p></li>
 <li><p>Update to Ansible 5. [Carlos Camacho]</p>
 <p>This commit tests Ansible 5 in the release
 script.</p>
@@ -412,6 +413,14 @@ that is deployed by default.</p>
 <section id="fixes">
 <h3>Fixes<a class="headerlink" href="#fixes" title="Permalink to this headline"></a></h3>
 <ul>
+<li><p>External ingress fedora support. [Glenn Marcy]</p></li>
+<li><p>Fixes to Dockerfile and centos prereqs. [Glenn Marcy]</p>
+<p>This commit updates the Dockerfile to
+- Set the permission of the /root/.ssh folder to 0700
+- Align the .ssh/config contents with the ansible ssh common args
+Also add jq to the package prereqs for Centos family hosts</p>
+</li>
+<li><p>Handle when firewalld is not active. [Glenn Marcy]</p></li>
 <li><p>Add a blocking timeout to get results. [Carlos Camacho]</p>
 <p>This commit includes a timeout to fetch the
 CI results page.</p>
@@ -465,6 +474,24 @@ Marcy]</p></li>
 <section id="refactor">
 <h3>Refactor<a class="headerlink" href="#refactor" title="Permalink to this headline"></a></h3>
 <ul>
+<li><p>Cleanup several areas before gitlab-ci changes. [Glenn Marcy]</p>
+<p>This commit includes the following changes:
+- Change parameter vars passed to the create_managed_service</p>
+<blockquote>
+<div><p>and gather_host_facts tasks to begin with _param_ prefix.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Distribute the juju client key to all cluster nodes for
+cdk deployments.</p></li>
+<li><p>Separate kubeinit cluster facts from the facts used for
+controlling the kubeinit playbook flow.</p></li>
+<li><p>Check for existing firewalld rules so that we only make
+changes when necessary. If we do reload firewalld then
+also reload podman networks to rebuild iptable rules.</p></li>
+<li><p>Store public key for each host in hostvars.</p></li>
+<li><p>Update setup tasks to follow these same conventions.</p></li>
+</ul>
+</li>
 <li><p>Support multiple clusters per inventory. [Glenn Marcy]</p>
 <p>This commit adds support for multiple clusters deployed from the
 same inventory.  Most changes are to names of resources that need
