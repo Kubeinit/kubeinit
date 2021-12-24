@@ -14,9 +14,10 @@ RUN set -x && \
     \
     echo "==> Setting up ssh options..."  && \
     mkdir /root/.ssh && \
+    chmod 0700 /root/.ssh && \
     echo "Host *" >> /root/.ssh/config && \
-    echo "  StrictHostKeyChecking no" >> /root/.ssh/config && \
-    echo "  IdentityFile /root/.ssh/id_rsa" >> /root/.ssh/config && \
+    echo "  UserKnownHostsFile=/dev/null" >> /root/.ssh/config && \
+    echo "  StrictHostKeyChecking accept-new" >> /root/.ssh/config && \
     \
     echo "==> Adding Python runtime and deps..." && \
     python3 -m pip install --upgrade --ignore-installed PyYAML && \
