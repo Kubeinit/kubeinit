@@ -14,7 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Delegate to kubeinit_deployment_node_name
+- name: Delegate to _param_gather_host
   block:
 
     - name: Gather network facts
@@ -59,7 +59,7 @@
 
     - name: Fails if OS is not supported
       ansible.builtin.fail:
-        msg: "The host \"{{ hostvars[kubeinit_deployment_node_name].ansible_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
+        msg: "The host \"{{ hostvars[_param_gather_host].ansible_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
       when: not distro_family is defined
 
     - name: Gather the package facts
@@ -68,7 +68,7 @@
 
     - name: Set podman_installed
       ansible.builtin.set_fact:
-        podman_installed: "{{ true if ('podman' in ansible_facts.packages) else false }}"
+        podman_installed: "{{ true if ('podman' in _result_packages.ansible_facts.packages) else false }}"
 
     - name: Gather the services facts
       ansible.builtin.service_facts:
@@ -150,22 +150,22 @@
       community.libvirt.virt_net:
         command: list_nets
       register: _result_nets
-      when: libvirtd_active and kubeinit_deployment_node_name in groups['hypervisor_hosts']
+      when: libvirtd_active and _param_gather_host in groups['hypervisor_hosts']
 
     - name: Get all the libvirt VMs
       community.libvirt.virt:
         command: list_vms
       register: _result_vms
-      when: libvirtd_active and kubeinit_deployment_node_name in groups['hypervisor_hosts']
+      when: libvirtd_active and _param_gather_host in groups['hypervisor_hosts']
 
     - name: Generate an OpenSSH keypair on hypervisor hosts
       community.crypto.openssh_keypair:
         path: "~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }}"
         type: "{{ kubeinit_common_ssh_keytype }}"
-        comment: "{{ kubeinit_cluster_name }} {{ kubeinit_deployment_node_name }}"
+        comment: "{{ kubeinit_cluster_name }} {{ _param_gather_host }}"
         regenerate: 'never'
       register: _result_keypair
-      when: kubeinit_deployment_node_name in (['localhost'] + groups['hypervisor_hosts'])
+      when: _param_gather_host in (['localhost'] + groups['hypervisor_hosts'])
 
     - name: Set ssh_host_key_info
       ansible.builtin.set_fact:
@@ -176,7 +176,7 @@
 
     - name: Add ansible facts to hostvars
       ansible.builtin.add_host:
-        name: "{{ kubeinit_deployment_node_name }}"
+        name: "{{ _param_gather_host }}"
         ansible_default_ipv4_address: "{{ _result_facts.ansible_facts.ansible_default_ipv4.address | default(omit) }}"
         ansible_hostname: "{{ _result_facts.ansible_facts.ansible_hostname }}"
         ansible_distribution: "{{ _result_facts.ansible_facts.ansible_distribution }}"
@@ -184,7 +184,7 @@
         distribution_family: "{{ distro_family }}"
         ssh_host_key_ecdsa: "{{ ssh_host_key_info | default(omit) }}"
         libvirt_qemu_user: "{{ qemu_user }}"
-        os: "{{ hostvars[kubeinit_deployment_node_name].os if (hostvars[kubeinit_deployment_node_name].os is defined) else host_os }}"
+        os: "{{ hostvars[_param_gather_host].os if (hostvars[_param_gather_host].os is defined) else host_os }}"
         firewalld_is_active: "{{ firewalld_active }}"
         podman_is_installed: "{{ podman_installed }}"
         podman_is_active: "{{ podman_active }}"
@@ -192,8 +192,13 @@
         libvirt_nets: "{{ _result_nets.list_nets | default([]) }}"
         libvirt_vms: "{{ _result_vms.list_vms | default([]) }}"
         public_key: "{{ _result_keypair.public_key | default(omit) }}"
-        ssh_connection_address: "{{ 'localhost' if (kubeinit_deployment_node_name == 'localhost') else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
+        ssh_connection_address: "{{ 'localhost' if (_param_gather_host == 'localhost') else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
         runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
+
+    - name: Update kubeinit_facts_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+      when: kubeinit_facts_hostvars is defined
 
     - name: Update kubeinit_cluster_hostvars
       ansible.builtin.set_fact:
@@ -208,4 +213,4 @@
         _result_vms: null
         _result_keypair: null
 
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+  delegate_to: "{{ _param_gather_host }}"

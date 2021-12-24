@@ -1,0 +1,65 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Setup KubeInit CI environment
+  hosts: localhost
+  become: false
+  remote_user: root
+  gather_subset: "!all,network"
+  pre_tasks:
+    - name: Check if Ansible meets version requirements.
+      tags: task_gather_facts
+      vars:
+        kubeinit_ansible_min_version: 2.9
+      ansible.builtin.assert:
+        that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
+        msg: >
+          "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
+  tasks:
+    - name: Gather facts about the deployment environment
+      tags: task_gather_facts
+      block:
+        - name: task-gather-facts
+          ansible.builtin.include_role:
+            name: "kubeinit_ci"
+            tasks_from: gather_ci_facts.yml
+            public: true
+
+    - name: Prepare the environment
+      tags: task_prepare_environment
+      block:
+        - name: task-prepare-environment
+          ansible.builtin.include_role:
+            name: "kubeinit_ci"
+            tasks_from: prepare_environment.yml
+            public: true
+
+    - name: Cleanup any remnants of previous CI deployments
+      tags: task_cleanup_deployment
+      block:
+        - name: task-cleanup-deployment
+          ansible.builtin.include_role:
+            name: "kubeinit_ci"
+            tasks_from: cleanup_deployment.yml
+            public: true
+
+    - name: Deploy the CI
+      tags: task_deploy_ci
+      block:
+        - name: task-deploy-ci
+          ansible.builtin.include_role:
+            name: "kubeinit_ci"
+            public: true

@@ -15,8 +15,8 @@
 # under the License.
 
 - block:
-    - name: Gather kubeinit setup facts if needed
-      ansible.builtin.include_tasks: gather_setup_facts.yml
+    - name: Gather kubeinit ci facts if needed
+      ansible.builtin.include_tasks: gather_ci_facts.yml
       vars:
         facts_prepared: "{{ kubeinit_facts_name is defined }}"
       when: not facts_prepared
@@ -33,76 +33,77 @@
   ansible.builtin.set_fact:
     kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-- name: Define setup fact names needed to prepare groups
+- name: Define ci fact names needed to prepare groups
   ansible.builtin.set_fact:
-    kubeinit_setup_host_name:
-      "{{ 'kubeinit-setup' if (('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)) else groups['setup_host'][0] }}"
+    kubeinit_ci_host_name:
+      "{{ 'kubeinit-ci' if (('ci_host' not in groups) or ((groups['ci_host'] | list | length) == 0)) else groups['ci_host'][0] }}"
 
-- name: Add a default entry for the first hypervisor if there are no setup_host members
+- name: Add a default entry for the first hypervisor if there are no ci_host members
   ansible.builtin.add_host:
-    name: "{{ kubeinit_setup_host_name }}"
-    group: setup_host
+    name: "{{ kubeinit_ci_host_name }}"
+    group: ci_host
     target: "{{ groups['hypervisor_hosts'][0] }}"
-  when: "('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)"
+  when: "('ci_host' not in groups) or ((groups['ci_host'] | list | length) == 0)"
 
-- name: Add remote_user for setup_host
+- name: Add remote_user for ci_host
   ansible.builtin.add_host:
-    name: "{{ kubeinit_setup_host_name }}"
-    group: setup_host
+    name: "{{ kubeinit_ci_host_name }}"
+    group: ci_host
     remote_user: "{{ kubeinit_facts_hostvars.remote_user }}"
     ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
     ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
 
-- name: Add ansible_host for setup_host if not defined
+- name: Add ansible_host for ci_host if not defined
   ansible.builtin.add_host:
-    name: "{{ kubeinit_setup_host_name }}"
-    group: setup_host
-    ansible_host: "{{ hostvars[hostvars[kubeinit_setup_host_name].target].ansible_host }}"
-  when: "hostvars[kubeinit_setup_host_name].ansible_host is not defined"
+    name: "{{ kubeinit_ci_host_name }}"
+    group: ci_host
+    ansible_host: "{{ hostvars[hostvars[kubeinit_ci_host_name].target].ansible_host }}"
+  when: "hostvars[kubeinit_ci_host_name].ansible_host is not defined"
 
-- name: Add target for setup_host if not defined
+- name: Add target for ci_host if not defined
   ansible.builtin.add_host:
-    name: "{{ kubeinit_setup_host_name }}"
-    group: setup_host
-    target: "{{ kubeinit_setup_host_name }}"
-  when: "hostvars[kubeinit_setup_host_name].target is not defined"
+    name: "{{ kubeinit_ci_host_name }}"
+    group: ci_host
+    target: "{{ kubeinit_ci_host_name }}"
+  when: "hostvars[kubeinit_ci_host_name].target is not defined"
 
-- name: Check to see if we have access to setup_host
+- name: Check to see if we have access to ci_host
   ansible.builtin.ping:
   vars:
-    ansible_ssh_user: "{{ hostvars[groups['setup_host'][0]].remote_user }}"
+    ansible_ssh_user: "{{ hostvars[groups['ci_host'][0]].remote_user }}"
     ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-  delegate_to: "{{ kubeinit_setup_host_name }}"
+  delegate_to: "{{ kubeinit_ci_host_name }}"
 
-- name: Gather facts from setup_host
+- name: Gather facts from ci_host
   ansible.builtin.include_tasks: gather_host_facts.yml
   vars:
-    ansible_ssh_user: "{{ hostvars[groups['setup_host'][0]].remote_user }}"
+    ansible_ssh_user: "{{ hostvars[groups['ci_host'][0]].remote_user }}"
     ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-    _param_gather_host: "{{ kubeinit_setup_host_name }}"
+    _param_gather_host: "{{ kubeinit_ci_host_name }}"
 
 - name: Define additional host facts
   ansible.builtin.set_fact:
-    kubeinit_setup_host_fqdn: "{{ kubeinit_setup_host_name }}.{{ kubeinit_inventory_setup_domain }}"
-    kubeinit_setup_host_address: "{{ hostvars[kubeinit_setup_host_name].ssh_connection_address }}"
-    kubeinit_setup_host_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    kubeinit_setup_keypair_path: "~/.ssh/kubeinit_setup_id_{{ kubeinit_common_ssh_keytype }}"
+    kubeinit_ci_host_fqdn: "{{ kubeinit_ci_host_name }}.{{ kubeinit_inventory_ci_domain }}"
+    kubeinit_ci_host_address: "{{ hostvars[kubeinit_ci_host_name].ssh_connection_address }}"
+    kubeinit_ci_host_user: "{{ kubeinit_facts_hostvars.remote_user }}"
+    kubeinit_ci_keypair_path: "~/.ssh/kubeinit_ci_id_{{ kubeinit_common_ssh_keytype }}"
+    kubeinit_ci_bridge_name: kubeinit-ci-bridge
+    kubeinit_ci_pod_name: kubeinit-ci-pod
 
-- name: Confirm presence of podman and git packages
+- name: Confirm presence of podman package
   ansible.builtin.package_facts:
-  failed_when: "'podman' not in ansible_facts.packages or 'git' not in ansible_facts.packages"
-  delegate_to: "{{ kubeinit_setup_host_name }}"
+  failed_when: "'podman' not in ansible_facts.packages"
+  delegate_to: "{{ kubeinit_ci_host_name }}"
   when: ansible_check_mode
 
-- name: Install podman and git packages
+- name: Install podman package
   ansible.builtin.package:
     name:
       - podman
-      - git
     state: present
   become: true
   become_user: root
-  delegate_to: "{{ kubeinit_setup_host_name }}"
+  delegate_to: "{{ kubeinit_ci_host_name }}"
   when: not ansible_check_mode
 
 - name: Gather hypervisor host facts

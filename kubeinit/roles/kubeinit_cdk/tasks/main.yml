@@ -68,6 +68,16 @@
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
+- name: Copy juju client key to cluster nodes
+  ansible.builtin.shell: |
+    ssh-copy-id -i ~/.local/share/juju/ssh/juju_id_rsa root@{{ hostvars[item].ansible_host }}
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_cluster_nodes'] + groups['all_extra_nodes'] }}"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
 - name: Bootstrap the CDK controller
   ansible.builtin.shell: |
     juju bootstrap --no-gui \

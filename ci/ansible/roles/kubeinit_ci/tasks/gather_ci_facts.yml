@@ -17,14 +17,14 @@
 - block:
     - block:
         - name: "Stop before 'task-gather-facts' when requested"
-          ansible.builtin.add_host: name='kubeinit-setup-facts' playbook_terminated=true
+          ansible.builtin.add_host: name='kubeinit-ci-facts' playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-gather-facts'
   tags: omit_from_grapher
 
 #
-# Gather kubeinit setup facts
+# Gather kubeinit ci facts
 #
 - name: Add an explicit localhost entry to hostvars
   ansible.builtin.add_host:
@@ -32,9 +32,9 @@
     ansible_connection: local
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
 
-- name: Set hostname we use to store setup facts
+- name: Set hostname we use to set ci facts
   ansible.builtin.set_fact:
-    kubeinit_facts_name: 'kubeinit-setup-facts'
+    kubeinit_facts_name: 'kubeinit-ci-facts'
 
 - name: Add remote_user fact
   ansible.builtin.add_host:
