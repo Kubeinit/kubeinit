@@ -29,89 +29,35 @@
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-environment'
   tags: omit_from_grapher
 
-- name: Define kubeinit_facts_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
-
-- name: Define setup fact names needed to prepare groups
-  ansible.builtin.set_fact:
-    kubeinit_setup_host_name:
-      "{{ 'kubeinit-setup' if (('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)) else groups['setup_host'][0] }}"
-
-- name: Add a default entry for the first hypervisor if there are no setup_host members
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_setup_host_name }}"
-    group: setup_host
-    target: "{{ groups['hypervisor_hosts'][0] }}"
-  when: "('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)"
-
-- name: Add remote_user for setup_host
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_setup_host_name }}"
-    group: setup_host
-    remote_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-
-- name: Add ansible_host for setup_host if not defined
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_setup_host_name }}"
-    group: setup_host
-    ansible_host: "{{ hostvars[hostvars[kubeinit_setup_host_name].target].ansible_host }}"
-  when: "hostvars[kubeinit_setup_host_name].ansible_host is not defined"
-
-- name: Add target for setup_host if not defined
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_setup_host_name }}"
-    group: setup_host
-    target: "{{ kubeinit_setup_host_name }}"
-  when: "hostvars[kubeinit_setup_host_name].target is not defined"
-
-- name: Check to see if we have access to setup_host
-  ansible.builtin.ping:
-  vars:
-    ansible_ssh_user: "{{ hostvars[groups['setup_host'][0]].remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-  delegate_to: "{{ kubeinit_setup_host_name }}"
-
-- name: Gather facts from setup_host
-  ansible.builtin.include_tasks: gather_host_facts.yml
-  vars:
-    ansible_ssh_user: "{{ hostvars[groups['setup_host'][0]].remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-    _param_gather_host: "{{ kubeinit_setup_host_name }}"
-
-- name: Define additional host facts
-  ansible.builtin.set_fact:
-    kubeinit_setup_host_fqdn: "{{ kubeinit_setup_host_name }}.{{ kubeinit_inventory_setup_domain }}"
-    kubeinit_setup_host_address: "{{ hostvars[kubeinit_setup_host_name].ssh_connection_address }}"
-    kubeinit_setup_host_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    kubeinit_setup_keypair_path: "~/.ssh/kubeinit_setup_id_{{ kubeinit_common_ssh_keytype }}"
-
-- name: Confirm presence of podman and git packages
-  ansible.builtin.package_facts:
-  failed_when: "'podman' not in ansible_facts.packages or 'git' not in ansible_facts.packages"
-  delegate_to: "{{ kubeinit_setup_host_name }}"
-  when: ansible_check_mode
-
-- name: Install podman and git packages
+- name: Install podman package
   ansible.builtin.package:
-    name:
-      - podman
-      - git
+    name: podman
     state: present
   become: true
   become_user: root
   delegate_to: "{{ kubeinit_setup_host_name }}"
-  when: not ansible_check_mode
+  register: _result
+  failed_when: _result is not defined
+  when: not hostvars[kubeinit_setup_host_name].podman_is_installed
+
+- name: Install git package when git clone is enabled
+  ansible.builtin.package:
+    name: git
+    state: present
+  become: true
+  become_user: root
+  delegate_to: "{{ kubeinit_setup_host_name }}"
+  register: _result
+  when: kubeinit_inventory_git_clone_enabled | default(false) | bool
 
 - name: Gather hypervisor host facts
   ansible.builtin.include_tasks: gather_host_facts.yml
-  loop: "{{ groups['hypervisor_hosts'] }}"
+  loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
   loop_control:
     loop_var: _param_gather_host
   vars:
     ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+  when: not kubeinit_facts_hostvars.container_build|bool
 
 - block:
     - name: Add task-prepare-environment to tasks_completed

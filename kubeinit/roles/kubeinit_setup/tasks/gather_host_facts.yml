@@ -127,7 +127,7 @@
         podman_is_active: "{{ podman_active }}"
         remote_path: "{{ _result_facts.ansible_facts.ansible_env['PATH'] }}"
         remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
-        ssh_connection_address: "{{ 'localhost' if (_param_gather_host == 'localhost') else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
+        ssh_connection_address: "{{ omit if (_result_facts.ansible_facts.ansible_env['SSH_CONNECTION'] is not defined) else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
         runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
 
     - name: Update kubeinit_facts_hostvars
