@@ -58,7 +58,8 @@
         clone: true
         dest: ~/kubeinit
         repo: https://github.com/Kubeinit/kubeinit.git
-        version: main
+        version: "{{ kubeinit_inventory_git_clone_version | default('main') }}"
+      when: kubeinit_inventory_git_clone_enabled | default(false) | bool
 
     - name: Install ansible-galaxy requirements
       community.general.ansible_galaxy_install:
@@ -94,26 +95,35 @@
       register: _result
       failed_when: _result is not defined
 
-    - name: Create ~/.ssh/config from template
-      ansible.builtin.template:
-        src: ssh-config.j2
-        dest: ~/.ssh/config
+    - name: Add hypervisor hosts to ~/.ssh/config
+      ansible.builtin.blockinfile:
+        path: ~/.ssh/config
         mode: '0644'
+        block: |
+          Host {{ item }}
+            Hostname {{ hostvars[item].ssh_connection_address }}
+            IdentityFile {{ kubeinit_setup_keypair_path }}
+            UserKnownHostsFile /dev/null
+            StrictHostKeyChecking accept-new
+      loop: "{{ groups['ssh_config_hosts'] | default([]) }}"
+      when: not kubeinit_facts_hostvars.container_build|bool
 
     - name: Generate an OpenSSH keypair for setup_host to have remote access to hypervisor hosts
       community.crypto.openssh_keypair:
         path: "{{ kubeinit_setup_keypair_path }}"
         type: "{{ kubeinit_common_ssh_keytype }}"
-        comment: "{{ kubeinit_setup_host_fqdn }}"
+        comment: "{{ kubeinit_setup_host_name }}"
         regenerate: 'never'
       register: _result_setup_keypair
+      when: not kubeinit_facts_hostvars.container_build|bool and groups['hypervisor_hosts'] | default([])
 
     - name: Add host keys to known_hosts
       ansible.builtin.known_hosts:
         name: "{{ hostvars[item].ansible_host }}"
         key: "{{ hostvars[item].ansible_host }} {{ hostvars[item].ssh_host_key_ecdsa }}"
         state: present
-      loop: "{{ groups['hypervisor_hosts'] }}"
+      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
+      when: not kubeinit_facts_hostvars.container_build|bool
 
     - name: Add setup_host public key to hypervisor hosts
       ansible.posix.authorized_key:
@@ -121,12 +131,13 @@
         key: "{{ _result_setup_keypair.public_key }}"
         comment: "{{ _result_setup_keypair.comment }}"
         state: present
-      loop: "{{ groups['hypervisor_hosts'] }}"
+      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
       loop_control:
         loop_var: hypervisor_host
       vars:
         ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
       delegate_to: "{{ hypervisor_host }}"
+      when: not kubeinit_facts_hostvars.container_build|bool
 
     - name: Confirm access to hypervisors from setup host and user
       ansible.builtin.shell: |
@@ -145,9 +156,10 @@
       retries: 30
       delay: 10
       until: "'connected' in _result.stdout"
-      loop: "{{ groups['hypervisor_hosts'] }}"
+      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
       loop_control:
         loop_var: hypervisor_host
+      when: not kubeinit_facts_hostvars.container_build|bool
 
   environment:
     PATH: "{{ hostvars[kubeinit_setup_host_name].remote_home }}/.local/bin:{{ hostvars[kubeinit_setup_host_name].remote_path }}"

@@ -3,45 +3,32 @@ FROM registry.access.redhat.com/ubi8-minimal
 LABEL maintainer="Carlos Camacho <carloscamachoucv@gmail.com>"
 LABEL quay.expires-after=30w
 
-WORKDIR /kubeinit
+ENV ANSIBLE_GATHERING smart
+ENV ANSIBLE_HOST_KEY_CHECKING false
+ENV ANSIBLE_RETRY_FILES_ENABLED false
+ENV ANSIBLE_SSH_PIPELINING true
+
+ENTRYPOINT ["ansible-playbook", "-e", "kubeinit_container_run=true"]
 
 RUN set -x && \
     \
     echo "==> Installing dependencies..."  && \
     microdnf upgrade -y && microdnf install -y dnf && \
     dnf upgrade -y && dnf install -y \
-        python39 python39-pip openssh-clients iproute jq && \
+        python39 python39-pip openssh-clients podman && \
     \
-    echo "==> Setting up ssh options..."  && \
-    mkdir /root/.ssh && \
-    chmod 0700 /root/.ssh && \
-    echo "Host *" >> /root/.ssh/config && \
-    echo "  UserKnownHostsFile=/dev/null" >> /root/.ssh/config && \
-    echo "  StrictHostKeyChecking accept-new" >> /root/.ssh/config && \
-    \
-    echo "==> Adding Python runtime and deps..." && \
-    python3 -m pip install --upgrade --ignore-installed PyYAML && \
+    echo "==> Adding ansible and dependencies..." && \
     python3 -m pip install --upgrade pip && \
-    python3 -m pip install --upgrade virtualenv && \
-    python3 -m pip install --upgrade setuptools && \
-    python3 -m pip install --no-cache-dir --upgrade \
-        shyaml \
-        netaddr && \
-    python3 -m pip install ansible==5.1.0
+    python3 -m pip install --upgrade cryptography && \
+    python3 -m pip install --upgrade ansible
+
+WORKDIR /root/kubeinit
+
+RUN ln -s /root/kubeinit/ /kubeinit
 
 COPY . .
 
 RUN set -x && \
     \
     echo "==> Installing KubeInit..."  && \
-    cd ./kubeinit && \
-    rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit && \
-    ansible-galaxy collection build -v --force --output-path releases/ && \
-    ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
-
-ENV ANSIBLE_GATHERING smart
-ENV ANSIBLE_HOST_KEY_CHECKING false
-ENV ANSIBLE_RETRY_FILES_ENABLED false
-ENV ANSIBLE_SSH_PIPELINING True
-
-ENTRYPOINT ["ansible-playbook"]
+    ansible-playbook -e kubeinit_container_build=true -vv -i kubeinit/setup-inventory kubeinit/setup-playbook.yml 

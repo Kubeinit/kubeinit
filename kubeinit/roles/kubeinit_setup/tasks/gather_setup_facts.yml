@@ -1,0 +1,123 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- block:
+    - block:
+        - name: "Stop before 'task-gather-facts' when requested"
+          ansible.builtin.add_host: name='kubeinit-setup-facts' playbook_terminated=true
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-gather-facts'
+  tags: omit_from_grapher
+
+#
+# Gather kubeinit setup facts
+#
+
+- name: Set hostname we use to store setup facts
+  ansible.builtin.set_fact:
+    kubeinit_facts_name: 'kubeinit-setup-facts'
+
+- name: Define kubeinit_setup_host_name
+  ansible.builtin.set_fact:
+    kubeinit_setup_host_name: "{{ 'kubeinit-setup' if (('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)) else groups['setup_host'][0] }}"
+    kubeinit_setup_remote_user: "{{ kubeinit_inventory_remote_user | default('root') }}"
+
+- name: Add a default entry for localhost if there are no setup_host members
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_setup_host_name }}"
+    group: 'setup_host'
+    ansible_host: 'localhost'
+    ansible_connection: 'local'
+    target: "{{ kubeinit_setup_host_name }}"
+  when: "('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)"
+
+- name: Add ansible_host for setup_host if not defined
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_setup_host_name }}"
+    group: setup_host
+    ansible_host: "{{ hostvars[hostvars[kubeinit_setup_host_name].target].ansible_host }}"
+  when: "hostvars[kubeinit_setup_host_name].ansible_host is not defined"
+
+- name: Add target for setup_host if not defined
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_setup_host_name }}"
+    group: setup_host
+    target: "{{ kubeinit_setup_host_name }}"
+  when: "hostvars[kubeinit_setup_host_name].target is not defined"
+
+- name: Add playbook context facts
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_facts_name }}"
+    container_build: "{{ kubeinit_container_build|default(false)|bool }}"
+    container_run: "{{ kubeinit_container_run|default(false)|bool }}"
+
+- name: Change the ansible_host to the ansible_fqdn of the host running the container
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_setup_host_name }}"
+    group: 'setup_host'
+    ansible_host: "{{ ansible_facts.fqdn }}"
+    ansible_connection: 'ssh'
+  when: kubeinit_container_run|default(false)|bool and (ansible_connection|default('') == 'local')|bool
+
+- name: Add local_install fact
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_facts_name }}"
+    local_install: "{{ (hostvars[kubeinit_setup_host_name].ansible_connection|default('') == 'local')|bool }}"
+
+- name: Define kubeinit_facts_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+
+- name: Define additional host facts
+  ansible.builtin.set_fact:
+    kubeinit_setup_keypair_path: "~/.ssh/kubeinit_setup_id_{{ kubeinit_common_ssh_keytype }}"
+
+- name: Add remote ssh params for setup_host when install is not local
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_setup_host_name }}"
+    group: setup_host
+    ansible_ssh_user: "{{ kubeinit_setup_remote_user }}"
+    ansible_ssh_extra_args: "-i {{ kubeinit_setup_keypair_path }}"
+  when: not kubeinit_facts_hostvars.local_install|bool
+
+- name: Check to see if we have access to setup_host
+  ansible.builtin.ping:
+  delegate_to: "{{ kubeinit_setup_host_name }}"
+  when: not kubeinit_facts_hostvars.local_install|bool
+
+- name: Gather facts from setup_host
+  ansible.builtin.include_tasks: gather_host_facts.yml
+  vars:
+    _param_gather_host: "{{ kubeinit_setup_host_name }}"
+
+- block:
+    - name: Add tasks-gather-facts to tasks completed
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_facts_name }}"
+        tasks_completed: "{{ ['task-gather-facts'] }}"
+
+    - name: Update kubeinit_facts_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+
+    - block:
+        - name: Stop after 'task-gather-facts' when requested
+          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_facts_name].tasks_completed
+  tags: omit_from_grapher
