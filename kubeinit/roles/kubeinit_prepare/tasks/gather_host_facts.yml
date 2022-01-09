@@ -177,6 +177,8 @@
     - name: Add ansible facts to hostvars
       ansible.builtin.add_host:
         name: "{{ _param_gather_host }}"
+        groups: 'gathered'
+        ansible_connection: "{{ hostvars[_param_gather_host].ansible_connection | default(omit) }}"
         ansible_default_ipv4_address: "{{ _result_facts.ansible_facts.ansible_default_ipv4.address | default(omit) }}"
         ansible_hostname: "{{ _result_facts.ansible_facts.ansible_hostname }}"
         ansible_distribution: "{{ _result_facts.ansible_facts.ansible_distribution }}"
@@ -192,7 +194,9 @@
         libvirt_nets: "{{ _result_nets.list_nets | default([]) }}"
         libvirt_vms: "{{ _result_vms.list_vms | default([]) }}"
         public_key: "{{ _result_keypair.public_key | default(omit) }}"
-        ssh_connection_address: "{{ 'localhost' if (_param_gather_host == 'localhost') else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
+        remote_path: "{{ _result_facts.ansible_facts.ansible_env['PATH'] }}"
+        remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
+        ssh_connection_address: "{{ omit if (_result_facts.ansible_facts.ansible_env['SSH_CONNECTION'] is not defined) else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
         runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
 
     - name: Update kubeinit_facts_hostvars

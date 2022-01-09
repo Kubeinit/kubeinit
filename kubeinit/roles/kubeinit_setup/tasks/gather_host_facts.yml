@@ -26,30 +26,45 @@
       ansible.builtin.set_fact:
         distro_family: "CentOS"
         host_os: "centos"
+        package_manager: "dnf"
+        package_pip: "python39-pip"
+        pip_executable: "pip3.9"
       when: _result_facts.ansible_facts.ansible_distribution == 'CentOS'
 
     - name: Set distro_family for RedHat
       ansible.builtin.set_fact:
         distro_family: "CentOS"
         host_os: "redhat"
+        package_manager: "dnf"
+        package_pip: "python39-pip"
+        pip_executable: "pip3.9"
       when: _result_facts.ansible_facts.ansible_distribution == 'RedHat'
 
     - name: Set distro_family for Fedora
       ansible.builtin.set_fact:
         distro_family: "Fedora"
         host_os: "fedora"
+        package_manager: "dnf"
+        package_pip: "python39-pip"
+        pip_executable: "pip3.9"
       when: _result_facts.ansible_facts.ansible_distribution == 'Fedora'
 
     - name: Set distro_family for Debian
       ansible.builtin.set_fact:
         distro_family: "Debian"
         host_os: "debian"
+        package_manager: "apt"
+        package_pip: "python3-pip"
+        pip_executable: "pip3"
       when: _result_facts.ansible_facts.ansible_distribution == 'Debian'
 
     - name: Set distro_family for Ubuntu
       ansible.builtin.set_fact:
         distro_family: "Debian"
         host_os: "ubuntu"
+        package_manager: "apt"
+        package_pip: "python3-pip"
+        pip_executable: "pip3"
       when: _result_facts.ansible_facts.ansible_distribution == 'Ubuntu'
 
     - name: Fails if OS is not supported
@@ -122,6 +137,9 @@
         distribution_family: "{{ distro_family }}"
         ssh_host_key_ecdsa: "{{ ssh_host_key_info | default(omit) }}"
         os: "{{ hostvars[_param_gather_host].os if (hostvars[_param_gather_host].os is defined) else host_os }}"
+        package_manager: "{{ package_manager }}"
+        package_pip: "{{ package_pip }}"
+        pip_executable: "{{ pip_executable }}"
         firewalld_is_active: "{{ firewalld_active }}"
         podman_is_installed: "{{ podman_installed }}"
         podman_is_active: "{{ podman_active }}"

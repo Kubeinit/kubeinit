@@ -31,17 +31,55 @@
   ansible.builtin.set_fact:
     kubeinit_facts_name: 'kubeinit-setup-facts'
 
+- name: Add playbook context facts
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_facts_name }}"
+    container_build: "{{ kubeinit_container_build|default(false)|bool }}"
+    container_run: "{{ kubeinit_container_run|default(false)|bool }}"
+
+- name: Lookup remote_user from command-line
+  ansible.builtin.set_fact:
+    kubeinit_cli_remote_user: "{{ lookup('cli_args', 'remote_user') }}"
+
+- name: Check for empty remote user when running from kubeinit container
+  ansible.builtin.fail:
+    msg:
+      - "You must provide the user for the playbook when running from the kubeinit container."
+      - "e.g. --user root"
+  when: hostvars[kubeinit_facts_name].container_run and kubeinit_cli_remote_user|length == 0
+
+- name: Define kubeinit_setup_remote_user
+  ansible.builtin.set_fact:
+    kubeinit_setup_remote_user: "{{ kubeinit_cli_remote_user if (kubeinit_cli_remote_user|length > 0) else ansible_facts.user_id }}"
+  when: not hostvars[kubeinit_facts_name].container_build
+
+- name: Parse kubeinit_setup_host_spec into a dictionary if defined
+  ansible.builtin.set_fact:
+    setup_host_spec: "{{ dict(_keys|zip(_vals)) }}"
+  vars:
+    _arr: "{{ kubeinit_setup_host_spec | from_yaml }}"
+    _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
+    _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+  when: kubeinit_setup_host_spec is defined
+
+- name: Define default_setup_host_name
+  ansible.builtin.set_fact:
+    default_setup_host_name: "{{ 'kubeinit-setup' if (setup_host_spec is not defined or setup_host_spec['host'] is not defined) else setup_host_spec['host'] }}"
+
+- name: Define default_setup_ansible_host
+  ansible.builtin.set_fact:
+    default_setup_ansible_host: "{{ 'localhost' if (setup_host_spec is not defined or setup_host_spec['ansible_host'] is not defined) else setup_host_spec['ansible_host'] }}"
+
 - name: Define kubeinit_setup_host_name
   ansible.builtin.set_fact:
-    kubeinit_setup_host_name: "{{ 'kubeinit-setup' if (('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)) else groups['setup_host'][0] }}"
-    kubeinit_setup_remote_user: "{{ kubeinit_inventory_remote_user | default('root') }}"
+    kubeinit_setup_host_name: "{{ default_setup_host_name if (('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)) else groups['setup_host'][0] }}"
 
 - name: Add a default entry for localhost if there are no setup_host members
   ansible.builtin.add_host:
     name: "{{ kubeinit_setup_host_name }}"
     group: 'setup_host'
-    ansible_host: 'localhost'
-    ansible_connection: 'local'
+    ansible_host: "{{ default_setup_ansible_host }}"
+    ansible_connection: "{{ 'local' if (default_setup_ansible_host == 'localhost') else 'smart' }}"
     target: "{{ kubeinit_setup_host_name }}"
   when: "('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)"
 
@@ -59,19 +97,13 @@
     target: "{{ kubeinit_setup_host_name }}"
   when: "hostvars[kubeinit_setup_host_name].target is not defined"
 
-- name: Add playbook context facts
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
-    container_build: "{{ kubeinit_container_build|default(false)|bool }}"
-    container_run: "{{ kubeinit_container_run|default(false)|bool }}"
-
 - name: Change the ansible_host to the ansible_fqdn of the host running the container
   ansible.builtin.add_host:
     name: "{{ kubeinit_setup_host_name }}"
     group: 'setup_host'
     ansible_host: "{{ ansible_facts.fqdn }}"
-    ansible_connection: 'ssh'
-  when: kubeinit_container_run|default(false)|bool and (ansible_connection|default('') == 'local')|bool
+    ansible_connection: 'smart'
+  when: kubeinit_container_run|default(false)|bool and (hostvars[kubeinit_setup_host_name].ansible_connection|default('') == 'local')|bool
 
 - name: Add local_install fact
   ansible.builtin.add_host:
@@ -85,14 +117,42 @@
 - name: Define additional host facts
   ansible.builtin.set_fact:
     kubeinit_setup_keypair_path: "~/.ssh/kubeinit_setup_id_{{ kubeinit_common_ssh_keytype }}"
+  when: not kubeinit_facts_hostvars.container_build
+
+- name: Read ssh key secret
+  ansible.builtin.slurp:
+    path: "/run/secrets/{{ kubeinit_ssh_key_secret | default('kubeinit_ssh_key') }}"
+  register: _result_ssh_key_secret
+  when: kubeinit_facts_hostvars.container_run|bool
+
+- name: Create .ssh folder if needed
+  ansible.builtin.file:
+    path: ~/.ssh
+    state: directory
+    mode: 0700
+  when: kubeinit_facts_hostvars.container_run|bool
+
+- name: Copy ssh key secret into ~/.ssh
+  ansible.builtin.copy:
+    content: "{{ _result_ssh_key_secret.content | b64decode }}"
+    dest: "~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+    mode: '0600'
+  when: kubeinit_facts_hostvars.container_run|bool
 
 - name: Add remote ssh params for setup_host when install is not local
   ansible.builtin.add_host:
     name: "{{ kubeinit_setup_host_name }}"
     group: setup_host
     ansible_ssh_user: "{{ kubeinit_setup_remote_user }}"
-    ansible_ssh_extra_args: "-i {{ kubeinit_setup_keypair_path }}"
+    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
   when: not kubeinit_facts_hostvars.local_install|bool
+
+- name: Confirm that we can run ssh to setup_host, sudo without a password, and the python interpreter is present
+  ansible.builtin.command: |
+    ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }} {{ kubeinit_setup_remote_user }}@{{ hostvars[kubeinit_setup_host_name].ansible_host }} sudo ls {{ ansible_python_interpreter }}
+  register: _result
+  failed_when: _result.stdout != ansible_python_interpreter
+  when: not kubeinit_facts_hostvars.container_build|bool
 
 - name: Check to see if we have access to setup_host
   ansible.builtin.ping:
