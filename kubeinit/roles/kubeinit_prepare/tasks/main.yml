@@ -112,17 +112,17 @@
         type: "{{ kubeinit_common_ssh_keytype }}"
         comment: "{{ kubeinit_cluster_name }} {{ kubeinit_bastion_host }}"
         regenerate: 'never'
-      register: _result_cluster_keypair
+      register: _result_bastion_keypair
       delegate_to: "{{ kubeinit_bastion_host }}"
 
-    - name: Set public_key hostvar for bastion host
+    - name: Set authorized_key hostvar for bastion host
       ansible.builtin.add_host:
         name: "{{ kubeinit_bastion_host }}"
-        public_key: "{{ _result_cluster_keypair.public_key }}"
+        authorized_key: "{{ _result_bastion_keypair.public_key + ' ' + _result_bastion_keypair.comment }}"
 
-    - name: Add bastion host public key to cluster authorized_keys
+    - name: Add bastion host authorized key to cluster authorized_keys
       ansible.builtin.set_fact:
-        authorized_keys_with_bastion: "{{ kubeinit_cluster_hostvars.authorized_keys | union([_result_cluster_keypair.public_key]) }}"
+        authorized_keys_with_bastion: "{{ kubeinit_cluster_hostvars.authorized_keys | union([hostvars[kubeinit_bastion_host].authorized_key]) }}"
 
     - name: Set all cluster hypervisors fact
       ansible.builtin.add_host:
@@ -135,15 +135,15 @@
 
   when: kubeinit_bastion_host not in groups['all_hosts']
 
-- name: Add all cluster public keys to all hypervisors
+- name: Add all cluster authorized keys to all hypervisors
   ansible.posix.authorized_key:
     user: root
-    key: "{{ public_key }}"
+    key: "{{ authorized_key }}"
     state: present
   loop: "{{ groups['all_hosts'] | product(kubeinit_cluster_hostvars.authorized_keys) | list }}"
   vars:
     host: "{{ item[0] }}"
-    public_key: "{{ item[1] }}"
+    authorized_key: "{{ item[1] }}"
   delegate_to: "{{ host }}"
 
 - name: Define additional host, node and services facts

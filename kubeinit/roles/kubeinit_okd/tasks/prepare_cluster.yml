@@ -22,14 +22,25 @@
 - name: Only use these tasks if we are deploying OCP and not OKD
   block:
 
+    - name: Check for openshift pullsecret in container secrets
+      ansible.builtin.set_fact:
+        _result_pullsecret_content: "{{ omit if (hostvars[kubeinit_secrets_name].secrets[openshift_pullsecret_secret] | default('') | length == 0) else hostvars[kubeinit_secrets_name].secrets[openshift_pullsecret_secret] }}"
+      when: kubeinit_facts_hostvars.container_run|bool
+
     - name: Read openshift pullsecret
       ansible.builtin.slurp:
         src: "{{ kubeinit_okd_openshift_pullsecret }}"
       register: _result_openshift_pullsecret
       delegate_to: localhost
       when: |
+        not kubeinit_facts_hostvars.container_run|bool and
         kubeinit_okd_openshift_pullsecret is defined and
         kubeinit_okd_openshift_pullsecret
+
+    - name: Set pullsecret content
+      ansible.builtin.set_fact:
+        _result_pullsecret_content: "{{ _result_pullsecret_content if (_result_pullsecret_content is defined) else _result_openshift_pullsecret.content }}"
+      when: _result_openshift_pullsecret is defined
 
     - name: Create registry auth for pullsecret using individual auth values
       ansible.builtin.set_fact:
@@ -39,14 +50,15 @@
         # using Python's str(), which is why we end up with the single-quoted values.
         ocp_registry_token: '  { "auths": { "cloud.openshift.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_cloud_openshift_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"quay.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_quay_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.connect.redhat.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_connect_redhat_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.redhat.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_redhat_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } } }'
       when: |
+        not kubeinit_facts_hostvars.container_run|bool and
         not kubeinit_okd_openshift_pullsecret is defined or
         not kubeinit_okd_openshift_pullsecret
 
     - name: Create registry auth for pullsecret
       ansible.builtin.shell: |
         set -eo pipefail
-        {% if kubeinit_okd_openshift_pullsecret is defined and kubeinit_okd_openshift_pullsecret %}
-        echo '{{ _result_openshift_pullsecret.content | b64decode | trim }}' | jq -c ".auths"
+        {% if _result_pullsecret_content is defined %}
+        echo '{{ _result_pullsecret_content | b64decode | trim }}' | jq -c ".auths"
         {% else %}
         echo '{{ ocp_registry_token }}' | jq -c ".auths"
         {% endif %}

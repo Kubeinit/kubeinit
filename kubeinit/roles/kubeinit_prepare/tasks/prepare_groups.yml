@@ -192,17 +192,17 @@
     name: "{{ kubeinit_cluster_facts_name }}"
     running_vms: "{{ all_cluster_vms }}"
 
-- name: Collect all of the localhost and hypervisor public keys into authorized_keys list
+- name: Collect all of the localhost and hypervisor authorized keys into authorized_keys list
   ansible.builtin.set_fact:
-    all_public_keys: "{{ (all_public_keys | default([])) | union([public_key]) }}"
+    all_authorized_keys: "{{ (all_authorized_keys | default([])) | union([authorized_key]) }}"
   loop: "{{ ['localhost'] | union(groups['all_hosts']) }}"
   vars:
-    public_key: "{{ hostvars[item].public_key }}"
+    authorized_key: "{{ hostvars[item].authorized_key }}"
 
-- name: Set all hypervisor public keys cluster fact
+- name: Set all hypervisor authorized keys cluster fact
   ansible.builtin.add_host:
     name: "{{ kubeinit_cluster_facts_name }}"
-    authorized_keys: "{{ all_public_keys }}"
+    authorized_keys: "{{ all_authorized_keys }}"
 
 - name: Add services guest and cluster nodes to the all_guest_vms group
   ansible.builtin.add_host:

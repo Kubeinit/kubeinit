@@ -17,7 +17,6 @@
 - name: Setup KubeInit deployment environment
   hosts: localhost
   become: false
-  remote_user: root
   gather_subset: "!all,network"
   pre_tasks:
     - name: Check if Ansible meets version requirements.
@@ -62,4 +61,13 @@
         - name: task-deploy-setup
           ansible.builtin.include_role:
             name: "kubeinit_setup"
+            public: true
+
+    - name: Setup access to hypervisor hosts
+      tags: task_prepare_hypervisors
+      block:
+        - name: task-prepare-hypervisors
+          ansible.builtin.include_role:
+            name: "kubeinit_setup"
+            tasks_from: prepare_hypervisors.yml
             public: true

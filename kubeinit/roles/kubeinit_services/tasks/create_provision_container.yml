@@ -337,25 +337,25 @@
         regenerate: 'never'
       register: _result_provision_service_keypair
 
+    - name: Set authorized_key hostvar for provision service
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_provision_service_node }}"
+        authorized_key: "{{ _result_provision_service_keypair.public_key + ' ' + _result_provision_service_keypair.comment }}"
+
+    - name: Add provision service authorized key to cluster authorized_keys
+      ansible.builtin.set_fact:
+        authorized_keys_with_provision: "{{ kubeinit_cluster_hostvars.authorized_keys | union([hostvars[kubeinit_provision_service_node].authorized_key]) }}"
+
     - name: Install cluster authorized keys
       ansible.posix.authorized_key:
         user: root
         key: "{{ item }}"
         state: present
-      loop: "{{ kubeinit_cluster_hostvars.authorized_keys | union([_result_provision_service_keypair.public_key]) }}"
+      loop: "{{ authorized_keys_with_provision }}"
 
   vars:
     ansible_ssh_pipelining: False
   delegate_to: "{{ kubeinit_provision_service_name }}"
-
-- name: Set public_key hostvar for provision service
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_provision_service_node }}"
-    public_key: "{{ _result_provision_service_keypair.public_key }}"
-
-- name: Add provision service public key to cluster authorized_keys
-  ansible.builtin.set_fact:
-    authorized_keys_with_provision: "{{ kubeinit_cluster_hostvars.authorized_keys | union([_result_provision_service_keypair.public_key]) }}"
 
 - name: Update the cluster authorized_keys
   ansible.builtin.add_host:

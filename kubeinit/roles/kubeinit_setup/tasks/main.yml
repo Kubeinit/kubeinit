@@ -35,36 +35,51 @@
     - name: Install latest pip module
       ansible.builtin.pip:
         name: pip
+        executable: "{{ hostvars[kubeinit_setup_host_name].pip_executable }}"
         state: latest
         extra_args: --user
 
     - name: Install latest cryptography module
       ansible.builtin.pip:
         name: cryptography
+        executable: "{{ hostvars[kubeinit_setup_host_name].pip_executable }}"
         state: latest
         extra_args: --user
 
-    - name: Install latest shyaml ansible netaddr modules
+    - name: Install latest ansible module
+      ansible.builtin.pip:
+        name: ansible
+        executable: "{{ hostvars[kubeinit_setup_host_name].pip_executable }}"
+        state: latest
+        extra_args: --user
+
+    - name: Install latest shyaml and netaddr modules
       ansible.builtin.pip:
         name:
           - shyaml
-          - ansible
           - netaddr
+          - ipython
+        executable: "{{ hostvars[kubeinit_setup_host_name].pip_executable }}"
         state: latest
         extra_args: --user
+
+    - name: Get status of kubeinit folder
+      ansible.builtin.stat:
+        path: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
+      register: _result_stat_kubeinit
 
     - name: Clone the kubeinit git repo
       ansible.builtin.git:
         clone: true
-        dest: ~/kubeinit
+        dest: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
         repo: https://github.com/Kubeinit/kubeinit.git
         version: "{{ kubeinit_inventory_git_clone_version | default('main') }}"
-      when: kubeinit_inventory_git_clone_enabled | default(false) | bool
+      when: not _result_stat_kubeinit.stat.exists
 
     - name: Install ansible-galaxy requirements
       community.general.ansible_galaxy_install:
         type: collection
-        requirements_file: ~/kubeinit/kubeinit/requirements.yml
+        requirements_file: "{{ kubeinit_git_clone_path | default('~/kubeinit') + '/kubeinit/requirements.yml' }}"
         force: true
 
     - name: Remove any existing kubeinit/kubeinit galaxy collection
@@ -74,13 +89,13 @@
 
     - name: Build the kubeinit/kubeinit galaxy collection
       ansible.builtin.command:
-        chdir: ~/kubeinit
+        chdir: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
         cmd: ansible-galaxy collection build kubeinit --verbose --force --output-path releases/
       register: _result
 
     - name: Read the kubeinit/galaxy.xml file
       ansible.builtin.command:
-        chdir: ~/kubeinit
+        chdir: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
         cmd: cat kubeinit/galaxy.yml
       register: _result
 
@@ -90,76 +105,15 @@
 
     - name: Install the kubeinit/kubeinit galaxy collection
       ansible.builtin.command:
-        chdir: ~/kubeinit
+        chdir: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
         cmd: ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-{{ galaxy_facts.version }}.tar.gz
       register: _result
       failed_when: _result is not defined
 
-    - name: Add hypervisor hosts to ~/.ssh/config
-      ansible.builtin.blockinfile:
-        path: ~/.ssh/config
-        mode: '0644'
-        block: |
-          Host {{ item }}
-            Hostname {{ hostvars[item].ssh_connection_address }}
-            IdentityFile {{ kubeinit_setup_keypair_path }}
-            UserKnownHostsFile /dev/null
-            StrictHostKeyChecking accept-new
-      loop: "{{ groups['ssh_config_hosts'] | default([]) }}"
-      when: not kubeinit_facts_hostvars.container_build|bool
-
-    - name: Generate an OpenSSH keypair for setup_host to have remote access to hypervisor hosts
-      community.crypto.openssh_keypair:
-        path: "{{ kubeinit_setup_keypair_path }}"
-        type: "{{ kubeinit_common_ssh_keytype }}"
-        comment: "{{ kubeinit_setup_host_name }}"
-        regenerate: 'never'
-      register: _result_setup_keypair
-      when: not kubeinit_facts_hostvars.container_build|bool and groups['hypervisor_hosts'] | default([])
-
-    - name: Add host keys to known_hosts
-      ansible.builtin.known_hosts:
-        name: "{{ hostvars[item].ansible_host }}"
-        key: "{{ hostvars[item].ansible_host }} {{ hostvars[item].ssh_host_key_ecdsa }}"
-        state: present
-      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
-      when: not kubeinit_facts_hostvars.container_build|bool
-
-    - name: Add setup_host public key to hypervisor hosts
-      ansible.posix.authorized_key:
-        user: root
-        key: "{{ _result_setup_keypair.public_key }}"
-        comment: "{{ _result_setup_keypair.comment }}"
-        state: present
-      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
-      loop_control:
-        loop_var: hypervisor_host
-      vars:
-        ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-      delegate_to: "{{ hypervisor_host }}"
-      when: not kubeinit_facts_hostvars.container_build|bool
-
-    - name: Confirm access to hypervisors from setup host and user
-      ansible.builtin.shell: |
-        set -o pipefail
-        ssh \
-            -i {{ kubeinit_setup_keypair_path }} \
-            -o ConnectTimeout=5 \
-            -o BatchMode=yes \
-            -o UserKnownHostsFile=/dev/null \
-            -o StrictHostKeyChecking=accept-new \
-            root@{{ hostvars[hypervisor_host].ansible_host }} 'echo connected' || true
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
-      retries: 30
-      delay: 10
-      until: "'connected' in _result.stdout"
-      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
-      loop_control:
-        loop_var: hypervisor_host
-      when: not kubeinit_facts_hostvars.container_build|bool
+    - name: Clean up releases folder after installing the collection
+      ansible.builtin.file:
+        path: "{{ kubeinit_git_clone_path | default('~/kubeinit') + '/releases' }}"
+        state: absent
 
   environment:
     PATH: "{{ hostvars[kubeinit_setup_host_name].remote_home }}/.local/bin:{{ hostvars[kubeinit_setup_host_name].remote_path }}"
