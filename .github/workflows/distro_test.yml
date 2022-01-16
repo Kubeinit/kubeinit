@@ -24,72 +24,39 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Build kubeinit/kubeinit container
+      run: podman build -t kubeinit/kubeinit .
+    - name: Update package manager first, the runner could reference stale repos
+      run: sudo apt-get update -y
+    - name: Setup ssh
       run: |
-        sudo apt update -y
-        sudo apt install jq -y
-        sudo apt-get remove ansible -y
-        sudo python3 -m pip uninstall ansible ansible-base ansible-core -y
-        sudo python3 -m pip install ansible==5.1.0
-        sudo locale-gen en_US.UTF-8
-        sudo dpkg-reconfigure locales
-        sudo apt install build-essential findutils -y
-        sudo apt-get --purge autoremove python3-pip
-        sudo apt install python3-pip
-        sudo python3 -m pip install --upgrade pip
-        sudo python3 -m pip install --upgrade virtualenv
-        sudo python3 -m pip install --upgrade setuptools
-        sudo python3 -m pip install -r ./test-requirements.txt
-    - name: Check SSH config
-      run: |
-        cat > sshd_config <<EOF
-          SyslogFacility AUTHPRIV
-          PermitRootLogin yes
-          AuthorizedKeysFile	.ssh/authorized_keys
-          PasswordAuthentication yes
-          ChallengeResponseAuthentication no
-          UsePAM yes
-          UseDNS no
-          X11Forwarding no
-          PrintMotd no
-        EOF
-        sudo mv sshd_config /etc/ssh/sshd_config
-        sudo systemctl restart ssh
-    - name: Create ssh key and enable passwordless access
-      run: >
+        whoami
+        ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa
+        cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
+        chmod 600 ~/.ssh/authorized_keys
         sudo su <<EOF
-            ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa
-            cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
-            chmod 600 ~/.ssh/authorized_keys
-            chmod 700 ~/.ssh
-            sudo chmod -c 0755 ~/
-            echo "Host nyctea" > ~/.ssh/config
-            echo "  Hostname $(hostname)" >> ~/.ssh/config
-            ls -la ~/.ssh
-            # echo "Test to nyctea"
-            # ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no $(whoami)@nyctea
-            # echo "Test to localhost"
-            # ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no $(whoami)@localhost
+          cat $HOME/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
+          chmod 600 ~/.ssh/authorized_keys
         EOF
-    - name: Run the deployment from a container
+        echo "Host nyctea" > ~/.ssh/config
+        echo "  Hostname $(hostname)" >> ~/.ssh/config
+        podman secret create kubeinit_ssh_key ~/.ssh/id_rsa
+        # ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new $(hostname) id
+        # ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new root@$(hostname) id
+        podman secret create kubeinit_cluster_ssh_key ~/.ssh/id_rsa
+    - name: Run a deployment from the kubeinit/kubeinit container
       run: |
-        # There is no need to install the collection before this step.
-        # The collection is compiled and installed when we create
-        # the kubeinit container using the code in the current path.
-        sudo su <<EOF
-            whoami
-            podman build -t kubeinit/kubeinit .
-            podman run --rm -it \
-                -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:z \
-                -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:z \
-                -v ~/.ssh/config:/root/.ssh/config:z \
-                    localhost/kubeinit/kubeinit:latest \
-                    -vvv \
-                    -e kubeinit_spec=cdk-libvirt-1-0-1-c \
-                    -e kubeinit_stop_after_task='task-prepare-cluster' \
-                    -e kubeinit_libvirt_create_cloud_user=true \
-                    -e kubeinit_inventory_hosted_deployment=true \
-                    -e kubeinit_ignore_validation_checks=true \
-                    -i ./kubeinit/inventory \
-                    ./kubeinit/playbook.yml
-        EOF
+        podman run --rm --network host \
+            --secret kubeinit_ssh_key \
+            --secret kubeinit_cluster_ssh_key \
+            localhost/kubeinit/kubeinit:latest \
+                -vvv \
+                --user root \
+                -e kubeinit_ssh_config_hosts_spec="[[host=nyctea,ssh_hostname=$(hostname)]]" \
+                -e kubeinit_spec=cdk-libvirt-1-0-1-c \
+                -e kubeinit_stop_after_task='task-prepare-cluster' \
+                -e kubeinit_libvirt_create_cloud_user=true \
+                -e kubeinit_inventory_hosted_deployment=true \
+                -e kubeinit_ignore_validation_checks=true \
+                -i kubeinit/inventory \
+                kubeinit/playbook.yml

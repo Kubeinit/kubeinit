@@ -21,12 +21,14 @@
       ansible.builtin.gather_facts:
         gather_subset: "!all,network"
       register: _result_facts
+      no_log: true
 
     - name: Set distro_family for CentOS
       ansible.builtin.set_fact:
         distro_family: "CentOS"
         qemu_user: "qemu"
         host_os: "centos"
+        package_manager: auto
       when: _result_facts.ansible_facts.ansible_distribution == 'CentOS'
 
     - name: Set distro_family for RedHat
@@ -34,6 +36,7 @@
         distro_family: "CentOS"
         qemu_user: "qemu"
         host_os: "redhat"
+        package_manager: auto
       when: _result_facts.ansible_facts.ansible_distribution == 'RedHat'
 
     - name: Set distro_family for Fedora
@@ -41,6 +44,7 @@
         distro_family: "Fedora"
         qemu_user: "qemu"
         host_os: "fedora"
+        package_manager: auto
       when: _result_facts.ansible_facts.ansible_distribution == 'Fedora'
 
     - name: Set distro_family for Debian
@@ -48,6 +52,7 @@
         distro_family: "Debian"
         qemu_user: "libvirt-qemu"
         host_os: "debian"
+        package_manager: apt
       when: _result_facts.ansible_facts.ansible_distribution == 'Debian'
 
     - name: Set distro_family for Ubuntu
@@ -55,6 +60,7 @@
         distro_family: "Debian"
         qemu_user: "libvirt-qemu"
         host_os: "ubuntu"
+        package_manager: apt
       when: _result_facts.ansible_facts.ansible_distribution == 'Ubuntu'
 
     - name: Fails if OS is not supported
@@ -62,9 +68,18 @@
         msg: "The host \"{{ hostvars[_param_gather_host].ansible_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
       when: not distro_family is defined
 
+    - name: Set ssh_host_key_info
+      ansible.builtin.set_fact:
+        ssh_host_key_info: "{{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype }} {{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public }}"
+      when: >
+        _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype is defined and
+        _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public is defined
+
     - name: Gather the package facts
       ansible.builtin.package_facts:
+        manager: "{{ package_manager }}"
       register: _result_packages
+      no_log: true
 
     - name: Set podman_installed
       ansible.builtin.set_fact:
@@ -73,6 +88,7 @@
     - name: Gather the services facts
       ansible.builtin.service_facts:
       register: _result_services
+      no_log: true
 
     - name: Set firewalld_state to unknown
       ansible.builtin.set_fact:
@@ -167,16 +183,16 @@
       register: _result_keypair
       when: _param_gather_host in (['localhost'] + groups['hypervisor_hosts'])
 
-    - name: Set ssh_host_key_info
+    - name: Create authorized_key from keypair
       ansible.builtin.set_fact:
-        ssh_host_key_info: "{{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype }} {{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public }}"
-      when: >
-        _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype is defined and
-        _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public is defined
+        hv_authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"
+      when: _param_gather_host in (['localhost'] + groups['hypervisor_hosts'])
 
     - name: Add ansible facts to hostvars
       ansible.builtin.add_host:
         name: "{{ _param_gather_host }}"
+        groups: 'gathered'
+        ansible_connection: "{{ hostvars[_param_gather_host].ansible_connection | default(omit) }}"
         ansible_default_ipv4_address: "{{ _result_facts.ansible_facts.ansible_default_ipv4.address | default(omit) }}"
         ansible_hostname: "{{ _result_facts.ansible_facts.ansible_hostname }}"
         ansible_distribution: "{{ _result_facts.ansible_facts.ansible_distribution }}"
@@ -191,18 +207,22 @@
         ovs_is_active: "{{ ovs_vswitchd_active }}"
         libvirt_nets: "{{ _result_nets.list_nets | default([]) }}"
         libvirt_vms: "{{ _result_vms.list_vms | default([]) }}"
-        public_key: "{{ _result_keypair.public_key | default(omit) }}"
-        ssh_connection_address: "{{ 'localhost' if (_param_gather_host == 'localhost') else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
+        authorized_key: "{{ hv_authorized_key | default(omit) }}"
+        remote_path: "{{ _result_facts.ansible_facts.ansible_env['PATH'] }}"
+        remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
+        ssh_connection_address: "{{ omit if (_result_facts.ansible_facts.ansible_env['SSH_CONNECTION'] is not defined) else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
         runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
 
     - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
         kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+      no_log: true
       when: kubeinit_facts_hostvars is defined
 
     - name: Update kubeinit_cluster_hostvars
       ansible.builtin.set_fact:
         kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
+      no_log: true
       when: kubeinit_cluster_hostvars is defined
 
     - name: Clear results

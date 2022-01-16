@@ -15,14 +15,13 @@
 # under the License.
 
 - block:
-    - name: Create network if needed
+    - name: Prepare environment if not prepared
       ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_libvirt
-        tasks_from: create_network.yml
+        name: kubeinit.kubeinit.kubeinit_prepare
         public: true
       vars:
-        network_created: "{{ kubeinit_facts_name is defined }}"
-      when: not network_created
+        environment_prepared: "{{ kubeinit_facts_name is defined }}"
+      when: not environment_prepared
 
     - block:
         - name: "Stop before 'task-create-services' when requested"
