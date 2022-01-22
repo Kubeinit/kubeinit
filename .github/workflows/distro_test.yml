@@ -30,29 +30,23 @@ jobs:
       run: sudo apt-get update -y
     - name: Setup ssh
       run: |
-        whoami
         ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa
         cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
         chmod 600 ~/.ssh/authorized_keys
         sudo su <<EOF
           cat $HOME/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
-          chmod 600 ~/.ssh/authorized_keys
         EOF
         echo "Host nyctea" > ~/.ssh/config
         echo "  Hostname $(hostname)" >> ~/.ssh/config
         podman secret create kubeinit_ssh_key ~/.ssh/id_rsa
-        # ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new $(hostname) id
-        # ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new root@$(hostname) id
-        podman secret create kubeinit_cluster_ssh_key ~/.ssh/id_rsa
     - name: Run a deployment from the kubeinit/kubeinit container
       run: |
         podman run --rm --network host \
             --secret kubeinit_ssh_key \
-            --secret kubeinit_cluster_ssh_key \
             localhost/kubeinit/kubeinit:latest \
-                -vvv \
+                -v \
                 --user root \
-                -e kubeinit_ssh_config_hosts_spec="[[host=nyctea,ssh_hostname=$(hostname)]]" \
+                -e kubeinit_hypervisor_hosts_spec="[[host=hypervisor-01,ansible_host=nyctea,ssh_hostname=$(hostname)]]" \
                 -e kubeinit_spec=cdk-libvirt-1-0-1-c \
                 -e kubeinit_stop_after_task='task-prepare-cluster' \
                 -e kubeinit_libvirt_create_cloud_user=true \
