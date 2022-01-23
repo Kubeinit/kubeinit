@@ -14,14 +14,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+
 - name: Delegate to _param_gather_host
   block:
+
+    - name: Confirm that we have ansible host connectivity
+      ansible.builtin.ping:
 
     - name: Gather network facts
       ansible.builtin.gather_facts:
         gather_subset: "!all,network"
       register: _result_facts
-      no_log: true
 
     - name: Set distro_family for CentOS
       ansible.builtin.set_fact:
@@ -79,7 +82,6 @@
       ansible.builtin.package_facts:
         manager: "{{ package_manager }}"
       register: _result_packages
-      no_log: true
 
     - name: Set podman_installed
       ansible.builtin.set_fact:
@@ -88,7 +90,6 @@
     - name: Gather the services facts
       ansible.builtin.service_facts:
       register: _result_services
-      no_log: true
 
     - name: Set firewalld_state to unknown
       ansible.builtin.set_fact:
@@ -212,18 +213,6 @@
         remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
         ssh_connection_address: "{{ omit if (_result_facts.ansible_facts.ansible_env['SSH_CONNECTION'] is not defined) else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
         runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
-
-    - name: Update kubeinit_facts_hostvars
-      ansible.builtin.set_fact:
-        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
-      no_log: true
-      when: kubeinit_facts_hostvars is defined
-
-    - name: Update kubeinit_cluster_hostvars
-      ansible.builtin.set_fact:
-        kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
-      no_log: true
-      when: kubeinit_cluster_hostvars is defined
 
     - name: Clear results
       ansible.builtin.set_fact:

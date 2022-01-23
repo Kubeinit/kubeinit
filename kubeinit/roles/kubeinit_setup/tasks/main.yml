@@ -63,18 +63,13 @@
         state: latest
         extra_args: --user
 
-    - name: Get status of kubeinit folder
-      ansible.builtin.stat:
-        path: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
-      register: _result_stat_kubeinit
-
     - name: Clone the kubeinit git repo
       ansible.builtin.git:
         clone: true
         dest: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
         repo: https://github.com/Kubeinit/kubeinit.git
         version: "{{ kubeinit_inventory_git_clone_version | default('main') }}"
-      when: not _result_stat_kubeinit.stat.exists
+      when: hostvars[kubeinit_setup_host_name].git_clone_kubeinit|bool
 
     - name: Install ansible-galaxy requirements
       community.general.ansible_galaxy_install:

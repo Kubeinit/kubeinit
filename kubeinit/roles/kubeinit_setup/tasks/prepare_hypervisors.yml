@@ -34,53 +34,67 @@
 
     - name: Define additional host facts
       ansible.builtin.set_fact:
-        kubeinit_setup_keypair_path: "~/.ssh/kubeinit_setup_id_{{ kubeinit_common_ssh_keytype }}"
+        kubeinit_deploy_keypair_path: "~/.ssh/kubeinit_id_{{ kubeinit_common_ssh_keytype }}"
 
     - name: Create ssh config file
       ansible.builtin.file:
         path: ~/.ssh/config
         state: touch
         mode: 0644
-      when: "'ssh_config_hosts' in groups and groups['ssh_config_hosts'] | list | length > 0"
+      when: (groups['hypervisor_hosts'] | default([]) | map('extract', hostvars, 'ssh_hostname') | list | length > 0)
 
-    - name: Add ssh_config_hosts to ~/.ssh/config
+    - name: Add hypervisor hosts ssh_hostname to ~/.ssh/config
       ansible.builtin.blockinfile:
         path: ~/.ssh/config
         mode: '0644'
         block: |
-          {% for host in groups['ssh_config_hosts'] %}
+          {% for host in groups['hypervisor_hosts'] %}
+          {% if hostvars[host].ssh_hostname is defined %}
 
-          Host {{ host }}
+          Host {{ hostvars[host].ansible_host }}
             Hostname {{ hostvars[host].ssh_hostname }}
-            IdentityFile {{ kubeinit_setup_keypair_path }}
+            IdentityFile {{ kubeinit_deploy_keypair_path }}
             UserKnownHostsFile /dev/null
             StrictHostKeyChecking accept-new
+          {% endif %}
           {% endfor %}
-      when: "'ssh_config_hosts' in groups and groups['ssh_config_hosts'] | list | length > 0"
+      when: (groups['hypervisor_hosts'] | default([]) | map('extract', hostvars, 'ssh_hostname') | list | length > 0)
 
     - name: Generate an OpenSSH keypair for setup_host to have remote access to hypervisor hosts
       community.crypto.openssh_keypair:
-        path: "{{ kubeinit_setup_keypair_path }}"
+        path: "{{ kubeinit_deploy_keypair_path }}"
         type: "{{ kubeinit_common_ssh_keytype }}"
         comment: "{{ kubeinit_setup_host_name + ' ' + hostvars[kubeinit_setup_host_name].ansible_ssh_user + '@' + hostvars[kubeinit_setup_host_name].ansible_host }}"
         regenerate: 'never'
       register: _result_setup_keypair
       when: "'hypervisor_hosts' in groups and groups['hypervisor_hosts'] | list | length > 0"
 
+    - name: Add keypair to authorized_keys
+      ansible.posix.authorized_key:
+        user: "{{ kubeinit_facts_hostvars.remote_user }}"
+        key: "{{ _result_setup_keypair.public_key }}"
+        comment: "{{ _result_setup_keypair.comment }}"
+        state: present
+
+    - name: Add ssh ProxyCommand option for all nodes
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        ansible_ssh_common_args: >-
+          {{ ansible_ssh_common_args }} -o ProxyCommand="ssh {{ ansible_ssh_common_args }} -W %h:%p -q {{ hostvars[kubeinit_setup_host_name].ansible_ssh_user }}@{{ hostvars[kubeinit_setup_host_name].ansible_host }}"
+      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
+
     - name: Gather hypervisor host facts
       ansible.builtin.include_tasks: gather_host_facts.yml
       loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
       loop_control:
         loop_var: _param_gather_host
-      vars:
-        ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
 
-    - name: Add host keys to known_hosts
-      ansible.builtin.known_hosts:
-        name: "{{ hostvars[item].ansible_host }}"
-        key: "{{ hostvars[item].ansible_host }} {{ hostvars[item].ssh_host_key_ecdsa }}"
-        state: present
-      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
+    # - name: Add host keys to known_hosts
+    #   ansible.builtin.known_hosts:
+    #     name: "{{ hostvars[item].ansible_host }}"
+    #     key: "{{ hostvars[item].ansible_host }} {{ hostvars[item].ssh_host_key_ecdsa }}"
+    #     state: present
+    #   loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
 
     - name: Add setup_host authorized key to hypervisor hosts
       ansible.posix.authorized_key:
@@ -101,7 +115,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         ssh \
-            -i {{ kubeinit_setup_keypair_path }} \
+            -i {{ kubeinit_deploy_keypair_path }} \
             -o ConnectTimeout=5 \
             -o BatchMode=yes \
             -o UserKnownHostsFile=/dev/null \
@@ -121,7 +135,6 @@
   environment:
     PATH: "{{ hostvars[kubeinit_setup_host_name].remote_home }}/.local/bin:{{ hostvars[kubeinit_setup_host_name].remote_path }}"
   delegate_to: "{{ kubeinit_setup_host_name }}"
-  when: not kubeinit_facts_hostvars.container_build|bool
 
 - block:
     - name: Add task-prepare-hypervisors to tasks_completed

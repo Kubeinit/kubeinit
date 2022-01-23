@@ -31,18 +31,29 @@
   ansible.builtin.set_fact:
     kubeinit_facts_name: 'kubeinit-facts'
 
-- name: Set hostname we use to set cluster facts
-  ansible.builtin.set_fact:
-    kubeinit_cluster_facts_name: 'kubeinit-cluster-facts'
-
 - name: Add playbook context facts
   ansible.builtin.add_host:
     name: "{{ kubeinit_facts_name }}"
     container_run: "{{ kubeinit_container_run|default(false)|bool }}"
 
+- name: Set hostname we use to set kubeinit secrets
+  ansible.builtin.set_fact:
+    kubeinit_secrets_name: 'kubeinit-secrets'
+
+- name: Read podman secrets if running from the container
+  ansible.builtin.include_role:
+    name: kubeinit.kubeinit.kubeinit_prepare
+    tasks_from: gather_kubeinit_secrets.yml
+    public: true
+  when: hostvars[kubeinit_facts_name].container_run
+
+- name: Set hostname we use to set cluster facts
+  ansible.builtin.set_fact:
+    kubeinit_cluster_facts_name: 'kubeinit-cluster-facts'
+
 - name: Lookup remote_user from command-line
   ansible.builtin.set_fact:
-    kubeinit_cli_remote_user: "{{ lookup('cli_args', 'remote_user') }}"
+    kubeinit_cli_remote_user: "{{ lookup('kubeinit.kubeinit.cli_args', 'remote_user') }}"
 
 - name: Check for empty remote user when running from kubeinit container
   ansible.builtin.fail:
@@ -51,22 +62,39 @@
       - "e.g. --user root"
   when: hostvars[kubeinit_facts_name].container_run and kubeinit_cli_remote_user|length == 0
 
-- name: Define kubeinit_setup_remote_user
+- name: Define kubeinit remote_user
   ansible.builtin.add_host:
     name: "{{ kubeinit_facts_name }}"
     remote_user: "{{ kubeinit_cli_remote_user if (kubeinit_cli_remote_user|length > 0) else ansible_facts.user_id }}"
 
+- name: Load kubeinit_hypervisor_hosts_spec from yaml into a list of key=value lists if defined
+  ansible.builtin.set_fact:
+    hypervisor_hosts_list: "{{ kubeinit_hypervisor_hosts_spec | from_yaml }}"
+  when: kubeinit_hypervisor_hosts_spec is defined
+
+- name: Convert list of list into list of dictionary
+  ansible.builtin.set_fact:
+    hypervisor_hosts_map_list: "{{ (hypervisor_hosts_map_list | default([])) | union([_dict]) }}"
+  loop: "{{ hypervisor_hosts_list }}"
+  vars:
+    _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
+    _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+    _dict: "{{ dict(_keys|zip(_vals)) }}"
+  when: hypervisor_hosts_list is defined
+
+- name: Add host entries to hypervisor_hosts group
+  ansible.builtin.add_host:
+    name: "{{ item.host }}"
+    groups: 'hypervisor_hosts'
+    ansible_connection: 'smart'
+    ansible_host: "{{ item.ansible_host | default(omit) }}"
+    ssh_hostname: "{{ item.ssh_hostname | default(omit) }}"
+  loop: "{{ hypervisor_hosts_map_list }}"
+  when: hypervisor_hosts_map_list is defined
+
 - name: Define kubeinit_facts_hostvars
   ansible.builtin.set_fact:
     kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
-
-- name: Set hostname we use to set kubeinit secrets
-  ansible.builtin.set_fact:
-    kubeinit_secrets_name: 'kubeinit-secrets'
-
-- name: Read podman secrets if running from the container
-  ansible.builtin.include_tasks: gather_kubeinit_secrets.yml
-  when: kubeinit_facts_hostvars.container_run|bool
 
 - name: Create .ssh folder if needed
   ansible.builtin.file:
@@ -75,57 +103,36 @@
     mode: 0700
   when: kubeinit_facts_hostvars.container_run|bool
 
+- name: Create ssh config file
+  ansible.builtin.file:
+    path: ~/.ssh/config
+    state: touch
+    mode: 0644
+  when: kubeinit_facts_hostvars.container_run|bool and (groups['hypervisor_hosts'] | default([]) | map('extract', hostvars, 'ssh_hostname') | list | length > 0)
+
+- name: Add hypervisor hosts ssh_hostname attributes to ~/.ssh/config
+  ansible.builtin.blockinfile:
+    path: ~/.ssh/config
+    mode: '0644'
+    block: |
+      {% for host in groups['hypervisor_hosts'] %}
+      {% if hostvars[host].ssh_hostname is defined %}
+
+      Host {{ hostvars[host].ansible_host }}
+        Hostname {{ hostvars[host].ssh_hostname }}
+        IdentityFile ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}
+        UserKnownHostsFile /dev/null
+        StrictHostKeyChecking accept-new
+      {% endif %}
+      {% endfor %}
+  when: kubeinit_facts_hostvars.container_run|bool and (groups['hypervisor_hosts'] | default([]) | map('extract', hostvars, 'ssh_hostname') | list | length > 0)
+
 - name: Copy ssh key secret into ~/.ssh
   ansible.builtin.copy:
     content: "{{ hostvars[kubeinit_secrets_name].secrets[kubeinit_facts_hostvars.kubeinit_ssh_key_secret] | b64decode }}"
     dest: "~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
     mode: '0600'
   when: kubeinit_facts_hostvars.container_run|bool
-
-- name: Load kubeinit_ssh_config_hosts_spec from yaml into a list of key=value lists if defined
-  ansible.builtin.set_fact:
-    ssh_config_hosts_list: "{{ kubeinit_ssh_config_hosts_spec | from_yaml }}"
-  when: kubeinit_ssh_config_hosts_spec is defined
-
-- name: Convert list of list into list of dictionary
-  ansible.builtin.set_fact:
-    ssh_config_hosts: "{{ (ssh_config_hosts | default([])) | union([_dict]) }}"
-  loop: "{{ ssh_config_hosts_list }}"
-  vars:
-    _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
-    _dict: "{{ dict(_keys|zip(_vals)) }}"
-  when: ssh_config_hosts_list is defined
-
-- name: Add host entries to ssh_config_hosts group
-  ansible.builtin.add_host:
-    name: "{{ item.host }}"
-    groups: 'ssh_config_hosts'
-    ssh_hostname: "{{ item.ssh_hostname }}"
-  loop: "{{ ssh_config_hosts }}"
-  when: ssh_config_hosts is defined
-
-- name: Create ssh config file
-  ansible.builtin.file:
-    path: ~/.ssh/config
-    state: touch
-    mode: 0644
-  when: kubeinit_facts_hostvars.container_run|bool and 'ssh_config_hosts' in groups and groups['ssh_config_hosts'] | list | length > 0
-
-- name: Add ssh_config_hosts to ~/.ssh/config
-  ansible.builtin.blockinfile:
-    path: ~/.ssh/config
-    mode: '0644'
-    block: |
-      {% for host in groups['ssh_config_hosts'] %}
-
-      Host {{ host }}
-        Hostname {{ hostvars[host].ssh_hostname }}
-        IdentityFile ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}
-        UserKnownHostsFile /dev/null
-        StrictHostKeyChecking accept-new
-      {% endfor %}
-  when: kubeinit_facts_hostvars.container_run|bool and 'ssh_config_hosts' in groups and groups['ssh_config_hosts'] | list | length > 0
 
 - name: Prepare inventory using command-line specification
   ansible.builtin.set_fact:
@@ -173,7 +180,7 @@
     content: "{{ hostvars[kubeinit_secrets_name].secrets[kubeinit_facts_hostvars.kubeinit_cluster_ssh_key_secret] | b64decode }}"
     dest: "~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }}"
     mode: '0600'
-  when: kubeinit_facts_hostvars.container_run|bool
+  when: kubeinit_facts_hostvars.container_run|bool and hostvars[kubeinit_secrets_name].secrets[kubeinit_facts_hostvars.kubeinit_cluster_ssh_key_secret] is defined
 
 - name: Set more cluster facts from inventory and kubeinit_spec
   ansible.builtin.set_fact:
@@ -421,6 +428,10 @@
       ansible.builtin.add_host:
         name: "{{ kubeinit_facts_name }}"
         tasks_completed: "{{ ['task-gather-facts'] }}"
+
+    - name: Update kubeinit_facts_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
     - block:
         - name: Stop after 'task-gather-facts' when requested

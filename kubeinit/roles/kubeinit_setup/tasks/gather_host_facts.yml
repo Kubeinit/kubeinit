@@ -15,76 +15,6 @@
 # under the License.
 
 
-- name: Confirm that we can run ssh to _param_gather_host
-  ansible.builtin.command: |
-    ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }} {{ kubeinit_setup_remote_user }}@{{ hostvars[_param_gather_host].ansible_host }} echo connected
-  register: _result_ssh
-  failed_when: _result_ssh is not defined
-  delegate_to: localhost
-  when: not kubeinit_facts_hostvars.container_build|bool
-
-- name: Provide informative message if ssh connect fails
-  ansible.builtin.fail:
-    msg: "Kubeinit setup requires ssh remote access to {{ kubeinit_setup_remote_user }}@{{ hostvars[_param_gather_host].ansible_host }}"
-  when: not kubeinit_facts_hostvars.container_build|bool and _result_ssh.stdout != 'connected'
-
-- name: Confirm that we can run ssh to _param_gather_host, and sudo without a password
-  ansible.builtin.command: |
-    ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }} {{ kubeinit_setup_remote_user }}@{{ hostvars[_param_gather_host].ansible_host }} sudo echo sudoer
-  register: _result_sudo
-  failed_when: _result_sudo is not defined
-  delegate_to: localhost
-  when: not kubeinit_facts_hostvars.container_build|bool
-
-- name: Provide informative message if sudo on ssh connect fails
-  ansible.builtin.fail:
-    msg: "Kubeinit setup requires {{ kubeinit_setup_remote_user }} be able to run sudo on remote host {{ hostvars[_param_gather_host].ansible_host }}"
-  when: not kubeinit_facts_hostvars.container_build|bool and _result_sudo.stdout != 'sudoer'
-
-- name: Confirm that we can run ssh to _param_gather_host, sudo without a password, and the python interpreter is present
-  ansible.builtin.command: |
-    ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }} {{ kubeinit_setup_remote_user }}@{{ hostvars[_param_gather_host].ansible_host }} sudo ls {{ ansible_python_interpreter }}
-  register: _result_python_present
-  failed_when: _result_python_present is not defined
-  delegate_to: localhost
-  when: not kubeinit_facts_hostvars.container_build|bool
-
-- name: If we couldn't find python interpreter try to install it using ssh and sudo
-  block:
-
-    - name: Provide informative message if python not present on remote host
-      ansible.builtin.debug:
-        msg: "Kubeinit setup requires that {{ ansible_python_interpreter }} be installed on remote host {{ hostvars[_param_gather_host].ansible_host }}, will attempt to install it remotely."
-
-    - name: Fetch contents of /etc/os-release
-      ansible.builtin.command: |
-        ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }} {{ kubeinit_setup_remote_user }}@{{ hostvars[_param_gather_host].ansible_host }} cat /etc/os-release
-      register: _result_os_release
-      delegate_to: localhost
-
-    - name: Run python install
-      ansible.builtin.command: |
-        ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }} {{ kubeinit_setup_remote_user }}@{{ hostvars[_param_gather_host].ansible_host }} sudo {{ python_package_manager }} install -y {{ python_package }}
-      register: _result_python_install
-      vars:
-        python_package_manager: "{{ 'dnf' if (_result_os_release.stdout is match('.*[Cc][Ee][Nn][Tt][Oo][Ss].*')) else 'apt-get' }}"
-        python_package: "{{ 'python39' if (_result_os_release.stdout is match('.*[Cc][Ee][Nn][Tt][Oo][Ss].*')) else 'python3' }}"
-      delegate_to: localhost
-
-    - name: Reconfirm that we can run ssh to _param_gather_host, sudo without a password, and the python interpreter is present
-      ansible.builtin.command: |
-        ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }} {{ kubeinit_setup_remote_user }}@{{ hostvars[_param_gather_host].ansible_host }} sudo ls {{ ansible_python_interpreter }}
-      register: _result_python_present_recheck
-      failed_when: _result_python_present_recheck is not defined
-      delegate_to: localhost
-
-    - name: Provide informative message if python not present on remote host
-      ansible.builtin.fail:
-        msg: "Kubeinit setup requires that {{ ansible_python_interpreter }} be installed on remote host {{ hostvars[_param_gather_host].ansible_host }}"
-      when: _result_python_present_recheck.stdout != ansible_python_interpreter
-
-  when: not kubeinit_facts_hostvars.container_build|bool and _result_python_present.stdout != ansible_python_interpreter
-
 - name: Delegate to _param_gather_host
   block:
 
@@ -95,7 +25,6 @@
       ansible.builtin.gather_facts:
         gather_subset: "!all,network"
       register: _result_facts
-      no_log: true
 
     - name: Set distro_family for CentOS
       ansible.builtin.set_fact:
@@ -158,7 +87,6 @@
       ansible.builtin.package_facts:
         manager: "{{ package_manager }}"
       register: _result_packages
-      no_log: true
 
     - name: Set podman_installed
       ansible.builtin.set_fact:
@@ -167,7 +95,6 @@
     - name: Gather the services facts
       ansible.builtin.service_facts:
       register: _result_services
-      no_log: true
 
     - name: Set firewalld_state to unknown
       ansible.builtin.set_fact:
@@ -212,6 +139,7 @@
         ansible_hostname: "{{ _result_facts.ansible_facts.ansible_hostname }}"
         ansible_distribution: "{{ _result_facts.ansible_facts.ansible_distribution }}"
         ansible_distribution_major_version: "{{ _result_facts.ansible_facts.ansible_distribution_major_version }}"
+        ansible_distribution_version: "{{ _result_facts.ansible_facts.ansible_distribution_version }}"
         distribution_family: "{{ distro_family }}"
         ssh_host_key_ecdsa: "{{ ssh_host_key_info | default(omit) }}"
         os: "{{ hostvars[_param_gather_host].os if (hostvars[_param_gather_host].os is defined) else host_os }}"
@@ -225,12 +153,6 @@
         remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
         ssh_connection_address: "{{ omit if (_result_facts.ansible_facts.ansible_env['SSH_CONNECTION'] is not defined) else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
         runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
-
-    - name: Update kubeinit_facts_hostvars
-      ansible.builtin.set_fact:
-        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
-      no_log: true
-      when: kubeinit_facts_hostvars is defined
 
     - name: Clear results
       ansible.builtin.set_fact:

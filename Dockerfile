@@ -29,11 +29,7 @@ RUN set -x && \
     useradd --create-home --uid $UID --gid 0 $USER && \
     ln -s $HOME/kubeinit/ /kubeinit
 
-WORKDIR $HOME/kubeinit
-
-COPY . .
-
-RUN chown -R ${USER}:0 .
+RUN chown -R ${USER}:0 $HOME
 
 USER $USER
 
@@ -45,9 +41,14 @@ RUN set -x && \
     python3 -m pip install --user --upgrade pip && \
     python3 -m pip install --user --upgrade cryptography && \
     python3 -m pip install --user --upgrade wheel && \
-    python3 -m pip install --user --upgrade ansible
+    python3 -m pip install --user --upgrade ansible && \
+    python3 -m pip install --user --upgrade shyaml netaddr ipython
+
+WORKDIR $HOME/kubeinit
+
+COPY --chown=${USER}:0 . .
 
 RUN set -x && \
     \
     echo "==> Installing KubeInit..."  && \
-    ansible-playbook -e kubeinit_container_build=true -vv kubeinit/setup-playbook.yml
+    ansible-playbook -vv kubeinit/build-container-playbook.yml
