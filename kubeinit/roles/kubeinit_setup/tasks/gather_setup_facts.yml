@@ -42,7 +42,7 @@
 
 - name: Read podman secrets if running from the container
   ansible.builtin.include_role:
-    name: "kubeinit_prepare"
+    name: kubeinit.kubeinit.kubeinit_prepare
     tasks_from: gather_kubeinit_secrets.yml
     public: true
   when: hostvars[kubeinit_facts_name].container_run
@@ -85,6 +85,7 @@
     ansible_connection: 'smart'
     ansible_host: "{{ item.ansible_host | default(omit) }}"
     ssh_hostname: "{{ item.ssh_hostname | default(omit) }}"
+    ssh_username: "{{ item.ssh_username | default(omit) }}"
   loop: "{{ hypervisor_hosts_map_list }}"
   when: hypervisor_hosts_map_list is defined
 
@@ -196,8 +197,12 @@
     name: "{{ kubeinit_setup_host_name }}"
     group: setup_host
     ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
   when: not kubeinit_facts_hostvars.local_install
+
+- name: Ensure setup_host has all requirements for ansible
+  ansible.builtin.include_tasks: setup_ansible_host.yml
+  vars:
+    _param_ansible_host: "{{ kubeinit_setup_host_name }}"
 
 - name: Gather facts from setup_host
   ansible.builtin.include_tasks: gather_host_facts.yml

@@ -15,16 +15,12 @@
 # under the License.
 
 
-- name: Confirm that we have ansible host connectivity
-  ansible.builtin.ping:
-  delegate_to: "{{ _param_ansible_host }}"
-
 - name: Confirm that we can run ssh to _param_ansible_host
   ansible.builtin.command: |
     ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} echo connected
   register: _result_ssh
   failed_when: _result_ssh is not defined
-  changed_when: "_result_python_present.rc == 0"
+  changed_when: "_result_ssh.rc == 0"
   delegate_to: localhost
 
 - name: Provide informative message if ssh connect fails
@@ -37,7 +33,7 @@
     ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} sudo echo sudoer
   register: _result_sudo
   failed_when: _result_sudo is not defined
-  changed_when: "_result_python_present.rc == 0"
+  changed_when: "_result_sudo.rc == 0"
   delegate_to: localhost
 
 - name: Provide informative message if sudo on ssh connect fails
@@ -64,12 +60,14 @@
       ansible.builtin.command: |
         ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} cat /etc/os-release
       register: _result_os_release
+      changed_when: "_result_os_release.rc == 0"
       delegate_to: localhost
 
     - name: Run python install
       ansible.builtin.command: |
         ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} sudo {{ python_package_manager }} install -y {{ python_package }}
       register: _result_python_install
+      changed_when: "_result_python_install.rc == 0"
       vars:
         python_package_manager: "{{ 'dnf' if (_result_os_release.stdout is match('.*[Cc][Ee][Nn][Tt][Oo][Ss].*')) else 'apt-get' }}"
         python_package: "{{ 'python39' if (_result_os_release.stdout is match('.*[Cc][Ee][Nn][Tt][Oo][Ss].*')) else 'python3' }}"
@@ -80,6 +78,7 @@
         ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} sudo ls {{ ansible_python_interpreter }}
       register: _result_python_present_recheck
       failed_when: _result_python_present_recheck is not defined
+      changed_when: "_result_python_present_recheck.rc == 0"
       delegate_to: localhost
 
     - name: Provide informative message if python not present on remote host
