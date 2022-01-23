@@ -2,374 +2,418 @@ digraph {
 	graph [concentrate=true ordering=in rankdir=LR ratio=fill]
 	edge [esep=5 sep=10]
 	"kubeinit/playbook.yml" [id=root_node style=dotted]
-	play_4d2283ff [label="Play: Initial setup (1)" color="#9c6c30" fontcolor="#ffffff" id=play_4d2283ff shape=box style=filled tooltip=localhost]
-	"kubeinit/playbook.yml" -> play_4d2283ff [label="1 " color="#9c6c30" fontcolor="#9c6c30" id=edge_8288b98c labeltooltip="1 " tooltip="1 "]
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_ca214dff [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9c6c30" id=role_ca214dff tooltip="kubeinit.kubeinit.kubeinit_prepare"]
+	play_88456e26 [label="Play: Initial setup (1)" color="#b74715" fontcolor="#ffffff" id=play_88456e26 shape=box style=filled tooltip=localhost]
+	"kubeinit/playbook.yml" -> play_88456e26 [label="1 " color="#b74715" fontcolor="#b74715" id=edge_39c99207 labeltooltip="1 " tooltip="1 "]
+	subgraph "Read podman secrets if running from the container" {
+		role_2b4b74c9 [label="[role] Read podman secrets if running from the container" color="#b74715" id=role_2b4b74c9 tooltip="Read podman secrets if running from the container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_1be71878 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9c6c30" id=role_1be71878 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
+	subgraph "task-gather-facts" {
+		role_34869d37 [label="[role] task-gather-facts" color="#b74715" id=role_34869d37 tooltip="task-gather-facts"]
+		role_34869d37 -> role_2b4b74c9 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b74715" fontcolor="#b74715" id=edge_a5b4aef5 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+	}
+	subgraph "Read podman secrets if running from the container" {
+		role_5f50df99 [label="[role] Read podman secrets if running from the container" color="#b74715" id=role_5f50df99 tooltip="Read podman secrets if running from the container"]
+	}
+	subgraph "task-prepare-hypervisors" {
+		role_f321546e [label="[role] task-prepare-hypervisors" color="#b74715" id=role_f321546e tooltip="task-prepare-hypervisors"]
+		role_f321546e -> role_5f50df99 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b74715" fontcolor="#b74715" id=edge_dfb6d91a labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
 	}
 	subgraph "Play: Initial setup (1)" {
-		play_4d2283ff -> block_eb6c32d6 [label=1 color="#9c6c30" fontcolor="#9c6c30" id=edge_9a3d0390 labeltooltip=1 tooltip=1]
-		subgraph cluster_block_eb6c32d6 {
-			block_eb6c32d6 [label="[block] Gather facts about the deployment environment" color="#9c6c30" id=block_eb6c32d6 labeltooltip="Gather facts about the deployment environment" shape=box tooltip="Gather facts about the deployment environment"]
-			block_eb6c32d6 -> role_ca214dff [label="1 " color="#9c6c30" fontcolor="#9c6c30" id=edge_65524751 labeltooltip="1 " tooltip="1 "]
+		play_88456e26 -> block_434db627 [label=1 color="#b74715" fontcolor="#b74715" id=edge_87e79009 labeltooltip=1 tooltip=1]
+		subgraph cluster_block_434db627 {
+			block_434db627 [label="[block] Gather facts about the deployment environment" color="#b74715" id=block_434db627 labeltooltip="Gather facts about the deployment environment" shape=box tooltip="Gather facts about the deployment environment"]
+			block_434db627 -> role_34869d37 [label="1 " color="#b74715" fontcolor="#b74715" id=edge_4a1133df labeltooltip="1 " tooltip="1 "]
 		}
-		play_4d2283ff -> block_c4db76be [label=2 color="#9c6c30" fontcolor="#9c6c30" id=edge_98d37030 labeltooltip=2 tooltip=2]
-		subgraph cluster_block_c4db76be {
-			block_c4db76be [label="[block] Prepare the hypervisors" color="#9c6c30" id=block_c4db76be labeltooltip="Prepare the hypervisors" shape=box tooltip="Prepare the hypervisors"]
-			block_c4db76be -> role_1be71878 [label="1 " color="#9c6c30" fontcolor="#9c6c30" id=edge_5f717e8c labeltooltip="1 " tooltip="1 "]
+		play_88456e26 -> block_92e59231 [label=2 color="#b74715" fontcolor="#b74715" id=edge_6c0386f5 labeltooltip=2 tooltip=2]
+		subgraph cluster_block_92e59231 {
+			block_92e59231 [label="[block] Prepare the hypervisors" color="#b74715" id=block_92e59231 labeltooltip="Prepare the hypervisors" shape=box tooltip="Prepare the hypervisors"]
+			block_92e59231 -> role_f321546e [label="1 " color="#b74715" fontcolor="#b74715" id=edge_33f48e8a labeltooltip="1 " tooltip="1 "]
 		}
 	}
-	play_fa79bd5e [label="Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)" color="#87456e" fontcolor="#ffffff" id=play_fa79bd5e shape=box style=filled tooltip="Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)"]
-	"kubeinit/playbook.yml" -> play_fa79bd5e [label="2 " color="#87456e" fontcolor="#87456e" id=edge_b5f937aa labeltooltip="2 " tooltip="2 "]
-	subgraph "kubeinit.kubeinit.kubeinit_libvirt" {
-		role_78c7a596 [label="[role] kubeinit.kubeinit.kubeinit_libvirt" color="#87456e" id=role_78c7a596 tooltip="kubeinit.kubeinit.kubeinit_libvirt"]
+	play_6dfa73c4 [label="Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)" color="#2831a4" fontcolor="#ffffff" id=play_6dfa73c4 shape=box style=filled tooltip="Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)"]
+	"kubeinit/playbook.yml" -> play_6dfa73c4 [label="2 " color="#2831a4" fontcolor="#2831a4" id=edge_e24a76e9 labeltooltip="2 " tooltip="2 "]
+	subgraph "Provision the libvirt services on the hypervisor" {
+		role_f5ae50ab [label="[role] Provision the libvirt services on the hypervisor" color="#2831a4" id=role_f5ae50ab tooltip="Provision the libvirt services on the hypervisor"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_d4e4399e [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#87456e" id=role_d4e4399e tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_d4e4399e -> role_78c7a596 [label="1 " color="#87456e" fontcolor="#87456e" id=edge_3a383880 labeltooltip="1 " tooltip="1 "]
+	subgraph "Prepare each hypervisor in the deployment" {
+		role_49333b2b [label="[role] Prepare each hypervisor in the deployment" color="#2831a4" id=role_49333b2b tooltip="Prepare each hypervisor in the deployment"]
+		role_49333b2b -> role_f5ae50ab [label="1 " color="#2831a4" fontcolor="#2831a4" id=edge_3d5249f8 labeltooltip="1 " tooltip="1 "]
 	}
 	subgraph "Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)" {
-		play_fa79bd5e -> block_daa6ab90 [label=1 color="#87456e" fontcolor="#87456e" id=edge_4843d0f0 labeltooltip=1 tooltip=1]
-		subgraph cluster_block_daa6ab90 {
-			block_daa6ab90 [label="[block] Prepare individual hypervisors" color="#87456e" id=block_daa6ab90 labeltooltip="Prepare individual hypervisors" shape=box tooltip="Prepare individual hypervisors"]
-			block_daa6ab90 -> role_d4e4399e [label="1 [when: inventory_hostname in hostvars['kubeinit-cluster-facts'].hypervisors]" color="#87456e" fontcolor="#87456e" id=edge_157ae194 labeltooltip="1 [when: inventory_hostname in hostvars['kubeinit-cluster-facts'].hypervisors]" tooltip="1 [when: inventory_hostname in hostvars['kubeinit-cluster-facts'].hypervisors]"]
+		play_6dfa73c4 -> block_85707226 [label=1 color="#2831a4" fontcolor="#2831a4" id=edge_d7a5f2a7 labeltooltip=1 tooltip=1]
+		subgraph cluster_block_85707226 {
+			block_85707226 [label="[block] Prepare individual hypervisors" color="#2831a4" id=block_85707226 labeltooltip="Prepare individual hypervisors" shape=box tooltip="Prepare individual hypervisors"]
+			block_85707226 -> role_49333b2b [label="1 [when: inventory_hostname in hostvars['kubeinit-cluster-facts'].hypervisors]" color="#2831a4" fontcolor="#2831a4" id=edge_c5f61aa2 labeltooltip="1 [when: inventory_hostname in hostvars['kubeinit-cluster-facts'].hypervisors]" tooltip="1 [when: inventory_hostname in hostvars['kubeinit-cluster-facts'].hypervisors]"]
 		}
 	}
-	play_83c3fb12 [label="Play: Run cluster deployment on prepared hypervisors (1)" color="#9805c7" fontcolor="#ffffff" id=play_83c3fb12 shape=box style=filled tooltip=localhost]
-	"kubeinit/playbook.yml" -> play_83c3fb12 [label="3 " color="#9805c7" fontcolor="#9805c7" id=edge_1de0b766 labeltooltip="3 " tooltip="3 "]
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_a975d267 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_a975d267 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
+	play_961042f9 [label="Play: Run cluster deployment on prepared hypervisors (1)" color="#b62316" fontcolor="#ffffff" id=play_961042f9 shape=box style=filled tooltip=localhost]
+	"kubeinit/playbook.yml" -> play_961042f9 [label="3 " color="#b62316" fontcolor="#b62316" id=edge_b6b5600a labeltooltip="3 " tooltip="3 "]
+	subgraph "Read podman secrets if running from the container" {
+		role_af46c3a6 [label="[role] Read podman secrets if running from the container" color="#b62316" id=role_af46c3a6 tooltip="Read podman secrets if running from the container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_libvirt" {
-		role_a986f0ca [label="[role] kubeinit.kubeinit.kubeinit_libvirt" color="#9805c7" id=role_a986f0ca tooltip="kubeinit.kubeinit.kubeinit_libvirt"]
+	subgraph "task-prepare-environment" {
+		role_f127e0df [label="[role] task-prepare-environment" color="#b62316" id=role_f127e0df tooltip="task-prepare-environment"]
+		role_f127e0df -> role_af46c3a6 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b62316" fontcolor="#b62316" id=edge_b8a692cb labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_115fa0f3 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_115fa0f3 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_115fa0f3 -> role_a986f0ca [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_363c5b7f labeltooltip="1 " tooltip="1 "]
+	subgraph "Read podman secrets if running from the container" {
+		role_4f7e4f53 [label="[role] Read podman secrets if running from the container" color="#b62316" id=role_4f7e4f53 tooltip="Read podman secrets if running from the container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_73d4b357 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_73d4b357 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_73d4b357 -> role_115fa0f3 [label="1 [when: not environment_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_943d14a2 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+	subgraph "Prepare environment if not prepared" {
+		role_ad349531 [label="[role] Prepare environment if not prepared" color="#b62316" id=role_ad349531 tooltip="Prepare environment if not prepared"]
+		role_ad349531 -> role_4f7e4f53 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b62316" fontcolor="#b62316" id=edge_79794717 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_libvirt" {
-		role_dd0edec4 [label="[role] kubeinit.kubeinit.kubeinit_libvirt" color="#9805c7" id=role_dd0edec4 tooltip="kubeinit.kubeinit.kubeinit_libvirt"]
+	subgraph "Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" {
+		role_b1e42705 [label="[role] Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" color="#b62316" id=role_b1e42705 tooltip="Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_09404b18 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_09404b18 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_09404b18 -> role_dd0edec4 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_37994432 labeltooltip="1 " tooltip="1 "]
+	subgraph "task-cleanup-hypervisors" {
+		role_8770b241 [label="[role] task-cleanup-hypervisors" color="#b62316" id=role_8770b241 tooltip="task-cleanup-hypervisors"]
+		role_8770b241 -> role_ad349531 [label="1 [when: not environment_prepared]" color="#b62316" fontcolor="#b62316" id=edge_ba278482 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_8770b241 -> role_b1e42705 [label="2 " color="#b62316" fontcolor="#b62316" id=edge_ad33c47a labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_12b6cc18 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_12b6cc18 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_12b6cc18 -> role_09404b18 [label="1 [when: not environment_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_de78ee94 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+	subgraph "Read podman secrets if running from the container" {
+		role_db25418b [label="[role] Read podman secrets if running from the container" color="#b62316" id=role_db25418b tooltip="Read podman secrets if running from the container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_validations" {
-		role_55ef277d [label="[role] kubeinit.kubeinit.kubeinit_validations" color="#9805c7" id=role_55ef277d tooltip="kubeinit.kubeinit.kubeinit_validations"]
-		role_55ef277d -> role_12b6cc18 [label="1 [when: not hypervisors_cleaned]" color="#9805c7" fontcolor="#9805c7" id=edge_7c7ed6ff labeltooltip="1 [when: not hypervisors_cleaned]" tooltip="1 [when: not hypervisors_cleaned]"]
+	subgraph "Prepare environment if not prepared" {
+		role_09d80b47 [label="[role] Prepare environment if not prepared" color="#b62316" id=role_09d80b47 tooltip="Prepare environment if not prepared"]
+		role_09d80b47 -> role_db25418b [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b62316" fontcolor="#b62316" id=edge_b6e69718 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_libvirt" {
-		role_cf1ff84a [label="[role] kubeinit.kubeinit.kubeinit_libvirt" color="#9805c7" id=role_cf1ff84a tooltip="kubeinit.kubeinit.kubeinit_libvirt"]
-		task_9df6f6bd [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in CentOS/RHEL" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in CentOS/RHEL" id=task_9df6f6bd shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in CentOS/RHEL"]
-		role_cf1ff84a -> task_9df6f6bd [label="1 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'CentOS']" color="#9805c7" fontcolor="#9805c7" id=edge_1916bbe8 labeltooltip="1 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'CentOS']" tooltip="1 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'CentOS']"]
-		task_e975197e [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Fedora" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Fedora" id=task_e975197e shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Fedora"]
-		role_cf1ff84a -> task_e975197e [label="2 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Fedora']" color="#9805c7" fontcolor="#9805c7" id=edge_b6162523 labeltooltip="2 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Fedora']" tooltip="2 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Fedora']"]
-		task_55a0247a [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Ubuntu/Debian" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Ubuntu/Debian" id=task_55a0247a shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Ubuntu/Debian"]
-		role_cf1ff84a -> task_55a0247a [label="3 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']" color="#9805c7" fontcolor="#9805c7" id=edge_c662806f labeltooltip="3 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']" tooltip="3 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']"]
-		task_9dee3514 [label="kubeinit.kubeinit.kubeinit_libvirt : Collect all HVs which are not the ovn-central host" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Collect all HVs which are not the ovn-central host" id=task_9dee3514 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Collect all HVs which are not the ovn-central host"]
-		role_cf1ff84a -> task_9dee3514 [label="4 [when: ovn_host not in kubeinit_ovn_central_host]" color="#9805c7" fontcolor="#9805c7" id=edge_b3f22448 labeltooltip="4 [when: ovn_host not in kubeinit_ovn_central_host]" tooltip="4 [when: ovn_host not in kubeinit_ovn_central_host]"]
-		task_a9a2c8c8 [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in CentOS/RHEL" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in CentOS/RHEL" id=task_a9a2c8c8 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in CentOS/RHEL"]
-		role_cf1ff84a -> task_a9a2c8c8 [label="5 [when: hostvars[ovn_host].distribution_family == 'CentOS']" color="#9805c7" fontcolor="#9805c7" id=edge_cef3950a labeltooltip="5 [when: hostvars[ovn_host].distribution_family == 'CentOS']" tooltip="5 [when: hostvars[ovn_host].distribution_family == 'CentOS']"]
-		task_1f5a22cc [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Fedora" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Fedora" id=task_1f5a22cc shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Fedora"]
-		role_cf1ff84a -> task_1f5a22cc [label="6 [when: hostvars[ovn_host].distribution_family == 'Fedora']" color="#9805c7" fontcolor="#9805c7" id=edge_4138fe44 labeltooltip="6 [when: hostvars[ovn_host].distribution_family == 'Fedora']" tooltip="6 [when: hostvars[ovn_host].distribution_family == 'Fedora']"]
-		task_3330bcf1 [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Ubuntu/Debian" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Ubuntu/Debian" id=task_3330bcf1 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Ubuntu/Debian"]
-		role_cf1ff84a -> task_3330bcf1 [label="7 [when: hostvars[ovn_host].distribution_family == 'Debian']" color="#9805c7" fontcolor="#9805c7" id=edge_17ea3ac5 labeltooltip="7 [when: hostvars[ovn_host].distribution_family == 'Debian']" tooltip="7 [when: hostvars[ovn_host].distribution_family == 'Debian']"]
-		task_ed68514e [label="kubeinit.kubeinit.kubeinit_libvirt : Gather current firewalld rules for ovn hosts" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Gather current firewalld rules for ovn hosts" id=task_ed68514e shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Gather current firewalld rules for ovn hosts"]
-		role_cf1ff84a -> task_ed68514e [label="8 [when: hostvars[ovn_host].firewalld_is_active]" color="#9805c7" fontcolor="#9805c7" id=edge_fc38efc7 labeltooltip="8 [when: hostvars[ovn_host].firewalld_is_active]" tooltip="8 [when: hostvars[ovn_host].firewalld_is_active]"]
-		task_f59620ed [label="kubeinit.kubeinit.kubeinit_libvirt : Set fact for expected rich_rule result" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Set fact for expected rich_rule result" id=task_f59620ed shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Set fact for expected rich_rule result"]
-		role_cf1ff84a -> task_f59620ed [label="9 " color="#9805c7" fontcolor="#9805c7" id=edge_2ce7ab27 labeltooltip="9 " tooltip="9 "]
-		task_2a607942 [label="kubeinit.kubeinit.kubeinit_libvirt : Check firewalld services and rich_rules for existing entries" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Check firewalld services and rich_rules for existing entries" id=task_2a607942 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Check firewalld services and rich_rules for existing entries"]
-		role_cf1ff84a -> task_2a607942 [label="10 [when: item.firewalld_info is defined]" color="#9805c7" fontcolor="#9805c7" id=edge_e582ba31 labeltooltip="10 [when: item.firewalld_info is defined]" tooltip="10 [when: item.firewalld_info is defined]"]
-		task_492a8e04 [label="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list to pick up ovn services" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list to pick up ovn services" id=task_492a8e04 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list to pick up ovn services"]
-		role_cf1ff84a -> task_492a8e04 [label="11 [when: hostvars[ovn_host].reload_firewalld | default(false)]" color="#9805c7" fontcolor="#9805c7" id=edge_229bcf75 labeltooltip="11 [when: hostvars[ovn_host].reload_firewalld | default(false)]" tooltip="11 [when: hostvars[ovn_host].reload_firewalld | default(false)]"]
-		task_af65107d [label="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN central in firewalld" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN central in firewalld" id=task_af65107d shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN central in firewalld"]
-		role_cf1ff84a -> task_af65107d [label="12 [when: hostvars[kubeinit_ovn_central_host].add_ovn_central_service | default(false)]" color="#9805c7" fontcolor="#9805c7" id=edge_e18fb585 labeltooltip="12 [when: hostvars[kubeinit_ovn_central_host].add_ovn_central_service | default(false)]" tooltip="12 [when: hostvars[kubeinit_ovn_central_host].add_ovn_central_service | default(false)]"]
-		task_2a1b5226 [label="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN NAT in firewalld" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN NAT in firewalld" id=task_2a1b5226 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN NAT in firewalld"]
-		role_cf1ff84a -> task_2a1b5226 [label="13 [when: hostvars[kubeinit_ovn_central_host].add_ovn_rich_rule | default(false)]" color="#9805c7" fontcolor="#9805c7" id=edge_eb90f5b3 labeltooltip="13 [when: hostvars[kubeinit_ovn_central_host].add_ovn_rich_rule | default(false)]" tooltip="13 [when: hostvars[kubeinit_ovn_central_host].add_ovn_rich_rule | default(false)]"]
-		task_150acf8e [label="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN host in firewalld" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN host in firewalld" id=task_150acf8e shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN host in firewalld"]
-		role_cf1ff84a -> task_150acf8e [label="14 [when: hostvars[ovn_host].add_ovn_host_service | default(false)]" color="#9805c7" fontcolor="#9805c7" id=edge_b5ba63a0 labeltooltip="14 [when: hostvars[ovn_host].add_ovn_host_service | default(false)]" tooltip="14 [when: hostvars[ovn_host].add_ovn_host_service | default(false)]"]
-		task_48c52c28 [label="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list" id=task_48c52c28 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list"]
-		role_cf1ff84a -> task_48c52c28 [label="15 [when: hostvars[ovn_host].reload_firewalld | default(false)]" color="#9805c7" fontcolor="#9805c7" id=edge_251703cf labeltooltip="15 [when: hostvars[ovn_host].reload_firewalld | default(false)]" tooltip="15 [when: hostvars[ovn_host].reload_firewalld | default(false)]"]
-		task_490ef096 [label="kubeinit.kubeinit.kubeinit_libvirt : Reload podman networks" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Reload podman networks" id=task_490ef096 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Reload podman networks"]
-		role_cf1ff84a -> task_490ef096 [label="16 [when: hostvars[ovn_host].reload_firewalld | default(false) and hostvars[ovn_host].podman_is_installed | default(false)]" color="#9805c7" fontcolor="#9805c7" id=edge_7d6c8328 labeltooltip="16 [when: hostvars[ovn_host].reload_firewalld | default(false) and hostvars[ovn_host].podman_is_installed | default(false)]" tooltip="16 [when: hostvars[ovn_host].reload_firewalld | default(false) and hostvars[ovn_host].podman_is_installed | default(false)]"]
-		task_70a27645 [label="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (CentOS based)" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (CentOS based)" id=task_70a27645 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (CentOS based)"]
-		role_cf1ff84a -> task_70a27645 [label="17 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family != 'Debian']" color="#9805c7" fontcolor="#9805c7" id=edge_51eea97f labeltooltip="17 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family != 'Debian']" tooltip="17 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family != 'Debian']"]
-		task_048641b7 [label="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (CentOS based)" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (CentOS based)" id=task_048641b7 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (CentOS based)"]
-		role_cf1ff84a -> task_048641b7 [label="18 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family != 'Debian']" color="#9805c7" fontcolor="#9805c7" id=edge_d2e32afb labeltooltip="18 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family != 'Debian']" tooltip="18 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family != 'Debian']"]
-		task_bdd1c0e3 [label="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (Debian/Ubuntu based)" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (Debian/Ubuntu based)" id=task_bdd1c0e3 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (Debian/Ubuntu based)"]
-		role_cf1ff84a -> task_bdd1c0e3 [label="19 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']" color="#9805c7" fontcolor="#9805c7" id=edge_2e52630f labeltooltip="19 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']" tooltip="19 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']"]
-		task_4455190a [label="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (Debian/Ubuntu based)" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (Debian/Ubuntu based)" id=task_4455190a shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (Debian/Ubuntu based)"]
-		role_cf1ff84a -> task_4455190a [label="20 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family == 'Debian']" color="#9805c7" fontcolor="#9805c7" id=edge_d498b4eb labeltooltip="20 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family == 'Debian']" tooltip="20 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family == 'Debian']"]
-		task_59b07ac6 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait until OVN services are running" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Wait until OVN services are running" id=task_59b07ac6 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait until OVN services are running"]
-		role_cf1ff84a -> task_59b07ac6 [label="21 [when: kubeinit_destroy_ovn_network]" color="#9805c7" fontcolor="#9805c7" id=edge_655cfb89 labeltooltip="21 [when: kubeinit_destroy_ovn_network]" tooltip="21 [when: kubeinit_destroy_ovn_network]"]
-		task_96e3ac12 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" id=task_96e3ac12 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
-		role_cf1ff84a -> task_96e3ac12 [label="22 " color="#9805c7" fontcolor="#9805c7" id=edge_93c0999f labeltooltip="22 " tooltip="22 "]
-		task_4b17f7fd [label="kubeinit.kubeinit.kubeinit_libvirt : Configure OVS on the Hypervisors" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Configure OVS on the Hypervisors" id=task_4b17f7fd shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Configure OVS on the Hypervisors"]
-		role_cf1ff84a -> task_4b17f7fd [label="23 [when: kubeinit_destroy_ovn_network]" color="#9805c7" fontcolor="#9805c7" id=edge_a1b50e28 labeltooltip="23 [when: kubeinit_destroy_ovn_network]" tooltip="23 [when: kubeinit_destroy_ovn_network]"]
-		task_5f2f5179 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" id=task_5f2f5179 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
-		role_cf1ff84a -> task_5f2f5179 [label="24 " color="#9805c7" fontcolor="#9805c7" id=edge_8690087b labeltooltip="24 " tooltip="24 "]
-		task_a9aa1ee6 [label="kubeinit.kubeinit.kubeinit_libvirt : Configure OVN in the ovn-central hypervisor" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Configure OVN in the ovn-central hypervisor" id=task_a9aa1ee6 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Configure OVN in the ovn-central hypervisor"]
-		role_cf1ff84a -> task_a9aa1ee6 [label="25 [when: kubeinit_destroy_ovn_network]" color="#9805c7" fontcolor="#9805c7" id=edge_dce550c6 labeltooltip="25 [when: kubeinit_destroy_ovn_network]" tooltip="25 [when: kubeinit_destroy_ovn_network]"]
-		task_811a277a [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" id=task_811a277a shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
-		role_cf1ff84a -> task_811a277a [label="26 " color="#9805c7" fontcolor="#9805c7" id=edge_002143fc labeltooltip="26 " tooltip="26 "]
-		task_5e82609c [label="kubeinit.kubeinit.kubeinit_libvirt : Remove and create the cluster switch if exists" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Remove and create the cluster switch if exists" id=task_5e82609c shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Remove and create the cluster switch if exists"]
-		role_cf1ff84a -> task_5e82609c [label="27 " color="#9805c7" fontcolor="#9805c7" id=edge_4a20d2cd labeltooltip="27 " tooltip="27 "]
-		task_5c876408 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" id=task_5c876408 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
-		role_cf1ff84a -> task_5c876408 [label="28 " color="#9805c7" fontcolor="#9805c7" id=edge_57ca23d4 labeltooltip="28 " tooltip="28 "]
-		task_0b3abe98 [label="kubeinit.kubeinit.kubeinit_libvirt : Create OVS/OVN bindings for the VMs ports" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Create OVS/OVN bindings for the VMs ports" id=task_0b3abe98 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Create OVS/OVN bindings for the VMs ports"]
-		role_cf1ff84a -> task_0b3abe98 [label="29 " color="#9805c7" fontcolor="#9805c7" id=edge_c2fedf3c labeltooltip="29 " tooltip="29 "]
-		task_2caef5e4 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" id=task_2caef5e4 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
-		role_cf1ff84a -> task_2caef5e4 [label="30 " color="#9805c7" fontcolor="#9805c7" id=edge_e30dde17 labeltooltip="30 " tooltip="30 "]
-		task_6b693b3d [label="kubeinit.kubeinit.kubeinit_libvirt : Configuring a router connected to the guests switch" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Configuring a router connected to the guests switch" id=task_6b693b3d shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Configuring a router connected to the guests switch"]
-		role_cf1ff84a -> task_6b693b3d [label="31 [when: kubeinit_destroy_ovn_network]" color="#9805c7" fontcolor="#9805c7" id=edge_64c2dc2d labeltooltip="31 [when: kubeinit_destroy_ovn_network]" tooltip="31 [when: kubeinit_destroy_ovn_network]"]
-		task_8ecf1857 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" id=task_8ecf1857 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
-		role_cf1ff84a -> task_8ecf1857 [label="32 " color="#9805c7" fontcolor="#9805c7" id=edge_26bf0435 labeltooltip="32 " tooltip="32 "]
-		task_a539a850 [label="kubeinit.kubeinit.kubeinit_libvirt : Attach our cluster network to the logical router" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Attach our cluster network to the logical router" id=task_a539a850 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Attach our cluster network to the logical router"]
-		role_cf1ff84a -> task_a539a850 [label="33 " color="#9805c7" fontcolor="#9805c7" id=edge_eabe827d labeltooltip="33 " tooltip="33 "]
-		task_0e012514 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" id=task_0e012514 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
-		role_cf1ff84a -> task_0e012514 [label="34 " color="#9805c7" fontcolor="#9805c7" id=edge_d79dc9e7 labeltooltip="34 " tooltip="34 "]
-		task_758da8f3 [label="kubeinit.kubeinit.kubeinit_libvirt : Configuring NAT" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Configuring NAT" id=task_758da8f3 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Configuring NAT"]
-		role_cf1ff84a -> task_758da8f3 [label="35 [when: not hostvars[kubeinit_ovn_central_host].firewalld_is_active]" color="#9805c7" fontcolor="#9805c7" id=edge_eb0e9996 labeltooltip="35 [when: not hostvars[kubeinit_ovn_central_host].firewalld_is_active]" tooltip="35 [when: not hostvars[kubeinit_ovn_central_host].firewalld_is_active]"]
-		task_f1108289 [label="kubeinit.kubeinit.kubeinit_libvirt : Render KubeInit networks for debugging" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Render KubeInit networks for debugging" id=task_f1108289 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Render KubeInit networks for debugging"]
-		role_cf1ff84a -> task_f1108289 [label="36 " color="#9805c7" fontcolor="#9805c7" id=edge_fe80e998 labeltooltip="36 " tooltip="36 "]
-		task_ff995ec7 [label="kubeinit.kubeinit.kubeinit_libvirt : Define KubeInit networks" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Define KubeInit networks" id=task_ff995ec7 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Define KubeInit networks"]
-		role_cf1ff84a -> task_ff995ec7 [label="37 " color="#9805c7" fontcolor="#9805c7" id=edge_5d136447 labeltooltip="37 " tooltip="37 "]
-		task_939c8723 [label="kubeinit.kubeinit.kubeinit_libvirt : Activate KubeInit networks" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Activate KubeInit networks" id=task_939c8723 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Activate KubeInit networks"]
-		role_cf1ff84a -> task_939c8723 [label="38 " color="#9805c7" fontcolor="#9805c7" id=edge_32e04001 labeltooltip="38 " tooltip="38 "]
-		task_0f5a1621 [label="kubeinit.kubeinit.kubeinit_libvirt : Autostart KubeInit networks" color="#9805c7" hello="kubeinit.kubeinit.kubeinit_libvirt : Autostart KubeInit networks" id=task_0f5a1621 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Autostart KubeInit networks"]
-		role_cf1ff84a -> task_0f5a1621 [label="39 " color="#9805c7" fontcolor="#9805c7" id=edge_b2af63de labeltooltip="39 " tooltip="39 "]
+	subgraph "Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" {
+		role_1b269d99 [label="[role] Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" color="#b62316" id=role_1b269d99 tooltip="Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_1e4095f0 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_1e4095f0 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_1e4095f0 -> role_cf1ff84a [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_9f8b1425 labeltooltip="1 " tooltip="1 "]
+	subgraph "Cleanup hypervisors if needed" {
+		role_733f8770 [label="[role] Cleanup hypervisors if needed" color="#b62316" id=role_733f8770 tooltip="Cleanup hypervisors if needed"]
+		role_733f8770 -> role_09d80b47 [label="1 [when: not environment_prepared]" color="#b62316" fontcolor="#b62316" id=edge_a124f395 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_733f8770 -> role_1b269d99 [label="2 " color="#b62316" fontcolor="#b62316" id=edge_22563af7 labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_9e5e5f3c [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_9e5e5f3c tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_9e5e5f3c -> role_1e4095f0 [label="1 [when: not environment_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_0d799a86 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+	subgraph "task-run-validations" {
+		role_1744c24b [label="[role] task-run-validations" color="#b62316" id=role_1744c24b tooltip="task-run-validations"]
+		role_1744c24b -> role_733f8770 [label="1 [when: not hypervisors_cleaned]" color="#b62316" fontcolor="#b62316" id=edge_04cc3929 labeltooltip="1 [when: not hypervisors_cleaned]" tooltip="1 [when: not hypervisors_cleaned]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_libvirt" {
-		role_fa828736 [label="[role] kubeinit.kubeinit.kubeinit_libvirt" color="#9805c7" id=role_fa828736 tooltip="kubeinit.kubeinit.kubeinit_libvirt"]
-		role_fa828736 -> role_9e5e5f3c [label="1 [when: not hypervisors_cleaned]" color="#9805c7" fontcolor="#9805c7" id=edge_33919c77 labeltooltip="1 [when: not hypervisors_cleaned]" tooltip="1 [when: not hypervisors_cleaned]"]
+	subgraph "Read podman secrets if running from the container" {
+		role_a3d295fd [label="[role] Read podman secrets if running from the container" color="#b62316" id=role_a3d295fd tooltip="Read podman secrets if running from the container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_8737184a [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_8737184a tooltip="kubeinit.kubeinit.kubeinit_services"]
+	subgraph "Prepare environment if not prepared" {
+		role_b46a6c02 [label="[role] Prepare environment if not prepared" color="#b62316" id=role_b46a6c02 tooltip="Prepare environment if not prepared"]
+		role_b46a6c02 -> role_a3d295fd [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b62316" fontcolor="#b62316" id=edge_f7eba90c labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_registry" {
-		role_e9efcd3a [label="[role] kubeinit.kubeinit.kubeinit_registry" color="#9805c7" id=role_e9efcd3a tooltip="kubeinit.kubeinit.kubeinit_registry"]
-		role_e9efcd3a -> role_8737184a [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_eb753c70 labeltooltip="1 " tooltip="1 "]
+	subgraph "Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" {
+		role_747e41c3 [label="[role] Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" color="#b62316" id=role_747e41c3 tooltip="Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_9b742591 [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_9b742591 tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_9b742591 -> role_e9efcd3a [label="1 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]" color="#9805c7" fontcolor="#9805c7" id=edge_3eaaeaf6 labeltooltip="1 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]" tooltip="1 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]"]
+	subgraph "Cleanup hypervisors if needed" {
+		role_72f189b7 [label="[role] Cleanup hypervisors if needed" color="#b62316" id=role_72f189b7 tooltip="Cleanup hypervisors if needed"]
+		role_72f189b7 -> role_b46a6c02 [label="1 [when: not environment_prepared]" color="#b62316" fontcolor="#b62316" id=edge_9a26e8c8 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_72f189b7 -> role_747e41c3 [label="2 " color="#b62316" fontcolor="#b62316" id=edge_8e739282 labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_apache" {
-		role_76f41589 [label="[role] kubeinit.kubeinit.kubeinit_apache" color="#9805c7" id=role_76f41589 tooltip="kubeinit.kubeinit.kubeinit_apache"]
-		role_76f41589 -> role_9b742591 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_dfe35eac labeltooltip="1 " tooltip="1 "]
+	subgraph "task-create-network" {
+		role_db39840c [label="[role] task-create-network" color="#b62316" id=role_db39840c tooltip="task-create-network"]
+		role_db39840c -> role_72f189b7 [label="1 [when: not hypervisors_cleaned]" color="#b62316" fontcolor="#b62316" id=edge_0c898f31 labeltooltip="1 [when: not hypervisors_cleaned]" tooltip="1 [when: not hypervisors_cleaned]"]
+		task_fc9ed02f [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in CentOS/RHEL" color="#b62316" id=task_fc9ed02f shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in CentOS/RHEL"]
+		role_db39840c -> task_fc9ed02f [label="2 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'CentOS']" color="#b62316" fontcolor="#b62316" id=edge_91b3d7dd labeltooltip="2 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'CentOS']" tooltip="2 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'CentOS']"]
+		task_85431dd2 [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Fedora" color="#b62316" id=task_85431dd2 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Fedora"]
+		role_db39840c -> task_85431dd2 [label="3 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Fedora']" color="#b62316" fontcolor="#b62316" id=edge_ec508fb8 labeltooltip="3 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Fedora']" tooltip="3 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Fedora']"]
+		task_029d511f [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Ubuntu/Debian" color="#b62316" id=task_029d511f shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN central packages in Ubuntu/Debian"]
+		role_db39840c -> task_029d511f [label="4 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']" color="#b62316" fontcolor="#b62316" id=edge_85f0ab91 labeltooltip="4 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']" tooltip="4 [when: hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']"]
+		task_d922279f [label="kubeinit.kubeinit.kubeinit_libvirt : Collect all HVs which are not the ovn-central host" color="#b62316" id=task_d922279f shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Collect all HVs which are not the ovn-central host"]
+		role_db39840c -> task_d922279f [label="5 [when: ovn_host not in kubeinit_ovn_central_host]" color="#b62316" fontcolor="#b62316" id=edge_ad6b0d92 labeltooltip="5 [when: ovn_host not in kubeinit_ovn_central_host]" tooltip="5 [when: ovn_host not in kubeinit_ovn_central_host]"]
+		task_41ba59fc [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in CentOS/RHEL" color="#b62316" id=task_41ba59fc shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in CentOS/RHEL"]
+		role_db39840c -> task_41ba59fc [label="6 [when: hostvars[ovn_host].distribution_family == 'CentOS']" color="#b62316" fontcolor="#b62316" id=edge_5d704388 labeltooltip="6 [when: hostvars[ovn_host].distribution_family == 'CentOS']" tooltip="6 [when: hostvars[ovn_host].distribution_family == 'CentOS']"]
+		task_77c08922 [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Fedora" color="#b62316" id=task_77c08922 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Fedora"]
+		role_db39840c -> task_77c08922 [label="7 [when: hostvars[ovn_host].distribution_family == 'Fedora']" color="#b62316" fontcolor="#b62316" id=edge_052d2b19 labeltooltip="7 [when: hostvars[ovn_host].distribution_family == 'Fedora']" tooltip="7 [when: hostvars[ovn_host].distribution_family == 'Fedora']"]
+		task_82272fc3 [label="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Ubuntu/Debian" color="#b62316" id=task_82272fc3 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Install OVN host packages in Ubuntu/Debian"]
+		role_db39840c -> task_82272fc3 [label="8 [when: hostvars[ovn_host].distribution_family == 'Debian']" color="#b62316" fontcolor="#b62316" id=edge_8c8a6388 labeltooltip="8 [when: hostvars[ovn_host].distribution_family == 'Debian']" tooltip="8 [when: hostvars[ovn_host].distribution_family == 'Debian']"]
+		task_f6f2e91f [label="kubeinit.kubeinit.kubeinit_libvirt : Gather current firewalld rules for ovn hosts" color="#b62316" id=task_f6f2e91f shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Gather current firewalld rules for ovn hosts"]
+		role_db39840c -> task_f6f2e91f [label="9 [when: hostvars[ovn_host].firewalld_is_active]" color="#b62316" fontcolor="#b62316" id=edge_d3ac2f9d labeltooltip="9 [when: hostvars[ovn_host].firewalld_is_active]" tooltip="9 [when: hostvars[ovn_host].firewalld_is_active]"]
+		task_a8c524fd [label="kubeinit.kubeinit.kubeinit_libvirt : Set fact for expected rich_rule result" color="#b62316" id=task_a8c524fd shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Set fact for expected rich_rule result"]
+		role_db39840c -> task_a8c524fd [label="10 " color="#b62316" fontcolor="#b62316" id=edge_d76cbf0c labeltooltip="10 " tooltip="10 "]
+		task_0ea7ddb2 [label="kubeinit.kubeinit.kubeinit_libvirt : Check firewalld services and rich_rules for existing entries" color="#b62316" id=task_0ea7ddb2 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Check firewalld services and rich_rules for existing entries"]
+		role_db39840c -> task_0ea7ddb2 [label="11 [when: item.firewalld_info is defined]" color="#b62316" fontcolor="#b62316" id=edge_5269fea9 labeltooltip="11 [when: item.firewalld_info is defined]" tooltip="11 [when: item.firewalld_info is defined]"]
+		task_5de7a49d [label="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list to pick up ovn services" color="#b62316" id=task_5de7a49d shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list to pick up ovn services"]
+		role_db39840c -> task_5de7a49d [label="12 [when: hostvars[ovn_host].reload_firewalld | default(false)]" color="#b62316" fontcolor="#b62316" id=edge_7b51d736 labeltooltip="12 [when: hostvars[ovn_host].reload_firewalld | default(false)]" tooltip="12 [when: hostvars[ovn_host].reload_firewalld | default(false)]"]
+		task_14bee72d [label="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN central in firewalld" color="#b62316" id=task_14bee72d shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN central in firewalld"]
+		role_db39840c -> task_14bee72d [label="13 [when: hostvars[kubeinit_ovn_central_host].add_ovn_central_service | default(false)]" color="#b62316" fontcolor="#b62316" id=edge_3cd703b5 labeltooltip="13 [when: hostvars[kubeinit_ovn_central_host].add_ovn_central_service | default(false)]" tooltip="13 [when: hostvars[kubeinit_ovn_central_host].add_ovn_central_service | default(false)]"]
+		task_a5382787 [label="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN NAT in firewalld" color="#b62316" id=task_a5382787 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN NAT in firewalld"]
+		role_db39840c -> task_a5382787 [label="14 [when: hostvars[kubeinit_ovn_central_host].add_ovn_rich_rule | default(false)]" color="#b62316" fontcolor="#b62316" id=edge_30b7d9c3 labeltooltip="14 [when: hostvars[kubeinit_ovn_central_host].add_ovn_rich_rule | default(false)]" tooltip="14 [when: hostvars[kubeinit_ovn_central_host].add_ovn_rich_rule | default(false)]"]
+		task_c8f137bc [label="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN host in firewalld" color="#b62316" id=task_c8f137bc shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable OVN host in firewalld"]
+		role_db39840c -> task_c8f137bc [label="15 [when: hostvars[ovn_host].add_ovn_host_service | default(false)]" color="#b62316" fontcolor="#b62316" id=edge_d8e16bd0 labeltooltip="15 [when: hostvars[ovn_host].add_ovn_host_service | default(false)]" tooltip="15 [when: hostvars[ovn_host].add_ovn_host_service | default(false)]"]
+		task_7209e402 [label="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list" color="#b62316" id=task_7209e402 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Refresh firewalld services list"]
+		role_db39840c -> task_7209e402 [label="16 [when: hostvars[ovn_host].reload_firewalld | default(false)]" color="#b62316" fontcolor="#b62316" id=edge_bd6c3da7 labeltooltip="16 [when: hostvars[ovn_host].reload_firewalld | default(false)]" tooltip="16 [when: hostvars[ovn_host].reload_firewalld | default(false)]"]
+		task_ddaf3c6f [label="kubeinit.kubeinit.kubeinit_libvirt : Reload podman networks" color="#b62316" id=task_ddaf3c6f shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Reload podman networks"]
+		role_db39840c -> task_ddaf3c6f [label="17 [when: hostvars[ovn_host].reload_firewalld | default(false) and hostvars[ovn_host].podman_is_installed | default(false)]" color="#b62316" fontcolor="#b62316" id=edge_576c8135 labeltooltip="17 [when: hostvars[ovn_host].reload_firewalld | default(false) and hostvars[ovn_host].podman_is_installed | default(false)]" tooltip="17 [when: hostvars[ovn_host].reload_firewalld | default(false) and hostvars[ovn_host].podman_is_installed | default(false)]"]
+		task_8827ec5d [label="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (CentOS based)" color="#b62316" id=task_8827ec5d shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (CentOS based)"]
+		role_db39840c -> task_8827ec5d [label="18 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family != 'Debian']" color="#b62316" fontcolor="#b62316" id=edge_7d6c1273 labeltooltip="18 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family != 'Debian']" tooltip="18 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family != 'Debian']"]
+		task_936b03c4 [label="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (CentOS based)" color="#b62316" id=task_936b03c4 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (CentOS based)"]
+		role_db39840c -> task_936b03c4 [label="19 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family != 'Debian']" color="#b62316" fontcolor="#b62316" id=edge_3137a49b labeltooltip="19 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family != 'Debian']" tooltip="19 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family != 'Debian']"]
+		task_db86e8b0 [label="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (Debian/Ubuntu based)" color="#b62316" id=task_db86e8b0 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the ovn-central hypervisor (Debian/Ubuntu based)"]
+		role_db39840c -> task_db86e8b0 [label="20 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']" color="#b62316" fontcolor="#b62316" id=edge_d7981c3f labeltooltip="20 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']" tooltip="20 [when: kubeinit_destroy_ovn_network and hostvars[kubeinit_ovn_central_host].distribution_family == 'Debian']"]
+		task_2f5fd9b1 [label="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (Debian/Ubuntu based)" color="#b62316" id=task_2f5fd9b1 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Enable and start OVN services in the rest of the hypervisors (Debian/Ubuntu based)"]
+		role_db39840c -> task_2f5fd9b1 [label="21 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family == 'Debian']" color="#b62316" fontcolor="#b62316" id=edge_a1a112a7 labeltooltip="21 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family == 'Debian']" tooltip="21 [when: kubeinit_destroy_ovn_network and hostvars[ovn_host].distribution_family == 'Debian']"]
+		task_8b5a7080 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait until OVN services are running" color="#b62316" id=task_8b5a7080 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait until OVN services are running"]
+		role_db39840c -> task_8b5a7080 [label="22 [when: kubeinit_destroy_ovn_network]" color="#b62316" fontcolor="#b62316" id=edge_2f03776a labeltooltip="22 [when: kubeinit_destroy_ovn_network]" tooltip="22 [when: kubeinit_destroy_ovn_network]"]
+		task_cd296c26 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#b62316" id=task_cd296c26 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
+		role_db39840c -> task_cd296c26 [label="23 " color="#b62316" fontcolor="#b62316" id=edge_3b941f0e labeltooltip="23 " tooltip="23 "]
+		task_46a31173 [label="kubeinit.kubeinit.kubeinit_libvirt : Configure OVS on the Hypervisors" color="#b62316" id=task_46a31173 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Configure OVS on the Hypervisors"]
+		role_db39840c -> task_46a31173 [label="24 [when: kubeinit_destroy_ovn_network]" color="#b62316" fontcolor="#b62316" id=edge_7e2844d8 labeltooltip="24 [when: kubeinit_destroy_ovn_network]" tooltip="24 [when: kubeinit_destroy_ovn_network]"]
+		task_8b8f8ca9 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#b62316" id=task_8b8f8ca9 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
+		role_db39840c -> task_8b8f8ca9 [label="25 " color="#b62316" fontcolor="#b62316" id=edge_abc08a03 labeltooltip="25 " tooltip="25 "]
+		task_4a699417 [label="kubeinit.kubeinit.kubeinit_libvirt : Configure OVN in the ovn-central hypervisor" color="#b62316" id=task_4a699417 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Configure OVN in the ovn-central hypervisor"]
+		role_db39840c -> task_4a699417 [label="26 [when: kubeinit_destroy_ovn_network]" color="#b62316" fontcolor="#b62316" id=edge_8e804736 labeltooltip="26 [when: kubeinit_destroy_ovn_network]" tooltip="26 [when: kubeinit_destroy_ovn_network]"]
+		task_96c2129f [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#b62316" id=task_96c2129f shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
+		role_db39840c -> task_96c2129f [label="27 " color="#b62316" fontcolor="#b62316" id=edge_badba361 labeltooltip="27 " tooltip="27 "]
+		task_b8fed374 [label="kubeinit.kubeinit.kubeinit_libvirt : Remove and create the cluster switch if exists" color="#b62316" id=task_b8fed374 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Remove and create the cluster switch if exists"]
+		role_db39840c -> task_b8fed374 [label="28 " color="#b62316" fontcolor="#b62316" id=edge_a328c2f0 labeltooltip="28 " tooltip="28 "]
+		task_de3d5f38 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#b62316" id=task_de3d5f38 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
+		role_db39840c -> task_de3d5f38 [label="29 " color="#b62316" fontcolor="#b62316" id=edge_c2bbae98 labeltooltip="29 " tooltip="29 "]
+		task_28c4fd2d [label="kubeinit.kubeinit.kubeinit_libvirt : Create OVS/OVN bindings for the VMs ports" color="#b62316" id=task_28c4fd2d shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Create OVS/OVN bindings for the VMs ports"]
+		role_db39840c -> task_28c4fd2d [label="30 " color="#b62316" fontcolor="#b62316" id=edge_5de12eb8 labeltooltip="30 " tooltip="30 "]
+		task_b499f8ce [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#b62316" id=task_b499f8ce shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
+		role_db39840c -> task_b499f8ce [label="31 " color="#b62316" fontcolor="#b62316" id=edge_667ee793 labeltooltip="31 " tooltip="31 "]
+		task_00cad767 [label="kubeinit.kubeinit.kubeinit_libvirt : Configuring a router connected to the guests switch" color="#b62316" id=task_00cad767 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Configuring a router connected to the guests switch"]
+		role_db39840c -> task_00cad767 [label="32 [when: kubeinit_destroy_ovn_network]" color="#b62316" fontcolor="#b62316" id=edge_0c0dcb40 labeltooltip="32 [when: kubeinit_destroy_ovn_network]" tooltip="32 [when: kubeinit_destroy_ovn_network]"]
+		task_f06e31f0 [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#b62316" id=task_f06e31f0 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
+		role_db39840c -> task_f06e31f0 [label="33 " color="#b62316" fontcolor="#b62316" id=edge_82b5fff0 labeltooltip="33 " tooltip="33 "]
+		task_7766c3b2 [label="kubeinit.kubeinit.kubeinit_libvirt : Attach our cluster network to the logical router" color="#b62316" id=task_7766c3b2 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Attach our cluster network to the logical router"]
+		role_db39840c -> task_7766c3b2 [label="34 " color="#b62316" fontcolor="#b62316" id=edge_d6006898 labeltooltip="34 " tooltip="34 "]
+		task_e9a3ecde [label="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate" color="#b62316" id=task_e9a3ecde shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Wait for changes to propagate"]
+		role_db39840c -> task_e9a3ecde [label="35 " color="#b62316" fontcolor="#b62316" id=edge_df951dd6 labeltooltip="35 " tooltip="35 "]
+		task_75b82a7e [label="kubeinit.kubeinit.kubeinit_libvirt : Configuring NAT" color="#b62316" id=task_75b82a7e shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Configuring NAT"]
+		role_db39840c -> task_75b82a7e [label="36 [when: not hostvars[kubeinit_ovn_central_host].firewalld_is_active]" color="#b62316" fontcolor="#b62316" id=edge_6a9e3056 labeltooltip="36 [when: not hostvars[kubeinit_ovn_central_host].firewalld_is_active]" tooltip="36 [when: not hostvars[kubeinit_ovn_central_host].firewalld_is_active]"]
+		task_4fd4b02a [label="kubeinit.kubeinit.kubeinit_libvirt : Render KubeInit networks for debugging" color="#b62316" id=task_4fd4b02a shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Render KubeInit networks for debugging"]
+		role_db39840c -> task_4fd4b02a [label="37 " color="#b62316" fontcolor="#b62316" id=edge_99bbafac labeltooltip="37 " tooltip="37 "]
+		task_1807f9d7 [label="kubeinit.kubeinit.kubeinit_libvirt : Define KubeInit networks" color="#b62316" id=task_1807f9d7 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Define KubeInit networks"]
+		role_db39840c -> task_1807f9d7 [label="38 " color="#b62316" fontcolor="#b62316" id=edge_2f8228bd labeltooltip="38 " tooltip="38 "]
+		task_665f4ed1 [label="kubeinit.kubeinit.kubeinit_libvirt : Activate KubeInit networks" color="#b62316" id=task_665f4ed1 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Activate KubeInit networks"]
+		role_db39840c -> task_665f4ed1 [label="39 " color="#b62316" fontcolor="#b62316" id=edge_e355da6a labeltooltip="39 " tooltip="39 "]
+		task_0a20bfd3 [label="kubeinit.kubeinit.kubeinit_libvirt : Autostart KubeInit networks" color="#b62316" id=task_0a20bfd3 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_libvirt : Autostart KubeInit networks"]
+		role_db39840c -> task_0a20bfd3 [label="40 " color="#b62316" fontcolor="#b62316" id=edge_0ffbb7c6 labeltooltip="40 " tooltip="40 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_e56bbcd8 [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_e56bbcd8 tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_e56bbcd8 -> role_76f41589 [label="1 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]" color="#9805c7" fontcolor="#9805c7" id=edge_0bbf311f labeltooltip="1 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]" tooltip="1 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]"]
+	subgraph "Read podman secrets if running from the container" {
+		role_2409b60b [label="[role] Read podman secrets if running from the container" color="#b62316" id=role_2409b60b tooltip="Read podman secrets if running from the container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_nexus" {
-		role_11e3572f [label="[role] kubeinit.kubeinit.kubeinit_nexus" color="#9805c7" id=role_11e3572f tooltip="kubeinit.kubeinit.kubeinit_nexus"]
-		role_11e3572f -> role_e56bbcd8 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_3c6b3473 labeltooltip="1 " tooltip="1 "]
+	subgraph "Prepare environment if not prepared" {
+		role_b9e5d053 [label="[role] Prepare environment if not prepared" color="#b62316" id=role_b9e5d053 tooltip="Prepare environment if not prepared"]
+		role_b9e5d053 -> role_2409b60b [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b62316" fontcolor="#b62316" id=edge_72c20031 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_b8eb9ebe [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_b8eb9ebe tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_b8eb9ebe -> role_11e3572f [label="1 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]" color="#9805c7" fontcolor="#9805c7" id=edge_2cf94c41 labeltooltip="1 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]" tooltip="1 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]"]
+	subgraph "Prepare podman" {
+		role_b0b7cf1a [label="[role] Prepare podman" color="#b62316" id=role_b0b7cf1a tooltip="Prepare podman"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_haproxy" {
-		role_6c0b98c6 [label="[role] kubeinit.kubeinit.kubeinit_haproxy" color="#9805c7" id=role_6c0b98c6 tooltip="kubeinit.kubeinit.kubeinit_haproxy"]
-		role_6c0b98c6 -> role_b8eb9ebe [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_81262079 labeltooltip="1 " tooltip="1 "]
+	subgraph "Create systemd service for podman container" {
+		role_b1179844 [label="[role] Create systemd service for podman container" color="#b62316" id=role_b1179844 tooltip="Create systemd service for podman container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_bb511632 [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_bb511632 tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_bb511632 -> role_6c0b98c6 [label="1 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]" color="#9805c7" fontcolor="#9805c7" id=edge_c99f9e39 labeltooltip="1 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]" tooltip="1 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]"]
+	subgraph "Configure Bind" {
+		role_d50ad2b1 [label="[role] Configure Bind" color="#b62316" id=role_d50ad2b1 tooltip="Configure Bind"]
+		role_d50ad2b1 -> role_b1179844 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_91e3cf18 labeltooltip="1 " tooltip="1 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_dnsmasq" {
-		role_8e83a99d [label="[role] kubeinit.kubeinit.kubeinit_dnsmasq" color="#9805c7" id=role_8e83a99d tooltip="kubeinit.kubeinit.kubeinit_dnsmasq"]
-		role_8e83a99d -> role_bb511632 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_5a80f0bf labeltooltip="1 " tooltip="1 "]
+	subgraph "Create systemd service for podman container" {
+		role_723adb53 [label="[role] Create systemd service for podman container" color="#b62316" id=role_723adb53 tooltip="Create systemd service for podman container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_7c63a0a3 [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_7c63a0a3 tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_7c63a0a3 -> role_8e83a99d [label="1 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]" color="#9805c7" fontcolor="#9805c7" id=edge_c48e093b labeltooltip="1 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]" tooltip="1 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]"]
+	subgraph "Configure Dnsmasq" {
+		role_c5a8ddca [label="[role] Configure Dnsmasq" color="#b62316" id=role_c5a8ddca tooltip="Configure Dnsmasq"]
+		role_c5a8ddca -> role_723adb53 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_3b0ac201 labeltooltip="1 " tooltip="1 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_bind" {
-		role_7c0b8ed4 [label="[role] kubeinit.kubeinit.kubeinit_bind" color="#9805c7" id=role_7c0b8ed4 tooltip="kubeinit.kubeinit.kubeinit_bind"]
-		role_7c0b8ed4 -> role_7c63a0a3 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_9d5033fd labeltooltip="1 " tooltip="1 "]
+	subgraph "Create systemd service for podman container" {
+		role_40e7ff15 [label="[role] Create systemd service for podman container" color="#b62316" id=role_40e7ff15 tooltip="Create systemd service for podman container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_cd685d13 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_cd685d13 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_cd685d13 -> role_7c0b8ed4 [label="1 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]" color="#9805c7" fontcolor="#9805c7" id=edge_3e50fe61 labeltooltip="1 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]" tooltip="1 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]"]
+	subgraph "Configure HAProxy" {
+		role_bb957e59 [label="[role] Configure HAProxy" color="#b62316" id=role_bb957e59 tooltip="Configure HAProxy"]
+		role_bb957e59 -> role_40e7ff15 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_52071e1e labeltooltip="1 " tooltip="1 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_d1e70132 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_d1e70132 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_d1e70132 -> role_cd685d13 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_8e7cfaed labeltooltip="1 " tooltip="1 "]
+	subgraph "Create systemd service for podman container" {
+		role_58e67044 [label="[role] Create systemd service for podman container" color="#b62316" id=role_58e67044 tooltip="Create systemd service for podman container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_198e265d [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_198e265d tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_198e265d -> role_d1e70132 [label="1 [when: not environment_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_a64007d5 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+	subgraph "Configure Nexus" {
+		role_e6b0605d [label="[role] Configure Nexus" color="#b62316" id=role_e6b0605d tooltip="Configure Nexus"]
+		role_e6b0605d -> role_58e67044 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_44162c16 labeltooltip="1 " tooltip="1 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_1d89c836 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_1d89c836 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
+	subgraph "Create systemd service for podman container" {
+		role_17954370 [label="[role] Create systemd service for podman container" color="#b62316" id=role_17954370 tooltip="Create systemd service for podman container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_0ec01a85 [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_0ec01a85 tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_0ec01a85 -> role_1d89c836 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_c2d5aaf4 labeltooltip="1 " tooltip="1 "]
+	subgraph "Configure Apache" {
+		role_59220505 [label="[role] Configure Apache" color="#b62316" id=role_59220505 tooltip="Configure Apache"]
+		role_59220505 -> role_17954370 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_1b54da7a labeltooltip="1 " tooltip="1 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_f184a230 [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_f184a230 tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_f184a230 -> role_0ec01a85 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_d9d6d4e9 labeltooltip="1 " tooltip="1 "]
+	subgraph "Create systemd service for podman container" {
+		role_62ace820 [label="[role] Create systemd service for podman container" color="#b62316" id=role_62ace820 tooltip="Create systemd service for podman container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}" {
-		role_6ce5f2e3 [label="[role] kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}" color="#9805c7" id=role_6ce5f2e3 tooltip="kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}"]
-		role_6ce5f2e3 -> role_f184a230 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_7858696e labeltooltip="1 " tooltip="1 "]
+	subgraph "Configure a local container image registry" {
+		role_8f86d673 [label="[role] Configure a local container image registry" color="#b62316" id=role_8f86d673 tooltip="Configure a local container image registry"]
+		role_8f86d673 -> role_62ace820 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_0e4a7709 labeltooltip="1 " tooltip="1 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_8cdbdc98 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_8cdbdc98 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_8cdbdc98 -> role_6ce5f2e3 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_09931f36 labeltooltip="1 " tooltip="1 "]
+	subgraph "task-create-services" {
+		role_66815969 [label="[role] task-create-services" color="#b62316" id=role_66815969 tooltip="task-create-services"]
+		role_66815969 -> role_b9e5d053 [label="1 [when: not environment_prepared]" color="#b62316" fontcolor="#b62316" id=edge_1fe53c42 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_66815969 -> role_b0b7cf1a [label="2 " color="#b62316" fontcolor="#b62316" id=edge_3f8662a4 labeltooltip="2 " tooltip="2 "]
+		role_66815969 -> role_d50ad2b1 [label="3 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]" color="#b62316" fontcolor="#b62316" id=edge_e6ac0244 labeltooltip="3 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]" tooltip="3 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_66815969 -> role_c5a8ddca [label="4 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]" color="#b62316" fontcolor="#b62316" id=edge_1e804cc2 labeltooltip="4 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]" tooltip="4 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_66815969 -> role_bb957e59 [label="5 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]" color="#b62316" fontcolor="#b62316" id=edge_4b30ce13 labeltooltip="5 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]" tooltip="5 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_66815969 -> role_e6b0605d [label="6 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]" color="#b62316" fontcolor="#b62316" id=edge_96ff8995 labeltooltip="6 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]" tooltip="6 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_66815969 -> role_59220505 [label="7 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]" color="#b62316" fontcolor="#b62316" id=edge_a7cd45c7 labeltooltip="7 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]" tooltip="7 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_66815969 -> role_8f86d673 [label="8 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]" color="#b62316" fontcolor="#b62316" id=edge_665b2136 labeltooltip="8 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]" tooltip="8 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_c7955467 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_c7955467 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_c7955467 -> role_8cdbdc98 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_7409e677 labeltooltip="1 " tooltip="1 "]
+	subgraph "Read podman secrets if running from the container" {
+		role_ab9e95ed [label="[role] Read podman secrets if running from the container" color="#b62316" id=role_ab9e95ed tooltip="Read podman secrets if running from the container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_95e780fb [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_95e780fb tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_95e780fb -> role_c7955467 [label="1 [when: not environment_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_d3e03af6 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+	subgraph "Prepare environment if needed" {
+		role_5d3c48e1 [label="[role] Prepare environment if needed" color="#b62316" id=role_5d3c48e1 tooltip="Prepare environment if needed"]
+		role_5d3c48e1 -> role_ab9e95ed [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b62316" fontcolor="#b62316" id=edge_bb45edd5 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_667dd1dd [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_667dd1dd tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_667dd1dd -> role_95e780fb [label="1 [when: not services_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_fcbef1e7 labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
+	subgraph "Gather network and host facts for guest" {
+		role_98ad9fac [label="[role] Gather network and host facts for guest" color="#b62316" id=role_98ad9fac tooltip="Gather network and host facts for guest"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_71cc88fc [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_71cc88fc tooltip="kubeinit.kubeinit.kubeinit_prepare"]
+	subgraph "Prepare services if needed" {
+		role_fd40a43e [label="[role] Prepare services if needed" color="#b62316" id=role_fd40a43e tooltip="Prepare services if needed"]
+		role_fd40a43e -> role_5d3c48e1 [label="1 [when: not environment_prepared]" color="#b62316" fontcolor="#b62316" id=edge_f11795ce labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_fd40a43e -> role_98ad9fac [label="2 " color="#b62316" fontcolor="#b62316" id=edge_9b510562 labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_libvirt" {
-		role_4d971d2e [label="[role] kubeinit.kubeinit.kubeinit_libvirt" color="#9805c7" id=role_4d971d2e tooltip="kubeinit.kubeinit.kubeinit_libvirt"]
-		role_4d971d2e -> role_71cc88fc [label="1 [when: not environment_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_2df0c561 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+	subgraph "Create systemd service for podman container" {
+		role_4ed2a1e4 [label="[role] Create systemd service for podman container" color="#b62316" id=role_4ed2a1e4 tooltip="Create systemd service for podman container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_libvirt" {
-		role_86a19434 [label="[role] kubeinit.kubeinit.kubeinit_libvirt" color="#9805c7" id=role_86a19434 tooltip="kubeinit.kubeinit.kubeinit_libvirt"]
+	subgraph "Gather network and host facts for provision service" {
+		role_197ab71e [label="[role] Gather network and host facts for provision service" color="#b62316" id=role_197ab71e tooltip="Gather network and host facts for provision service"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_libvirt" {
-		role_23d3fc23 [label="[role] kubeinit.kubeinit.kubeinit_libvirt" color="#9805c7" id=role_23d3fc23 tooltip="kubeinit.kubeinit.kubeinit_libvirt"]
-		role_23d3fc23 -> role_86a19434 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_e86fcdb6 labeltooltip="1 " tooltip="1 "]
+	subgraph "Setup the cluster provision container" {
+		role_01a52c20 [label="[role] Setup the cluster provision container" color="#b62316" id=role_01a52c20 tooltip="Setup the cluster provision container"]
+		role_01a52c20 -> role_4ed2a1e4 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_527293bb labeltooltip="1 " tooltip="1 "]
+		role_01a52c20 -> role_197ab71e [label="2 " color="#b62316" fontcolor="#b62316" id=edge_7e86ec27 labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_libvirt" {
-		role_18f61fa2 [label="[role] kubeinit.kubeinit.kubeinit_libvirt" color="#9805c7" id=role_18f61fa2 tooltip="kubeinit.kubeinit.kubeinit_libvirt"]
-		role_18f61fa2 -> role_23d3fc23 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_14e7ce16 labeltooltip="1 " tooltip="1 "]
+	subgraph "Delegate to the distro role to prepare the cluster" {
+		role_ee7c752f [label="[role] Delegate to the distro role to prepare the cluster" color="#b62316" id=role_ee7c752f tooltip="Delegate to the distro role to prepare the cluster"]
+		role_ee7c752f -> role_01a52c20 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_576247be labeltooltip="1 " tooltip="1 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}" {
-		role_df34ab34 [label="[role] kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}" color="#9805c7" id=role_df34ab34 tooltip="kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}"]
-		role_df34ab34 -> role_18f61fa2 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_2f753889 labeltooltip="1 " tooltip="1 "]
+	subgraph "task-prepare-cluster" {
+		role_d3c47e98 [label="[role] task-prepare-cluster" color="#b62316" id=role_d3c47e98 tooltip="task-prepare-cluster"]
+		role_d3c47e98 -> role_fd40a43e [label="1 [when: not services_prepared]" color="#b62316" fontcolor="#b62316" id=edge_f4f3e21e labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
+		role_d3c47e98 -> role_ee7c752f [label="2 " color="#b62316" fontcolor="#b62316" id=edge_01bed35e labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_467fa5f3 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_467fa5f3 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_467fa5f3 -> role_df34ab34 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_69ce3820 labeltooltip="1 " tooltip="1 "]
+	subgraph "Read podman secrets if running from the container" {
+		role_aa4b9913 [label="[role] Read podman secrets if running from the container" color="#b62316" id=role_aa4b9913 tooltip="Read podman secrets if running from the container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_e3550709 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_e3550709 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_e3550709 -> role_467fa5f3 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_a92a2122 labeltooltip="1 " tooltip="1 "]
+	subgraph "Prepare environment if not prepared" {
+		role_739acfda [label="[role] Prepare environment if not prepared" color="#b62316" id=role_739acfda tooltip="Prepare environment if not prepared"]
+		role_739acfda -> role_aa4b9913 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b62316" fontcolor="#b62316" id=edge_db1f6be5 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_82b8b770 [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_82b8b770 tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_82b8b770 -> role_e3550709 [label="1 [when: not environment_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_5bfa154b labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+	subgraph "task-download-images" {
+		role_999142fb [label="[role] task-download-images" color="#b62316" id=role_999142fb tooltip="task-download-images"]
+		role_999142fb -> role_739acfda [label="1 [when: not environment_prepared]" color="#b62316" fontcolor="#b62316" id=edge_309903d9 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_0773eee1 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_0773eee1 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_0773eee1 -> role_82b8b770 [label="1 [when: not services_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_fd07ef0c labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
+	subgraph "Read podman secrets if running from the container" {
+		role_2ac8bab3 [label="[role] Read podman secrets if running from the container" color="#b62316" id=role_2ac8bab3 tooltip="Read podman secrets if running from the container"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_submariner" {
-		role_739da9e1 [label="[role] kubeinit.kubeinit.kubeinit_submariner" color="#9805c7" id=role_739da9e1 tooltip="kubeinit.kubeinit.kubeinit_submariner"]
+	subgraph "Prepare environment if needed" {
+		role_8d5bd1c2 [label="[role] Prepare environment if needed" color="#b62316" id=role_8d5bd1c2 tooltip="Prepare environment if needed"]
+		role_8d5bd1c2 -> role_2ac8bab3 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b62316" fontcolor="#b62316" id=edge_7dfca5d0 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_kubevirt" {
-		role_3bd1d52e [label="[role] kubeinit.kubeinit.kubeinit_kubevirt" color="#9805c7" id=role_3bd1d52e tooltip="kubeinit.kubeinit.kubeinit_kubevirt"]
-		role_3bd1d52e -> role_739da9e1 [label="1 [when: 'submariner' in kubeinit_fact_post_deployment_services | default(False)]" color="#9805c7" fontcolor="#9805c7" id=edge_613329ab labeltooltip="1 [when: 'submariner' in kubeinit_fact_post_deployment_services | default(False)]" tooltip="1 [when: 'submariner' in kubeinit_fact_post_deployment_services | default(False)]"]
+	subgraph "Gather network and host facts for guest" {
+		role_c5740329 [label="[role] Gather network and host facts for guest" color="#b62316" id=role_c5740329 tooltip="Gather network and host facts for guest"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_apps" {
-		role_6f1e371d [label="[role] kubeinit.kubeinit.kubeinit_apps" color="#9805c7" id=role_6f1e371d tooltip="kubeinit.kubeinit.kubeinit_apps"]
-		role_6f1e371d -> role_3bd1d52e [label="1 [when: not kubeinit_okd_openshift_deploy | default(False)]" color="#9805c7" fontcolor="#9805c7" id=edge_453535d0 labeltooltip="1 [when: not kubeinit_okd_openshift_deploy | default(False)]" tooltip="1 [when: not kubeinit_okd_openshift_deploy | default(False)]"]
+	subgraph "Prepare services if needed" {
+		role_0fa9d968 [label="[role] Prepare services if needed" color="#b62316" id=role_0fa9d968 tooltip="Prepare services if needed"]
+		role_0fa9d968 -> role_8d5bd1c2 [label="1 [when: not environment_prepared]" color="#b62316" fontcolor="#b62316" id=edge_71965879 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_0fa9d968 -> role_c5740329 [label="2 " color="#b62316" fontcolor="#b62316" id=edge_012992a4 labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_nfs" {
-		role_230e0471 [label="[role] kubeinit.kubeinit.kubeinit_nfs" color="#9805c7" id=role_230e0471 tooltip="kubeinit.kubeinit.kubeinit_nfs"]
-		role_230e0471 -> role_6f1e371d [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_976a9e3a labeltooltip="1 " tooltip="1 "]
+	subgraph "Deploy the cluster bootstrap node" {
+		role_bc3f3232 [label="[role] Deploy the cluster bootstrap node" color="#b62316" id=role_bc3f3232 tooltip="Deploy the cluster bootstrap node"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}" {
-		role_050ca4d5 [label="[role] kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}" color="#9805c7" id=role_050ca4d5 tooltip="kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}"]
-		role_050ca4d5 -> role_230e0471 [label="1 [when: 'nfs' in kubeinit_cluster_hostvars.services]" color="#9805c7" fontcolor="#9805c7" id=edge_16aed79e labeltooltip="1 [when: 'nfs' in kubeinit_cluster_hostvars.services]" tooltip="1 [when: 'nfs' in kubeinit_cluster_hostvars.services]"]
+	subgraph "Deploy the cluster controller nodes" {
+		role_c4c5e211 [label="[role] Deploy the cluster controller nodes" color="#b62316" id=role_c4c5e211 tooltip="Deploy the cluster controller nodes"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_c0e3226b [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_c0e3226b tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_c0e3226b -> role_050ca4d5 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_1c0a0755 labeltooltip="1 " tooltip="1 "]
+	subgraph "Deploy the cluster compute nodes" {
+		role_3177de79 [label="[role] Deploy the cluster compute nodes" color="#b62316" id=role_3177de79 tooltip="Deploy the cluster compute nodes"]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_216b6634 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_216b6634 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_216b6634 -> role_c0e3226b [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_16a23cb8 labeltooltip="1 " tooltip="1 "]
+	subgraph "Delegate to the distro role to deploy the cluster" {
+		role_2ae7b4df [label="[role] Delegate to the distro role to deploy the cluster" color="#b62316" id=role_2ae7b4df tooltip="Delegate to the distro role to deploy the cluster"]
+		role_2ae7b4df -> role_bc3f3232 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_c51e4ff1 labeltooltip="1 " tooltip="1 "]
+		role_2ae7b4df -> role_c4c5e211 [label="2 " color="#b62316" fontcolor="#b62316" id=edge_fd2b654b labeltooltip="2 " tooltip="2 "]
+		role_2ae7b4df -> role_3177de79 [label="3 " color="#b62316" fontcolor="#b62316" id=edge_3d4d0a83 labeltooltip="3 " tooltip="3 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_services" {
-		role_6e9b3c2c [label="[role] kubeinit.kubeinit.kubeinit_services" color="#9805c7" id=role_6e9b3c2c tooltip="kubeinit.kubeinit.kubeinit_services"]
-		role_6e9b3c2c -> role_216b6634 [label="1 [when: not environment_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_8989adc2 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+	subgraph "task-deploy-cluster" {
+		role_143f4e3a [label="[role] task-deploy-cluster" color="#b62316" id=role_143f4e3a tooltip="task-deploy-cluster"]
+		role_143f4e3a -> role_0fa9d968 [label="1 [when: not services_prepared]" color="#b62316" fontcolor="#b62316" id=edge_bb22c2b9 labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
+		role_143f4e3a -> role_2ae7b4df [label="2 " color="#b62316" fontcolor="#b62316" id=edge_db691871 labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "kubeinit.kubeinit.kubeinit_prepare" {
-		role_b9d9e687 [label="[role] kubeinit.kubeinit.kubeinit_prepare" color="#9805c7" id=role_b9d9e687 tooltip="kubeinit.kubeinit.kubeinit_prepare"]
-		role_b9d9e687 -> role_6e9b3c2c [label="1 [when: not services_prepared]" color="#9805c7" fontcolor="#9805c7" id=edge_59e5c3ec labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
+	subgraph "Read podman secrets if running from the container" {
+		role_695afe72 [label="[role] Read podman secrets if running from the container" color="#b62316" id=role_695afe72 tooltip="Read podman secrets if running from the container"]
+	}
+	subgraph "Prepare environment if needed" {
+		role_5f6e806c [label="[role] Prepare environment if needed" color="#b62316" id=role_5f6e806c tooltip="Prepare environment if needed"]
+		role_5f6e806c -> role_695afe72 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#b62316" fontcolor="#b62316" id=edge_b3820fc5 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+	}
+	subgraph "Gather network and host facts for guest" {
+		role_a3d1dc06 [label="[role] Gather network and host facts for guest" color="#b62316" id=role_a3d1dc06 tooltip="Gather network and host facts for guest"]
+	}
+	subgraph "Prepare services if needed" {
+		role_89cad99e [label="[role] Prepare services if needed" color="#b62316" id=role_89cad99e tooltip="Prepare services if needed"]
+		role_89cad99e -> role_5f6e806c [label="1 [when: not environment_prepared]" color="#b62316" fontcolor="#b62316" id=edge_0349b55e labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_89cad99e -> role_a3d1dc06 [label="2 " color="#b62316" fontcolor="#b62316" id=edge_8c25301a labeltooltip="2 " tooltip="2 "]
+	}
+	subgraph "Configure NFS" {
+		role_22b1a798 [label="[role] Configure NFS" color="#b62316" id=role_22b1a798 tooltip="Configure NFS"]
+	}
+	subgraph "Deploy the apps" {
+		role_d618a43d [label="[role] Deploy the apps" color="#b62316" id=role_d618a43d tooltip="Deploy the apps"]
+	}
+	subgraph "Deploy KubeVirt" {
+		role_672c157f [label="[role] Deploy KubeVirt" color="#b62316" id=role_672c157f tooltip="Deploy KubeVirt"]
+	}
+	subgraph "Deploy Submariner" {
+		role_0b21dfdf [label="[role] Deploy Submariner" color="#b62316" id=role_0b21dfdf tooltip="Deploy Submariner"]
+	}
+	subgraph "Delegate to distro role to run post-deployment tasks" {
+		role_54c14061 [label="[role] Delegate to distro role to run post-deployment tasks" color="#b62316" id=role_54c14061 tooltip="Delegate to distro role to run post-deployment tasks"]
+		role_54c14061 -> role_22b1a798 [label="1 [when: 'nfs' in kubeinit_cluster_hostvars.services]" color="#b62316" fontcolor="#b62316" id=edge_a0948282 labeltooltip="1 [when: 'nfs' in kubeinit_cluster_hostvars.services]" tooltip="1 [when: 'nfs' in kubeinit_cluster_hostvars.services]"]
+		role_54c14061 -> role_d618a43d [label="2 " color="#b62316" fontcolor="#b62316" id=edge_451dd137 labeltooltip="2 " tooltip="2 "]
+		role_54c14061 -> role_672c157f [label="3 [when: not kubeinit_okd_openshift_deploy | default(False)]" color="#b62316" fontcolor="#b62316" id=edge_873ab5fc labeltooltip="3 [when: not kubeinit_okd_openshift_deploy | default(False)]" tooltip="3 [when: not kubeinit_okd_openshift_deploy | default(False)]"]
+		role_54c14061 -> role_0b21dfdf [label="4 [when: 'submariner' in kubeinit_fact_post_deployment_services | default(False)]" color="#b62316" fontcolor="#b62316" id=edge_5a1c5c7d labeltooltip="4 [when: 'submariner' in kubeinit_fact_post_deployment_services | default(False)]" tooltip="4 [when: 'submariner' in kubeinit_fact_post_deployment_services | default(False)]"]
+	}
+	subgraph "task-post-deployment" {
+		role_e3fd7260 [label="[role] task-post-deployment" color="#b62316" id=role_e3fd7260 tooltip="task-post-deployment"]
+		role_e3fd7260 -> role_89cad99e [label="1 [when: not services_prepared]" color="#b62316" fontcolor="#b62316" id=edge_a89f06a4 labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
+		role_e3fd7260 -> role_54c14061 [label="2 " color="#b62316" fontcolor="#b62316" id=edge_23034218 labeltooltip="2 " tooltip="2 "]
 	}
 	subgraph "Play: Run cluster deployment on prepared hypervisors (1)" {
-		play_83c3fb12 -> block_3736e8aa [label=1 color="#9805c7" fontcolor="#9805c7" id=edge_51988aed labeltooltip=1 tooltip=1]
-		subgraph cluster_block_3736e8aa {
-			block_3736e8aa [label="[block] Prepare the environment" color="#9805c7" id=block_3736e8aa labeltooltip="Prepare the environment" shape=box tooltip="Prepare the environment"]
-			block_3736e8aa -> role_a975d267 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_5adc69be labeltooltip="1 " tooltip="1 "]
+		play_961042f9 -> block_e58465c1 [label=1 color="#b62316" fontcolor="#b62316" id=edge_619f9c49 labeltooltip=1 tooltip=1]
+		subgraph cluster_block_e58465c1 {
+			block_e58465c1 [label="[block] Prepare the environment" color="#b62316" id=block_e58465c1 labeltooltip="Prepare the environment" shape=box tooltip="Prepare the environment"]
+			block_e58465c1 -> role_f127e0df [label="1 " color="#b62316" fontcolor="#b62316" id=edge_1f30e322 labeltooltip="1 " tooltip="1 "]
 		}
-		play_83c3fb12 -> block_c82726a3 [label=2 color="#9805c7" fontcolor="#9805c7" id=edge_7290d65f labeltooltip=2 tooltip=2]
-		subgraph cluster_block_c82726a3 {
-			block_c82726a3 [label="[block] Cleanup hypervisors" color="#9805c7" id=block_c82726a3 labeltooltip="Cleanup hypervisors" shape=box tooltip="Cleanup hypervisors"]
-			block_c82726a3 -> role_73d4b357 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_74a5e0a2 labeltooltip="1 " tooltip="1 "]
+		play_961042f9 -> block_c0bba309 [label=2 color="#b62316" fontcolor="#b62316" id=edge_7aeebf87 labeltooltip=2 tooltip=2]
+		subgraph cluster_block_c0bba309 {
+			block_c0bba309 [label="[block] Cleanup hypervisors" color="#b62316" id=block_c0bba309 labeltooltip="Cleanup hypervisors" shape=box tooltip="Cleanup hypervisors"]
+			block_c0bba309 -> role_8770b241 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_e790801d labeltooltip="1 " tooltip="1 "]
 		}
-		play_83c3fb12 -> block_f2d3c2cf [label=3 color="#9805c7" fontcolor="#9805c7" id=edge_191c3c3d labeltooltip=3 tooltip=3]
-		subgraph cluster_block_f2d3c2cf {
-			block_f2d3c2cf [label="[block] Run validations on cluster resources" color="#9805c7" id=block_f2d3c2cf labeltooltip="Run validations on cluster resources" shape=box tooltip="Run validations on cluster resources"]
-			block_f2d3c2cf -> role_55ef277d [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_0679d369 labeltooltip="1 " tooltip="1 "]
+		play_961042f9 -> block_242dfcc8 [label=3 color="#b62316" fontcolor="#b62316" id=edge_7a566a58 labeltooltip=3 tooltip=3]
+		subgraph cluster_block_242dfcc8 {
+			block_242dfcc8 [label="[block] Run validations on cluster resources" color="#b62316" id=block_242dfcc8 labeltooltip="Run validations on cluster resources" shape=box tooltip="Run validations on cluster resources"]
+			block_242dfcc8 -> role_1744c24b [label="1 " color="#b62316" fontcolor="#b62316" id=edge_93ffeebe labeltooltip="1 " tooltip="1 "]
 		}
-		play_83c3fb12 -> block_9f1dd6e5 [label=4 color="#9805c7" fontcolor="#9805c7" id=edge_bcb1aa65 labeltooltip=4 tooltip=4]
-		subgraph cluster_block_9f1dd6e5 {
-			block_9f1dd6e5 [label="[block] Create the cluster network resources" color="#9805c7" id=block_9f1dd6e5 labeltooltip="Create the cluster network resources" shape=box tooltip="Create the cluster network resources"]
-			block_9f1dd6e5 -> role_fa828736 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_00ec5ba9 labeltooltip="1 " tooltip="1 "]
+		play_961042f9 -> block_979f28cf [label=4 color="#b62316" fontcolor="#b62316" id=edge_6336c0cd labeltooltip=4 tooltip=4]
+		subgraph cluster_block_979f28cf {
+			block_979f28cf [label="[block] Create the cluster network resources" color="#b62316" id=block_979f28cf labeltooltip="Create the cluster network resources" shape=box tooltip="Create the cluster network resources"]
+			block_979f28cf -> role_db39840c [label="1 " color="#b62316" fontcolor="#b62316" id=edge_f61cab02 labeltooltip="1 " tooltip="1 "]
 		}
-		play_83c3fb12 -> block_68a67c2a [label=5 color="#9805c7" fontcolor="#9805c7" id=edge_b0ede38c labeltooltip=5 tooltip=5]
-		subgraph cluster_block_68a67c2a {
-			block_68a67c2a [label="[block] Create services the cluster will need" color="#9805c7" id=block_68a67c2a labeltooltip="Create services the cluster will need" shape=box tooltip="Create services the cluster will need"]
-			block_68a67c2a -> role_198e265d [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_6d7fb599 labeltooltip="1 " tooltip="1 "]
+		play_961042f9 -> block_6bb1689a [label=5 color="#b62316" fontcolor="#b62316" id=edge_e3a4d30f labeltooltip=5 tooltip=5]
+		subgraph cluster_block_6bb1689a {
+			block_6bb1689a [label="[block] Create services the cluster will need" color="#b62316" id=block_6bb1689a labeltooltip="Create services the cluster will need" shape=box tooltip="Create services the cluster will need"]
+			block_6bb1689a -> role_66815969 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_9fe3beaa labeltooltip="1 " tooltip="1 "]
 		}
-		play_83c3fb12 -> block_503c2743 [label=6 color="#9805c7" fontcolor="#9805c7" id=edge_396ee2b4 labeltooltip=6 tooltip=6]
-		subgraph cluster_block_503c2743 {
-			block_503c2743 [label="[block] Prepare to deploy the cluster" color="#9805c7" id=block_503c2743 labeltooltip="Prepare to deploy the cluster" shape=box tooltip="Prepare to deploy the cluster"]
-			block_503c2743 -> role_667dd1dd [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_75270a89 labeltooltip="1 " tooltip="1 "]
+		play_961042f9 -> block_7b3ce60d [label=6 color="#b62316" fontcolor="#b62316" id=edge_f072408a labeltooltip=6 tooltip=6]
+		subgraph cluster_block_7b3ce60d {
+			block_7b3ce60d [label="[block] Prepare to deploy the cluster" color="#b62316" id=block_7b3ce60d labeltooltip="Prepare to deploy the cluster" shape=box tooltip="Prepare to deploy the cluster"]
+			block_7b3ce60d -> role_d3c47e98 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_56a6b4ef labeltooltip="1 " tooltip="1 "]
 		}
-		play_83c3fb12 -> block_91539ecc [label=7 color="#9805c7" fontcolor="#9805c7" id=edge_356f3633 labeltooltip=7 tooltip=7]
-		subgraph cluster_block_91539ecc {
-			block_91539ecc [label="[block] Download cloud images" color="#9805c7" id=block_91539ecc labeltooltip="Download cloud images" shape=box tooltip="Download cloud images"]
-			block_91539ecc -> role_4d971d2e [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_6e9f6bb4 labeltooltip="1 " tooltip="1 "]
+		play_961042f9 -> block_d11c6af6 [label=7 color="#b62316" fontcolor="#b62316" id=edge_5774f169 labeltooltip=7 tooltip=7]
+		subgraph cluster_block_d11c6af6 {
+			block_d11c6af6 [label="[block] Download cloud images" color="#b62316" id=block_d11c6af6 labeltooltip="Download cloud images" shape=box tooltip="Download cloud images"]
+			block_d11c6af6 -> role_999142fb [label="1 " color="#b62316" fontcolor="#b62316" id=edge_55d55e6f labeltooltip="1 " tooltip="1 "]
 		}
-		play_83c3fb12 -> block_2a112c5f [label=8 color="#9805c7" fontcolor="#9805c7" id=edge_6597ebcc labeltooltip=8 tooltip=8]
-		subgraph cluster_block_2a112c5f {
-			block_2a112c5f [label="[block] Deploy the cluster" color="#9805c7" id=block_2a112c5f labeltooltip="Deploy the cluster" shape=box tooltip="Deploy the cluster"]
-			block_2a112c5f -> role_0773eee1 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_0626d25b labeltooltip="1 " tooltip="1 "]
+		play_961042f9 -> block_0335cb69 [label=8 color="#b62316" fontcolor="#b62316" id=edge_4c200834 labeltooltip=8 tooltip=8]
+		subgraph cluster_block_0335cb69 {
+			block_0335cb69 [label="[block] Deploy the cluster" color="#b62316" id=block_0335cb69 labeltooltip="Deploy the cluster" shape=box tooltip="Deploy the cluster"]
+			block_0335cb69 -> role_143f4e3a [label="1 " color="#b62316" fontcolor="#b62316" id=edge_81aaa0ec labeltooltip="1 " tooltip="1 "]
 		}
-		play_83c3fb12 -> block_3b668296 [label=9 color="#9805c7" fontcolor="#9805c7" id=edge_9b8e5ffd labeltooltip=9 tooltip=9]
-		subgraph cluster_block_3b668296 {
-			block_3b668296 [label="[block] Run any post-deployment tasks" color="#9805c7" id=block_3b668296 labeltooltip="Run any post-deployment tasks" shape=box tooltip="Run any post-deployment tasks"]
-			block_3b668296 -> role_b9d9e687 [label="1 " color="#9805c7" fontcolor="#9805c7" id=edge_b4a5f1e5 labeltooltip="1 " tooltip="1 "]
+		play_961042f9 -> block_80d7c78e [label=9 color="#b62316" fontcolor="#b62316" id=edge_219b9253 labeltooltip=9 tooltip=9]
+		subgraph cluster_block_80d7c78e {
+			block_80d7c78e [label="[block] Run any post-deployment tasks" color="#b62316" id=block_80d7c78e labeltooltip="Run any post-deployment tasks" shape=box tooltip="Run any post-deployment tasks"]
+			block_80d7c78e -> role_e3fd7260 [label="1 " color="#b62316" fontcolor="#b62316" id=edge_24de9940 labeltooltip="1 " tooltip="1 "]
 		}
 	}
 }
