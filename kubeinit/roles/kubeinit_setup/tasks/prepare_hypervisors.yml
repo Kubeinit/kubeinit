@@ -69,19 +69,18 @@
       register: _result_setup_keypair
       when: "'hypervisor_hosts' in groups and groups['hypervisor_hosts'] | list | length > 0"
 
-    - name: Add keypair to authorized_keys
+    - name: Add keypair to authorized_keys on setup_host
       ansible.posix.authorized_key:
         user: "{{ kubeinit_facts_hostvars.remote_user }}"
         key: "{{ _result_setup_keypair.public_key }}"
         comment: "{{ _result_setup_keypair.comment }}"
         state: present
 
-    - name: Add ssh ProxyCommand option for all nodes
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        ansible_ssh_common_args: >-
-          {{ ansible_ssh_common_args }} -o ProxyCommand="ssh {{ ansible_ssh_common_args }} -W %h:%p -q {{ hostvars[kubeinit_setup_host_name].ansible_ssh_user }}@{{ hostvars[kubeinit_setup_host_name].ansible_host }}"
+    - name: Ensure hypervisor hosts have all requirements for ansible
+      ansible.builtin.include_tasks: setup_ansible_host.yml
       loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
+      loop_control:
+        loop_var: _param_ansible_host
 
     - name: Gather hypervisor host facts
       ansible.builtin.include_tasks: gather_host_facts.yml
@@ -89,26 +88,17 @@
       loop_control:
         loop_var: _param_gather_host
 
-    # - name: Add host keys to known_hosts
-    #   ansible.builtin.known_hosts:
-    #     name: "{{ hostvars[item].ansible_host }}"
-    #     key: "{{ hostvars[item].ansible_host }} {{ hostvars[item].ssh_host_key_ecdsa }}"
-    #     state: present
-    #   loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
-
     - name: Add setup_host authorized key to hypervisor hosts
       ansible.posix.authorized_key:
-        user: root
+        user: "{{ hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) }}"
         key: "{{ _result_setup_keypair.public_key }}"
         comment: "{{ _result_setup_keypair.comment }}"
         state: present
       loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
       loop_control:
         loop_var: hypervisor_host
-      vars:
-        ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-      become: true
-      become_user: root
+      become: "{{ true if (hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) == 'root') else false }}"
+      become_user: "{{ hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) }}"
       delegate_to: "{{ hypervisor_host }}"
 
     - name: Confirm access to hypervisors from setup host and user
@@ -120,7 +110,7 @@
             -o BatchMode=yes \
             -o UserKnownHostsFile=/dev/null \
             -o StrictHostKeyChecking=accept-new \
-            root@{{ hostvars[hypervisor_host].ansible_host }} 'echo connected' || true
+            {{ hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) }}@{{ hostvars[hypervisor_host].ansible_host }} 'echo connected' || true
       args:
         executable: /bin/bash
       register: _result
