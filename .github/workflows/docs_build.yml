@@ -36,6 +36,7 @@ jobs:
           sudo python3 -m pip install --upgrade ansible-inventory-grapher
           sudo python3 -m pip install --upgrade ansible-playbook-grapher
           sudo python3 -m pip install --upgrade shyaml
+          sudo python3 -m pip install --upgrade diagrams
 
       - name: Install kubeinit's collection
         run: |
@@ -45,11 +46,26 @@ jobs:
           ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
           cd ..
 
-      - name: Render the plantuml diagrams
+      - name: Render the plantuml and mingrammer diagrams
         run: |
+          echo "Rendering the planUML diagrams"
           plantuml -tpng -output render ./docs/src/images/plantuml/*.plantuml
+          echo " "
+          echo "Creating the planUML static folder"
           mkdir -p ./docs/src/static/plantuml
+          echo " "
+          echo "Moving the planUML diagrams to the docs folder"
           mv ./docs/src/images/plantuml/render/* ./docs/src/static/plantuml/
+          echo " "
+          echo "Rendering the mingrammer diagrams"
+          for diagram in ./docs/src/images/mingrammer/*.py; do python3 "$diagram"; done
+          echo " "
+          echo "Creating the mingrammer static folder"
+          mkdir -p ./docs/src/static/mingrammer
+          echo " "
+          echo "Moving the mingrammer diagrams to the docs folder"
+          mv *.png ./docs/src/static/mingrammer/
+          echo " "
 
       - name: Render the projects roles and inventory diagrams
         run: |

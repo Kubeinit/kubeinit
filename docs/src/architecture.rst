@@ -9,6 +9,13 @@ and components.
 Kubeinit design
 ~~~~~~~~~~~~~~~
 
+The following diagram describes the current main architectural design of a
+Kubeinit deployment.
+
+    .. image:: static/mingrammer/arch.png
+      :width: 100%
+      :alt: Kubeinit's architectural high level description
+
 High-level development goals
 ----------------------------
 
