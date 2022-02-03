@@ -59,8 +59,11 @@
 <li class="toctree-l2"><a class="reference internal" href="#kubeinit-design">Kubeinit design</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#high-level-development-goals">High-level development goals</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#challenges-of-the-problem-domain">Challenges of the problem domain</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#basic-ansible-workflow-design">Basic Ansible workflow design</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#infrastructure-services-services-pod">Infrastructure services (Services pod)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#basic-components-overview">Basic components overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#baremetal-nodes-and-cluster-guests-allocation">Baremetal nodes and cluster guests allocation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#services-pod-architecture">Services pod architecture</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#underlying-ovn-networking-layer">Underlying OVN networking layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#ansible-deployment-sequence-diagram">Ansible deployment sequence diagram</a></li>
 </ul>
 </li>
 </ul>
@@ -107,22 +110,36 @@ view of the project’s architectural design
 and components.</p>
 <section id="kubeinit-design">
 <h2>Kubeinit design<a class="headerlink" href="#kubeinit-design" title="Permalink to this headline"></a></h2>
-<p>The following diagram describes the current main architectural design of a
-Kubeinit deployment.</p>
-<blockquote>
-<div><a class="reference internal image-reference" href="_images/arch.png"><img alt="Kubeinit's architectural high level description" src="_images/arch.png" style="width: 100%;" /></a>
-</div></blockquote>
 <section id="high-level-development-goals">
 <h3>High-level development goals<a class="headerlink" href="#high-level-development-goals" title="Permalink to this headline"></a></h3>
 </section>
 <section id="challenges-of-the-problem-domain">
 <h3>Challenges of the problem domain<a class="headerlink" href="#challenges-of-the-problem-domain" title="Permalink to this headline"></a></h3>
 </section>
-<section id="basic-ansible-workflow-design">
-<h3>Basic Ansible workflow design<a class="headerlink" href="#basic-ansible-workflow-design" title="Permalink to this headline"></a></h3>
+<section id="basic-components-overview">
+<h3>Basic components overview<a class="headerlink" href="#basic-components-overview" title="Permalink to this headline"></a></h3>
+<p>The following diagram describes the main high level components involved in a
+Kubeinit deployment triggered by Ansible.</p>
+<blockquote>
+<div><a class="reference internal image-reference" href="_images/components.png"><img alt="Kubeinit's high level components." src="_images/components.png" style="width: 100%;" /></a>
+</div></blockquote>
+<ul class="simple">
+<li><p>Controller: Add here a description.</p></li>
+<li><p>Bastion host: Add here a description.</p></li>
+<li><p>Services pod: Add here a description.</p></li>
+<li><p>Baremetal nodes: Add here a description.</p></li>
+<li><p>Cluster guests: Add here a description.</p></li>
+<li><p>Cluster applications: Add here a description.</p></li>
+</ul>
 </section>
-<section id="infrastructure-services-services-pod">
-<h3>Infrastructure services (Services pod)<a class="headerlink" href="#infrastructure-services-services-pod" title="Permalink to this headline"></a></h3>
+<section id="baremetal-nodes-and-cluster-guests-allocation">
+<h3>Baremetal nodes and cluster guests allocation<a class="headerlink" href="#baremetal-nodes-and-cluster-guests-allocation" title="Permalink to this headline"></a></h3>
+<p>The following diagram describes a
+potential distribution of hosts, guests, and
+services containers.</p>
+<blockquote>
+<div><a class="reference internal image-reference" href="_images/nodes_architecture.png"><img alt="Kubeinit's architectural high level description" src="_images/nodes_architecture.png" style="width: 100%;" /></a>
+</div></blockquote>
 <p>Each cluster deployment requires a set of infrastructure
 services to support its correct functioning, the current
 list of services deployed and configured are
@@ -130,11 +147,38 @@ Httpd,
 Bind,
 HAproxy,
 Dnsmasq,
-Nexus,
+Nexus, and a
 Local container registry.</p>
-<p>This pod will be deployed by default in the first hypervisor but
+<p>This pod (services pod) will be deployed by default in the first hypervisor but
 depending on the user’s requirements this pod might be scheduled
 in any other chassis connected to the cluster.</p>
+</section>
+<section id="services-pod-architecture">
+<h3>Services pod architecture<a class="headerlink" href="#services-pod-architecture" title="Permalink to this headline"></a></h3>
+<p>The following diagram describes
+the reasoning for the infrastructure services
+to support the multiple clusters that can be deployed</p>
+<blockquote>
+<div><a class="reference internal image-reference" href="_images/containers_architecture.png"><img alt="Kubeinit's architectural high level description" src="_images/containers_architecture.png" style="width: 100%;" /></a>
+</div></blockquote>
+</section>
+<section id="underlying-ovn-networking-layer">
+<h3>Underlying OVN networking layer<a class="headerlink" href="#underlying-ovn-networking-layer" title="Permalink to this headline"></a></h3>
+<p>The following diagram describes
+the networking infrastructure to
+give networking services to the cluster or
+multiple clusters deployed.</p>
+<blockquote>
+<div><a class="reference internal image-reference" href="_images/ovn_network.png"><img alt="Kubeinit's architectural high level description" src="_images/ovn_network.png" style="width: 100%;" /></a>
+</div></blockquote>
+</section>
+<section id="ansible-deployment-sequence-diagram">
+<h3>Ansible deployment sequence diagram<a class="headerlink" href="#ansible-deployment-sequence-diagram" title="Permalink to this headline"></a></h3>
+<p>The following diagram describes the internal sequence diagram
+of a Kubeinit deployment.</p>
+<blockquote>
+<div><a class="reference internal image-reference" href="_images/ansible_deployment_sequence_diagram.png"><img alt="Sequence diagram of an Ansible deployment" src="_images/ansible_deployment_sequence_diagram.png" style="width: 100%;" /></a>
+</div></blockquote>
 </section>
 </section>
 </section>
