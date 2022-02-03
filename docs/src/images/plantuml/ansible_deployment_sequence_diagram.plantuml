@@ -1,0 +1,42 @@
+@startuml
+
+actor Utilisateur as user
+participant "formSign.js" as form <<Contrôleur formulaire>>
+participant "Sign.java" as controler <<(C,#ADD1B2) Contrôleur formulaire>>
+participant "Secure.java" as secure <<(C,#ADD1B2) authentification>>
+participant "Security.java" as security <<(C,#ADD1B2) sécurité>>
+
+box "Application Web" #LightBlue
+	participant form
+end box
+
+box "Serveur Play" #LightGreen
+	participant controler
+	participant secure
+	participant security
+end box
+
+user -> form : submitSignIn()
+form -> form : getParameters()
+form -> form : result = checkFields()
+
+alt result
+
+    form -> controler : formSignIn(email,pwd)
+    controler -> controler : result = checkFields()
+
+    alt result
+    	controler -> secure : Secure.authenticate(email, pwd, true);
+    	secure -> security : onAuthenticated()
+    	security --> form : renderJSON(0);
+    	form --> user : display main page
+    else !result
+    	controler --> form : renderJSON(1)
+    	form --> user : display error
+    end
+
+else !result
+	form --> user : display error
+end
+
+@enduml

@@ -16,8 +16,6 @@ License for the specific language governing permissions and limitations
 under the License.
 """
 
-"""KubeInit's Architectural high level diagram."""
-
 import os
 
 from diagrams import Cluster, Diagram, Edge
@@ -31,9 +29,13 @@ from diagrams.onprem.network import Nginx
 from diagrams.onprem.queue import Kafka
 
 filename = os.path.splitext(os.path.basename(__file__))[0]
+title = "Architectural nodes design"
+direction = 'LR'
+graph_attr = {
+    "pad": "0"
+}
 
-
-with Diagram("Architectural design", filename=filename, outformat='png', show=False):
+with Diagram(title, filename=filename, graph_attr=graph_attr, outformat='png', direction=direction, show=False):
     ingress = Nginx("ingress")
 
     metrics = Prometheus("metric")
