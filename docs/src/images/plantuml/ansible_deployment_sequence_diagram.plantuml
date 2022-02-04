@@ -1,42 +1,178 @@
+/'
+Copyright kubeinit contributors.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at:
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+'/
+
 @startuml
 
-actor Utilisateur as user
-participant "formSign.js" as form <<Contrôleur formulaire>>
-participant "Sign.java" as controler <<(C,#ADD1B2) Contrôleur formulaire>>
-participant "Secure.java" as secure <<(C,#ADD1B2) authentification>>
-participant "Security.java" as security <<(C,#ADD1B2) sécurité>>
+actor User as user <<Ansible controller>>
 
-box "Application Web" #LightBlue
-	participant form
+participant " " as bastion_host <<Metal>> #CACFD2
+participant " " as host_2 <<Metal>> #CACFD2
+participant " " as host_n <<Metal>> #CACFD2
+
+participant " " as services_pod <<Services pod>> #F4D03F
+
+participant " " as controller_1 <<Controller 1>> #AF7AC5
+participant " " as controller_2 <<Controller 2>> #AF7AC5
+participant " " as controller_3 <<Controller 3>> #AF7AC5
+
+participant " " as compute_1 <<Compute 1>> #EC7063
+participant " " as compute_2 <<Compute 2>> #EC7063
+
+box "Bastion host" #LightBlue
+  participant bastion_host
+	participant services_pod
+	participant compute_1
+	participant controller_2
 end box
 
-box "Serveur Play" #LightGreen
-	participant controler
-	participant secure
-	participant security
+box "Host 2" #LightGreen
+  participant host_2
+	participant compute_2
+	participant controller_3
 end box
 
-user -> form : submitSignIn()
-form -> form : getParameters()
-form -> form : result = checkFields()
+box "Host n" #LightGreen
+  participant host_n
+	participant controller_1
+end box
 
-alt result
+group Initial setup [from role: kubeinit.kubeinit.kubeinit_prepare]
+  group Gather facts [from tasks: gather_kubeinit_facts.yml]
+    user -> user : Read secrets
+    user -> user : Set up and define remote user
+    user -> user : Include host entries
+    user -> user : Set up SSH configuration parameters
+    user -> user : Set up cluster facts
+    user -> user : Set up network allocation facts
+    user -> user : Determine the hypervisor target for all inventory nodes
+  end
+end
 
-    form -> controler : formSignIn(email,pwd)
-    controler -> controler : result = checkFields()
+group Prepare all hypervisor hosts to deploy the services pod and the cluster nodes [from role: kubeinit.kubeinit.kubeinit_prepare]
+  group Prepare individual hypervisors [from role: kubeinit.kubeinit.kubeinit_libvirt]
+    user -> bastion_host
+    activate bastion_host
+    bastion_host -> bastion_host : Install OS requirements
+    bastion_host -> bastion_host : Packages update and reboot if necessary
+    bastion_host -> bastion_host : Make sure virtualization is enabled
+    bastion_host -> bastion_host : Enable cloud user if needed
+    bastion_host -> user
+    deactivate bastion_host
 
-    alt result
-    	controler -> secure : Secure.authenticate(email, pwd, true);
-    	secure -> security : onAuthenticated()
-    	security --> form : renderJSON(0);
-    	form --> user : display main page
-    else !result
-    	controler --> form : renderJSON(1)
-    	form --> user : display error
+    user -> host_2
+    activate host_2
+    host_2 -> host_2 : Install OS requirements
+    host_2 -> host_2 : Packages update and reboot if necessary
+    host_2 -> host_2 : Make sure virtualization is enabled
+    host_2 -> host_2 : Enable cloud user if needed
+    host_2 -> user
+    deactivate host_2
+
+    user -> host_n
+    activate host_n
+    host_n -> host_n : Install OS requirements
+    host_n -> host_n : Packages update and reboot if necessary
+    host_n -> host_n : Make sure virtualization is enabled
+    host_n -> host_n : Enable cloud user if needed
+    host_n -> user
+    deactivate host_n
+  end
+end
+
+group Run cluster deployment on prepared hypervisors
+  user -> user : Gather facts if needed
+
+  group Set cluster facts [from role: kubeinit.kubeinit.kubeinit_prepare]
+    user -> bastion_host : Define cluster facts per groups
+    activate user
+    user -> host_2 : Define cluster facts per groups
+    user -> host_n : Define cluster facts per groups
+    deactivate user
+
+    user -> bastion_host : Cleanup hypervisors
+    activate user
+    user -> host_2 : Cleanup hypervisors
+    user -> host_n : Cleanup hypervisors
+    deactivate user
+  end
+
+  user -> user : Install podman if required
+
+  group Run validations [from role: kubeinit.kubeinit.kubeinit_validations]
+    user -> bastion_host : Run validations
+    activate user
+    user -> host_2 : Run validations
+    user -> host_n : Run validations
+    deactivate user
+  end
+
+  group Deploy services pod [from role: kubeinit.kubeinit.kubeinit_services]
+    user -> bastion_host : Deploy and configure services pod
+    user -> bastion_host : Adjust services pod network parameters
+    user -> services_pod : Setup the services pod
+    user -> services_pod : Prepare the services pod credentials
+    user -> bastion_host : Start services containers
+  end
+
+  group Download images [from role: kubeinit.kubeinit.kubeinit_libvirt]
+    user -> bastion_host : Get distro OS guest image
+    activate user
+    user -> host_2 : Get distro OS guest image
+    user -> host_n : Get distro OS guest image
+    deactivate user
+  end
+
+  group Deploy the cluster nodes[from role: kubeinit.kubeinit.kubeinit_prepare]
+    user -> host_n : Deploy Controller 1
+    activate user
+    user -> bastion_host : Deploy controller 2
+    user -> host_2 : Deploy controller 3
+    deactivate user
+
+    user -> bastion_host : Deploy Compute 1
+    activate user
+    user -> host_2 : Deploy Compute 2
+    deactivate user
+  end
+
+  group Configure the cluster nodes[from role: kubeinit.kubeinit.kubeinit_<distro>]
+    user -> host_n : Configure Controller 1
+    activate user
+    user -> bastion_host : Configure controller 2
+    user -> host_2 : Configure controller 3
+    deactivate user
+
+    user -> bastion_host : Configure Compute 1
+    activate user
+    user -> host_2 : Configure Compute 2
+    deactivate user
+  end
+
+  group Run post deployment tasks [from role: kubeinit.kubeinit.kubeinit_prepare]
+    group Post deployment tasks [from role: kubeinit.kubeinit.kubeinit_<distro>.post_deployment_tasks.yml]
+      user -> bastion_host : Define cluster facts per groups
+      activate user
+      user -> user : Deploy third party service (NFS) *optional
+      user -> user : Deploy third party service (Submariner) *optional
+      user -> user : Deploy third party service (OpenWhisk) *optional
+      deactivate user
     end
 
-else !result
-	form --> user : display error
+  end
+
 end
 
 @enduml
