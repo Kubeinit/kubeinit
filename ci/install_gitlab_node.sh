@@ -110,7 +110,8 @@ sysctl -p
 
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     yum install -y nano git podman curl python3 python3-pip
-
+    # Install selinux python bindings
+    yum install -y libselinux-python3
     # ARA required packages
     yum install -y gcc python3-devel libffi-devel openssl-devel redhat-rpm-config
     yum install -y sqlite
