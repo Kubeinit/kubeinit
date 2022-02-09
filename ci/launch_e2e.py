@@ -362,14 +362,17 @@ def main(cluster_type, job_type):
                                          launch_from,
                                          job_name)
                     if output == 0:
+                        print("'launch_e2e.py' ==> The current job succeeded")
                         state = "success"
                     else:
+                        print("'launch_e2e.py' ==> The current job failed")
                         state = "failure"
 
                     dur_mins = str(round((time.time() - start_time) / 60, 2))
                     desc = ("Ended with %s in %s minutes" % (state, dur_mins))
 
                     dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
+                    print("'launch_e2e.py' ==> Desc message: " + desc)
 
                     print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
                     # We update the status with the job result

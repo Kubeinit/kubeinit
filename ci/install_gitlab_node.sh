@@ -41,8 +41,23 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
+    # Install jq
     yum install -y jq
+
+    # Install selinux python bindings
+    yum install -y libselinux-python3
+
+    # Disable selinux in the next reboot
+    sudo sed -i 's/enforcing/disabled/g' /etc/selinux/config /etc/selinux/config
+
+    if [ -f "/etc/fedora-release" ]; then
+        if grep -q 35 "/etc/fedora-release"; then
+            update-crypto-policies --set DEFAULT:FEDORA32
+        fi
+    fi
+
 fi
+
 if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
     apt-get install -y jq
 fi
@@ -110,8 +125,6 @@ sysctl -p
 
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     yum install -y nano git podman curl python3 python3-pip
-    # Install selinux python bindings
-    yum install -y libselinux-python3
     # ARA required packages
     yum install -y gcc python3-devel libffi-devel openssl-devel redhat-rpm-config
     yum install -y sqlite
@@ -146,6 +159,7 @@ git config --global user.name "kubeinit-bot"
 if command -v ansible; then
     apath=$(python3 -m pip show ansible | grep Location | awk '{ print $2 }')
     python3 -m pip uninstall ansible -y
+    python3 -m pip uninstall ansible-base -y
     rm -rf "$apath/ansible*"
 fi
 
@@ -157,8 +171,8 @@ python3 -m pip install \
     pip \
     wheel \
     shyaml \
-    cryptography==3.3.2 \
-    ansible==3.4.0 \
+    cryptography \
+    ansible \
     netaddr \
     requests \
     PyGithub \
