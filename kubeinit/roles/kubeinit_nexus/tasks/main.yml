@@ -206,18 +206,26 @@
     - name: Install the nexus3 cli
       ansible.builtin.command: |
         python3 -m pip install -q cryptography==3.3.2 nexus3-cli
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Login to nexus3 cli
       ansible.builtin.command: |
         env LC_ALL=C.UTF-8 LANG=C.UTF-8 nexus3 login -u admin -p {{ _result_admin_password.content | b64decode }} -U "https://{{ kubeinit_nexus_service_address }}:8443" --x509_verify
+      register: _result
+      changed_when: "_result.rc == 0"
       no_log: true
 
     - name: Create docker repository
       ansible.builtin.command: |
         env LC_ALL=C.UTF-8 LANG=C.UTF-8 REQUESTS_CA_BUNDLE="{{ kubeinit_nexus_directory_data }}/etc/ssl/public.cert" nexus3 repository create hosted docker --https-port {{ kubeinit_nexus_port }} --v1-enabled origin
+      register: _result
+      changed_when: "_result.rc == 0"
 
     - name: Activate security realm for docker tokens
       ansible.builtin.command: |
         env LC_ALL=C.UTF-8 LANG=C.UTF-8 REQUESTS_CA_BUNDLE="{{ kubeinit_nexus_directory_data }}/etc/ssl/public.cert" nexus3 security realm activate DockerToken
+      register: _result
+      changed_when: "_result.rc == 0"
 
   delegate_to: "{{ kubeinit_nexus_service_address }}"

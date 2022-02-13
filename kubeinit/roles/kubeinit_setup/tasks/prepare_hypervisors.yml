@@ -34,7 +34,7 @@
 
     - name: Define additional host facts
       ansible.builtin.set_fact:
-        kubeinit_deploy_keypair_path: "~/.ssh/kubeinit_id_{{ kubeinit_common_ssh_keytype }}"
+        kubeinit_deploy_keypair_path: "~/.ssh/kubeinit_id_{{ kubeinit_ssh_keytype }}"
 
     - name: Create ssh config file
       ansible.builtin.file:
@@ -63,7 +63,7 @@
     - name: Generate an OpenSSH keypair for setup_host to have remote access to hypervisor hosts
       community.crypto.openssh_keypair:
         path: "{{ kubeinit_deploy_keypair_path }}"
-        type: "{{ kubeinit_common_ssh_keytype }}"
+        type: "{{ kubeinit_ssh_keytype }}"
         comment: "{{ kubeinit_setup_host_name + ' ' + hostvars[kubeinit_setup_host_name].ansible_ssh_user + '@' + hostvars[kubeinit_setup_host_name].ansible_host }}"
         regenerate: 'never'
       register: _result_setup_keypair

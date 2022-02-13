@@ -107,7 +107,7 @@ fi
 podman run --rm -d --pod {{ kubeinit_cluster_name }}-ingress-pod --name {{ kubeinit_cluster_name }}-ingress-bind --network host -v /root/.ssh:/root/.ssh:${overlay} -v /var/kubeinit/bind:/etc/bind:Z -v {{ kubeinit_cluster_name }}-bind-cache:/var/cache/bind:Z kubeinit/{{ kubeinit_cluster_name }}-ingress-bind
 
 # Create ssh tunnels in the running container for all the ports served by the cluster haproxy service
-podman exec {{ kubeinit_cluster_name }}-ingress-bind ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -N -f -L ${KUBEINIT_INGRESS_IP}:80:${KUBEINIT_HAPROXY_IP}:80 -L ${KUBEINIT_INGRESS_IP}:443:${KUBEINIT_HAPROXY_IP}:443 -L ${KUBEINIT_INGRESS_IP}:6443:${KUBEINIT_HAPROXY_IP}:6443 -L ${KUBEINIT_INGRESS_IP}:8443:${KUBEINIT_HAPROXY_IP}:8443 -L ${KUBEINIT_INGRESS_IP}:9000:${KUBEINIT_HAPROXY_IP}:9000 -L ${KUBEINIT_INGRESS_IP}:22623:${KUBEINIT_HAPROXY_IP}:22623 root@${KUBEINIT_HAPROXY_IP}
+podman exec {{ kubeinit_cluster_name }}-ingress-bind ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -N -f -L ${KUBEINIT_INGRESS_IP}:80:${KUBEINIT_HAPROXY_IP}:80 -L ${KUBEINIT_INGRESS_IP}:443:${KUBEINIT_HAPROXY_IP}:443 -L ${KUBEINIT_INGRESS_IP}:6443:${KUBEINIT_HAPROXY_IP}:6443 -L ${KUBEINIT_INGRESS_IP}:8443:${KUBEINIT_HAPROXY_IP}:8443 -L ${KUBEINIT_INGRESS_IP}:9000:${KUBEINIT_HAPROXY_IP}:9000 -L ${KUBEINIT_INGRESS_IP}:22623:${KUBEINIT_HAPROXY_IP}:22623 root@${KUBEINIT_HAPROXY_IP}
 
 # Open firewall ports for external access
 if systemctl is-active firewalld; then

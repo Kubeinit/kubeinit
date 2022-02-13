@@ -51,7 +51,7 @@
     group: ci_host
     remote_user: "{{ kubeinit_facts_hostvars.remote_user }}"
     ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_ssh_keytype }}"
 
 - name: Add ansible_host for ci_host if not defined
   ansible.builtin.add_host:
@@ -71,14 +71,14 @@
   ansible.builtin.ping:
   vars:
     ansible_ssh_user: "{{ hostvars[groups['ci_host'][0]].remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_ssh_keytype }}"
   delegate_to: "{{ kubeinit_ci_host_name }}"
 
 - name: Gather facts from ci_host
   ansible.builtin.include_tasks: gather_host_facts.yml
   vars:
     ansible_ssh_user: "{{ hostvars[groups['ci_host'][0]].remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_ssh_keytype }}"
     _param_gather_host: "{{ kubeinit_ci_host_name }}"
 
 - name: Define additional host facts
@@ -86,7 +86,7 @@
     kubeinit_ci_host_fqdn: "{{ kubeinit_ci_host_name }}.{{ kubeinit_inventory_ci_domain }}"
     kubeinit_ci_host_address: "{{ hostvars[kubeinit_ci_host_name].ssh_connection_address }}"
     kubeinit_ci_host_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    kubeinit_ci_keypair_path: "~/.ssh/kubeinit_ci_id_{{ kubeinit_common_ssh_keytype }}"
+    kubeinit_ci_keypair_path: "~/.ssh/kubeinit_ci_id_{{ kubeinit_ssh_keytype }}"
     kubeinit_ci_bridge_name: kubeinit-ci-bridge
     kubeinit_ci_pod_name: kubeinit-ci-pod
 
@@ -112,7 +112,7 @@
   loop_control:
     loop_var: _param_gather_host
   vars:
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_ssh_keytype }}"
 
 - block:
     - name: Add task-prepare-environment to tasks_completed
