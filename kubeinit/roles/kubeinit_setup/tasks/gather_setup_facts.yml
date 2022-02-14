@@ -63,10 +63,10 @@
     name: "{{ kubeinit_facts_name }}"
     remote_user: "{{ kubeinit_cli_remote_user if (kubeinit_cli_remote_user|length > 0) else ansible_facts.user_id }}"
 
-- name: Load kubeinit_hypervisor_hosts_spec from yaml into a list of key=value lists if defined
+- name: Load hypervisor_hosts_spec from yaml into a list of key=value lists if defined
   ansible.builtin.set_fact:
-    hypervisor_hosts_list: "{{ kubeinit_hypervisor_hosts_spec | from_yaml }}"
-  when: kubeinit_hypervisor_hosts_spec is defined
+    hypervisor_hosts_list: "{{ hypervisor_hosts_spec | from_yaml }}"
+  when: hypervisor_hosts_spec is defined
 
 - name: Convert list of list into list of dictionary
   ansible.builtin.set_fact:
@@ -117,7 +117,7 @@
 
       Host {{ hostvars[host].ansible_host }}
         Hostname {{ hostvars[host].ssh_hostname }}
-        IdentityFile ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}
+        IdentityFile ~/.ssh/id_{{ kubeinit_ssh_keytype }}
         UserKnownHostsFile /dev/null
         StrictHostKeyChecking accept-new
       {% endif %}
@@ -127,7 +127,7 @@
 - name: Copy setup ssh key secret into ~/.ssh
   ansible.builtin.copy:
     content: "{{ hostvars[kubeinit_secrets_name].secrets[kubeinit_facts_hostvars.kubeinit_setup_ssh_key_secret] | b64decode }}"
-    dest: "~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+    dest: "~/.ssh/id_{{ kubeinit_ssh_keytype }}"
     mode: '0600'
   when: kubeinit_facts_hostvars.container_run|bool
 

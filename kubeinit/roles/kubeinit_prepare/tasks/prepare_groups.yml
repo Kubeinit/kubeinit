@@ -26,7 +26,7 @@
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
     target: "{{ hostvars[item].target }}"
     os: "{{ hostvars[item].os }}"
-  loop: "{{ groups['controller_nodes'][0:hostvars['kubeinit-cluster-facts'].controller_count|int] | default([]) | list }}"
+  loop: "{{ groups['controller_nodes'][0:hostvars[kubeinit_cluster_name].controller_count|int] | default([]) | list }}"
 
 - name: Add all compute nodes to the all_compute_nodes group
   ansible.builtin.add_host:
@@ -36,7 +36,7 @@
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
     target: "{{ hostvars[item].target }}"
     os: "{{ hostvars[item].os }}"
-  loop: "{{ groups['compute_nodes'][0:hostvars['kubeinit-cluster-facts'].compute_count|int] | default([]) | list }}"
+  loop: "{{ groups['compute_nodes'][0:hostvars[kubeinit_cluster_name].compute_count|int] | default([]) | list }}"
 
 - name: Add all controller and compute nodes to the all_cluster_nodes group
   ansible.builtin.add_host:
@@ -65,12 +65,12 @@
   loop: "{{ groups['all_cluster_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
 
 - name: Show the before and after values of the hypervisors fact
-  ansible.builtin.debug: msg="{{ hostvars[kubeinit_cluster_facts_name].hypervisors }} ==> {{ all_cluster_hypervisors }}"
+  ansible.builtin.debug: msg="{{ hostvars[kubeinit_cluster_name].hypervisors }} ==> {{ all_cluster_hypervisors }}"
 
 # TODO: check later to see if this would be a useful optimization
 # - name: Set all cluster hypervisors fact
 #   ansible.builtin.add_host:
-#     name: "{{ kubeinit_cluster_facts_name }}"
+#     name: "{{ kubeinit_cluster_name }}"
 #     hypervisors: "{{ all_cluster_hypervisors }}"
 
 - name: Add all service nodes to the all_service_nodes group
@@ -121,7 +121,7 @@
 
 - name: Set all services cluster fact
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
+    name: "{{ kubeinit_cluster_name }}"
     services: "{{ all_cluster_services }}"
 
 - name: Add all service and cluster nodes to the all_nodes group
@@ -174,7 +174,7 @@
   loop: "{{ groups['hypervisor_hosts'] }}"
   when: >
     item in hostvars[kubeinit_cluster_ovn_central_name].target or
-    item in hostvars[kubeinit_cluster_facts_name].hypervisors
+    item in hostvars[kubeinit_cluster_name].hypervisors
 
 - name: Add all hosts to the all_ovn_hosts group
   ansible.builtin.add_host:
@@ -189,7 +189,7 @@
 
 - name: Set all running vms cluster fact
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
+    name: "{{ kubeinit_cluster_name }}"
     running_vms: "{{ all_cluster_vms }}"
 
 - name: Collect all of the localhost and hypervisor authorized keys into authorized_keys list
@@ -201,7 +201,7 @@
 
 - name: Set all hypervisor authorized keys cluster fact
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
+    name: "{{ kubeinit_cluster_name }}"
     authorized_keys: "{{ all_authorized_keys }}"
 
 - name: Add services guest and cluster nodes to the all_guest_vms group
@@ -218,5 +218,5 @@
 
 - name: Set all node aliases cluster fact
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
+    name: "{{ kubeinit_cluster_name }}"
     node_aliases: "{{ all_node_aliases }}"

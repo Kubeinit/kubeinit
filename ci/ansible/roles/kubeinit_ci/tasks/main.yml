@@ -99,7 +99,7 @@
     - name: Generate a local OpenSSH keypair for remote podman access to the ci host
       community.crypto.openssh_keypair:
         path: "{{ kubeinit_ci_keypair_path }}"
-        type: "{{ kubeinit_common_ssh_keytype }}"
+        type: "{{ kubeinit_ssh_keytype }}"
         comment: "{{ kubeinit_ci_host_fqdn }}"
         regenerate: 'never'
       register: _result_ci_keypair
@@ -243,8 +243,8 @@
 
     - name: Generate an OpenSSH keypair for gitlab-runner
       community.crypto.openssh_keypair:
-        path: "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-        type: "{{ kubeinit_common_ssh_keytype }}"
+        path: "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/.ssh/id_{{ kubeinit_ssh_keytype }}"
+        type: "{{ kubeinit_ssh_keytype }}"
         comment: "{{ kubeinit_ci_host_fqdn }} kubeinit-runner"
         regenerate: 'never'
       register: _result_ci_keypair
@@ -534,7 +534,7 @@
         name: "{{ kubeinit_ci_pod_name }}"
         network: "{{ kubeinit_ci_bridge_name }}"
         hostname: "{{ kubeinit_ci_host_fqdn }}"
-        dns: "{{ kubeinit_common_dns_public }}"
+        dns: "{{ kubeinit_dns_public }}"
         publish:
           - 8080:80/tcp
         state: started

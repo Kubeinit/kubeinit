@@ -58,14 +58,16 @@
     - name: Prepare individual hypervisors
       tags: task_prepare_hypervisors
       block:
+        - name: Set kubeinit_cluster_name fact
+          ansible.builtin.set_fact:
+            kubeinit_cluster_name: "{{ hostvars['kubeinit-facts'].cluster_name }}"
+
         - name: Prepare each hypervisor in the deployment
           ansible.builtin.include_role:
             name: kubeinit.kubeinit.kubeinit_prepare
             tasks_from: prepare_hypervisor.yml
             public: true
-          vars:
-            kubeinit_cluster_name: "{{ hostvars['kubeinit-cluster-facts'].cluster_name }}"
-          when: inventory_hostname in hostvars['kubeinit-cluster-facts'].hypervisors
+          when: inventory_hostname in hostvars[kubeinit_cluster_name].hypervisors
 
 - name: Run cluster deployment on prepared hypervisors
   hosts: localhost

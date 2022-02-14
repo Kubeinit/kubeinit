@@ -34,6 +34,7 @@
 - name: Add playbook context facts
   ansible.builtin.add_host:
     name: "{{ kubeinit_facts_name }}"
+    groups: 'kubeinit_facts'
     container_run: "{{ kubeinit_container_run|default(false)|bool }}"
 
 - name: Set hostname we use to set kubeinit secrets
@@ -46,10 +47,6 @@
     tasks_from: gather_kubeinit_secrets.yml
     public: true
   when: hostvars[kubeinit_facts_name].container_run
-
-- name: Set hostname we use to set cluster facts
-  ansible.builtin.set_fact:
-    kubeinit_cluster_facts_name: 'kubeinit-cluster-facts'
 
 - name: Lookup remote_user from command-line
   ansible.builtin.set_fact:
@@ -67,10 +64,10 @@
     name: "{{ kubeinit_facts_name }}"
     remote_user: "{{ kubeinit_cli_remote_user if (kubeinit_cli_remote_user|length > 0) else ansible_facts.user_id }}"
 
-- name: Load kubeinit_hypervisor_hosts_spec from yaml into a list of key=value lists if defined
+- name: Load hypervisor_hosts_spec from yaml into a list of key=value lists if defined
   ansible.builtin.set_fact:
-    hypervisor_hosts_list: "{{ kubeinit_hypervisor_hosts_spec | from_yaml }}"
-  when: kubeinit_hypervisor_hosts_spec is defined
+    hypervisor_hosts_list: "{{ hypervisor_hosts_spec | from_yaml }}"
+  when: hypervisor_hosts_spec is defined
 
 - name: Convert list of list into list of dictionary
   ansible.builtin.set_fact:
@@ -120,7 +117,7 @@
 
       Host {{ hostvars[host].ansible_host }}
         Hostname {{ hostvars[host].ssh_hostname }}
-        IdentityFile ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}
+        IdentityFile ~/.ssh/id_{{ kubeinit_ssh_keytype }}
         UserKnownHostsFile /dev/null
         StrictHostKeyChecking accept-new
       {% endif %}
@@ -130,7 +127,7 @@
 - name: Copy ssh key secret into ~/.ssh
   ansible.builtin.copy:
     content: "{{ hostvars[kubeinit_secrets_name].secrets[kubeinit_facts_hostvars.kubeinit_ssh_key_secret] | b64decode }}"
-    dest: "~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+    dest: "~/.ssh/id_{{ kubeinit_ssh_keytype }}"
     mode: '0600'
   when: kubeinit_facts_hostvars.container_run|bool
 
@@ -162,34 +159,50 @@
       - kubeinit_spec_hypervisors|int >= 0
       - kubeinit_spec_hypervisors|int <= (groups['hypervisor_hosts'] | length)
 
+- name: Set cluster name fact from inventory and kubeinit_spec
+  ansible.builtin.set_fact:
+    kubeinit_cluster_name: "{{ kubeinit_inventory_cluster_name | default(kubeinit_spec_distro + 'cluster') }}"
+
+- name: Add fact for cluster name
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_facts_name }}"
+    cluster_name: "{{ kubeinit_cluster_name }}"
+
+- name: Add cluster to kubeinit_cluster group
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_name }}"
+    groups: 'kubeinit_cluster'
+    cluster_domain: "{{ kubeinit_inventory_cluster_domain | default(omit) }}"
+    hypervisor_name_pattern: "{{ kubeinit_inventory_hypervisor_name_pattern | default(omit) }}"
+    controller_name_pattern: "{{ kubeinit_inventory_controller_name_pattern | default(omit) }}"
+    compute_name_pattern: "{{ kubeinit_inventory_compute_name_pattern | default(omit) }}"
+    post_deployment_services: "{{ kubeinit_inventory_post_deployment_services | default(omit) }}"
+
 - name: Add kubeinit_spec facts to cluster facts
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
+    name: "{{ kubeinit_cluster_name }}"
+    groups: 'kubeinit_cluster'
     distro: "{{ kubeinit_spec_distro }}"
     controller_count: "{{ kubeinit_spec_controllers }}"
     compute_count: "{{ kubeinit_spec_computes }}"
     node_count: "{{ kubeinit_spec_controllers|int + kubeinit_spec_computes|int }}"
     hypervisors: "{{ groups['hypervisor_hosts'][0:kubeinit_spec_hypervisors|int] }}"
 
-- name: Set cluster name fact from inventory and kubeinit_spec
-  ansible.builtin.set_fact:
-    kubeinit_cluster_name: "{{ kubeinit_inventory_cluster_name | default(kubeinit_spec_distro + 'cluster') }}"
-
 - name: Copy cluster ssh key secret into ~/.ssh
   ansible.builtin.copy:
     content: "{{ hostvars[kubeinit_secrets_name].secrets[kubeinit_facts_hostvars.kubeinit_cluster_ssh_key_secret] | b64decode }}"
-    dest: "~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }}"
+    dest: "~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }}"
     mode: '0600'
   when: kubeinit_facts_hostvars.container_run|bool and hostvars[kubeinit_secrets_name].secrets[kubeinit_facts_hostvars.kubeinit_cluster_ssh_key_secret] is defined
 
 - name: Set more cluster facts from inventory and kubeinit_spec
   ansible.builtin.set_fact:
     kubeinit_cluster_distro: "{{ kubeinit_spec_distro }}"
-    kubeinit_cluster_fqdn: "{{ kubeinit_cluster_name }}.{{ kubeinit_inventory_cluster_domain }}"
+    kubeinit_cluster_fqdn: "{{ kubeinit_cluster_name }}.{{ hostvars[kubeinit_cluster_name].cluster_domain }}"
 
 - name: Add more facts to cluster facts
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
+    name: "{{ kubeinit_cluster_name }}"
     cluster_name: "{{ kubeinit_cluster_name }}"
     cluster_fqdn: "{{ kubeinit_cluster_fqdn }}"
 
@@ -223,7 +236,7 @@
 
 - name: Add cluster network facts to cluster facts
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
+    name: "{{ kubeinit_cluster_name }}"
     network_name: "{{ kubeinit_cluster_network_name }}"
     network: "{{ kubeinit_cluster_network }}"
     prefix: "{{ kubeinit_cluster_prefix }}"
@@ -240,7 +253,7 @@
   loop_control:
     extended: true
   vars:
-    controller_node: "{{ kubeinit_inventory_controller_name_pattern | format(ansible_loop.index) }}"
+    controller_node: "{{ hostvars[kubeinit_cluster_name].controller_name_pattern | format(ansible_loop.index) }}"
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
@@ -255,7 +268,7 @@
   loop_control:
     extended: true
   vars:
-    compute_node: "{{ kubeinit_inventory_compute_name_pattern | format(ansible_loop.index) }}"
+    compute_node: "{{ hostvars[kubeinit_cluster_name].compute_name_pattern | format(ansible_loop.index) }}"
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
@@ -306,7 +319,7 @@
 
 - name: Assign dhcp facts
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_facts_name }}"
+    name: "{{ kubeinit_cluster_name }}"
     dhcp_start: "{{ kubeinit_cluster_dhcp_start }}"
     dhcp_end: "{{ kubeinit_cluster_dhcp_end }}"
 
@@ -321,14 +334,14 @@
   ansible.builtin.add_host:
     name: "{{ hypervisor_host }}"
     ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
-  loop: "{{ hostvars[kubeinit_cluster_facts_name].hypervisors }}"
+    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_ssh_keytype }}"
+  loop: "{{ hostvars[kubeinit_cluster_name].hypervisors }}"
   loop_control:
     loop_var: hypervisor_host
 
 - name: Gather hypervisor and localhost facts
   ansible.builtin.include_tasks: gather_host_facts.yml
-  loop: "{{ hostvars[kubeinit_cluster_facts_name].hypervisors | union(['localhost']) }}"
+  loop: "{{ hostvars[kubeinit_cluster_name].hypervisors | union(['localhost']) }}"
   loop_control:
     loop_var: _param_gather_host
 
@@ -347,7 +360,7 @@
   vars:
     inventory_node: "{{ item[0] }}"
     candidate: "{{ item[1] }}"
-  when: candidate in hostvars[kubeinit_cluster_facts_name].hypervisors
+  when: candidate in hostvars[kubeinit_cluster_name].hypervisors
 
 - name: Debug inventory_nodes target
   ansible.builtin.debug:
@@ -372,7 +385,7 @@
   loop_control:
     extended: true
   vars:
-    controller_node: "{{ kubeinit_inventory_controller_name_pattern | format(ansible_loop.index) }}"
+    controller_node: "{{ hostvars[kubeinit_cluster_name].controller_name_pattern | format(ansible_loop.index) }}"
 
 - name: Assign remaining compute_nodes facts
   ansible.builtin.add_host:
@@ -385,7 +398,7 @@
   loop_control:
     extended: true
   vars:
-    compute_node: "{{ kubeinit_inventory_compute_name_pattern | format(ansible_loop.index) }}"
+    compute_node: "{{ hostvars[kubeinit_cluster_name].compute_name_pattern | format(ansible_loop.index) }}"
 
 - name: Assign remaining extra_nodes facts
   ansible.builtin.add_host:
