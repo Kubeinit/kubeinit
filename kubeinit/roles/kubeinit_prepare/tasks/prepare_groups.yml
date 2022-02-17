@@ -57,7 +57,7 @@
     os: "{{ hostvars[item].os }}"
     ram: "{{ hostvars[item].ram }}"
   loop: "{{ groups['extra_nodes'] | default([]) | list }}"
-  when: kubeinit_cluster_distro in hostvars[item].distro
+  when: kubeinit_cluster_distro in hostvars[item].when_distro
 
 - name: Collect all cluster node hypervisors
   ansible.builtin.set_fact:
@@ -65,7 +65,7 @@
   loop: "{{ groups['all_cluster_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
 
 - name: Show the before and after values of the hypervisors fact
-  ansible.builtin.debug: msg="{{ hostvars[kubeinit_cluster_name].hypervisors }} ==> {{ all_cluster_hypervisors }}"
+  ansible.builtin.debug: msg="{{ groups['kubeinit_hypervisors'] }} ==> {{ all_cluster_hypervisors }}"
 
 # TODO: check later to see if this would be a useful optimization
 # - name: Set all cluster hypervisors fact
@@ -136,7 +136,7 @@
   ansible.builtin.add_host:
     name: "{{ kubeinit_cluster_bastion_name }}"
     group: bastion_host
-    target: "{{ groups['hypervisor_hosts'][0] }}"
+    target: "{{ groups['kubeinit_hypervisors'] | first }}"
   when: "('bastion_host' not in groups) or ((groups['bastion_host'] | list | length) == 0)"
 
 - name: Add ansible_host for bastion_host if not defined
@@ -157,8 +157,8 @@
   ansible.builtin.add_host:
     name: "{{ kubeinit_cluster_ovn_central_name }}"
     group: ovn_central_host
-    target: "{{ groups['hypervisor_hosts'][0] }}"
-    ansible_host: "{{ hostvars[groups['hypervisor_hosts'][0]].ansible_host }}"
+    target: "{{ groups['kubeinit_hypervisors'] | first }}"
+    ansible_host: "{{ hostvars[groups['kubeinit_hypervisors'] | first].ansible_host }}"
   when: "('ovn_central_host' not in groups) or ((groups['ovn_central_host'] | list | length) == 0)"
 
 - name: Add ansible_host for ovn_central_host
@@ -171,10 +171,10 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_hosts
-  loop: "{{ groups['hypervisor_hosts'] }}"
+  loop: "{{ groups['kubeinit_hypervisors'] }}"
   when: >
     item in hostvars[kubeinit_cluster_ovn_central_name].target or
-    item in hostvars[kubeinit_cluster_name].hypervisors
+    item in groups['kubeinit_hypervisors']
 
 - name: Add all hosts to the all_ovn_hosts group
   ansible.builtin.add_host:
@@ -182,22 +182,10 @@
     group: all_ovn_hosts
   loop: "{{ groups['all_hosts'] }}"
 
-- name: Collect all of the hypervisor running vms into hv/vm tuples
-  ansible.builtin.set_fact:
-    all_cluster_vms: "{{ (all_cluster_vms | default([])) + ([item[0]] | product(item[1]) | list) }}"
-  loop: "{{ groups['all_hosts'] | zip(groups['all_hosts'] | map('extract', hostvars, 'libvirt_vms')) }}"
-
-- name: Set all running vms cluster fact
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
-    running_vms: "{{ all_cluster_vms }}"
-
 - name: Collect all of the localhost and hypervisor authorized keys into authorized_keys list
   ansible.builtin.set_fact:
-    all_authorized_keys: "{{ (all_authorized_keys | default([])) | union([authorized_key]) }}"
+    all_authorized_keys: "{{ (all_authorized_keys | default([])) | union([hostvars[item].authorized_key]) }}"
   loop: "{{ ['localhost'] | union(groups['all_hosts']) }}"
-  vars:
-    authorized_key: "{{ hostvars[item].authorized_key }}"
 
 - name: Set all hypervisor authorized keys cluster fact
   ansible.builtin.add_host:

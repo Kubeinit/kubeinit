@@ -18,6 +18,20 @@
 # Cleanup VMs created during task-deploy-cluster
 #
 
+- name: Get all the libvirt VMs
+  community.libvirt.virt:
+    command: list_vms
+  register: _result_vms
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: host
+  delegate_to: "{{ host }}"
+
+- name: Collect all of the hypervisor running vms into hv/vm tuples
+  ansible.builtin.set_fact:
+    running_vms: "{{ (running_vms | default([])) + ([item.host] | product(item.list_vms) | list) }}"
+  loop: "{{ _result_vms.results }}"
+
 - name: Generate a list of vm guest names to match
   ansible.builtin.set_fact:
     matching_vm_guest_names: "{{ (matching_vm_guest_names | default([])) | union([hostvars[item].guest_name]) }}"
@@ -27,7 +41,7 @@
   community.libvirt.virt:
     name: "{{ cluster_vm }}"
     state: destroyed
-  loop: "{{ kubeinit_cluster_hostvars.running_vms }}"
+  loop: "{{ running_vms }}"
   vars:
     kubeinit_deployment_node_name: "{{ item[0] }}"
     cluster_vm: "{{ item[1] }}"
@@ -38,7 +52,7 @@
   community.libvirt.virt:
     name: "{{ cluster_vm }}"
     command: undefine
-  loop: "{{ kubeinit_cluster_hostvars.running_vms }}"
+  loop: "{{ running_vms }}"
   vars:
     kubeinit_deployment_node_name: "{{ item[0] }}"
     cluster_vm: "{{ item[1] }}"
@@ -49,7 +63,7 @@
   ansible.builtin.file:
     state: absent
     path: "{{ kubeinit_libvirt_target_image_dir }}/{{ cluster_vm }}.qcow2"
-  loop: "{{ kubeinit_cluster_hostvars.running_vms }}"
+  loop: "{{ running_vms }}"
   vars:
     kubeinit_deployment_node_name: "{{ item[0] }}"
     cluster_vm: "{{ item[1] }}"
@@ -72,35 +86,44 @@
 #
 # Cleanup libvirt networks created during task-create-network
 #
+- name: Get all the libvirt networks
+  community.libvirt.virt_net:
+    command: list_nets
+  register: _result_nets
+  loop: "{{ groups['all_hosts'] }}"
+  loop_control:
+    loop_var: host
+  delegate_to: "{{ host }}"
+
 - name: Destroy deployment networks
   community.libvirt.virt_net:
     command: destroy
     name: "{{ kubeinit_cluster_network_name }}"
-  loop: "{{ groups['all_hosts'] }}"
+  loop: "{{ _result_nets.results }}"
   loop_control:
-    loop_var: kubeinit_deployment_node_name
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: kubeinit_cluster_network_name in hostvars[kubeinit_deployment_node_name].libvirt_nets
+    loop_var: result
+  delegate_to: "{{ result.host }}"
+  when: kubeinit_cluster_network_name in result.list_nets
 
 - name: Undefine deployment networks
   community.libvirt.virt_net:
     command: undefine
     name: "{{ kubeinit_cluster_network_name }}"
-  loop: "{{ groups['all_hosts'] }}"
+  loop: "{{ _result_nets.results }}"
   loop_control:
-    loop_var: kubeinit_deployment_node_name
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: kubeinit_cluster_network_name in hostvars[kubeinit_deployment_node_name].libvirt_nets
+    loop_var: result
+  delegate_to: "{{ result.host }}"
+  when: kubeinit_cluster_network_name in result.list_nets
 
 - name: Remove the deployment networks
   community.libvirt.virt_net:
     state: absent
     name: "{{ kubeinit_cluster_network_name }}"
-  loop: "{{ groups['all_hosts'] }}"
+  loop: "{{ _result_nets.results }}"
   loop_control:
-    loop_var: kubeinit_deployment_node_name
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: kubeinit_cluster_network_name in hostvars[kubeinit_deployment_node_name].libvirt_nets
+    loop_var: result
+  delegate_to: "{{ result.host }}"
+  when: kubeinit_cluster_network_name in result.list_nets
 
 #
 # Cleanup OVN network resources for this cluster created during task-create-network
