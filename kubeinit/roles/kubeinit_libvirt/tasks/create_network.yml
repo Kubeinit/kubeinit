@@ -511,12 +511,6 @@
 
   delegate_to: "{{ kubeinit_ovn_central_host }}"
 
-# When the deployment finishes, it shuold be possible to see the available chassis and ports by running:
-# /usr/bin/ovn-nbctl show
-# /usr/bin/ovn-sbctl show
-# /usr/bin/ovs-vsctl show
-# /usr/bin/ovs-vsctl list interface veth0-0a000064
-
 #
 # Define libvirt common resources and networks
 #
@@ -557,6 +551,24 @@
   loop_control:
     loop_var: ovn_host
   delegate_to: "{{ ovn_host }}"
+
+- name: Show northbound status
+  ansible.builtin.command: /usr/bin/ovn-nbctl show
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_ovn_central_host }}"
+
+- name: Show southbound status
+  ansible.builtin.command: /usr/bin/ovn-sbctl show
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_ovn_central_host }}"
+
+- name: Show openvswitch status
+  ansible.builtin.command: /usr/bin/ovs-vsctl show
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_ovn_central_host }}"
 
 - block:
     - name: Add task-create-network to tasks_completed

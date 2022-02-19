@@ -19,82 +19,32 @@
   ansible.builtin.package:
     name: "{{ kubeinit_prepare_podman_dependencies }}"
     state: present
+  become: true
+  become_user: root
+  when: _param_install_dependencies | default(true)
 
-#
-# Currently there are two ways of configuring
-# the docker.io credentials using the variable
-# kubeinit_common_docker_password
-#
-# If the kubeinit_common_docker_password variable
-# is the path of the file containing the password
-# we get the password from that file, and in the case
-# this path do not exists, then we asume that the
-# variable contains the password itself.
-#
-
-- name: Authenticate with docker username/password if defined
+- name: Authenticate with dockerhub username/password if defined
   block:
 
-    - name: Set facts for dockerhub secrets from the environment
+    - name: Set facts for dockerhub secrets
       block:
         - name: Set username_secret
           ansible.builtin.set_fact:
-            _results: "{{ _results | combine({'username': kubeinit_common_docker_username | default(omit)}) }}"
+            _results: "{{ _results | combine({'username_secret': omit if (hostvars['kubeinit-secrets'].secrets['dockerhub_username'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['dockerhub_username']}) }}"
         - name: Set password_secret
           ansible.builtin.set_fact:
-            _results: "{{ _results | combine({'password': kubeinit_common_docker_password | default(omit)}) }}"
+            _results: "{{ _results | combine({'password_secret': omit if (hostvars['kubeinit-secrets'].secrets['dockerhub_password'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['dockerhub_password']}) }}"
       no_log: true
-      when: (kubeinit_common_docker_username | default('') | length > 0) and (kubeinit_common_docker_password | default('') | length > 0)
-
-    - name: Set facts for dockerhub secrets if running from container
-      block:
-        - name: Set username_secret
-          ansible.builtin.set_fact:
-            _results: "{{ _results | combine({'username_secret': omit if (hostvars[kubeinit_secrets_name].secrets[dockerhub_username_secret] | default('') | length == 0) else hostvars[kubeinit_secrets_name].secrets[dockerhub_username_secret]}) }}"
-        - name: Set password_secret
-          ansible.builtin.set_fact:
-            _results: "{{ _results | combine({'password_secret': omit if (hostvars[kubeinit_secrets_name].secrets[dockerhub_password_secret] | default('') | length == 0) else hostvars[kubeinit_secrets_name].secrets[dockerhub_password_secret]}) }}"
-      no_log: true
-      when: kubeinit_facts_hostvars.container_run|bool
-
-    - name: Check for password from a file if not in container
-      block:
-
-        - name: Check if kubeinit_common_docker_password path exists
-          ansible.builtin.stat:
-            path: "{{ kubeinit_common_docker_password }}"
-          register: _result_password_stat
-          delegate_to: localhost
-
-        - name: Read docker password from file when the variable contains a path
-          ansible.builtin.slurp:
-            src: "{{ kubeinit_common_docker_password }}"
-          register: _result_password
-          delegate_to: localhost
-          when: _result_password_stat.stat.exists
-
-        - name: Set password secret
-          ansible.builtin.set_fact:
-            _results: "{{ _results | combine({'password_secret': _result_password.content}) }}"
-          when: _result_password_stat.stat.exists
-
-        - name: Clear any reference to docker password info
-          ansible.builtin.set_fact:
-            _result_password_stat: null
-            _result_password: null
-
-      no_log: true
-      when: not kubeinit_facts_hostvars.container_run|bool
 
     - name: Podman login to docker.io
       containers.podman.podman_login:
-        username: "{{ (_results['username_secret'] | b64decode | trim) if (_results['username_secret'] is defined) else _results['username'] }}"
-        password: "{{ (_results['password_secret'] | b64decode | trim) if (_results['password_secret'] is defined) else _results['password'] }}"
+        username: "{{ _results['username_secret'] | b64decode | trim }}"
+        password: "{{ _results['password_secret'] | b64decode | trim }}"
         registry: "docker.io"
       no_log: true
-      when: (_results['username_secret'] is defined or _results['username'] is defined) and (_results['password_secret'] is defined or _results['password'] is defined)
+      when: (_results['username_secret'] is defined) and (_results['password_secret'] is defined)
 
-    - name: Clear any reference to docker password
+    - name: Clear any reference to dockerhub secrets
       ansible.builtin.set_fact:
         _results: {}
       no_log: true
