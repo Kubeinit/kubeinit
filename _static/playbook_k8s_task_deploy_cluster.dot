@@ -2,362 +2,450 @@ digraph {
 	graph [concentrate=true ordering=in rankdir=LR ratio=fill]
 	edge [esep=5 sep=10]
 	"kubeinit/playbook.yml" [id=root_node style=dotted]
-	play_da8ddf16 [label="Play: Initial setup (1)" color="#08c4bc" fontcolor="#ffffff" id=play_da8ddf16 shape=box style=filled tooltip=localhost]
-	"kubeinit/playbook.yml" -> play_da8ddf16 [label="1 " color="#08c4bc" fontcolor="#08c4bc" id=edge_2ab20739 labeltooltip="1 " tooltip="1 "]
-	subgraph "Read podman secrets if running from the container" {
-		role_441dc929 [label="[role] Read podman secrets if running from the container" color="#08c4bc" id=role_441dc929 tooltip="Read podman secrets if running from the container"]
+	play_da3594ea [label="Play: Perform initial setup on ansible-controller host (localhost) (1)" color="#2476a8" fontcolor="#ffffff" id=play_da3594ea shape=box style=filled tooltip=localhost]
+	"kubeinit/playbook.yml" -> play_da3594ea [label="1 " color="#2476a8" fontcolor="#2476a8" id=edge_cbafdfa0 labeltooltip="1 " tooltip="1 "]
+	subgraph "Gather kubeinit secrets" {
+		role_c9764145 [label="[role] Gather kubeinit secrets" color="#2476a8" id=role_c9764145 tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_acb22802 [label="[role] Gather additional facts from localhost for kubeinit" color="#2476a8" id=role_acb22802 tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_30d664f5 [label="[role] Create ssh config file from template" color="#2476a8" id=role_30d664f5 tooltip="Create ssh config file from template"]
 	}
 	subgraph "task-gather-facts" {
-		role_c1c93558 [label="[role] task-gather-facts" color="#08c4bc" id=role_c1c93558 tooltip="task-gather-facts"]
-		role_c1c93558 -> role_441dc929 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#08c4bc" fontcolor="#08c4bc" id=edge_d286e78c labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_d21c91bd [label="[role] task-gather-facts" color="#2476a8" id=role_d21c91bd tooltip="task-gather-facts"]
+		role_d21c91bd -> role_c9764145 [label="1 " color="#2476a8" fontcolor="#2476a8" id=edge_14dc2c44 labeltooltip="1 " tooltip="1 "]
+		role_d21c91bd -> role_acb22802 [label="2 " color="#2476a8" fontcolor="#2476a8" id=edge_0794914d labeltooltip="2 " tooltip="2 "]
+		role_d21c91bd -> role_30d664f5 [label="3 " color="#2476a8" fontcolor="#2476a8" id=edge_3cad10f6 labeltooltip="3 " tooltip="3 "]
 	}
-	subgraph "Read podman secrets if running from the container" {
-		role_d292b966 [label="[role] Read podman secrets if running from the container" color="#08c4bc" id=role_d292b966 tooltip="Read podman secrets if running from the container"]
+	subgraph "Gather kubeinit secrets" {
+		role_fc819889 [label="[role] Gather kubeinit secrets" color="#2476a8" id=role_fc819889 tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_a3cff36e [label="[role] Gather additional facts from localhost for kubeinit" color="#2476a8" id=role_a3cff36e tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_89a5af11 [label="[role] Create ssh config file from template" color="#2476a8" id=role_89a5af11 tooltip="Create ssh config file from template"]
 	}
 	subgraph "task-prepare-hypervisors" {
-		role_888502aa [label="[role] task-prepare-hypervisors" color="#08c4bc" id=role_888502aa tooltip="task-prepare-hypervisors"]
-		role_888502aa -> role_d292b966 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#08c4bc" fontcolor="#08c4bc" id=edge_41ae95bb labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_d4deb626 [label="[role] task-prepare-hypervisors" color="#2476a8" id=role_d4deb626 tooltip="task-prepare-hypervisors"]
+		role_d4deb626 -> role_fc819889 [label="1 " color="#2476a8" fontcolor="#2476a8" id=edge_87483ac9 labeltooltip="1 " tooltip="1 "]
+		role_d4deb626 -> role_a3cff36e [label="2 " color="#2476a8" fontcolor="#2476a8" id=edge_87737c65 labeltooltip="2 " tooltip="2 "]
+		role_d4deb626 -> role_89a5af11 [label="3 " color="#2476a8" fontcolor="#2476a8" id=edge_5eab5709 labeltooltip="3 " tooltip="3 "]
 	}
-	subgraph "Play: Initial setup (1)" {
-		play_da8ddf16 -> block_93714618 [label=1 color="#08c4bc" fontcolor="#08c4bc" id=edge_2a25c423 labeltooltip=1 tooltip=1]
-		subgraph cluster_block_93714618 {
-			block_93714618 [label="[block] Gather facts about the deployment environment" color="#08c4bc" id=block_93714618 labeltooltip="Gather facts about the deployment environment" shape=box tooltip="Gather facts about the deployment environment"]
-			block_93714618 -> role_c1c93558 [label="1 " color="#08c4bc" fontcolor="#08c4bc" id=edge_da4ed15e labeltooltip="1 " tooltip="1 "]
+	subgraph "Play: Perform initial setup on ansible-controller host (localhost) (1)" {
+		play_da3594ea -> block_828c5c3f [label=1 color="#2476a8" fontcolor="#2476a8" id=edge_e65d699b labeltooltip=1 tooltip=1]
+		subgraph cluster_block_828c5c3f {
+			block_828c5c3f [label="[block] Gather facts about the deployment environment" color="#2476a8" id=block_828c5c3f labeltooltip="Gather facts about the deployment environment" shape=box tooltip="Gather facts about the deployment environment"]
+			block_828c5c3f -> role_d21c91bd [label="1 " color="#2476a8" fontcolor="#2476a8" id=edge_f36c7d40 labeltooltip="1 " tooltip="1 "]
 		}
-		play_da8ddf16 -> block_e4b97298 [label=2 color="#08c4bc" fontcolor="#08c4bc" id=edge_2e1c40a3 labeltooltip=2 tooltip=2]
-		subgraph cluster_block_e4b97298 {
-			block_e4b97298 [label="[block] Prepare the hypervisors" color="#08c4bc" id=block_e4b97298 labeltooltip="Prepare the hypervisors" shape=box tooltip="Prepare the hypervisors"]
-			block_e4b97298 -> role_888502aa [label="1 " color="#08c4bc" fontcolor="#08c4bc" id=edge_5ef0e227 labeltooltip="1 " tooltip="1 "]
+		play_da3594ea -> block_ab36aa8f [label=2 color="#2476a8" fontcolor="#2476a8" id=edge_cd1b37e9 labeltooltip=2 tooltip=2]
+		subgraph cluster_block_ab36aa8f {
+			block_ab36aa8f [label="[block] Prepare the hypervisors" color="#2476a8" id=block_ab36aa8f labeltooltip="Prepare the hypervisors" shape=box tooltip="Prepare the hypervisors"]
+			block_ab36aa8f -> role_d4deb626 [label="1 " color="#2476a8" fontcolor="#2476a8" id=edge_04390767 labeltooltip="1 " tooltip="1 "]
 		}
 	}
-	play_be178d10 [label="Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)" color="#b80fbd" fontcolor="#ffffff" id=play_be178d10 shape=box style=filled tooltip="Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)"]
-	"kubeinit/playbook.yml" -> play_be178d10 [label="2 " color="#b80fbd" fontcolor="#b80fbd" id=edge_54947cb1 labeltooltip="2 " tooltip="2 "]
+	play_f4e081c2 [label="Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)" color="#75c507" fontcolor="#ffffff" id=play_f4e081c2 shape=box style=filled tooltip="Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)"]
+	"kubeinit/playbook.yml" -> play_f4e081c2 [label="2 " color="#75c507" fontcolor="#75c507" id=edge_447db4a5 labeltooltip="2 " tooltip="2 "]
 	subgraph "Provision the libvirt services on the hypervisor" {
-		role_a18d3710 [label="[role] Provision the libvirt services on the hypervisor" color="#b80fbd" id=role_a18d3710 tooltip="Provision the libvirt services on the hypervisor"]
+		role_bfaf1ce4 [label="[role] Provision the libvirt services on the hypervisor" color="#75c507" id=role_bfaf1ce4 tooltip="Provision the libvirt services on the hypervisor"]
 	}
 	subgraph "Prepare each hypervisor in the deployment" {
-		role_772d5543 [label="[role] Prepare each hypervisor in the deployment" color="#b80fbd" id=role_772d5543 tooltip="Prepare each hypervisor in the deployment"]
-		role_772d5543 -> role_a18d3710 [label="1 " color="#b80fbd" fontcolor="#b80fbd" id=edge_a10fb043 labeltooltip="1 " tooltip="1 "]
+		role_6fe2093e [label="[role] Prepare each hypervisor in the deployment" color="#75c507" id=role_6fe2093e tooltip="Prepare each hypervisor in the deployment"]
+		role_6fe2093e -> role_bfaf1ce4 [label="1 " color="#75c507" fontcolor="#75c507" id=edge_25c73618 labeltooltip="1 " tooltip="1 "]
 	}
 	subgraph "Play: Prepare all hypervisor hosts to deploy service and cluster nodes (0)" {
-		play_be178d10 -> block_414bad02 [label=1 color="#b80fbd" fontcolor="#b80fbd" id=edge_44b56a50 labeltooltip=1 tooltip=1]
-		subgraph cluster_block_414bad02 {
-			block_414bad02 [label="[block] Prepare individual hypervisors" color="#b80fbd" id=block_414bad02 labeltooltip="Prepare individual hypervisors" shape=box tooltip="Prepare individual hypervisors"]
-			block_414bad02 -> role_772d5543 [label="1 [when: inventory_hostname in hostvars[kubeinit_cluster_name].hypervisors]" color="#b80fbd" fontcolor="#b80fbd" id=edge_91aeb3d8 labeltooltip="1 [when: inventory_hostname in hostvars[kubeinit_cluster_name].hypervisors]" tooltip="1 [when: inventory_hostname in hostvars[kubeinit_cluster_name].hypervisors]"]
+		play_f4e081c2 -> block_cc5f80a3 [label=1 color="#75c507" fontcolor="#75c507" id=edge_cf02ddc7 labeltooltip=1 tooltip=1]
+		subgraph cluster_block_cc5f80a3 {
+			block_cc5f80a3 [label="[block] Prepare individual hypervisors" color="#75c507" id=block_cc5f80a3 labeltooltip="Prepare individual hypervisors" shape=box tooltip="Prepare individual hypervisors"]
+			block_cc5f80a3 -> role_6fe2093e [label="1 " color="#75c507" fontcolor="#75c507" id=edge_fa8f3e17 labeltooltip="1 " tooltip="1 "]
 		}
 	}
-	play_8ef2c419 [label="Play: Run cluster deployment on prepared hypervisors (1)" color="#8409c3" fontcolor="#ffffff" id=play_8ef2c419 shape=box style=filled tooltip=localhost]
-	"kubeinit/playbook.yml" -> play_8ef2c419 [label="3 " color="#8409c3" fontcolor="#8409c3" id=edge_95dab578 labeltooltip="3 " tooltip="3 "]
-	subgraph "Read podman secrets if running from the container" {
-		role_e935fdc7 [label="[role] Read podman secrets if running from the container" color="#8409c3" id=role_e935fdc7 tooltip="Read podman secrets if running from the container"]
+	play_a207abc6 [label="Play: Run cluster deployment on prepared hypervisors (1)" color="#963678" fontcolor="#ffffff" id=play_a207abc6 shape=box style=filled tooltip=localhost]
+	"kubeinit/playbook.yml" -> play_a207abc6 [label="3 " color="#963678" fontcolor="#963678" id=edge_00d1b1b5 labeltooltip="3 " tooltip="3 "]
+	subgraph "Gather kubeinit secrets" {
+		role_bddbe7f1 [label="[role] Gather kubeinit secrets" color="#963678" id=role_bddbe7f1 tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_86fe7c49 [label="[role] Gather additional facts from localhost for kubeinit" color="#963678" id=role_86fe7c49 tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_ef098580 [label="[role] Create ssh config file from template" color="#963678" id=role_ef098580 tooltip="Create ssh config file from template"]
 	}
 	subgraph "task-prepare-environment" {
-		role_42e9dcc0 [label="[role] task-prepare-environment" color="#8409c3" id=role_42e9dcc0 tooltip="task-prepare-environment"]
-		role_42e9dcc0 -> role_e935fdc7 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#8409c3" fontcolor="#8409c3" id=edge_8528fce3 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_f2fd42d3 [label="[role] task-prepare-environment" color="#963678" id=role_f2fd42d3 tooltip="task-prepare-environment"]
+		role_f2fd42d3 -> role_bddbe7f1 [label="1 " color="#963678" fontcolor="#963678" id=edge_7b276fd8 labeltooltip="1 " tooltip="1 "]
+		role_f2fd42d3 -> role_86fe7c49 [label="2 " color="#963678" fontcolor="#963678" id=edge_b787b2cb labeltooltip="2 " tooltip="2 "]
+		role_f2fd42d3 -> role_ef098580 [label="3 " color="#963678" fontcolor="#963678" id=edge_b833527f labeltooltip="3 " tooltip="3 "]
 	}
-	subgraph "Read podman secrets if running from the container" {
-		role_ed925f99 [label="[role] Read podman secrets if running from the container" color="#8409c3" id=role_ed925f99 tooltip="Read podman secrets if running from the container"]
+	subgraph "Gather kubeinit secrets" {
+		role_d40b9342 [label="[role] Gather kubeinit secrets" color="#963678" id=role_d40b9342 tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_5e4ccfa9 [label="[role] Gather additional facts from localhost for kubeinit" color="#963678" id=role_5e4ccfa9 tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_48a6311d [label="[role] Create ssh config file from template" color="#963678" id=role_48a6311d tooltip="Create ssh config file from template"]
 	}
 	subgraph "Prepare environment if not prepared" {
-		role_9ee3c385 [label="[role] Prepare environment if not prepared" color="#8409c3" id=role_9ee3c385 tooltip="Prepare environment if not prepared"]
-		role_9ee3c385 -> role_ed925f99 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#8409c3" fontcolor="#8409c3" id=edge_342a98f8 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_74047726 [label="[role] Prepare environment if not prepared" color="#963678" id=role_74047726 tooltip="Prepare environment if not prepared"]
+		role_74047726 -> role_d40b9342 [label="1 " color="#963678" fontcolor="#963678" id=edge_a148be26 labeltooltip="1 " tooltip="1 "]
+		role_74047726 -> role_5e4ccfa9 [label="2 " color="#963678" fontcolor="#963678" id=edge_18d400ff labeltooltip="2 " tooltip="2 "]
+		role_74047726 -> role_48a6311d [label="3 " color="#963678" fontcolor="#963678" id=edge_ea7d6bbe labeltooltip="3 " tooltip="3 "]
 	}
 	subgraph "Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" {
-		role_562bffeb [label="[role] Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" color="#8409c3" id=role_562bffeb tooltip="Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage"]
+		role_58119013 [label="[role] Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" color="#963678" id=role_58119013 tooltip="Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage"]
 	}
 	subgraph "task-cleanup-hypervisors" {
-		role_e06b55e4 [label="[role] task-cleanup-hypervisors" color="#8409c3" id=role_e06b55e4 tooltip="task-cleanup-hypervisors"]
-		role_e06b55e4 -> role_9ee3c385 [label="1 [when: not environment_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_1d1f719f labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
-		role_e06b55e4 -> role_562bffeb [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_28dd0e09 labeltooltip="2 " tooltip="2 "]
+		role_175d3d27 [label="[role] task-cleanup-hypervisors" color="#963678" id=role_175d3d27 tooltip="task-cleanup-hypervisors"]
+		role_175d3d27 -> role_74047726 [label="1 [when: not environment_prepared]" color="#963678" fontcolor="#963678" id=edge_2884be1a labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_175d3d27 -> role_58119013 [label="2 " color="#963678" fontcolor="#963678" id=edge_8b608a6b labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "Read podman secrets if running from the container" {
-		role_37b240de [label="[role] Read podman secrets if running from the container" color="#8409c3" id=role_37b240de tooltip="Read podman secrets if running from the container"]
+	subgraph "Gather kubeinit secrets" {
+		role_c009e075 [label="[role] Gather kubeinit secrets" color="#963678" id=role_c009e075 tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_fc7e52dc [label="[role] Gather additional facts from localhost for kubeinit" color="#963678" id=role_fc7e52dc tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_e7077455 [label="[role] Create ssh config file from template" color="#963678" id=role_e7077455 tooltip="Create ssh config file from template"]
 	}
 	subgraph "Prepare environment if not prepared" {
-		role_7124e469 [label="[role] Prepare environment if not prepared" color="#8409c3" id=role_7124e469 tooltip="Prepare environment if not prepared"]
-		role_7124e469 -> role_37b240de [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#8409c3" fontcolor="#8409c3" id=edge_57be6ca5 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_9d9439be [label="[role] Prepare environment if not prepared" color="#963678" id=role_9d9439be tooltip="Prepare environment if not prepared"]
+		role_9d9439be -> role_c009e075 [label="1 " color="#963678" fontcolor="#963678" id=edge_6c16e6c7 labeltooltip="1 " tooltip="1 "]
+		role_9d9439be -> role_fc7e52dc [label="2 " color="#963678" fontcolor="#963678" id=edge_f4ddf6d9 labeltooltip="2 " tooltip="2 "]
+		role_9d9439be -> role_e7077455 [label="3 " color="#963678" fontcolor="#963678" id=edge_a6d88047 labeltooltip="3 " tooltip="3 "]
 	}
 	subgraph "Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" {
-		role_b3a6acc5 [label="[role] Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" color="#8409c3" id=role_b3a6acc5 tooltip="Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage"]
+		role_b84ab3ed [label="[role] Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" color="#963678" id=role_b84ab3ed tooltip="Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage"]
 	}
 	subgraph "Cleanup hypervisors if needed" {
-		role_c15d647b [label="[role] Cleanup hypervisors if needed" color="#8409c3" id=role_c15d647b tooltip="Cleanup hypervisors if needed"]
-		role_c15d647b -> role_7124e469 [label="1 [when: not environment_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_44fce13f labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
-		role_c15d647b -> role_b3a6acc5 [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_c1cd37ef labeltooltip="2 " tooltip="2 "]
+		role_2ebca243 [label="[role] Cleanup hypervisors if needed" color="#963678" id=role_2ebca243 tooltip="Cleanup hypervisors if needed"]
+		role_2ebca243 -> role_9d9439be [label="1 [when: not environment_prepared]" color="#963678" fontcolor="#963678" id=edge_910a4b8c labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_2ebca243 -> role_b84ab3ed [label="2 " color="#963678" fontcolor="#963678" id=edge_211c2d5e labeltooltip="2 " tooltip="2 "]
 	}
 	subgraph "task-run-validations" {
-		role_1fd45279 [label="[role] task-run-validations" color="#8409c3" id=role_1fd45279 tooltip="task-run-validations"]
-		role_1fd45279 -> role_c15d647b [label="1 [when: not hypervisors_cleaned]" color="#8409c3" fontcolor="#8409c3" id=edge_642cb836 labeltooltip="1 [when: not hypervisors_cleaned]" tooltip="1 [when: not hypervisors_cleaned]"]
+		role_95edaeca [label="[role] task-run-validations" color="#963678" id=role_95edaeca tooltip="task-run-validations"]
+		role_95edaeca -> role_2ebca243 [label="1 [when: not hypervisors_cleaned]" color="#963678" fontcolor="#963678" id=edge_02fec91d labeltooltip="1 [when: not hypervisors_cleaned]" tooltip="1 [when: not hypervisors_cleaned]"]
 	}
-	subgraph "Read podman secrets if running from the container" {
-		role_faac6d4d [label="[role] Read podman secrets if running from the container" color="#8409c3" id=role_faac6d4d tooltip="Read podman secrets if running from the container"]
+	subgraph "Gather kubeinit secrets" {
+		role_8a63e94d [label="[role] Gather kubeinit secrets" color="#963678" id=role_8a63e94d tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_ddad6667 [label="[role] Gather additional facts from localhost for kubeinit" color="#963678" id=role_ddad6667 tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_2cfb2c12 [label="[role] Create ssh config file from template" color="#963678" id=role_2cfb2c12 tooltip="Create ssh config file from template"]
 	}
 	subgraph "Prepare environment if not prepared" {
-		role_6cfd3494 [label="[role] Prepare environment if not prepared" color="#8409c3" id=role_6cfd3494 tooltip="Prepare environment if not prepared"]
-		role_6cfd3494 -> role_faac6d4d [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#8409c3" fontcolor="#8409c3" id=edge_a7c4dc44 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_b5af031e [label="[role] Prepare environment if not prepared" color="#963678" id=role_b5af031e tooltip="Prepare environment if not prepared"]
+		role_b5af031e -> role_8a63e94d [label="1 " color="#963678" fontcolor="#963678" id=edge_f2637627 labeltooltip="1 " tooltip="1 "]
+		role_b5af031e -> role_ddad6667 [label="2 " color="#963678" fontcolor="#963678" id=edge_a31fccf1 labeltooltip="2 " tooltip="2 "]
+		role_b5af031e -> role_2cfb2c12 [label="3 " color="#963678" fontcolor="#963678" id=edge_dfe19d91 labeltooltip="3 " tooltip="3 "]
 	}
 	subgraph "Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" {
-		role_e93911c1 [label="[role] Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" color="#8409c3" id=role_e93911c1 tooltip="Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage"]
+		role_abf0f4b8 [label="[role] Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage" color="#963678" id=role_abf0f4b8 tooltip="Cleanup the OVN network and other libvirt resources -- hosts, networks, vms, storage"]
 	}
 	subgraph "Cleanup hypervisors if needed" {
-		role_dffb8887 [label="[role] Cleanup hypervisors if needed" color="#8409c3" id=role_dffb8887 tooltip="Cleanup hypervisors if needed"]
-		role_dffb8887 -> role_6cfd3494 [label="1 [when: not environment_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_15666b80 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
-		role_dffb8887 -> role_e93911c1 [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_ce5b8dcb labeltooltip="2 " tooltip="2 "]
+		role_dc543fb3 [label="[role] Cleanup hypervisors if needed" color="#963678" id=role_dc543fb3 tooltip="Cleanup hypervisors if needed"]
+		role_dc543fb3 -> role_b5af031e [label="1 [when: not environment_prepared]" color="#963678" fontcolor="#963678" id=edge_0cbdf274 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_dc543fb3 -> role_abf0f4b8 [label="2 " color="#963678" fontcolor="#963678" id=edge_ce290926 labeltooltip="2 " tooltip="2 "]
 	}
 	subgraph "task-create-network" {
-		role_0477cb19 [label="[role] task-create-network" color="#8409c3" id=role_0477cb19 tooltip="task-create-network"]
-		role_0477cb19 -> role_dffb8887 [label="1 [when: not hypervisors_cleaned]" color="#8409c3" fontcolor="#8409c3" id=edge_be75b79a labeltooltip="1 [when: not hypervisors_cleaned]" tooltip="1 [when: not hypervisors_cleaned]"]
+		role_ad282537 [label="[role] task-create-network" color="#963678" id=role_ad282537 tooltip="task-create-network"]
+		role_ad282537 -> role_dc543fb3 [label="1 [when: not hypervisors_cleaned]" color="#963678" fontcolor="#963678" id=edge_5016a560 labeltooltip="1 [when: not hypervisors_cleaned]" tooltip="1 [when: not hypervisors_cleaned]"]
 	}
-	subgraph "Read podman secrets if running from the container" {
-		role_e6379cda [label="[role] Read podman secrets if running from the container" color="#8409c3" id=role_e6379cda tooltip="Read podman secrets if running from the container"]
+	subgraph "Gather kubeinit secrets" {
+		role_8d86c746 [label="[role] Gather kubeinit secrets" color="#963678" id=role_8d86c746 tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_7527fcea [label="[role] Gather additional facts from localhost for kubeinit" color="#963678" id=role_7527fcea tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_0afc2c2e [label="[role] Create ssh config file from template" color="#963678" id=role_0afc2c2e tooltip="Create ssh config file from template"]
 	}
 	subgraph "Prepare environment if not prepared" {
-		role_20e31fd8 [label="[role] Prepare environment if not prepared" color="#8409c3" id=role_20e31fd8 tooltip="Prepare environment if not prepared"]
-		role_20e31fd8 -> role_e6379cda [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#8409c3" fontcolor="#8409c3" id=edge_6c574c2f labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_cc05728f [label="[role] Prepare environment if not prepared" color="#963678" id=role_cc05728f tooltip="Prepare environment if not prepared"]
+		role_cc05728f -> role_8d86c746 [label="1 " color="#963678" fontcolor="#963678" id=edge_beb8a602 labeltooltip="1 " tooltip="1 "]
+		role_cc05728f -> role_7527fcea [label="2 " color="#963678" fontcolor="#963678" id=edge_0962c6ce labeltooltip="2 " tooltip="2 "]
+		role_cc05728f -> role_0afc2c2e [label="3 " color="#963678" fontcolor="#963678" id=edge_e9593acb labeltooltip="3 " tooltip="3 "]
 	}
 	subgraph "Prepare podman" {
-		role_243f629b [label="[role] Prepare podman" color="#8409c3" id=role_243f629b tooltip="Prepare podman"]
+		role_237ebe30 [label="[role] Prepare podman" color="#963678" id=role_237ebe30 tooltip="Prepare podman"]
 	}
 	subgraph "Create systemd service for podman container" {
-		role_17563a1b [label="[role] Create systemd service for podman container" color="#8409c3" id=role_17563a1b tooltip="Create systemd service for podman container"]
+		role_503cf10b [label="[role] Create systemd service for podman container" color="#963678" id=role_503cf10b tooltip="Create systemd service for podman container"]
 	}
 	subgraph "Configure Bind" {
-		role_99e581c4 [label="[role] Configure Bind" color="#8409c3" id=role_99e581c4 tooltip="Configure Bind"]
-		role_99e581c4 -> role_17563a1b [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_68c724c0 labeltooltip="1 " tooltip="1 "]
+		role_62b3afae [label="[role] Configure Bind" color="#963678" id=role_62b3afae tooltip="Configure Bind"]
+		role_62b3afae -> role_503cf10b [label="1 " color="#963678" fontcolor="#963678" id=edge_5ed2aa02 labeltooltip="1 " tooltip="1 "]
 	}
 	subgraph "Create systemd service for podman container" {
-		role_9ae92fed [label="[role] Create systemd service for podman container" color="#8409c3" id=role_9ae92fed tooltip="Create systemd service for podman container"]
+		role_36ae6b10 [label="[role] Create systemd service for podman container" color="#963678" id=role_36ae6b10 tooltip="Create systemd service for podman container"]
 	}
 	subgraph "Configure Dnsmasq" {
-		role_be0ae1fd [label="[role] Configure Dnsmasq" color="#8409c3" id=role_be0ae1fd tooltip="Configure Dnsmasq"]
-		role_be0ae1fd -> role_9ae92fed [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_91003560 labeltooltip="1 " tooltip="1 "]
+		role_75649037 [label="[role] Configure Dnsmasq" color="#963678" id=role_75649037 tooltip="Configure Dnsmasq"]
+		role_75649037 -> role_36ae6b10 [label="1 " color="#963678" fontcolor="#963678" id=edge_dda3b31a labeltooltip="1 " tooltip="1 "]
 	}
 	subgraph "Create systemd service for podman container" {
-		role_72c3b62f [label="[role] Create systemd service for podman container" color="#8409c3" id=role_72c3b62f tooltip="Create systemd service for podman container"]
+		role_f1ac51b8 [label="[role] Create systemd service for podman container" color="#963678" id=role_f1ac51b8 tooltip="Create systemd service for podman container"]
 	}
 	subgraph "Configure HAProxy" {
-		role_af2daa35 [label="[role] Configure HAProxy" color="#8409c3" id=role_af2daa35 tooltip="Configure HAProxy"]
-		role_af2daa35 -> role_72c3b62f [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_bf035c6e labeltooltip="1 " tooltip="1 "]
+		role_16e04f2f [label="[role] Configure HAProxy" color="#963678" id=role_16e04f2f tooltip="Configure HAProxy"]
+		role_16e04f2f -> role_f1ac51b8 [label="1 " color="#963678" fontcolor="#963678" id=edge_77c603d2 labeltooltip="1 " tooltip="1 "]
 	}
 	subgraph "Create systemd service for podman container" {
-		role_68f2d7e8 [label="[role] Create systemd service for podman container" color="#8409c3" id=role_68f2d7e8 tooltip="Create systemd service for podman container"]
+		role_0d72f849 [label="[role] Create systemd service for podman container" color="#963678" id=role_0d72f849 tooltip="Create systemd service for podman container"]
 	}
 	subgraph "Configure Nexus" {
-		role_957e85d5 [label="[role] Configure Nexus" color="#8409c3" id=role_957e85d5 tooltip="Configure Nexus"]
-		role_957e85d5 -> role_68f2d7e8 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_aaac9397 labeltooltip="1 " tooltip="1 "]
+		role_b4e33ee3 [label="[role] Configure Nexus" color="#963678" id=role_b4e33ee3 tooltip="Configure Nexus"]
+		role_b4e33ee3 -> role_0d72f849 [label="1 " color="#963678" fontcolor="#963678" id=edge_21fb75f2 labeltooltip="1 " tooltip="1 "]
 	}
 	subgraph "Create systemd service for podman container" {
-		role_ddf29fdb [label="[role] Create systemd service for podman container" color="#8409c3" id=role_ddf29fdb tooltip="Create systemd service for podman container"]
+		role_ab67486a [label="[role] Create systemd service for podman container" color="#963678" id=role_ab67486a tooltip="Create systemd service for podman container"]
 	}
 	subgraph "Configure Apache" {
-		role_25fceb7c [label="[role] Configure Apache" color="#8409c3" id=role_25fceb7c tooltip="Configure Apache"]
-		role_25fceb7c -> role_ddf29fdb [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_0b2c6e48 labeltooltip="1 " tooltip="1 "]
+		role_5c1091b9 [label="[role] Configure Apache" color="#963678" id=role_5c1091b9 tooltip="Configure Apache"]
+		role_5c1091b9 -> role_ab67486a [label="1 " color="#963678" fontcolor="#963678" id=edge_f6b18d98 labeltooltip="1 " tooltip="1 "]
 	}
 	subgraph "Create systemd service for podman container" {
-		role_ba617594 [label="[role] Create systemd service for podman container" color="#8409c3" id=role_ba617594 tooltip="Create systemd service for podman container"]
+		role_157f2e2b [label="[role] Create systemd service for podman container" color="#963678" id=role_157f2e2b tooltip="Create systemd service for podman container"]
 	}
 	subgraph "Configure a local container image registry" {
-		role_c6308bd2 [label="[role] Configure a local container image registry" color="#8409c3" id=role_c6308bd2 tooltip="Configure a local container image registry"]
-		role_c6308bd2 -> role_ba617594 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_b56cdc15 labeltooltip="1 " tooltip="1 "]
+		role_5338b820 [label="[role] Configure a local container image registry" color="#963678" id=role_5338b820 tooltip="Configure a local container image registry"]
+		role_5338b820 -> role_157f2e2b [label="1 " color="#963678" fontcolor="#963678" id=edge_e78e86f3 labeltooltip="1 " tooltip="1 "]
 	}
 	subgraph "task-create-services" {
-		role_2292e69d [label="[role] task-create-services" color="#8409c3" id=role_2292e69d tooltip="task-create-services"]
-		role_2292e69d -> role_20e31fd8 [label="1 [when: not environment_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_bc688617 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
-		role_2292e69d -> role_243f629b [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_a2eecc8f labeltooltip="2 " tooltip="2 "]
-		role_2292e69d -> role_99e581c4 [label="3 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]" color="#8409c3" fontcolor="#8409c3" id=edge_91f22a4e labeltooltip="3 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]" tooltip="3 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]"]
-		role_2292e69d -> role_be0ae1fd [label="4 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]" color="#8409c3" fontcolor="#8409c3" id=edge_3612cf5f labeltooltip="4 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]" tooltip="4 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]"]
-		role_2292e69d -> role_af2daa35 [label="5 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]" color="#8409c3" fontcolor="#8409c3" id=edge_47812622 labeltooltip="5 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]" tooltip="5 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]"]
-		role_2292e69d -> role_957e85d5 [label="6 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]" color="#8409c3" fontcolor="#8409c3" id=edge_45b8dfe2 labeltooltip="6 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]" tooltip="6 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]"]
-		role_2292e69d -> role_25fceb7c [label="7 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]" color="#8409c3" fontcolor="#8409c3" id=edge_cedb4f34 labeltooltip="7 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]" tooltip="7 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]"]
-		role_2292e69d -> role_c6308bd2 [label="8 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]" color="#8409c3" fontcolor="#8409c3" id=edge_12d52d61 labeltooltip="8 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]" tooltip="8 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_0ca97af5 [label="[role] task-create-services" color="#963678" id=role_0ca97af5 tooltip="task-create-services"]
+		role_0ca97af5 -> role_cc05728f [label="1 [when: not environment_prepared]" color="#963678" fontcolor="#963678" id=edge_2f9c5a60 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_0ca97af5 -> role_237ebe30 [label="2 " color="#963678" fontcolor="#963678" id=edge_55a2430b labeltooltip="2 " tooltip="2 "]
+		role_0ca97af5 -> role_62b3afae [label="3 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]" color="#963678" fontcolor="#963678" id=edge_691fff6f labeltooltip="3 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]" tooltip="3 [when: 'bind' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_0ca97af5 -> role_75649037 [label="4 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]" color="#963678" fontcolor="#963678" id=edge_7c993542 labeltooltip="4 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]" tooltip="4 [when: 'dnsmasq' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_0ca97af5 -> role_16e04f2f [label="5 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]" color="#963678" fontcolor="#963678" id=edge_12c6e447 labeltooltip="5 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]" tooltip="5 [when: 'haproxy' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_0ca97af5 -> role_b4e33ee3 [label="6 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]" color="#963678" fontcolor="#963678" id=edge_13b36571 labeltooltip="6 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]" tooltip="6 [when: 'nexus' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_0ca97af5 -> role_5c1091b9 [label="7 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]" color="#963678" fontcolor="#963678" id=edge_3ffb5526 labeltooltip="7 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]" tooltip="7 [when: 'apache' in hostvars[kubeinit_deployment_node_name].services]"]
+		role_0ca97af5 -> role_5338b820 [label="8 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]" color="#963678" fontcolor="#963678" id=edge_834dc2d3 labeltooltip="8 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]" tooltip="8 [when: 'registry' in hostvars[kubeinit_deployment_node_name].services]"]
 	}
-	subgraph "Read podman secrets if running from the container" {
-		role_22e37b12 [label="[role] Read podman secrets if running from the container" color="#8409c3" id=role_22e37b12 tooltip="Read podman secrets if running from the container"]
+	subgraph "Gather kubeinit secrets" {
+		role_5bfe98ca [label="[role] Gather kubeinit secrets" color="#963678" id=role_5bfe98ca tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_f75c0f32 [label="[role] Gather additional facts from localhost for kubeinit" color="#963678" id=role_f75c0f32 tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_2b45e63b [label="[role] Create ssh config file from template" color="#963678" id=role_2b45e63b tooltip="Create ssh config file from template"]
 	}
 	subgraph "Prepare environment if needed" {
-		role_d9e9fac8 [label="[role] Prepare environment if needed" color="#8409c3" id=role_d9e9fac8 tooltip="Prepare environment if needed"]
-		role_d9e9fac8 -> role_22e37b12 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#8409c3" fontcolor="#8409c3" id=edge_db7ff6cb labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_9bc2d01f [label="[role] Prepare environment if needed" color="#963678" id=role_9bc2d01f tooltip="Prepare environment if needed"]
+		role_9bc2d01f -> role_5bfe98ca [label="1 " color="#963678" fontcolor="#963678" id=edge_a5b02196 labeltooltip="1 " tooltip="1 "]
+		role_9bc2d01f -> role_f75c0f32 [label="2 " color="#963678" fontcolor="#963678" id=edge_092d5138 labeltooltip="2 " tooltip="2 "]
+		role_9bc2d01f -> role_2b45e63b [label="3 " color="#963678" fontcolor="#963678" id=edge_c30f713b labeltooltip="3 " tooltip="3 "]
 	}
 	subgraph "Gather network and host facts for guest" {
-		role_ac134ee6 [label="[role] Gather network and host facts for guest" color="#8409c3" id=role_ac134ee6 tooltip="Gather network and host facts for guest"]
+		role_d4cad6d2 [label="[role] Gather network and host facts for guest" color="#963678" id=role_d4cad6d2 tooltip="Gather network and host facts for guest"]
 	}
 	subgraph "Prepare services if needed" {
-		role_548e3ac8 [label="[role] Prepare services if needed" color="#8409c3" id=role_548e3ac8 tooltip="Prepare services if needed"]
-		role_548e3ac8 -> role_d9e9fac8 [label="1 [when: not environment_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_10e1c9b8 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
-		role_548e3ac8 -> role_ac134ee6 [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_d856ebed labeltooltip="2 " tooltip="2 "]
+		role_5ac48078 [label="[role] Prepare services if needed" color="#963678" id=role_5ac48078 tooltip="Prepare services if needed"]
+		role_5ac48078 -> role_9bc2d01f [label="1 [when: not environment_prepared]" color="#963678" fontcolor="#963678" id=edge_68bb58c5 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_5ac48078 -> role_d4cad6d2 [label="2 " color="#963678" fontcolor="#963678" id=edge_b7e4f442 labeltooltip="2 " tooltip="2 "]
 	}
 	subgraph "Create systemd service for podman container" {
-		role_dacb2fa5 [label="[role] Create systemd service for podman container" color="#8409c3" id=role_dacb2fa5 tooltip="Create systemd service for podman container"]
+		role_ce2ae0a0 [label="[role] Create systemd service for podman container" color="#963678" id=role_ce2ae0a0 tooltip="Create systemd service for podman container"]
 	}
 	subgraph "Gather network and host facts for provision service" {
-		role_4145cdb8 [label="[role] Gather network and host facts for provision service" color="#8409c3" id=role_4145cdb8 tooltip="Gather network and host facts for provision service"]
+		role_fd5e53d0 [label="[role] Gather network and host facts for provision service" color="#963678" id=role_fd5e53d0 tooltip="Gather network and host facts for provision service"]
 	}
 	subgraph "Setup the cluster provision container" {
-		role_b100f281 [label="[role] Setup the cluster provision container" color="#8409c3" id=role_b100f281 tooltip="Setup the cluster provision container"]
-		role_b100f281 -> role_dacb2fa5 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_69ce3981 labeltooltip="1 " tooltip="1 "]
-		role_b100f281 -> role_4145cdb8 [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_aea1b73e labeltooltip="2 " tooltip="2 "]
+		role_f001117c [label="[role] Setup the cluster provision container" color="#963678" id=role_f001117c tooltip="Setup the cluster provision container"]
+		role_f001117c -> role_ce2ae0a0 [label="1 " color="#963678" fontcolor="#963678" id=edge_0812e5e3 labeltooltip="1 " tooltip="1 "]
+		role_f001117c -> role_fd5e53d0 [label="2 " color="#963678" fontcolor="#963678" id=edge_2b0ff8e9 labeltooltip="2 " tooltip="2 "]
 	}
 	subgraph "Delegate to the distro role to prepare the cluster" {
-		role_ebedfed8 [label="[role] Delegate to the distro role to prepare the cluster" color="#8409c3" id=role_ebedfed8 tooltip="Delegate to the distro role to prepare the cluster"]
-		role_ebedfed8 -> role_b100f281 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_1bc251e2 labeltooltip="1 " tooltip="1 "]
+		role_e28800dc [label="[role] Delegate to the distro role to prepare the cluster" color="#963678" id=role_e28800dc tooltip="Delegate to the distro role to prepare the cluster"]
+		role_e28800dc -> role_f001117c [label="1 " color="#963678" fontcolor="#963678" id=edge_14c0082a labeltooltip="1 " tooltip="1 "]
 	}
 	subgraph "task-prepare-cluster" {
-		role_8bb700b1 [label="[role] task-prepare-cluster" color="#8409c3" id=role_8bb700b1 tooltip="task-prepare-cluster"]
-		role_8bb700b1 -> role_548e3ac8 [label="1 [when: not services_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_72624c5f labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
-		role_8bb700b1 -> role_ebedfed8 [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_25baad7a labeltooltip="2 " tooltip="2 "]
+		role_9d394477 [label="[role] task-prepare-cluster" color="#963678" id=role_9d394477 tooltip="task-prepare-cluster"]
+		role_9d394477 -> role_5ac48078 [label="1 [when: not services_prepared]" color="#963678" fontcolor="#963678" id=edge_d77cc3cd labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
+		role_9d394477 -> role_e28800dc [label="2 " color="#963678" fontcolor="#963678" id=edge_b89fbb98 labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "Read podman secrets if running from the container" {
-		role_f9c41232 [label="[role] Read podman secrets if running from the container" color="#8409c3" id=role_f9c41232 tooltip="Read podman secrets if running from the container"]
+	subgraph "Gather kubeinit secrets" {
+		role_2a1c9a64 [label="[role] Gather kubeinit secrets" color="#963678" id=role_2a1c9a64 tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_1267e5ea [label="[role] Gather additional facts from localhost for kubeinit" color="#963678" id=role_1267e5ea tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_9920fef4 [label="[role] Create ssh config file from template" color="#963678" id=role_9920fef4 tooltip="Create ssh config file from template"]
 	}
 	subgraph "Prepare environment if not prepared" {
-		role_9c3efe4e [label="[role] Prepare environment if not prepared" color="#8409c3" id=role_9c3efe4e tooltip="Prepare environment if not prepared"]
-		role_9c3efe4e -> role_f9c41232 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#8409c3" fontcolor="#8409c3" id=edge_0e04c003 labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_0fab2101 [label="[role] Prepare environment if not prepared" color="#963678" id=role_0fab2101 tooltip="Prepare environment if not prepared"]
+		role_0fab2101 -> role_2a1c9a64 [label="1 " color="#963678" fontcolor="#963678" id=edge_5206233b labeltooltip="1 " tooltip="1 "]
+		role_0fab2101 -> role_1267e5ea [label="2 " color="#963678" fontcolor="#963678" id=edge_59355858 labeltooltip="2 " tooltip="2 "]
+		role_0fab2101 -> role_9920fef4 [label="3 " color="#963678" fontcolor="#963678" id=edge_91d0b4c3 labeltooltip="3 " tooltip="3 "]
 	}
 	subgraph "task-download-images" {
-		role_add0305a [label="[role] task-download-images" color="#8409c3" id=role_add0305a tooltip="task-download-images"]
-		role_add0305a -> role_9c3efe4e [label="1 [when: not environment_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_2dbd8224 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_423bf6c5 [label="[role] task-download-images" color="#963678" id=role_423bf6c5 tooltip="task-download-images"]
+		role_423bf6c5 -> role_0fab2101 [label="1 [when: not environment_prepared]" color="#963678" fontcolor="#963678" id=edge_dd97f1de labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
 	}
-	subgraph "Read podman secrets if running from the container" {
-		role_e0387319 [label="[role] Read podman secrets if running from the container" color="#8409c3" id=role_e0387319 tooltip="Read podman secrets if running from the container"]
+	subgraph "Gather kubeinit secrets" {
+		role_a4fe1394 [label="[role] Gather kubeinit secrets" color="#963678" id=role_a4fe1394 tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_18b3a233 [label="[role] Gather additional facts from localhost for kubeinit" color="#963678" id=role_18b3a233 tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_63f4e277 [label="[role] Create ssh config file from template" color="#963678" id=role_63f4e277 tooltip="Create ssh config file from template"]
 	}
 	subgraph "Prepare environment if needed" {
-		role_df717ea4 [label="[role] Prepare environment if needed" color="#8409c3" id=role_df717ea4 tooltip="Prepare environment if needed"]
-		role_df717ea4 -> role_e0387319 [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#8409c3" fontcolor="#8409c3" id=edge_0def0c0b labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_ad8f0790 [label="[role] Prepare environment if needed" color="#963678" id=role_ad8f0790 tooltip="Prepare environment if needed"]
+		role_ad8f0790 -> role_a4fe1394 [label="1 " color="#963678" fontcolor="#963678" id=edge_1d2108b5 labeltooltip="1 " tooltip="1 "]
+		role_ad8f0790 -> role_18b3a233 [label="2 " color="#963678" fontcolor="#963678" id=edge_5f61a51a labeltooltip="2 " tooltip="2 "]
+		role_ad8f0790 -> role_63f4e277 [label="3 " color="#963678" fontcolor="#963678" id=edge_1cc811ec labeltooltip="3 " tooltip="3 "]
 	}
 	subgraph "Gather network and host facts for guest" {
-		role_689ceb2e [label="[role] Gather network and host facts for guest" color="#8409c3" id=role_689ceb2e tooltip="Gather network and host facts for guest"]
+		role_f4e68190 [label="[role] Gather network and host facts for guest" color="#963678" id=role_f4e68190 tooltip="Gather network and host facts for guest"]
 	}
 	subgraph "Prepare services if needed" {
-		role_3e608353 [label="[role] Prepare services if needed" color="#8409c3" id=role_3e608353 tooltip="Prepare services if needed"]
-		role_3e608353 -> role_df717ea4 [label="1 [when: not environment_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_e03889fe labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
-		role_3e608353 -> role_689ceb2e [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_6100c0ce labeltooltip="2 " tooltip="2 "]
+		role_0cb46adf [label="[role] Prepare services if needed" color="#963678" id=role_0cb46adf tooltip="Prepare services if needed"]
+		role_0cb46adf -> role_ad8f0790 [label="1 [when: not environment_prepared]" color="#963678" fontcolor="#963678" id=edge_15901799 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_0cb46adf -> role_f4e68190 [label="2 " color="#963678" fontcolor="#963678" id=edge_548dee19 labeltooltip="2 " tooltip="2 "]
 	}
 	subgraph "Deploy the cluster nodes" {
-		role_663678f8 [label="[role] Deploy the cluster nodes" color="#8409c3" id=role_663678f8 tooltip="Deploy the cluster nodes"]
+		role_0b59e7a1 [label="[role] Deploy the cluster nodes" color="#963678" id=role_0b59e7a1 tooltip="Deploy the cluster nodes"]
 	}
 	subgraph "Delegate to the distro role to deploy the cluster" {
-		role_10c2bd38 [label="[role] Delegate to the distro role to deploy the cluster" color="#8409c3" id=role_10c2bd38 tooltip="Delegate to the distro role to deploy the cluster"]
-		role_10c2bd38 -> role_663678f8 [label="1 [when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed]" color="#8409c3" fontcolor="#8409c3" id=edge_1cbcb9ba labeltooltip="1 [when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed]" tooltip="1 [when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed]"]
-		task_5786c7c2 [label="kubeinit.kubeinit.kubeinit_k8s : Clean kubeadm and initialize Kubernetes cluster" color="#8409c3" id=task_5786c7c2 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Clean kubeadm and initialize Kubernetes cluster"]
-		role_10c2bd38 -> task_5786c7c2 [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_11952182 labeltooltip="2 " tooltip="2 "]
-		task_dec26051 [label="kubeinit.kubeinit.kubeinit_k8s : Debug" color="#8409c3" id=task_dec26051 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Debug"]
-		role_10c2bd38 -> task_dec26051 [label="3 " color="#8409c3" fontcolor="#8409c3" id=edge_f0aef00d labeltooltip="3 " tooltip="3 "]
-		task_8d7be03a [label="kubeinit.kubeinit.kubeinit_k8s : Get the controller join key" color="#8409c3" id=task_8d7be03a shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Get the controller join key"]
-		role_10c2bd38 -> task_8d7be03a [label="4 [when: ('--control-plane --certificate-key' in item)]" color="#8409c3" fontcolor="#8409c3" id=edge_994b0b41 labeltooltip="4 [when: ('--control-plane --certificate-key' in item)]" tooltip="4 [when: ('--control-plane --certificate-key' in item)]"]
-		task_e49c2a89 [label="kubeinit.kubeinit.kubeinit_k8s : Debug" color="#8409c3" id=task_e49c2a89 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Debug"]
-		role_10c2bd38 -> task_e49c2a89 [label="5 " color="#8409c3" fontcolor="#8409c3" id=edge_e93a45b1 labeltooltip="5 " tooltip="5 "]
-		task_c1e74f13 [label="kubeinit.kubeinit.kubeinit_k8s : Storing the controller join key to add the other controller nodes." color="#8409c3" id=task_c1e74f13 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Storing the controller join key to add the other controller nodes."]
-		role_10c2bd38 -> task_c1e74f13 [label="6 [when: kubeinit_controller_count|int > 1]" color="#8409c3" fontcolor="#8409c3" id=edge_954a4771 labeltooltip="6 [when: kubeinit_controller_count|int > 1]" tooltip="6 [when: kubeinit_controller_count|int > 1]"]
-		task_250a31cf [label="kubeinit.kubeinit.kubeinit_k8s : Create kube directory" color="#8409c3" id=task_250a31cf shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Create kube directory"]
-		role_10c2bd38 -> task_250a31cf [label="7 " color="#8409c3" fontcolor="#8409c3" id=edge_e6c55bbc labeltooltip="7 " tooltip="7 "]
-		task_1c94bc1e [label="kubeinit.kubeinit.kubeinit_k8s : Copying required files" color="#8409c3" id=task_1c94bc1e shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Copying required files"]
-		role_10c2bd38 -> task_1c94bc1e [label="8 " color="#8409c3" fontcolor="#8409c3" id=edge_654bb1cd labeltooltip="8 " tooltip="8 "]
-		task_382c727f [label="kubeinit.kubeinit.kubeinit_k8s : Get the join command" color="#8409c3" id=task_382c727f shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Get the join command"]
-		role_10c2bd38 -> task_382c727f [label="9 " color="#8409c3" fontcolor="#8409c3" id=edge_bf7db22b labeltooltip="9 " tooltip="9 "]
-		task_13ed391a [label="kubeinit.kubeinit.kubeinit_k8s : Storing the join cluster command token." color="#8409c3" id=task_13ed391a shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Storing the join cluster command token."]
-		role_10c2bd38 -> task_13ed391a [label="10 [when: kubeinit_controller_count|int > 1]" color="#8409c3" fontcolor="#8409c3" id=edge_12a1c609 labeltooltip="10 [when: kubeinit_controller_count|int > 1]" tooltip="10 [when: kubeinit_controller_count|int > 1]"]
-		task_6cd0d312 [label="kubeinit.kubeinit.kubeinit_k8s : Install Network Add-on" color="#8409c3" id=task_6cd0d312 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Install Network Add-on"]
-		role_10c2bd38 -> task_6cd0d312 [label="11 " color="#8409c3" fontcolor="#8409c3" id=edge_161c8968 labeltooltip="11 " tooltip="11 "]
-		task_08aa796c [label="kubeinit.kubeinit.kubeinit_k8s : Join additional controller nodes using the PK" color="#8409c3" id=task_08aa796c shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Join additional controller nodes using the PK"]
-		role_10c2bd38 -> task_08aa796c [label="12 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" color="#8409c3" fontcolor="#8409c3" id=edge_067fc8bf labeltooltip="12 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" tooltip="12 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]"]
-		task_990e547d [label="kubeinit.kubeinit.kubeinit_k8s : Create kube directory" color="#8409c3" id=task_990e547d shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Create kube directory"]
-		role_10c2bd38 -> task_990e547d [label="13 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" color="#8409c3" fontcolor="#8409c3" id=edge_a239ca84 labeltooltip="13 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" tooltip="13 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]"]
-		task_a9e5214a [label="kubeinit.kubeinit.kubeinit_k8s : Copying required files" color="#8409c3" id=task_a9e5214a shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Copying required files"]
-		role_10c2bd38 -> task_a9e5214a [label="14 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" color="#8409c3" fontcolor="#8409c3" id=edge_fec635b2 labeltooltip="14 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" tooltip="14 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]"]
-		task_54a08f8c [label="kubeinit.kubeinit.kubeinit_k8s : Join compute nodes with kubernetes control plane" color="#8409c3" id=task_54a08f8c shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Join compute nodes with kubernetes control plane"]
-		role_10c2bd38 -> task_54a08f8c [label="15 " color="#8409c3" fontcolor="#8409c3" id=edge_1b7937cd labeltooltip="15 " tooltip="15 "]
-		task_1d7d5d3b [label="kubeinit.kubeinit.kubeinit_k8s : Label node" color="#8409c3" id=task_1d7d5d3b shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Label node"]
-		role_10c2bd38 -> task_1d7d5d3b [label="16 " color="#8409c3" fontcolor="#8409c3" id=edge_18457541 labeltooltip="16 " tooltip="16 "]
-		task_36fe5555 [label="kubeinit.kubeinit.kubeinit_k8s : Allow schedule workloads in controller nodes if there are no compute nodes" color="#8409c3" id=task_36fe5555 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Allow schedule workloads in controller nodes if there are no compute nodes"]
-		role_10c2bd38 -> task_36fe5555 [label="17 [when: not kubeinit_compute_count|int > 0]" color="#8409c3" fontcolor="#8409c3" id=edge_62936b7b labeltooltip="17 [when: not kubeinit_compute_count|int > 0]" tooltip="17 [when: not kubeinit_compute_count|int > 0]"]
-		task_a5df9d5f [label="kubeinit.kubeinit.kubeinit_k8s : Copying the kubeconfig to a variable" color="#8409c3" id=task_a5df9d5f shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Copying the kubeconfig to a variable"]
-		role_10c2bd38 -> task_a5df9d5f [label="18 " color="#8409c3" fontcolor="#8409c3" id=edge_c0d89fc6 labeltooltip="18 " tooltip="18 "]
-		task_5f7e8bf4 [label="kubeinit.kubeinit.kubeinit_k8s : Create kube directory" color="#8409c3" id=task_5f7e8bf4 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Create kube directory"]
-		role_10c2bd38 -> task_5f7e8bf4 [label="19 " color="#8409c3" fontcolor="#8409c3" id=edge_1b84a744 labeltooltip="19 " tooltip="19 "]
-		task_34faf7bf [label="kubeinit.kubeinit.kubeinit_k8s : Storing the master kubeconfig to the services machine." color="#8409c3" id=task_34faf7bf shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Storing the master kubeconfig to the services machine."]
-		role_10c2bd38 -> task_34faf7bf [label="20 " color="#8409c3" fontcolor="#8409c3" id=edge_4a075ca1 labeltooltip="20 " tooltip="20 "]
+		role_1b8b96e6 [label="[role] Delegate to the distro role to deploy the cluster" color="#963678" id=role_1b8b96e6 tooltip="Delegate to the distro role to deploy the cluster"]
+		role_1b8b96e6 -> role_0b59e7a1 [label="1 [when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed]" color="#963678" fontcolor="#963678" id=edge_fb6305ac labeltooltip="1 [when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed]" tooltip="1 [when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed]"]
+		task_af467991 [label="kubeinit.kubeinit.kubeinit_k8s : Clean kubeadm and initialize Kubernetes cluster" color="#963678" id=task_af467991 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Clean kubeadm and initialize Kubernetes cluster"]
+		role_1b8b96e6 -> task_af467991 [label="2 " color="#963678" fontcolor="#963678" id=edge_c8a99b16 labeltooltip="2 " tooltip="2 "]
+		task_0cdc538a [label="kubeinit.kubeinit.kubeinit_k8s : Debug" color="#963678" id=task_0cdc538a shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Debug"]
+		role_1b8b96e6 -> task_0cdc538a [label="3 " color="#963678" fontcolor="#963678" id=edge_ef776cdb labeltooltip="3 " tooltip="3 "]
+		task_2bad2bdb [label="kubeinit.kubeinit.kubeinit_k8s : Get the controller join key" color="#963678" id=task_2bad2bdb shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Get the controller join key"]
+		role_1b8b96e6 -> task_2bad2bdb [label="4 [when: ('--control-plane --certificate-key' in item)]" color="#963678" fontcolor="#963678" id=edge_b5bce118 labeltooltip="4 [when: ('--control-plane --certificate-key' in item)]" tooltip="4 [when: ('--control-plane --certificate-key' in item)]"]
+		task_06f206fd [label="kubeinit.kubeinit.kubeinit_k8s : Debug" color="#963678" id=task_06f206fd shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Debug"]
+		role_1b8b96e6 -> task_06f206fd [label="5 " color="#963678" fontcolor="#963678" id=edge_4b058612 labeltooltip="5 " tooltip="5 "]
+		task_124a54c4 [label="kubeinit.kubeinit.kubeinit_k8s : Storing the controller join key to add the other controller nodes." color="#963678" id=task_124a54c4 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Storing the controller join key to add the other controller nodes."]
+		role_1b8b96e6 -> task_124a54c4 [label="6 [when: kubeinit_controller_count|int > 1]" color="#963678" fontcolor="#963678" id=edge_a214d8e8 labeltooltip="6 [when: kubeinit_controller_count|int > 1]" tooltip="6 [when: kubeinit_controller_count|int > 1]"]
+		task_77aaa53c [label="kubeinit.kubeinit.kubeinit_k8s : Create kube directory" color="#963678" id=task_77aaa53c shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Create kube directory"]
+		role_1b8b96e6 -> task_77aaa53c [label="7 " color="#963678" fontcolor="#963678" id=edge_297d4999 labeltooltip="7 " tooltip="7 "]
+		task_265dace0 [label="kubeinit.kubeinit.kubeinit_k8s : Copying required files" color="#963678" id=task_265dace0 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Copying required files"]
+		role_1b8b96e6 -> task_265dace0 [label="8 " color="#963678" fontcolor="#963678" id=edge_8221d8eb labeltooltip="8 " tooltip="8 "]
+		task_bcbd1715 [label="kubeinit.kubeinit.kubeinit_k8s : Get the join command" color="#963678" id=task_bcbd1715 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Get the join command"]
+		role_1b8b96e6 -> task_bcbd1715 [label="9 " color="#963678" fontcolor="#963678" id=edge_47643d77 labeltooltip="9 " tooltip="9 "]
+		task_6d412822 [label="kubeinit.kubeinit.kubeinit_k8s : Storing the join cluster command token." color="#963678" id=task_6d412822 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Storing the join cluster command token."]
+		role_1b8b96e6 -> task_6d412822 [label="10 [when: kubeinit_controller_count|int > 1]" color="#963678" fontcolor="#963678" id=edge_b71886d5 labeltooltip="10 [when: kubeinit_controller_count|int > 1]" tooltip="10 [when: kubeinit_controller_count|int > 1]"]
+		task_8f62d551 [label="kubeinit.kubeinit.kubeinit_k8s : Install Network Add-on" color="#963678" id=task_8f62d551 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Install Network Add-on"]
+		role_1b8b96e6 -> task_8f62d551 [label="11 " color="#963678" fontcolor="#963678" id=edge_98307489 labeltooltip="11 " tooltip="11 "]
+		task_6cd28471 [label="kubeinit.kubeinit.kubeinit_k8s : Join additional controller nodes using the PK" color="#963678" id=task_6cd28471 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Join additional controller nodes using the PK"]
+		role_1b8b96e6 -> task_6cd28471 [label="12 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" color="#963678" fontcolor="#963678" id=edge_6c59edb0 labeltooltip="12 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" tooltip="12 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]"]
+		task_eee120f4 [label="kubeinit.kubeinit.kubeinit_k8s : Create kube directory" color="#963678" id=task_eee120f4 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Create kube directory"]
+		role_1b8b96e6 -> task_eee120f4 [label="13 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" color="#963678" fontcolor="#963678" id=edge_53d3ebe3 labeltooltip="13 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" tooltip="13 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]"]
+		task_917f27a7 [label="kubeinit.kubeinit.kubeinit_k8s : Copying required files" color="#963678" id=task_917f27a7 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Copying required files"]
+		role_1b8b96e6 -> task_917f27a7 [label="14 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" color="#963678" fontcolor="#963678" id=edge_acd3587b labeltooltip="14 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]" tooltip="14 [when: kubeinit_controller_count|int > 1 and controller_node not in kubeinit_first_controller_node]"]
+		task_a6dcb90c [label="kubeinit.kubeinit.kubeinit_k8s : Join compute nodes with kubernetes control plane" color="#963678" id=task_a6dcb90c shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Join compute nodes with kubernetes control plane"]
+		role_1b8b96e6 -> task_a6dcb90c [label="15 " color="#963678" fontcolor="#963678" id=edge_1d59825e labeltooltip="15 " tooltip="15 "]
+		task_d02b5ed3 [label="kubeinit.kubeinit.kubeinit_k8s : Label node" color="#963678" id=task_d02b5ed3 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Label node"]
+		role_1b8b96e6 -> task_d02b5ed3 [label="16 " color="#963678" fontcolor="#963678" id=edge_56d089e3 labeltooltip="16 " tooltip="16 "]
+		task_1e76c620 [label="kubeinit.kubeinit.kubeinit_k8s : Allow schedule workloads in controller nodes if there are no compute nodes" color="#963678" id=task_1e76c620 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Allow schedule workloads in controller nodes if there are no compute nodes"]
+		role_1b8b96e6 -> task_1e76c620 [label="17 [when: not kubeinit_compute_count|int > 0]" color="#963678" fontcolor="#963678" id=edge_48ff2e54 labeltooltip="17 [when: not kubeinit_compute_count|int > 0]" tooltip="17 [when: not kubeinit_compute_count|int > 0]"]
+		task_3a057fd3 [label="kubeinit.kubeinit.kubeinit_k8s : Copying the kubeconfig to a variable" color="#963678" id=task_3a057fd3 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Copying the kubeconfig to a variable"]
+		role_1b8b96e6 -> task_3a057fd3 [label="18 " color="#963678" fontcolor="#963678" id=edge_258a0ecc labeltooltip="18 " tooltip="18 "]
+		task_b642e3d2 [label="kubeinit.kubeinit.kubeinit_k8s : Create kube directory" color="#963678" id=task_b642e3d2 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Create kube directory"]
+		role_1b8b96e6 -> task_b642e3d2 [label="19 " color="#963678" fontcolor="#963678" id=edge_078fcbc7 labeltooltip="19 " tooltip="19 "]
+		task_e7b84706 [label="kubeinit.kubeinit.kubeinit_k8s : Storing the master kubeconfig to the services machine." color="#963678" id=task_e7b84706 shape=octagon tooltip="kubeinit.kubeinit.kubeinit_k8s : Storing the master kubeconfig to the services machine."]
+		role_1b8b96e6 -> task_e7b84706 [label="20 " color="#963678" fontcolor="#963678" id=edge_091e02ab labeltooltip="20 " tooltip="20 "]
 	}
 	subgraph "task-deploy-cluster" {
-		role_9bb9190b [label="[role] task-deploy-cluster" color="#8409c3" id=role_9bb9190b tooltip="task-deploy-cluster"]
-		role_9bb9190b -> role_3e608353 [label="1 [when: not services_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_402e04c1 labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
-		role_9bb9190b -> role_10c2bd38 [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_120be9f2 labeltooltip="2 " tooltip="2 "]
+		role_bef7b8ec [label="[role] task-deploy-cluster" color="#963678" id=role_bef7b8ec tooltip="task-deploy-cluster"]
+		role_bef7b8ec -> role_0cb46adf [label="1 [when: not services_prepared]" color="#963678" fontcolor="#963678" id=edge_b53e74e6 labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
+		role_bef7b8ec -> role_1b8b96e6 [label="2 " color="#963678" fontcolor="#963678" id=edge_7419cbce labeltooltip="2 " tooltip="2 "]
 	}
-	subgraph "Read podman secrets if running from the container" {
-		role_e6c68fbc [label="[role] Read podman secrets if running from the container" color="#8409c3" id=role_e6c68fbc tooltip="Read podman secrets if running from the container"]
+	subgraph "Gather kubeinit secrets" {
+		role_f72f20d8 [label="[role] Gather kubeinit secrets" color="#963678" id=role_f72f20d8 tooltip="Gather kubeinit secrets"]
+	}
+	subgraph "Gather additional facts from localhost for kubeinit" {
+		role_8723e406 [label="[role] Gather additional facts from localhost for kubeinit" color="#963678" id=role_8723e406 tooltip="Gather additional facts from localhost for kubeinit"]
+	}
+	subgraph "Create ssh config file from template" {
+		role_9d81af9e [label="[role] Create ssh config file from template" color="#963678" id=role_9d81af9e tooltip="Create ssh config file from template"]
 	}
 	subgraph "Prepare environment if needed" {
-		role_10b6bd03 [label="[role] Prepare environment if needed" color="#8409c3" id=role_10b6bd03 tooltip="Prepare environment if needed"]
-		role_10b6bd03 -> role_e6c68fbc [label="1 [when: hostvars[kubeinit_facts_name].container_run]" color="#8409c3" fontcolor="#8409c3" id=edge_49649a9f labeltooltip="1 [when: hostvars[kubeinit_facts_name].container_run]" tooltip="1 [when: hostvars[kubeinit_facts_name].container_run]"]
+		role_b57f4ca2 [label="[role] Prepare environment if needed" color="#963678" id=role_b57f4ca2 tooltip="Prepare environment if needed"]
+		role_b57f4ca2 -> role_f72f20d8 [label="1 " color="#963678" fontcolor="#963678" id=edge_0474a101 labeltooltip="1 " tooltip="1 "]
+		role_b57f4ca2 -> role_8723e406 [label="2 " color="#963678" fontcolor="#963678" id=edge_2adaf479 labeltooltip="2 " tooltip="2 "]
+		role_b57f4ca2 -> role_9d81af9e [label="3 " color="#963678" fontcolor="#963678" id=edge_97fcc199 labeltooltip="3 " tooltip="3 "]
 	}
 	subgraph "Gather network and host facts for guest" {
-		role_921a6dff [label="[role] Gather network and host facts for guest" color="#8409c3" id=role_921a6dff tooltip="Gather network and host facts for guest"]
+		role_b5e5e6e7 [label="[role] Gather network and host facts for guest" color="#963678" id=role_b5e5e6e7 tooltip="Gather network and host facts for guest"]
 	}
 	subgraph "Prepare services if needed" {
-		role_c11b5983 [label="[role] Prepare services if needed" color="#8409c3" id=role_c11b5983 tooltip="Prepare services if needed"]
-		role_c11b5983 -> role_10b6bd03 [label="1 [when: not environment_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_f195c302 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
-		role_c11b5983 -> role_921a6dff [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_7ab4c26d labeltooltip="2 " tooltip="2 "]
+		role_e13a8d97 [label="[role] Prepare services if needed" color="#963678" id=role_e13a8d97 tooltip="Prepare services if needed"]
+		role_e13a8d97 -> role_b57f4ca2 [label="1 [when: not environment_prepared]" color="#963678" fontcolor="#963678" id=edge_76cbdf53 labeltooltip="1 [when: not environment_prepared]" tooltip="1 [when: not environment_prepared]"]
+		role_e13a8d97 -> role_b5e5e6e7 [label="2 " color="#963678" fontcolor="#963678" id=edge_14b0ae8a labeltooltip="2 " tooltip="2 "]
 	}
 	subgraph "Deploy the apps" {
-		role_07c0c740 [label="[role] Deploy the apps" color="#8409c3" id=role_07c0c740 tooltip="Deploy the apps"]
+		role_3a77ecc6 [label="[role] Deploy the apps" color="#963678" id=role_3a77ecc6 tooltip="Deploy the apps"]
 	}
 	subgraph "Configure NFS" {
-		role_b43badae [label="[role] Configure NFS" color="#8409c3" id=role_b43badae tooltip="Configure NFS"]
+		role_8940180b [label="[role] Configure NFS" color="#963678" id=role_8940180b tooltip="Configure NFS"]
 	}
 	subgraph "Delegate to distro role to run post-deployment tasks" {
-		role_59f9f850 [label="[role] Delegate to distro role to run post-deployment tasks" color="#8409c3" id=role_59f9f850 tooltip="Delegate to distro role to run post-deployment tasks"]
-		role_59f9f850 -> role_07c0c740 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_e6bff90d labeltooltip="1 " tooltip="1 "]
-		role_59f9f850 -> role_b43badae [label="2 [when: 'nfs' in kubeinit_cluster_hostvars.services]" color="#8409c3" fontcolor="#8409c3" id=edge_5d15bbca labeltooltip="2 [when: 'nfs' in kubeinit_cluster_hostvars.services]" tooltip="2 [when: 'nfs' in kubeinit_cluster_hostvars.services]"]
+		role_834dfc80 [label="[role] Delegate to distro role to run post-deployment tasks" color="#963678" id=role_834dfc80 tooltip="Delegate to distro role to run post-deployment tasks"]
+		role_834dfc80 -> role_3a77ecc6 [label="1 " color="#963678" fontcolor="#963678" id=edge_2e34bcab labeltooltip="1 " tooltip="1 "]
+		role_834dfc80 -> role_8940180b [label="2 [when: 'nfs' in kubeinit_cluster_hostvars.services]" color="#963678" fontcolor="#963678" id=edge_71ded8eb labeltooltip="2 [when: 'nfs' in kubeinit_cluster_hostvars.services]" tooltip="2 [when: 'nfs' in kubeinit_cluster_hostvars.services]"]
 	}
 	subgraph "task-post-deployment" {
-		role_a1810910 [label="[role] task-post-deployment" color="#8409c3" id=role_a1810910 tooltip="task-post-deployment"]
-		role_a1810910 -> role_c11b5983 [label="1 [when: not services_prepared]" color="#8409c3" fontcolor="#8409c3" id=edge_d3c74713 labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
-		role_a1810910 -> role_59f9f850 [label="2 " color="#8409c3" fontcolor="#8409c3" id=edge_ab30b84e labeltooltip="2 " tooltip="2 "]
+		role_c2522f2d [label="[role] task-post-deployment" color="#963678" id=role_c2522f2d tooltip="task-post-deployment"]
+		role_c2522f2d -> role_e13a8d97 [label="1 [when: not services_prepared]" color="#963678" fontcolor="#963678" id=edge_940a7db0 labeltooltip="1 [when: not services_prepared]" tooltip="1 [when: not services_prepared]"]
+		role_c2522f2d -> role_834dfc80 [label="2 " color="#963678" fontcolor="#963678" id=edge_8a97f4fa labeltooltip="2 " tooltip="2 "]
 	}
 	subgraph "Play: Run cluster deployment on prepared hypervisors (1)" {
-		play_8ef2c419 -> block_3998cb3e [label=1 color="#8409c3" fontcolor="#8409c3" id=edge_b1023fe2 labeltooltip=1 tooltip=1]
-		subgraph cluster_block_3998cb3e {
-			block_3998cb3e [label="[block] Prepare the environment" color="#8409c3" id=block_3998cb3e labeltooltip="Prepare the environment" shape=box tooltip="Prepare the environment"]
-			block_3998cb3e -> role_42e9dcc0 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_c42d7d6d labeltooltip="1 " tooltip="1 "]
+		play_a207abc6 -> block_65332dd6 [label=1 color="#963678" fontcolor="#963678" id=edge_9fb7d6dd labeltooltip=1 tooltip=1]
+		subgraph cluster_block_65332dd6 {
+			block_65332dd6 [label="[block] Prepare the environment" color="#963678" id=block_65332dd6 labeltooltip="Prepare the environment" shape=box tooltip="Prepare the environment"]
+			block_65332dd6 -> role_f2fd42d3 [label="1 " color="#963678" fontcolor="#963678" id=edge_7f03c8ba labeltooltip="1 " tooltip="1 "]
 		}
-		play_8ef2c419 -> block_104c87a2 [label=2 color="#8409c3" fontcolor="#8409c3" id=edge_f46c404c labeltooltip=2 tooltip=2]
-		subgraph cluster_block_104c87a2 {
-			block_104c87a2 [label="[block] Cleanup hypervisors" color="#8409c3" id=block_104c87a2 labeltooltip="Cleanup hypervisors" shape=box tooltip="Cleanup hypervisors"]
-			block_104c87a2 -> role_e06b55e4 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_c7c68fa7 labeltooltip="1 " tooltip="1 "]
+		play_a207abc6 -> block_c7577911 [label=2 color="#963678" fontcolor="#963678" id=edge_9db345e0 labeltooltip=2 tooltip=2]
+		subgraph cluster_block_c7577911 {
+			block_c7577911 [label="[block] Cleanup hypervisors" color="#963678" id=block_c7577911 labeltooltip="Cleanup hypervisors" shape=box tooltip="Cleanup hypervisors"]
+			block_c7577911 -> role_175d3d27 [label="1 " color="#963678" fontcolor="#963678" id=edge_18981d1e labeltooltip="1 " tooltip="1 "]
 		}
-		play_8ef2c419 -> block_90caaf5b [label=3 color="#8409c3" fontcolor="#8409c3" id=edge_300a8a38 labeltooltip=3 tooltip=3]
-		subgraph cluster_block_90caaf5b {
-			block_90caaf5b [label="[block] Run validations on cluster resources" color="#8409c3" id=block_90caaf5b labeltooltip="Run validations on cluster resources" shape=box tooltip="Run validations on cluster resources"]
-			block_90caaf5b -> role_1fd45279 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_c1b0a4f1 labeltooltip="1 " tooltip="1 "]
+		play_a207abc6 -> block_1c2c878d [label=3 color="#963678" fontcolor="#963678" id=edge_8a5fd3d7 labeltooltip=3 tooltip=3]
+		subgraph cluster_block_1c2c878d {
+			block_1c2c878d [label="[block] Run validations on cluster resources" color="#963678" id=block_1c2c878d labeltooltip="Run validations on cluster resources" shape=box tooltip="Run validations on cluster resources"]
+			block_1c2c878d -> role_95edaeca [label="1 " color="#963678" fontcolor="#963678" id=edge_1fb2f994 labeltooltip="1 " tooltip="1 "]
 		}
-		play_8ef2c419 -> block_309d64fe [label=4 color="#8409c3" fontcolor="#8409c3" id=edge_25315688 labeltooltip=4 tooltip=4]
-		subgraph cluster_block_309d64fe {
-			block_309d64fe [label="[block] Create the cluster network resources" color="#8409c3" id=block_309d64fe labeltooltip="Create the cluster network resources" shape=box tooltip="Create the cluster network resources"]
-			block_309d64fe -> role_0477cb19 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_620279bc labeltooltip="1 " tooltip="1 "]
+		play_a207abc6 -> block_34532ce6 [label=4 color="#963678" fontcolor="#963678" id=edge_ae6ada9d labeltooltip=4 tooltip=4]
+		subgraph cluster_block_34532ce6 {
+			block_34532ce6 [label="[block] Create the cluster network resources" color="#963678" id=block_34532ce6 labeltooltip="Create the cluster network resources" shape=box tooltip="Create the cluster network resources"]
+			block_34532ce6 -> role_ad282537 [label="1 " color="#963678" fontcolor="#963678" id=edge_717d8822 labeltooltip="1 " tooltip="1 "]
 		}
-		play_8ef2c419 -> block_a42fcd1c [label=5 color="#8409c3" fontcolor="#8409c3" id=edge_7e3fbc1d labeltooltip=5 tooltip=5]
-		subgraph cluster_block_a42fcd1c {
-			block_a42fcd1c [label="[block] Create services the cluster will need" color="#8409c3" id=block_a42fcd1c labeltooltip="Create services the cluster will need" shape=box tooltip="Create services the cluster will need"]
-			block_a42fcd1c -> role_2292e69d [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_cdecff18 labeltooltip="1 " tooltip="1 "]
+		play_a207abc6 -> block_b4d6c02e [label=5 color="#963678" fontcolor="#963678" id=edge_ee156ddb labeltooltip=5 tooltip=5]
+		subgraph cluster_block_b4d6c02e {
+			block_b4d6c02e [label="[block] Create services the cluster will need" color="#963678" id=block_b4d6c02e labeltooltip="Create services the cluster will need" shape=box tooltip="Create services the cluster will need"]
+			block_b4d6c02e -> role_0ca97af5 [label="1 " color="#963678" fontcolor="#963678" id=edge_d5246cf1 labeltooltip="1 " tooltip="1 "]
 		}
-		play_8ef2c419 -> block_61b74eaa [label=6 color="#8409c3" fontcolor="#8409c3" id=edge_0defe53b labeltooltip=6 tooltip=6]
-		subgraph cluster_block_61b74eaa {
-			block_61b74eaa [label="[block] Prepare to deploy the cluster" color="#8409c3" id=block_61b74eaa labeltooltip="Prepare to deploy the cluster" shape=box tooltip="Prepare to deploy the cluster"]
-			block_61b74eaa -> role_8bb700b1 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_7f86110c labeltooltip="1 " tooltip="1 "]
+		play_a207abc6 -> block_1a8c5a24 [label=6 color="#963678" fontcolor="#963678" id=edge_6a0dede6 labeltooltip=6 tooltip=6]
+		subgraph cluster_block_1a8c5a24 {
+			block_1a8c5a24 [label="[block] Prepare to deploy the cluster" color="#963678" id=block_1a8c5a24 labeltooltip="Prepare to deploy the cluster" shape=box tooltip="Prepare to deploy the cluster"]
+			block_1a8c5a24 -> role_9d394477 [label="1 " color="#963678" fontcolor="#963678" id=edge_f9b1c1b9 labeltooltip="1 " tooltip="1 "]
 		}
-		play_8ef2c419 -> block_2af56849 [label=7 color="#8409c3" fontcolor="#8409c3" id=edge_f90f8edd labeltooltip=7 tooltip=7]
-		subgraph cluster_block_2af56849 {
-			block_2af56849 [label="[block] Download cloud images" color="#8409c3" id=block_2af56849 labeltooltip="Download cloud images" shape=box tooltip="Download cloud images"]
-			block_2af56849 -> role_add0305a [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_0d2f4832 labeltooltip="1 " tooltip="1 "]
+		play_a207abc6 -> block_495010ac [label=7 color="#963678" fontcolor="#963678" id=edge_5f4f4259 labeltooltip=7 tooltip=7]
+		subgraph cluster_block_495010ac {
+			block_495010ac [label="[block] Download cloud images" color="#963678" id=block_495010ac labeltooltip="Download cloud images" shape=box tooltip="Download cloud images"]
+			block_495010ac -> role_423bf6c5 [label="1 " color="#963678" fontcolor="#963678" id=edge_37ce951f labeltooltip="1 " tooltip="1 "]
 		}
-		play_8ef2c419 -> block_ada713e4 [label=8 color="#8409c3" fontcolor="#8409c3" id=edge_c038a74c labeltooltip=8 tooltip=8]
-		subgraph cluster_block_ada713e4 {
-			block_ada713e4 [label="[block] Deploy the cluster" color="#8409c3" id=block_ada713e4 labeltooltip="Deploy the cluster" shape=box tooltip="Deploy the cluster"]
-			block_ada713e4 -> role_9bb9190b [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_7a644f0d labeltooltip="1 " tooltip="1 "]
+		play_a207abc6 -> block_6618a69e [label=8 color="#963678" fontcolor="#963678" id=edge_22a4751b labeltooltip=8 tooltip=8]
+		subgraph cluster_block_6618a69e {
+			block_6618a69e [label="[block] Deploy the cluster" color="#963678" id=block_6618a69e labeltooltip="Deploy the cluster" shape=box tooltip="Deploy the cluster"]
+			block_6618a69e -> role_bef7b8ec [label="1 " color="#963678" fontcolor="#963678" id=edge_8f9cf7f3 labeltooltip="1 " tooltip="1 "]
 		}
-		play_8ef2c419 -> block_d64387ab [label=9 color="#8409c3" fontcolor="#8409c3" id=edge_7c427a09 labeltooltip=9 tooltip=9]
-		subgraph cluster_block_d64387ab {
-			block_d64387ab [label="[block] Run any post-deployment tasks" color="#8409c3" id=block_d64387ab labeltooltip="Run any post-deployment tasks" shape=box tooltip="Run any post-deployment tasks"]
-			block_d64387ab -> role_a1810910 [label="1 " color="#8409c3" fontcolor="#8409c3" id=edge_3150430b labeltooltip="1 " tooltip="1 "]
+		play_a207abc6 -> block_02085fa3 [label=9 color="#963678" fontcolor="#963678" id=edge_d2560b59 labeltooltip=9 tooltip=9]
+		subgraph cluster_block_02085fa3 {
+			block_02085fa3 [label="[block] Run any post-deployment tasks" color="#963678" id=block_02085fa3 labeltooltip="Run any post-deployment tasks" shape=box tooltip="Run any post-deployment tasks"]
+			block_02085fa3 -> role_c2522f2d [label="1 " color="#963678" fontcolor="#963678" id=edge_6796fdcb labeltooltip="1 " tooltip="1 "]
 		}
 	}
 }

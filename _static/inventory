@@ -24,12 +24,6 @@ ansible_ssh_common_args='-o UserKnownHostsFile=/dev/null -o StrictHostKeyCheckin
 
 kubeinit_inventory_network_name=kimgtnet0
 
-kubeinit_inventory_network=10.0.0.0/24
-kubeinit_inventory_gateway_offset=-2
-kubeinit_inventory_nameserver_offset=-3
-kubeinit_inventory_dhcp_start_offset=1
-kubeinit_inventory_dhcp_end_offset=-4
-
 #
 # Cluster definitions
 #
@@ -126,6 +120,15 @@ post_deployment_services=none
 
 [kubeinit_cluster]
 
+[kubeinit_network:vars]
+network=10.0.0.0/24
+gateway_offset=-2
+nameserver_offset=-3
+dhcp_start_offset=1
+dhcp_end_offset=-4
+
+[kubeinit_network]
+
 #
 # Cluster node definitions
 #
@@ -173,7 +176,7 @@ type=virtual
 target_order="hypervisor-02,hypervisor-01"
 
 [extra_nodes]
-bootstrap distro=okd target=hypervisor-03
+bootstrap when_distro=okd target=hypervisor-03
 
 # Service nodes are a set of service containers sharing the same pod network.
 # There is an implicit 'provision' service container which will use a base os
