@@ -26,31 +26,208 @@
 #
 # Gather kubeinit ci facts
 #
-- name: Add an explicit localhost entry to hostvars
-  ansible.builtin.add_host:
-    name: localhost
-    ansible_connection: local
-    ansible_python_interpreter: "{{ ansible_playbook_python }}"
 
-- name: Set hostname we use to set ci facts
+- name: Set hostname we use to set kubeinit ci facts
   ansible.builtin.set_fact:
     kubeinit_facts_name: 'kubeinit-ci-facts'
 
-- name: Add remote_user fact
+- name: Add playbook context facts
   ansible.builtin.add_host:
     name: "{{ kubeinit_facts_name }}"
-    remote_user: "{{ kubeinit_inventory_remote_user | default('root') }}"
+    groups: 'kubeinit_ci_facts'
+    container_run: "{{ kubeinit_container_run|default(false)|bool }}"
 
-- block:
-    - name: Add tasks-gather-facts to tasks completed
-      ansible.builtin.add_host:
-        name: "{{ kubeinit_facts_name }}"
-        tasks_completed: "{{ ['task-gather-facts'] }}"
+- name: Load kubeinit_env group
+  ansible.builtin.add_host:
+    name: 'kubeinit-env'
+    groups: 'kubeinit_env'
 
-    - block:
-        - name: Stop after 'task-gather-facts' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
-        - name: End play
-          ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_facts_name].tasks_completed
-  tags: omit_from_grapher
+- name: Gather kubeinit secrets
+  ansible.builtin.include_role:
+    name: kubeinit.kubeinit.kubeinit_prepare
+    tasks_from: gather_kubeinit_secrets.yml
+    public: true
+  vars:
+    _param_secret_names:
+      - kubeinit_ci_ssh_key
+      - dockerhub_username
+      - dockerhub_password
+      - gitlab_runner_registration_token
+      - gitlab_runner_access_token
+
+- name: Lookup remote_user from command-line
+  ansible.builtin.set_fact:
+    kubeinit_cli_remote_user: "{{ lookup('kubeinit.kubeinit.cli_args', 'remote_user') }}"
+
+- name: Check for empty remote user when running from kubeinit container
+  ansible.builtin.assert:
+    msg:
+      - "You must provide the user for the playbook when running from the kubeinit container."
+      - "e.g. --user root"
+    that: not hostvars[kubeinit_facts_name].container_run or kubeinit_cli_remote_user|length > 0
+
+- name: Define kubeinit remote_user
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_facts_name }}"
+    dns_public: "{{ hostvars['kubeinit-env'].dns_public }}"
+    local_home: "{{ ansible_facts.user_dir }}"
+    local_user: "{{ ansible_facts.user_id }}"
+    remote_user: "{{ kubeinit_cli_remote_user if (kubeinit_cli_remote_user|length > 0) else ansible_facts.user_id }}"
+    ssh_keytype: "{{ hostvars['kubeinit-env'].ssh_keytype }}"
+
+- name: Define kubeinit_facts_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+
+- name: Define kubeinit_dns_public
+  ansible.builtin.set_fact:
+    kubeinit_dns_public: "{{ kubeinit_facts_hostvars.dns_public }}"
+
+- name: Define kubeinit_ssh_keytype
+  ansible.builtin.set_fact:
+    kubeinit_ssh_keytype: "{{ kubeinit_facts_hostvars.ssh_keytype }}"
+
+- name: Create .ssh folder if needed
+  ansible.builtin.file:
+    path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh' }}"
+    state: directory
+    mode: 0700
+  when: kubeinit_facts_hostvars.container_run|bool
+
+- name: Copy ci ssh key secret into ~/.ssh
+  ansible.builtin.copy:
+    content: "{{ hostvars[kubeinit_secrets_name].secrets['kubeinit_ci_ssh_key'] | b64decode }}"
+    dest: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/id_' + kubeinit_ssh_keytype }}"
+    mode: '0600'
+  when: kubeinit_facts_hostvars.container_run|bool
+
+- name: Parse ci_host_spec into a dictionary if defined
+  ansible.builtin.set_fact:
+    ci_host_map: "{{ dict(_keys|zip(_vals)) }}"
+  vars:
+    _arr: "{{ ci_host_spec | from_yaml }}"
+    _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
+    _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+  when: ci_host_spec is defined
+
+- name: Define default_ci_host_name
+  ansible.builtin.set_fact:
+    default_ci_host_name: "{{ 'kubeinit-ci' if (ci_host_map is not defined or ci_host_map['host'] is not defined) else ci_host_map['host'] }}"
+
+- name: Define default_ci_ansible_host
+  ansible.builtin.set_fact:
+    default_ci_ansible_host: "{{ 'localhost' if (ci_host_map is not defined or ci_host_map['ansible_host'] is not defined) else ci_host_map['ansible_host'] }}"
+
+- name: Define kubeinit_ci_host_name
+  ansible.builtin.set_fact:
+    kubeinit_ci_host_name: "{{ default_ci_host_name if (('ci_host' not in groups) or ((groups['ci_host'] | list | length) == 0)) else groups['ci_host'][0] }}"
+
+- name: Add a default entry for localhost if there are no ci_host members
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_ci_host_name }}"
+    groups: 'kubeinit_ci_host'
+    ansible_host: "{{ default_ci_ansible_host }}"
+    ansible_connection: "{{ 'local' if (default_ci_ansible_host == 'localhost') else 'smart' }}"
+    target: "{{ kubeinit_ci_host_name }}"
+  when: "('ci_host' not in groups) or ((groups['ci_host'] | list | length) == 0)"
+
+- name: Add ansible_host for ci_host if not defined
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_ci_host_name }}"
+    groups: 'kubeinit_ci_host'
+    ansible_host: "{{ hostvars[hostvars[kubeinit_ci_host_name].target].ansible_host }}"
+  when: "hostvars[kubeinit_ci_host_name].ansible_host is not defined"
+
+- name: Add target for ci_host if not defined
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_ci_host_name }}"
+    groups: 'kubeinit_ci_host'
+    target: "{{ kubeinit_ci_host_name }}"
+  when: "hostvars[kubeinit_ci_host_name].target is not defined"
+
+- name: Change the ansible_host to the ansible_fqdn of the host running the container
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_ci_host_name }}"
+    groups: 'kubeinit_ci_host'
+    ansible_host: "{{ ansible_facts.fqdn }}"
+    ansible_connection: 'smart'
+  when: kubeinit_facts_hostvars.container_run and (hostvars[kubeinit_ci_host_name].ansible_connection | default('') == 'local')|bool
+
+- name: Add gitlab_url for ci_host
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_ci_host_name }}"
+    groups: 'kubeinit_ci_host'
+    gitlab_url: "{{ ci_host_map['gitlab_url'] | default(omit) }}"
+
+- name: Add local_install fact
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_facts_name }}"
+    local_install: "{{ (hostvars[kubeinit_ci_host_name].ansible_connection | default('') == 'local')|bool }}"
+
+- name: Update kubeinit_facts_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+
+- name: Add remote ssh params for ci_host when install is not local
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_ci_host_name }}"
+    groups: 'kubeinit_ci_host'
+    ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
+  when: not kubeinit_facts_hostvars.local_install
+
+- name: Ensure ci_host has all requirements for ansible
+  ansible.builtin.include_role:
+    name: kubeinit.kubeinit.kubeinit_setup
+    tasks_from: setup_ansible_host.yml
+    public: true
+  vars:
+    _param_ansible_host: "{{ kubeinit_ci_host_name }}"
+
+- name: Load hypervisor_hosts_spec from yaml into a list of dictionaries
+  ansible.builtin.set_fact:
+    hypervisor_hosts_map_list: "{{ (hypervisor_hosts_map_list | default([])) | union([_dict]) }}"
+  loop: "{{ hypervisor_hosts_spec | from_yaml }}"
+  vars:
+    _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
+    _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+    _dict: "{{ dict(_keys|zip(_vals)) }}"
+  when: hypervisor_hosts_spec is defined
+
+- name: Build kubeinit_hypervisors group
+  ansible.builtin.add_host:
+    name: "{{ item['host'] }}"
+    groups: 'kubeinit_hypervisors'
+    ansible_connection: 'smart'
+    ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
+    ansible_host: "{{ item['ansible_host'] }}"
+    ssh_hostname: "{{ item['ssh_hostname'] | default(omit) }}"
+    ssh_username: "{{ item['ssh_username'] | default(omit) }}"
+  loop: "{{ hypervisor_hosts_map_list }}"
+  when: hypervisor_hosts_map_list is defined
+
+- name: Set kubeinit_ci_ssh_config fact
+  ansible.builtin.set_fact:
+    kubeinit_ci_ssh_config: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/kubeinit_ci_config' }}"
+    kubeinit_ci_keypair_path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/id_' + kubeinit_ssh_keytype }}"
+
+- name: Add ansible_ssh_extra_args to kubeinit_hypervisors group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: 'kubeinit_hypervisors'
+    ansible_ssh_extra_args: "-F {{ kubeinit_ci_ssh_config }}"
+  loop: "{{ groups['kubeinit_hypervisors'] }}"
+
+- name: Create ssh config file from template
+  ansible.builtin.include_role:
+    name: kubeinit.kubeinit.kubeinit_prepare
+    tasks_from: create_host_ssh_config.yml
+    public: true
+  vars:
+    _param_hosts: "{{ groups['kubeinit_hypervisors'] }}"
+    _param_keypair_path: "{{ kubeinit_ci_keypair_path }}"
+    _param_dest_path: "{{ kubeinit_ci_ssh_config }}"
+
+- name: Print the contents of the result
+  ansible.builtin.command: cat {{ kubeinit_ci_ssh_config }}
+  register: _result
+  changed_when: "_result.rc == 0"

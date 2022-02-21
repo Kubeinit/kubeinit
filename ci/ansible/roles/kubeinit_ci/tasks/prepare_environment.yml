@@ -33,86 +33,139 @@
   ansible.builtin.set_fact:
     kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-- name: Define ci fact names needed to prepare groups
+- name: Define additional CI host facts
   ansible.builtin.set_fact:
-    kubeinit_ci_host_name:
-      "{{ 'kubeinit-ci' if (('ci_host' not in groups) or ((groups['ci_host'] | list | length) == 0)) else groups['ci_host'][0] }}"
-
-- name: Add a default entry for the first hypervisor if there are no ci_host members
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_ci_host_name }}"
-    group: ci_host
-    target: "{{ groups['hypervisor_hosts'][0] }}"
-  when: "('ci_host' not in groups) or ((groups['ci_host'] | list | length) == 0)"
-
-- name: Add remote_user for ci_host
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_ci_host_name }}"
-    group: ci_host
-    remote_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_ssh_keytype }}"
-
-- name: Add ansible_host for ci_host if not defined
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_ci_host_name }}"
-    group: ci_host
-    ansible_host: "{{ hostvars[hostvars[kubeinit_ci_host_name].target].ansible_host }}"
-  when: "hostvars[kubeinit_ci_host_name].ansible_host is not defined"
-
-- name: Add target for ci_host if not defined
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_ci_host_name }}"
-    group: ci_host
-    target: "{{ kubeinit_ci_host_name }}"
-  when: "hostvars[kubeinit_ci_host_name].target is not defined"
-
-- name: Check to see if we have access to ci_host
-  ansible.builtin.ping:
-  vars:
-    ansible_ssh_user: "{{ hostvars[groups['ci_host'][0]].remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_ssh_keytype }}"
-  delegate_to: "{{ kubeinit_ci_host_name }}"
-
-- name: Gather facts from ci_host
-  ansible.builtin.include_tasks: gather_host_facts.yml
-  vars:
-    ansible_ssh_user: "{{ hostvars[groups['ci_host'][0]].remote_user }}"
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_ssh_keytype }}"
-    _param_gather_host: "{{ kubeinit_ci_host_name }}"
-
-- name: Define additional host facts
-  ansible.builtin.set_fact:
-    kubeinit_ci_host_fqdn: "{{ kubeinit_ci_host_name }}.{{ kubeinit_inventory_ci_domain }}"
     kubeinit_ci_host_address: "{{ hostvars[kubeinit_ci_host_name].ssh_connection_address }}"
     kubeinit_ci_host_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-    kubeinit_ci_keypair_path: "~/.ssh/kubeinit_ci_id_{{ kubeinit_ssh_keytype }}"
     kubeinit_ci_bridge_name: kubeinit-ci-bridge
     kubeinit_ci_pod_name: kubeinit-ci-pod
 
-- name: Confirm presence of podman package
-  ansible.builtin.package_facts:
-  failed_when: "'podman' not in ansible_facts.packages"
-  delegate_to: "{{ kubeinit_ci_host_name }}"
-  when: ansible_check_mode
+- name: Delegate to kubeinit_ci_host_name
+  block:
 
-- name: Install podman package
-  ansible.builtin.package:
-    name:
-      - podman
-    state: present
-  become: true
-  become_user: root
-  delegate_to: "{{ kubeinit_ci_host_name }}"
-  when: not ansible_check_mode
+    - name: Gather current firewall rules
+      ansible.builtin.command: firewall-cmd --list-all
+      register: _result_firewall_info
+      changed_when: "_result_firewall_info.rc == 0"
+      become: true
+      become_user: root
 
-- name: Gather hypervisor host facts
-  ansible.builtin.include_tasks: gather_host_facts.yml
-  loop: "{{ groups['hypervisor_hosts'] }}"
-  loop_control:
-    loop_var: _param_gather_host
-  vars:
-    ansible_ssh_extra_args: "-i ~/.ssh/id_{{ kubeinit_ssh_keytype }}"
+    - name: Select ports line
+      ansible.builtin.set_fact:
+        _result_firewall_ports: "{{ _port_list.split(' ') }}"
+      loop: "{{ _result_firewall_info.stdout_lines | default([]) }}"
+      vars:
+        _port_list: "{{ ([item] | map('regex_replace', '^ *ports: *(.*)$', '\\1'))[0] }}"
+      when: "(item | trim) is match('^ports: ')"
+
+    - name: Check firewalld ports for existing entries
+      ansible.builtin.add_host:
+        name: "{{ kubeinit_ci_host_name }}"
+        add_publish_port: "{{ false if ('8080/tcp' in _firewall_ports) else true }}"
+        reload_firewalld: "{{ false if ('8080/tcp' in _firewall_ports) else true }}"
+      vars:
+        _firewall_ports: "{{ _result_firewall_ports | default([]) }}"
+      become: true
+      become_user: root
+
+    - name: Open firewall port 8080 on bastion
+      ansible.builtin.command: firewall-cmd --add-port 8080/tcp --permanent
+      register: _result
+      changed_when: "_result.rc == 0"
+      become: true
+      become_user: root
+      when: hostvars[kubeinit_ci_host_name].add_publish_port | default(false)
+
+    - name: Reload firewalld service
+      ansible.builtin.command: firewall-cmd --reload
+      register: _result
+      changed_when: "_result.rc == 0"
+      become: true
+      become_user: root
+      when: hostvars[kubeinit_ci_host_name].reload_firewalld | default(false)
+
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: hostvars[kubeinit_ci_host_name].firewalld_is_active
+
+- name: Delegate to kubeinit_ci_host_name
+  block:
+
+    - name: Setup kubic repo for Debian distribution
+      block:
+
+        - name: Set cgroup_manager for debian release
+          ansible.builtin.copy:
+            content: |
+              [engine]
+              cgroup_manager = "cgroupfs"
+            dest: '/etc/containers/containers.conf'
+            mode: '0644'
+          become: true
+          become_user: root
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _version: "{{ hostvars[kubeinit_ci_host_name].ansible_distribution_version.split('-')[0] }}"
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _stability: "{{ 'stable' if (_version is version('11', 'le')) else 'testing' }}"
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _path_element: "{{ _stability + '/' + hostvars[kubeinit_ci_host_name].ansible_distribution + '_' + _version }}"
+
+      when: hostvars[kubeinit_ci_host_name].ansible_distribution == 'Debian'
+
+    - name: Setup kubic repo for Ubuntu distribution
+      block:
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _version: "{{ hostvars[kubeinit_ci_host_name].ansible_distribution_version }}"
+            _stability: "{{ 'stable' if (hostvars[kubeinit_ci_host_name].ansible_distribution_version is version('21.04', 'le')) else 'testing' }}"
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _path_element: "{{ _stability + '/x' + hostvars[kubeinit_ci_host_name].ansible_distribution + '_' + _version }}"
+
+      when: hostvars[kubeinit_ci_host_name].ansible_distribution == 'Ubuntu'
+
+    - name: Setup kubic repo for Debian family
+      block:
+
+        - name: Make sure we have curl installed
+          ansible.builtin.package:
+            name: curl
+            state: present
+          become: true
+          become_user: root
+
+        - name: Add the Podman kubic package repository to Apt
+          ansible.builtin.shell: |
+            set -eo pipefail
+            echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:{{ _stability }}.list
+            curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/Release.key" | apt-key add -
+            apt-get update
+          args:
+            executable: /bin/bash
+          become: true
+          become_user: root
+          delegate_to: "{{ kubeinit_ci_host_name }}"
+          register: _result
+          changed_when: "_result.rc == 0"
+
+      when: hostvars[kubeinit_ci_host_name].distribution_family == 'Debian'
+
+    - name: Prepare podman on ci host
+      ansible.builtin.include_role:
+        name: kubeinit.kubeinit.kubeinit_prepare
+        tasks_from: prepare_podman.yml
+        public: true
+      vars:
+        _param_install_dependencies: true
+
+  delegate_to: "{{ kubeinit_ci_host_name }}"
 
 - block:
     - name: Add task-prepare-environment to tasks_completed

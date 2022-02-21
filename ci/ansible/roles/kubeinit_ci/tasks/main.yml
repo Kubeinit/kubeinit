@@ -29,6 +29,12 @@
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-ci'
   tags: omit_from_grapher
 
+- name: Define hostvars used in these tasks
+  ansible.builtin.set_fact:
+    kubeinit_ci_keypair_path: "{{ hostvars['localhost'].kubeinit_ci_keypair_path }}"
+    kubeinit_dns_public: "{{ hostvars[kubeinit_facts_name].dns_public }}"
+    kubeinit_ssh_keytype: "{{ hostvars[kubeinit_facts_name].ssh_keytype }}"
+
 - name: Set ssh port to use
   ansible.builtin.set_fact:
     podman_remote_ssh_port: 22
@@ -37,73 +43,13 @@
   ansible.builtin.set_fact:
     podman_remote_ssh_host: "{{ kubeinit_ci_host_address }}"
 
-- name: Delegate to localhost
-  block:
-
-    - name: Stat /etc/localtime
-      ansible.builtin.stat:
-        path: "/etc/localtime"
-      register: _result_localtime
-      changed_when: "_result_localtime is defined"
-
-    #
-    # Currently there are two ways of configuring
-    # the docker.io credentials using the variable
-    # kubeinit_common_docker_password
-    #
-    # If the kubeinit_common_docker_password variable
-    # is the path of the file containing the password
-    # we get the password from that file, and in the case
-    # this path do not exists, then we asume that the
-    # variable contains the password itself.
-    #
-    - name: Check if kubeinit_common_docker_password path exists
-      ansible.builtin.stat:
-        path: "{{ kubeinit_common_docker_password }}"
-      register: _result_passwordfile
-      no_log: true
-      when: |
-        kubeinit_common_docker_username is defined and
-        kubeinit_common_docker_password is defined and
-        kubeinit_common_docker_username and
-        kubeinit_common_docker_password
-
-    - name: Read docker password from file when the variable has the path
-      ansible.builtin.slurp:
-        src: "{{ kubeinit_common_docker_password }}"
-      register: _result_passsword
-      no_log: true
-      when: |
-        kubeinit_common_docker_username is defined and
-        kubeinit_common_docker_password is defined and
-        kubeinit_common_docker_username and
-        kubeinit_common_docker_password and
-        _result_passwordfile.stat.exists
-
-    - name: Read runner registration_token
-      ansible.builtin.slurp:
-        src: "{{ kubeinit_common_gitlab_runner_registration_token }}"
-      register: _result_registration_token
-      no_log: true
-      when: |
-        kubeinit_common_gitlab_runner_registration_token is defined and kubeinit_common_gitlab_runner_registration_token
-
-    - name: Read runner access token
-      ansible.builtin.slurp:
-        src: "{{ kubeinit_common_gitlab_runner_access_token }}"
-      register: _result_access_token
-      no_log: true
-      when: |
-        kubeinit_common_gitlab_runner_access_token is defined and kubeinit_common_gitlab_runner_access_token
-
-    - name: Generate a local OpenSSH keypair for remote podman access to the ci host
-      community.crypto.openssh_keypair:
-        path: "{{ kubeinit_ci_keypair_path }}"
-        type: "{{ kubeinit_ssh_keytype }}"
-        comment: "{{ kubeinit_ci_host_fqdn }}"
-        regenerate: 'never'
-      register: _result_ci_keypair
-
+- name: Generate a local OpenSSH keypair for remote podman access to the ci host
+  community.crypto.openssh_keypair:
+    path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/kubeinit_ci_id_' + kubeinit_ssh_keytype }}"
+    type: "{{ kubeinit_ssh_keytype }}"
+    comment: "{{ kubeinit_ci_host_name }}@{{ hostvars[kubeinit_ci_host_name].ansible_host }}"
+    regenerate: 'never'
+  register: _result_ci_keypair
   delegate_to: localhost
 
 - name: Delegate to kubeinit_ci_host_name
@@ -116,39 +62,12 @@
         comment: "{{ _result_ci_keypair.comment }}"
         state: present
 
-    - name: Install common requirements
-      ansible.builtin.package:
-        name: ["podman", "buildah"]
-        state: present
-      become: true
-      become_user: root
-
-    - name: Podman login to docker.io
-      containers.podman.podman_login:
-        username: "{{ kubeinit_common_docker_username }}"
-        password: "{{ (_result_passsword.content | b64decode | trim) if (_result_passwordfile.stat.exists) else (kubeinit_common_docker_password) }}"
-        registry: "docker.io"
-      no_log: true
-      when: |
-        kubeinit_common_docker_username is defined and
-        kubeinit_common_docker_password is defined and
-        kubeinit_common_docker_username and
-        kubeinit_common_docker_password
-
-    - name: Clear any reference to docker password
-      ansible.builtin.set_fact:
-        _result_passsword: null
-      no_log: true
-      when: |
-        kubeinit_common_docker_username is defined and
-        kubeinit_common_docker_password is defined and
-        kubeinit_common_docker_username and
-        kubeinit_common_docker_password
-
     - name: Ensure user specific systemd instance are persistent
       ansible.builtin.command: loginctl enable-linger {{ kubeinit_ci_host_user }}
       register: _result
       changed_when: "_result.rc == 0"
+      become: true
+      become_user: root
 
     - name: Retrieve remote user runtime path
       ansible.builtin.command: loginctl show-user {{ kubeinit_ci_host_user }} -p RuntimePath --value
@@ -170,7 +89,7 @@
 
     - name: Add remote system connection definition for ci hypervisor
       ansible.builtin.command: |
-        podman --remote system connection add "{{ kubeinit_ci_host_name }}" --identity "{{ kubeinit_ci_keypair_path }}" "ssh://{{ kubeinit_ci_host_user }}@{{ podman_remote_ssh_host }}:{{ podman_remote_ssh_port }}{{ _result_systemd_runtime_path.stdout }}/podman/podman.sock"
+        podman --remote system connection add "{{ kubeinit_ci_host_name }}" --identity "{{ kubeinit_facts_hostvars.local_home + '/.ssh/id_' + kubeinit_ssh_keytype }}" "ssh://{{ kubeinit_ci_host_user }}@{{ podman_remote_ssh_host }}:{{ podman_remote_ssh_port }}{{ _result_systemd_runtime_path.stdout }}/podman/podman.sock"
       register: _result
       changed_when: "_result.rc == 0"
       delegate_to: localhost
@@ -192,15 +111,14 @@
 
     - name: Create ~/gitlab-runner-home folders
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: "{{ hostvars[kubeinit_ci_host_name].remote_home }}/{{ item }}"
         state: directory
         mode: '0700'
       loop:
-        - "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home"
-        - "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/.gitlab-runner"
-        - "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/.secrets"
-        - "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/.ssh"
-        - "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/scripts"
+        - "gitlab-runner-home"
+        - "gitlab-runner-home/.gitlab-runner"
+        - "gitlab-runner-home/.ssh"
+        - "gitlab-runner-home/scripts"
 
     - name: Create /home/gitlab-runner/.python-gitlab.cfg from template
       ansible.builtin.template:
@@ -228,33 +146,36 @@
         dest: "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/.gitlab-runner/runner-user"
         mode: '0644'
 
-    - name: Create /home/gitlab-runner/.secrets/gitlab-private-token
-      ansible.builtin.copy:
-        content: |
-          {{ _result_access_token.content | b64decode | trim }}
-        dest: "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/.secrets/gitlab-private-token"
-        mode: '0600'
-
-    - name: Create /home/gitlab-runner/.ssh/config from template
-      ansible.builtin.template:
-        src: ssh-config.j2
-        dest: "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/.ssh/config"
-        mode: '0644'
+    - name: Create ssh config file from template
+      ansible.builtin.include_role:
+        name: kubeinit.kubeinit.kubeinit_prepare
+        tasks_from: create_host_ssh_config.yml
+        public: true
+      vars:
+        _param_hosts: "{{ groups['kubeinit_hypervisors'] }}"
+        _param_dest_path: "{{ hostvars[kubeinit_ci_host_name].remote_home + '/gitlab-runner-home/.ssh/config' }}"
 
     - name: Generate an OpenSSH keypair for gitlab-runner
       community.crypto.openssh_keypair:
-        path: "{{ hostvars[kubeinit_ci_host_name].remote_home }}/gitlab-runner-home/.ssh/id_{{ kubeinit_ssh_keytype }}"
+        path: "{{ hostvars[kubeinit_ci_host_name].remote_home }}/.ssh/kubeinit_runner_id_{{ kubeinit_ssh_keytype }}"
         type: "{{ kubeinit_ssh_keytype }}"
-        comment: "{{ kubeinit_ci_host_fqdn }} kubeinit-runner"
+        comment: "kubeinit-runner@{{ hostvars[kubeinit_ci_host_name].ansible_host }}"
         regenerate: 'never'
-      register: _result_ci_keypair
+      register: _result_runner_keypair
 
     - name: Add gitlab-runner public key to ci host
       ansible.posix.authorized_key:
         user: "{{ kubeinit_ci_host_user }}"
-        key: "{{ _result_ci_keypair.public_key }}"
-        comment: "{{ _result_ci_keypair.comment }}"
+        key: "{{ _result_runner_keypair.public_key }}"
+        comment: "{{ _result_runner_keypair.comment }}"
         state: present
+
+    - name: Copy private key into staging folder
+      ansible.builtin.copy:
+        remote_src: true
+        src: "{{ _result_runner_keypair.filename }}"
+        dest: "{{ hostvars[kubeinit_ci_host_name].remote_home + '/gitlab-runner-home/.ssh/id_' + kubeinit_ssh_keytype }}"
+        mode: '0600'
 
     - name: Create /home/gitlab-runner/scripts/echo-private-token.sh from template
       ansible.builtin.template:
@@ -301,11 +222,6 @@
 
     - name: Install commands and services we will need
       ansible.builtin.command: buildah run kubeinit-ara -- dnf install -q -y procps findutils
-      register: _result
-      changed_when: "_result.rc == 0"
-
-    - name: Link /etc/localtime to our local timezone
-      ansible.builtin.command: buildah run kubeinit-ara -- ln -sf {{ _result_localtime.stat.lnk_source }} /etc/localtime
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -368,11 +284,6 @@
 
     - name: Clean packages
       ansible.builtin.command: buildah run kubeinit-output-data -- apt-get clean -q -y
-      register: _result
-      changed_when: "_result.rc == 0"
-
-    - name: Link /etc/localtime to our local timezone
-      ansible.builtin.command: buildah run kubeinit-output-data -- ln -sf {{ _result_localtime.stat.lnk_source }} /etc/localtime
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -468,11 +379,6 @@
       register: _result
       changed_when: "_result.rc == 0"
 
-    - name: Link /etc/localtime to our local timezone
-      ansible.builtin.command: buildah run kubeinit-runner -- ln -sf {{ _result_localtime.stat.lnk_source }} /etc/localtime
-      register: _result
-      changed_when: "_result.rc == 0"
-
     - name: Install PyYAML
       ansible.builtin.command: buildah run kubeinit-runner -- python3 -m pip install --ignore-installed PyYAML
       register: _result
@@ -489,7 +395,17 @@
       changed_when: "_result.rc == 0"
 
     - name: Install other python pip modules
-      ansible.builtin.command: buildah run kubeinit-runner -- python3 -m pip install --upgrade wheel shyaml ansible netaddr ara requests PyGithub python-gitlab 'pyparsing<3' pybadges 'jinja2<3' urllib3 google-cloud-storage
+      ansible.builtin.command: buildah run kubeinit-runner -- python3 -m pip install --upgrade wheel shyaml 'markupsafe<2' ansible netaddr ara requests PyGithub python-gitlab 'pyparsing<3' pybadges 'jinja2<3' urllib3 google-cloud-storage
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Confirm ansible-playbook is runnable
+      ansible.builtin.command: buildah run kubeinit-runner -- ansible-playbook --version
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Confirm ansible-galaxy is runnable
+      ansible.builtin.command: buildah run kubeinit-runner -- ansible-galaxy --version
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -533,55 +449,12 @@
       containers.podman.podman_pod:
         name: "{{ kubeinit_ci_pod_name }}"
         network: "{{ kubeinit_ci_bridge_name }}"
-        hostname: "{{ kubeinit_ci_host_fqdn }}"
+        hostname: "{{ kubeinit_ci_host_name }}"
         dns: "{{ kubeinit_dns_public }}"
         publish:
           - 8080:80/tcp
         state: started
       register: _result_pod_info
-
-    - name: Gather current firewall rules
-      ansible.posix.firewalld_info:
-        active_zones: true
-      register: _result_firewalld_info
-      become: true
-      become_user: root
-      when: hostvars[kubeinit_ci_host_name].firewalld_is_active
-
-    - name: Check firewalld ports for existing entries
-      ansible.builtin.add_host:
-        name: "{{ kubeinit_ci_host_name }}"
-        add_publish_port: "{{ true if (['8080', 'tcp'] not in default_zone_info.ports) else false }}"
-        reload_firewalld: "{{ true if (['8080', 'tcp'] not in default_zone_info.ports) else false }}"
-      become: true
-      become_user: root
-      vars:
-        default_zone_info: "{{ _result_firewalld_info.firewalld_info.zones[_result_firewalld_info.firewalld_info.default_zone] }}"
-
-    - name: Open firewall port 8080 on bastion
-      ansible.posix.firewalld:
-        port: 8080/tcp
-        state: enabled
-        permanent: true
-      become: true
-      become_user: root
-      when: hostvars[kubeinit_ci_host_name].add_publish_port | default(false)
-
-    - name: Reload firewalld service
-      ansible.builtin.command: |
-        firewall-cmd --reload
-      register: _result
-      changed_when: "_result.rc == 0"
-      become: true
-      become_user: root
-      when: hostvars[kubeinit_ci_host_name].reload_firewalld | default(false)
-
-    - name: Reload podman networks
-      ansible.builtin.command: |
-        podman network reload --all
-      register: _result
-      changed_when: "_result.rc == 0"
-      when: hostvars[kubeinit_ci_host_name].reload_firewalld | default(false)
 
     - name: Remove any previous kubeinit-ara-api container
       containers.podman.podman_container:
@@ -605,7 +478,7 @@
 
     - name: Create systemd service for podman container
       ansible.builtin.include_role:
-        name: "kubeinit_ci"
+        name: kubeinit.kubeinit.kubeinit_services
         tasks_from: create_managed_service.yml
         public: true
       vars:
@@ -644,7 +517,7 @@
 
     - name: Create systemd service for podman container
       ansible.builtin.include_role:
-        name: "kubeinit_ci"
+        name: kubeinit.kubeinit.kubeinit_services
         tasks_from: create_managed_service.yml
         public: true
       vars:
@@ -657,6 +530,13 @@
     - name: Clear temp facts
       ansible.builtin.set_fact:
         _result_container_info: null
+
+    - name: Define podman secret for gitlab_runner_access_token
+      containers.podman.podman_secret:
+        name: 'gitlab_runner_access_token'
+        data: "{{ hostvars['kubeinit-secrets'].secrets['gitlab_runner_access_token'] | b64decode | trim }}"
+        force: true
+        state: present
 
     - name: Remove any previous kubeinit-merge-request-runner container
       containers.podman.podman_container:
@@ -675,6 +555,8 @@
         env:
           DEBUG: true
           LOG_LEVEL: debug
+        secrets:
+          - 'gitlab_runner_access_token'
         volumes:
           - "{{ _result_systemd_runtime_path.stdout }}/podman/podman.sock:/var/run/docker.sock"
           - "kubeinit-ara-output:/opt/output_data:z"
@@ -684,7 +566,7 @@
 
     - name: Create systemd service for podman container
       ansible.builtin.include_role:
-        name: "kubeinit_ci"
+        name: kubeinit.kubeinit.kubeinit_services
         tasks_from: create_managed_service.yml
         public: true
       vars:
@@ -700,23 +582,13 @@
 
   delegate_to: "{{ kubeinit_ci_host_name }}"
 
-- name: Add gitlab-runner public key to hypervisor hosts
-  ansible.posix.authorized_key:
-    user: root
-    key: "{{ _result_ci_keypair.public_key }}"
-    comment: "{{ _result_ci_keypair.comment }}"
-    state: present
-  loop: "{{ groups['hypervisor_hosts'] }}"
-  loop_control:
-    loop_var: hypervisor_host
-  delegate_to: "{{ hypervisor_host }}"
-
 - name: Add remote container to hosts
   ansible.builtin.add_host:
     hostname: kubeinit-ara-api
     ansible_connection: containers.podman.podman
     ansible_python_interpreter: /usr/bin/python3
     ansible_podman_extra_args: --remote --connection "{{ kubeinit_ci_host_name }}"
+    ansible_user: root
 
 - name: Disable pipelining while using podman connector
   block:
@@ -743,6 +615,7 @@
     ansible_connection: containers.podman.podman
     ansible_python_interpreter: /usr/bin/python3
     ansible_podman_extra_args: --remote --connection "{{ kubeinit_ci_host_name }}"
+    ansible_user: root
 
 - name: Disable pipelining while using podman connector
   block:
@@ -755,13 +628,26 @@
         timeout: 300
 
     - name: Register runner
-      ansible.builtin.command: gitlab-runner register --non-interactive --url {{ kubeinit_inventory_ci_gitlab_url }}/ --clone-url {{ kubeinit_inventory_ci_gitlab_url }} --registration-token {{ _result_registration_token.content | b64decode | trim }} --name kubeinit-merge-request-runner --executor shell --tag-list kubeinit-merge-request --output-limit 50000
+      ansible.builtin.command: gitlab-runner register --non-interactive --url {{ hostvars[kubeinit_ci_host_name].gitlab_url }}/ --clone-url {{ hostvars[kubeinit_ci_host_name].gitlab_url }} --registration-token {{ hostvars['kubeinit-secrets'].secrets['gitlab_runner_registration_token'] | b64decode | trim }} --name kubeinit-merge-request-runner --executor shell --tag-list kubeinit-merge-request --output-limit 50000
       register: _result
       changed_when: "_result.rc == 0"
 
   vars:
     ansible_ssh_pipelining: False
   delegate_to: kubeinit-merge-request-runner
+
+- name: Add kubeinit-runner authorized key to hypervisor hosts
+  ansible.posix.authorized_key:
+    user: "{{ hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) }}"
+    key: "{{ _result_runner_keypair.public_key }}"
+    comment: "{{ _result_runner_keypair.comment }}"
+    state: present
+  loop: "{{ groups['kubeinit_hypervisors'] }}"
+  loop_control:
+    loop_var: hypervisor_host
+  become: "{{ true if (hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) == 'root') else false }}"
+  become_user: "{{ hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) }}"
+  delegate_to: "{{ hypervisor_host }}"
 
 - block:
     - name: Add task-deploy-ci to tasks_completed
