@@ -82,29 +82,6 @@ rm -rf tmp
 mkdir -p tmp
 cd tmp
 
-echo "(launch_e2e.sh) ==> Downloading KubeInit's code ..."
-# Get the kubeinit code we will test
-if [[ "$JOB_TYPE" == "pr" ]]; then
-    DEST_BRANCH=$(curl --silent "https://api.github.com/repos/kubeinit/kubeinit/pulls" | jq -c ".[] | select( .number | contains(${PULL_REQUEST})) | .base | .label" | tr -d \" | cut -d':' -f2)
-
-    # Keep as an example for cherry-picking workarounds
-    # git remote add ccamacho https://github.com/ccamacho/kubeinit.git
-    # git fetch ccamacho
-    # git cherry-pick 58f718a29d5611234304b1e144a69
-    git clone -n $REPOSITORY -b $BRANCH_NAME
-    cd kubeinit
-    git fetch origin pull/$PULL_REQUEST/head
-    git checkout -b pr  FETCH_HEAD
-    git remote add upstream https://github.com/kubeinit/kubeinit.git
-    git fetch upstream
-    git rebase upstream/${DEST_BRANCH}
-    git log -n 5 --pretty=oneline
-else
-    git clone $REPOSITORY
-    cd kubeinit
-    git checkout $BRANCH_NAME
-fi
-
 # Install the collection
 echo "(launch_e2e.sh) ==> Installing KubeInit ..."
 cd kubeinit

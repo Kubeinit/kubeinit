@@ -16,13 +16,7 @@ License for the specific language governing permissions and limitations
 under the License.
 """
 
-#############################################
-# Any change done in this file needs to be  #
-# force pushed first to the GitLab instance #
-# so the changes are refreshed when the job #
-# starts to run                             #
-#############################################
-
+import argparse
 import os
 import re
 import shutil
@@ -45,7 +39,7 @@ from pybadges import badge
 GH_LABELS = []
 
 
-def main(cluster_type, job_type):
+def main(job_type, cluster_type, job_label, pr_id, verbosity):
     """Run the main method."""
     #
     # This method can deploy multiple
@@ -74,129 +68,109 @@ def main(cluster_type, job_type):
         gh = Github(os.environ['GH_TOKEN'])
         pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
         repo = gh.get_repo("kubeinit/kubeinit")
-        branches = repo.get_branches()
-        output = 0
         url = os.getenv('CI_PIPELINE_URL', "")
         print("'launch_e2e.py' ==> The job results will be published in runtime at: " + url)
-        for branch in branches:
-            for pr in repo.get_pulls(state='open',
-                                     sort='created',
-                                     base=branch.name):
-                labels = [item.name for item in pr.labels]
+        global GH_LABELS
+        GH_LABELS.append('GH_ANSIBLE_VERBOSITY=' + verbosity)
+        pr = repo.get_pull(pr_id)
+        sha = pr.head.sha
+        execute = False
+        # In a PR we only test one label at the time
+        print("'launch_e2e.py' ==> The label to be tested in PR: " + str(pr_id) + " is: " + str(job_label))
 
-                #
-                # Adjust dinamically the verbosity based on a GH label.
-                #
-                ansible_label = 'verbosity'
-                ansible_label_found = next((s for s in labels if ansible_label in s), None)
-                if ansible_label_found:
-                    global GH_LABELS
-                    GH_LABELS.append('GH_ANSIBLE_VERBOSITY=' + ansible_label_found.split("=")[1])
+        if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-" + c_type + "-[c|h]", job_label):
+            print("'launch_e2e.py' ==> Matching a PR label")
+            params = job_label.split("-")
+            distro = params[0]
+            driver = params[1]
+            masters = params[2]
+            workers = params[3]
+            hypervisors = params[4]
+            launch_from = params[5]
+            execute = True
+            remove_label(job_label, pr_id, repo)
 
-                sha = pr.head.sha
-                execute = False
-                print("'launch_e2e.py' ==> The current labels in PR: " + str(pr.number) + " are:")
-                print(labels)
-                for label in labels:
-                    # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
-                    if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-" + c_type + "-[c|h]", label):
-                        print("'launch_e2e.py' ==> Matching a PR label")
-                        params = label.split("-")
-                        distro = params[0]
-                        driver = params[1]
-                        masters = params[2]
-                        workers = params[3]
-                        hypervisors = params[4]
-                        launch_from = params[5]
-                        execute = True
-                        remove_label(label, pr, repo)
-                        break
-                if execute:
-                    repo.get_commit(sha=sha).create_status(state="pending",
-                                                           target_url=url + str(pipeline_id),
-                                                           description="Running...",
-                                                           context="%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                          driver,
-                                                                                          masters,
-                                                                                          workers,
-                                                                                          hypervisors,
-                                                                                          launch_from))
-                    repository = 'kubeinit/kubeinit'
-                    branch_name = branch.name
-                    pr_number = pr.number
-                    start_time = time.time()
-                    timestamp = now.strftime("%Y.%m.%d.%H.%M.%S")
-                    job_name = (distro + "-" +
-                                driver + "-" +
-                                masters + "-" +
-                                workers + "-" +
-                                hypervisors + "-" +
-                                launch_from + "-" +
-                                job_type + "-" +
-                                pipeline_id + "-" +
-                                timestamp
-                                )
+        if execute:
+            repo.get_commit(sha=sha).create_status(state="pending",
+                                                   target_url=url + str(pipeline_id),
+                                                   description="Running...",
+                                                   context="%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                  driver,
+                                                                                  masters,
+                                                                                  workers,
+                                                                                  hypervisors,
+                                                                                  launch_from))
+            repository = 'kubeinit/kubeinit'
+            branch_name = 'main'  # The main brach for this project is called 'main'
+            pr_number = pr.number
+            start_time = time.time()
+            timestamp = now.strftime("%Y.%m.%d.%H.%M.%S")
+            job_name = (distro + "-" +
+                        driver + "-" +
+                        masters + "-" +
+                        workers + "-" +
+                        hypervisors + "-" +
+                        launch_from + "-" +
+                        job_type + "-" +
+                        pipeline_id + "-" +
+                        timestamp
+                        )
 
-                    output = run_e2e_job(distro,
-                                         driver,
-                                         masters,
-                                         workers,
-                                         hypervisors,
-                                         job_type,
-                                         pipeline_id,
-                                         repository,
-                                         branch_name,
-                                         pr_number,
-                                         launch_from,
-                                         job_name)
-                    if output == 0:
-                        state = "success"
-                    else:
-                        state = "failure"
+            output = run_e2e_job(distro,
+                                 driver,
+                                 masters,
+                                 workers,
+                                 hypervisors,
+                                 job_type,
+                                 pipeline_id,
+                                 repository,
+                                 branch_name,
+                                 pr_number,
+                                 launch_from,
+                                 job_name)
+            if output == 0:
+                state = "success"
+            else:
+                state = "failure"
 
-                    dur_mins = str(round((time.time() - start_time) / 60, 2))
-                    desc = ("Ended with %s in %s minutes" % (state, dur_mins))
+            dur_mins = str(round((time.time() - start_time) / 60, 2))
+            desc = ("Ended with %s in %s minutes" % (state, dur_mins))
 
-                    dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
-                    print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
-                    # We update the status with the job result
-                    repo.get_commit(sha=sha).create_status(state=state,
-                                                           target_url=dest_url,
-                                                           description=desc,
-                                                           context="%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                          driver,
-                                                                                          masters,
-                                                                                          workers,
-                                                                                          hypervisors,
-                                                                                          launch_from))
-                    pr.create_issue_comment(body="%s-%s-%s-%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                 driver,
-                                                                                 masters,
-                                                                                 workers,
-                                                                                 hypervisors,
-                                                                                 launch_from,
-                                                                                 state,
-                                                                                 str(start_time),
-                                                                                 dur_mins))
+            dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
+            print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
+            # We update the status with the job result
+            repo.get_commit(sha=sha).create_status(state=state,
+                                                   target_url=dest_url,
+                                                   description=desc,
+                                                   context="%s-%s-%s-%s-%s-%s" % (distro,
+                                                                                  driver,
+                                                                                  masters,
+                                                                                  workers,
+                                                                                  hypervisors,
+                                                                                  launch_from))
+            pr.create_issue_comment(body="%s-%s-%s-%s-%s-%s-%s-%s-%s" % (distro,
+                                                                         driver,
+                                                                         masters,
+                                                                         workers,
+                                                                         hypervisors,
+                                                                         launch_from,
+                                                                         state,
+                                                                         str(start_time),
+                                                                         dur_mins))
 
-                    if output == 0:
-                        exit()
-                    else:
-                        exit(1)
-                else:
-                    print("'launch_e2e.py' ==> No need to do anything")
-                    print("'launch_e2e.py' ==> Trying another PR...")
-                    # We can not have exit() here, in that case we will be
-                    # checking only the first PR, if the first PR do not have
-                    # the labels, then we need to check the next one until we find a
-                    # PR with the labels.
+            if output == 0:
+                exit()
+            else:
+                exit(1)
+        else:
+            print("'launch_e2e.py' ==> No need to do anything")
 
     #
     # KubeInit's periodic job check
     #
-    if (re.match(r"periodic(=[a-z|0-9|,|\.]+)?", job_type) or
-            re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", job_type) or
-            job_type == 'periodic=random'):
+    if (re.match(r"([a-z|0-9|,|\.]+)?", job_label) or
+            re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", job_label) or
+            job_label == 'random' or job_label == 'all') and job_type == 'periodic':
 
         #
         # We will run the periodic jobs depending on the
@@ -207,16 +181,12 @@ def main(cluster_type, job_type):
         repo = gh.get_repo("kubeinit/kubeinit")
 
         output = "go"
-        # Something linke:
+        # Something like:
         # url = "https://gitlab.com/kubeinit/kubeinit-ci/pipelines/"
         url = os.getenv('CI_PIPELINE_URL', "")
         print("'launch_e2e.py' ==> The job results will be published in runtime at: " + url)
 
-        if '=' in job_type:
-            labels = get_periodic_jobs_labels(job_type.split("=")[1])
-        else:
-            labels = get_periodic_jobs_labels('all')
-        job_type = job_type.split("=")[0]
+        labels = get_periodic_jobs_labels(job_label)
         print("'launch_e2e.py' ==> All the labels to check are")
         print(labels)
 
@@ -496,45 +466,89 @@ def run_e2e_job(distro, driver, masters, workers,
     return output
 
 
+def valid_labels_regex(arg_value, pat=re.compile(r"^all|random|([a-z|0-9|,|\.]+)|([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+$")):
+    """Get the params regex."""
+    if not pat.match(arg_value):
+        raise argparse.ArgumentTypeError
+    return arg_value
+
+
 if __name__ == "__main__":
+    """Run the main job."""
 
-    if (len(sys.argv) != 3):
-        print("'launch_e2e.py' ==> This can only take arguments like:")
-        print("'launch_e2e.py' ==> launch_e2e.py [singlenode|multinode] [periodic|pr|submariner]")
-        sys.exit()
-    elif (sys.argv[1] != 'multinode' and sys.argv[1] != 'singlenode'):
-        print("'launch_e2e.py' ==> The second argument must be [singlenode|multinode]")
-        sys.exit()
+    #
+    # This script can run like:
+    #
+    # launch_e2e.py --job_type=pr
+    # launch_e2e.py --job_type=pr --pr_id=154
+    # launch_e2e.py --job_type=pr --pr_id=submariner
+    # launch_e2e.py --job_type=periodic --job_label=eks-libvirt-3-0-1-h
+    # launch_e2e.py --job_type=periodic --job_label=eks-libvirt-3-0-1-h,cdk-libvirt-1-0-1-h
+    # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=random
+    # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=all
+    # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=okd
+    # launch_e2e.py --job_type=periodic --cluster_type=multinode --job_label=all
+    # launch_e2e.py --job_type=periodic --cluster_type=multinode --job_label=okd
+    #
 
-    elif (not re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", sys.argv[2]) and
-          not re.match(r"periodic(=[a-z|0-9|,|\.]+)?", sys.argv[2]) and
-          sys.argv[2] != 'pr' and
-          sys.argv[2] != 'submariner'):
+    parser = argparse.ArgumentParser(prog='launch_e2e.py')
+    parser.add_argument('--job_type',
+                        action='store',
+                        required=True,
+                        choices=['pr', 'periodic', 'submariner'],
+                        help='The type of job to run, per PR, periodic or submariner')
+    parser.add_argument('--verbosity',
+                        action='store',
+                        default='v',
+                        help='The Ansible verbosity')
+    parser.add_argument('--pr_id',
+                        action='store',
+                        default='none',
+                        help='The number of the PR to be tested')
+    parser.add_argument('--cluster_type',
+                        action='store',
+                        choices=['multinode', 'singlenode'],
+                        help='The type of the cluster, multinode or singlenode')
+    parser.add_argument('--job_label',
+                        action='store',
+                        type=valid_labels_regex,
+                        help='The CI job label to be executed')
+
+    args = parser.parse_args()
+    # The job type is a mandatory parameter
+    if args.job_type == "periodic":
+        if args.job_label is not None and '-' not in args.job_label and args.cluster_type is None:
+            parser.error('If there is no job label with the cluster spec, then, the cluster type must be defined')
+        if args.cluster_type is None and args.job_label is None:
+            parser.error('--cluster_type or --job_label should be defined')
+
+    if (args.job_label is not None and not re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", args.job_label) and not re.match(r"([a-z|0-9|,|\.]+)?", args.job_label) and args.job_type != 'pr' and args.job_type != 'submariner'):
         print("'launch_e2e.py' ==> The third argument must be [periodic|pr|submariner]")
         print("'launch_e2e.py' ==> periodic, can be periodic|periodic=okd,eks|periodic=okd.rke ...")
         print("'launch_e2e.py' ==> also the periodic job can trigger a specfic label like:")
         print("'launch_e2e.py' ==> periodic=okd-libvirt-3-1-1-h")
         sys.exit()
-
-    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[2-9]-[c|h],?)+", sys.argv[2]) and
-          sys.argv[1] == 'singlenode'):
-        print("'launch_e2e.py' ==> The parameter " + sys.argv[2] + " and " + sys.argv[1] + " are incompatible")
+    elif (args.job_label is not None and re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[2-9]-[c|h],?)+", args.job_label) and args.cluster_type == 'singlenode'):
+        print("'launch_e2e.py' ==> The parameter " + args.job_label + " and " + args.cluster_type + " are incompatible")
         print("'launch_e2e.py' ==> singlenode configurations can not have multinode labels")
         sys.exit()
-
-    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-1-[c|h],?)+", sys.argv[2]) and
-          sys.argv[1] == 'multinode'):
-        print("'launch_e2e.py' ==> The parameter " + sys.argv[2] + " and " + sys.argv[1] + " are incompatible")
+    elif (args.job_label is not None and re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-1-[c|h],?)+", args.job_label) and args.cluster_type == 'multinode'):
+        print("'launch_e2e.py' ==> The parameter " + args.job_label + " and " + args.cluster_type + " are incompatible")
         print("'launch_e2e.py' ==> multinode configurations can not have singlenode labels")
         sys.exit()
-
-    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-0-[c|h],?)+", sys.argv[2])):
+    elif (args.job_label is not None and re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-0-[c|h],?)+", args.job_label)):
         print("'launch_e2e.py' ==> Is not possible to deploy with 0 hypervisors")
+        sys.exit()
+    elif (args.job_label is not None and re.match(r"([a-z|0-9|\.]+-[a-z]+-0-[0-9]-[0-9]-[c|h],?)+", args.job_label)):
+        print("'launch_e2e.py' ==> Is not possible to deploy with 0 controllers")
         sys.exit()
 
     print("---")
-    print("'launch_e2e.py' ==> Main argument: " + sys.argv[0])
-    print("'launch_e2e.py' ==> Cluster type: " + sys.argv[1])
-    print("'launch_e2e.py' ==> Job type: " + sys.argv[2])
+    print(args)
     print("---")
-    main(sys.argv[1], sys.argv[2])
+
+    main(job_type=args.job_type,
+         cluster_type=args.cluster_type,
+         job_label=args.job_label,
+         pr_id=args.pr_id,
+         verbosity=args.verbosity)

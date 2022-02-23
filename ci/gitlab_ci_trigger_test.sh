@@ -31,7 +31,7 @@ output_file='./trigger_results.txt'
 # This should return a
 echo "(gitlab_ci_trigger_test.sh) ==> Run periodic job"
 TEST_RESULT=$(JOB_TYPE='periodic' ci_mock_cmd=1 ./ci/gitlab_ci_trigger.sh 2>&1)
-TEST_RESULT_REGEX='OUTPUT: ./ci/launch_e2e.py periodic.*'
+TEST_RESULT_REGEX='OUTPUT: ./ci/launch_e2e.py --job_type=periodic.*'
 if [[ $TEST_RESULT =~ $TEST_RESULT_REGEX ]]; then
     echo "(gitlab_ci_trigger_test.sh) ==> Periodic job unit test passed"
     echo "(gitlab_ci_trigger_test.sh) ==> PASS: $TEST_RESULT" > $output_file
@@ -43,8 +43,8 @@ fi
 # (( periodic random ))
 # This should return a
 echo "(gitlab_ci_trigger_test.sh) ==> Run periodic=random job"
-TEST_RESULT=$(JOB_TYPE='periodic=random' ci_mock_cmd=1 ./ci/gitlab_ci_trigger.sh 2>&1)
-TEST_RESULT_REGEX='OUTPUT: ./ci/launch_e2e.py periodic=random'
+TEST_RESULT=$(JOB_TYPE='periodic' JOB_LABEL='random' ci_mock_cmd=1 ./ci/gitlab_ci_trigger.sh 2>&1)
+TEST_RESULT_REGEX='OUTPUT: ./ci/launch_e2e.py --job_type=periodic --job_label=random'
 if [[ $TEST_RESULT =~ $TEST_RESULT_REGEX ]]; then
     echo "(gitlab_ci_trigger_test.sh) ==> Periodic job unit test passed"
     echo "(gitlab_ci_trigger_test.sh) ==> PASS: $TEST_RESULT" >> $output_file
@@ -56,8 +56,8 @@ fi
 # (( periodic all ))
 # This should return a
 echo "(gitlab_ci_trigger_test.sh) ==> Run periodic=all job"
-TEST_RESULT=$(JOB_TYPE='periodic=all' ci_mock_cmd=1 ./ci/gitlab_ci_trigger.sh 2>&1)
-TEST_RESULT_REGEX='OUTPUT: ./ci/launch_e2e.py periodic=all'
+TEST_RESULT=$(JOB_TYPE='periodic' JOB_LABEL='all' ci_mock_cmd=1 ./ci/gitlab_ci_trigger.sh 2>&1)
+TEST_RESULT_REGEX='OUTPUT: ./ci/launch_e2e.py --job_type=periodic --job_label=all'
 if [[ $TEST_RESULT =~ $TEST_RESULT_REGEX ]]; then
     echo "(gitlab_ci_trigger_test.sh) ==> Periodic job unit test passed"
     echo "(gitlab_ci_trigger_test.sh) ==> PASS: $TEST_RESULT" >> $output_file
@@ -69,8 +69,8 @@ fi
 # (( periodic specific ))
 # This should return a
 echo "(gitlab_ci_trigger_test.sh) ==> Run periodic=k8s-libvirt-1-0-1-h job"
-TEST_RESULT=$(JOB_TYPE='periodic=k8s-libvirt-1-0-1-h' ci_mock_cmd=1 ./ci/gitlab_ci_trigger.sh 2>&1)
-TEST_RESULT_REGEX='OUTPUT: ./ci/launch_e2e.py periodic=k8s-libvirt-1-0-1-h'
+TEST_RESULT=$(JOB_TYPE='periodic' JOB_LABEL='k8s-libvirt-1-0-1-h' ci_mock_cmd=1 ./ci/gitlab_ci_trigger.sh 2>&1)
+TEST_RESULT_REGEX='OUTPUT: ./ci/launch_e2e.py --job_type=periodic --job_label=k8s-libvirt-1-0-1-h'
 if [[ $TEST_RESULT =~ $TEST_RESULT_REGEX ]]; then
     echo "(gitlab_ci_trigger_test.sh) ==> Periodic job unit test passed"
     echo "(gitlab_ci_trigger_test.sh) ==> PASS: $TEST_RESULT" >> $output_file
@@ -83,8 +83,8 @@ fi
 # This should return a
 echo "(gitlab_ci_trigger_test.sh) ==> Run pr job"
 TEST_RESULT=$(JOB_TYPE='pr' ci_mock_cmd=1 ./ci/gitlab_ci_trigger.sh 2>&1)
-TEST_RESULT_NONE_REGEX='OUTPUT: ./ci/launch_e2e.py pr_number=none'
-TEST_RESULT_REGEX='OUTPUT: .\/ci\/launch_e2e\.py (verbosity=v+)|(pr_number=[0-9]+)|(job_label=[a-z]+-[a-z]+-[1|3]-[0-9]-[0-9]-h)'
+TEST_RESULT_NONE_REGEX='OUTPUT: ./ci/launch_e2e.py --pr_id=none'
+TEST_RESULT_REGEX='OUTPUT: .\/ci\/launch_e2e\.py (--verbosity=v+)|(--pr_id=[0-9]+)|(--job_label=[a-z]+-[a-z]+-[1|3]-[0-9]-[0-9]-h)'
 
 if [[ $TEST_RESULT =~ $TEST_RESULT_NONE_REGEX ]]; then
     echo "(gitlab_ci_trigger_test.sh) ==> PR job unit test passed"
