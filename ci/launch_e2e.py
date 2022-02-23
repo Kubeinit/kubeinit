@@ -16,13 +16,7 @@ License for the specific language governing permissions and limitations
 under the License.
 """
 
-#############################################
-# Any change done in this file needs to be  #
-# force pushed first to the GitLab instance #
-# so the changes are refreshed when the job #
-# starts to run                             #
-#############################################
-
+import argparse
 import os
 import re
 import shutil
@@ -44,7 +38,7 @@ from pybadges import badge
 GH_LABELS = []
 
 
-def main(cluster_type, job_type):
+def main(job_type, cluster_type, job_label, pr_id):
     """Run the main method."""
     #
     # This method can deploy multiple
@@ -499,45 +493,83 @@ def run_e2e_job(distro, driver, masters, workers,
     return output
 
 
+def valid_labels_regex(arg_value, pat=re.compile(r"^all|random|([a-z|0-9|,|\.]+)|([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+$")):
+    """Get the params regex."""
+    if not pat.match(arg_value):
+        raise argparse.ArgumentTypeError
+    return arg_value
+
+
 if __name__ == "__main__":
+    """Run the main job."""
 
-    if (len(sys.argv) != 3):
-        print("'launch_e2e.py' ==> This can only take arguments like:")
-        print("'launch_e2e.py' ==> launch_e2e.py [singlenode|multinode] [periodic|pr|submariner]")
-        sys.exit()
-    elif (sys.argv[1] != 'multinode' and sys.argv[1] != 'singlenode'):
-        print("'launch_e2e.py' ==> The second argument must be [singlenode|multinode]")
-        sys.exit()
+    #
+    # This script can run like:
+    #
+    # launch_e2e.py --job_type=pr
+    # launch_e2e.py --job_type=pr --pr_id=154
+    # launch_e2e.py --job_type=pr --pr_id=submariner
+    # launch_e2e.py --job_type=periodic --job_label=eks-libvirt-3-0-1-h
+    # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=random
+    # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=all
+    # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=okd
+    # launch_e2e.py --job_type=periodic --cluster_type=multinode --job_label=all
+    # launch_e2e.py --job_type=periodic --cluster_type=multinode --job_label=okd
+    #
 
-    elif (not re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", sys.argv[2]) and
-          not re.match(r"periodic(=[a-z|0-9|,|\.]+)?", sys.argv[2]) and
-          sys.argv[2] != 'pr' and
-          sys.argv[2] != 'submariner'):
+    parser = argparse.ArgumentParser(prog='launch_e2e.py')
+    parser.add_argument('--job_type',
+                        action='store',
+                        required=True,
+                        choices=['pr', 'periodic', 'submariner'],
+                        help='The type of job to run, per PR, periodic or submariner')
+    parser.add_argument('--pr_id',
+                        action='store',
+                        default='none',
+                        help='The number of the PR to be tested')
+    parser.add_argument('--cluster_type',
+                        action='store',
+                        choices=['multinode', 'singlenode'],
+                        help='The type of the cluster, multinode or singlenode')
+    parser.add_argument('--job_label',
+                        action='store',
+                        type=valid_labels_regex,
+                        help='The CI job label to be executed')
+
+    args = parser.parse_args()
+    # The job type is a mandatory parameter
+    if args.job_type == "periodic":
+        if args.job_label is not None and '-' not in args.job_label and args.cluster_type is None:
+            parser.error('If there is no job label with the cluster spec, then, the cluster type must be defined')
+        if args.cluster_type is None and args.job_label is None:
+            parser.error('--cluster_type or --job_label should be defined')
+
+    if (args.job_label is not None and not re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", args.job_label) and not re.match(r"([a-z|0-9|,|\.]+)?", args.job_label) and args.job_type != 'pr' and args.job_type != 'submariner'):
         print("'launch_e2e.py' ==> The third argument must be [periodic|pr|submariner]")
         print("'launch_e2e.py' ==> periodic, can be periodic|periodic=okd,eks|periodic=okd.rke ...")
         print("'launch_e2e.py' ==> also the periodic job can trigger a specfic label like:")
         print("'launch_e2e.py' ==> periodic=okd-libvirt-3-1-1-h")
         sys.exit()
-
-    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[2-9]-[c|h],?)+", sys.argv[2]) and
-          sys.argv[1] == 'singlenode'):
-        print("'launch_e2e.py' ==> The parameter " + sys.argv[2] + " and " + sys.argv[1] + " are incompatible")
+    elif (args.job_label is not None and re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[2-9]-[c|h],?)+", args.job_label) and args.cluster_type == 'singlenode'):
+        print("'launch_e2e.py' ==> The parameter " + args.job_label + " and " + args.cluster_type + " are incompatible")
         print("'launch_e2e.py' ==> singlenode configurations can not have multinode labels")
         sys.exit()
-
-    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-1-[c|h],?)+", sys.argv[2]) and
-          sys.argv[1] == 'multinode'):
-        print("'launch_e2e.py' ==> The parameter " + sys.argv[2] + " and " + sys.argv[1] + " are incompatible")
+    elif (args.job_label is not None and re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-1-[c|h],?)+", args.job_label) and args.cluster_type == 'multinode'):
+        print("'launch_e2e.py' ==> The parameter " + args.job_label + " and " + args.cluster_type + " are incompatible")
         print("'launch_e2e.py' ==> multinode configurations can not have singlenode labels")
         sys.exit()
-
-    elif (re.match(r"periodic=([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-0-[c|h],?)+", sys.argv[2])):
+    elif (args.job_label is not None and re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-0-[c|h],?)+", args.job_label)):
         print("'launch_e2e.py' ==> Is not possible to deploy with 0 hypervisors")
+        sys.exit()
+    elif (args.job_label is not None and re.match(r"([a-z|0-9|\.]+-[a-z]+-0-[0-9]-[0-9]-[c|h],?)+", args.job_label)):
+        print("'launch_e2e.py' ==> Is not possible to deploy with 0 controllers")
         sys.exit()
 
     print("---")
-    print("'launch_e2e.py' ==> Main argument: " + sys.argv[0])
-    print("'launch_e2e.py' ==> Cluster type: " + sys.argv[1])
-    print("'launch_e2e.py' ==> Job type: " + sys.argv[2])
+    print(args)
     print("---")
-    main(sys.argv[1], sys.argv[2])
+
+    main(job_type=args.job_type,
+         cluster_type=args.cluster_type,
+         job_label=args.job_label,
+         pr_id=args.pr_id)
