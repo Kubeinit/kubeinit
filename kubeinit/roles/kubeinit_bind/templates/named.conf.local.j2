@@ -29,13 +29,13 @@ view "internal" {
         file "/etc/bind/kubeinit/zones/internals/db.{{ kubeinit_bind_service_address | ipsubnet(24) | ipaddr('network') }}";  # 192.168.1.0/24 subnet
     };
 
-{% for cluster in groups['kubeinit_clusters'] | default([]) %}
+{% for cluster in groups['kubeinit_clusters'] | list %}
     {% if not cluster == kubeinit_cluster_name %}
         {% set cluster_net_name = hostvars[cluster].network_name %}
         {% set cluster_nameserver_net = hostvars[cluster_net_name].network %}
         {% set cluster_nameserver_offset = hostvars[cluster_net_name].nameserver_offset %}
         {% set cluster_nameserver_addr = cluster_nameserver_net | ansible.netcommon.ipv4(cluster_nameserver_offset|int) | ansible.netcommon.ipv4('address') %}
-    zone "{{ cluster }}.{{ hostvars[kubeinit_cluster_name].cluster_domain }}" IN {
+    zone "{{ cluster }}.{{ kubeinit_inventory_cluster_domain }}" IN {
         type forward;
         forward only;
         forwarders {

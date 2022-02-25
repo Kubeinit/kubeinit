@@ -289,8 +289,8 @@
     - name: Copy the images and binaries to the hypervisor
       ansible.builtin.shell: |
         set -e
-        scp -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:/tmp/submariner_binaries.tar /root/submariner_binaries.tar
-        scp -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:/tmp/submariner_images.tar /root/submariner_images.tar
+        scp -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:/tmp/submariner_binaries.tar /root/submariner_binaries.tar
+        scp -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:/tmp/submariner_images.tar /root/submariner_images.tar
       args:
         executable: /bin/bash
       register: kubeinit_submariner_get_images_and_binaries_from_broker
@@ -301,7 +301,7 @@
     - name: Copy the broker-info.subm to the hypervisor
       ansible.builtin.shell: |
         set -e
-        scp -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:/root/broker-info.subm /root/broker-info.subm
+        scp -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:/root/broker-info.subm /root/broker-info.subm
       args:
         executable: /bin/bash
       register: kubeinit_submariner_get_files_from_broker
@@ -312,7 +312,7 @@
     - name: Copy the kubeconfig to the hypervisor
       ansible.builtin.shell: |
         set -e
-        scp -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:~/.kube/config /root/kubeconfig_{{ kubeinit_cluster_name }}
+        scp -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -oStrictHostKeyChecking=no root@{{ hostvars[ groups['all_service_nodes'] | list | first ].ansible_host }}:~/.kube/config /root/kubeconfig_{{ kubeinit_cluster_name }}
       args:
         executable: /bin/bash
       register: kubeinit_submariner_get_files_from_broker

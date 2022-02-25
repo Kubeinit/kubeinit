@@ -21,12 +21,12 @@
   ansible.builtin.shell: |
     set -o pipefail
     ssh \
-        -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} \
+        -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} \
         -o ConnectTimeout=5 \
         -o BatchMode=yes \
         -o UserKnownHostsFile=/dev/null \
         -o StrictHostKeyChecking=accept-new \
-        -o ProxyCommand="ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}" \
+        -o ProxyCommand="ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}" \
         root@{{ hostvars[kubeinit_deployment_node_name].ansible_host }} 'echo connected' || true
   args:
     executable: /bin/bash

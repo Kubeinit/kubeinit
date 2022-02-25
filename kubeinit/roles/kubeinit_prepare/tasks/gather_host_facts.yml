@@ -14,6 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+
 - name: Delegate to _param_gather_host
   block:
 
@@ -25,152 +26,189 @@
         gather_subset: "!all,network"
       register: _result_facts
 
-    - name: Set distribution_family for CentOS
+    - name: Set distro_family for CentOS
       ansible.builtin.set_fact:
-        distribution_family: "CentOS"
-        libvirt_qemu_user: "qemu"
+        distro_family: "CentOS"
+        qemu_user: "qemu"
         host_os: "centos"
         package_manager: auto
       when: _result_facts.ansible_facts.ansible_distribution == 'CentOS'
 
-    - name: Set distribution_family for RedHat
+    - name: Set distro_family for RedHat
       ansible.builtin.set_fact:
-        distribution_family: "CentOS"
-        libvirt_qemu_user: "qemu"
+        distro_family: "CentOS"
+        qemu_user: "qemu"
         host_os: "redhat"
         package_manager: auto
       when: _result_facts.ansible_facts.ansible_distribution == 'RedHat'
 
-    - name: Set distribution_family for Fedora
+    - name: Set distro_family for Fedora
       ansible.builtin.set_fact:
-        distribution_family: "Fedora"
-        libvirt_qemu_user: "qemu"
+        distro_family: "Fedora"
+        qemu_user: "qemu"
         host_os: "fedora"
         package_manager: auto
       when: _result_facts.ansible_facts.ansible_distribution == 'Fedora'
 
-    - name: Set distribution_family for Debian
+    - name: Set distro_family for Debian
       ansible.builtin.set_fact:
-        distribution_family: "Debian"
-        libvirt_qemu_user: "libvirt-qemu"
+        distro_family: "Debian"
+        qemu_user: "libvirt-qemu"
         host_os: "debian"
         package_manager: apt
       when: _result_facts.ansible_facts.ansible_distribution == 'Debian'
 
-    - name: Set distribution_family for Ubuntu
+    - name: Set distro_family for Ubuntu
       ansible.builtin.set_fact:
-        distribution_family: "Debian"
-        libvirt_qemu_user: "libvirt-qemu"
+        distro_family: "Debian"
+        qemu_user: "libvirt-qemu"
         host_os: "ubuntu"
         package_manager: apt
       when: _result_facts.ansible_facts.ansible_distribution == 'Ubuntu'
 
     - name: Fails if OS is not supported
-      ansible.builtin.assert:
-        msg: "The host \"{{ _param_gather_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
-        that: hostvars[_param_gather_host]['distribution_family'] is defined
+      ansible.builtin.fail:
+        msg: "The host \"{{ hostvars[_param_gather_host].ansible_host }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
+      when: not distro_family is defined
 
-    - name: Set ssh_host_key_ecdsa
+    - name: Set ssh_host_key_info
       ansible.builtin.set_fact:
-        ssh_host_key_ecdsa: "{{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype }} {{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public }}"
+        ssh_host_key_info: "{{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype }} {{ _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public }}"
       when: >
         _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype is defined and
         _result_facts.ansible_facts.ansible_ssh_host_key_ecdsa_public is defined
 
     - name: Gather the package facts
       ansible.builtin.package_facts:
-        manager: "{{ hostvars[_param_gather_host].package_manager }}"
+        manager: "{{ package_manager }}"
       register: _result_packages
 
-    - name: Set podman_is_installed
+    - name: Set podman_installed
       ansible.builtin.set_fact:
-        podman_is_installed: "{{ true if ('podman' in _result_packages.ansible_facts.packages) else false }}"
+        podman_installed: "{{ true if ('podman' in _result_packages.ansible_facts.packages) else false }}"
 
     - name: Gather the services facts
       ansible.builtin.service_facts:
       register: _result_services
 
-    - name: Set _service_state to unknown
+    - name: Set firewalld_state to unknown
       ansible.builtin.set_fact:
-        _service_state: 'unknown'
-      delegate_to: "{{ inventory_hostname }}"
+        firewalld_state: 'unknown'
 
-    - name: Set _service_state when firewalld is defined
+    - name: Set firewalld_state when firewalld is defined
       ansible.builtin.set_fact:
-        _service_state: "{{ _result_services.ansible_facts.services['firewalld'].state }}"
-      delegate_to: "{{ inventory_hostname }}"
+        firewalld_state: "{{ _result_services.ansible_facts.services['firewalld'].state }}"
       when: _result_services.ansible_facts.services['firewalld'] is defined
 
-    - name: Set _service_state when firewalld.service is defined
+    - name: Set firewalld_state when firewalld.service is defined
       ansible.builtin.set_fact:
-        _service_state: "{{ _result_services.ansible_facts.services['firewalld.service'].state }}"
-      delegate_to: "{{ inventory_hostname }}"
+        firewalld_state: "{{ _result_services.ansible_facts.services['firewalld.service'].state }}"
       when: _result_services.ansible_facts.services['firewalld.service'] is defined
 
-    - name: Set firewalld_is_active
+    - name: Set firewalld_active
       ansible.builtin.set_fact:
-        firewalld_is_active: "{{ true if _service_state == 'running' else false }}"
+        firewalld_active: "{{ true if firewalld_state == 'running' else false }}"
 
-    - name: Clear _service_state
+    - name: Clear podman_state
       ansible.builtin.set_fact:
-        _service_state: ''
-      delegate_to: "{{ inventory_hostname }}"
+        podman_state: ''
 
-    - name: Set _service_state when podman is defined
+    - name: Set podman_state when podman is defined
       ansible.builtin.set_fact:
-        _service_state: "{{ _result_services.ansible_facts.services['podman'].state }}"
-      delegate_to: "{{ inventory_hostname }}"
+        podman_state: "{{ _result_services.ansible_facts.services['podman'].state }}"
       when: _result_services.ansible_facts.services['podman'] is defined
 
-    - name: Set _service_state when podman.service is defined
+    - name: Set podman_state when podman.service is defined
       ansible.builtin.set_fact:
-        _service_state: "{{ _result_services.ansible_facts.services['podman.service'].state }}"
-      delegate_to: "{{ inventory_hostname }}"
+        podman_state: "{{ _result_services.ansible_facts.services['podman.service'].state }}"
       when: _result_services.ansible_facts.services['podman.service'] is defined
 
-    - name: Set podman_is_active
+    - name: Set podman_active
       ansible.builtin.set_fact:
-        podman_is_active: "{{ true if _service_state == 'running' else false }}"
+        podman_active: "{{ true if podman_state == 'running' else false }}"
 
-    - name: Set _service_state to unknown
+    - name: Set ovs_vswitchd_state to unknown
       ansible.builtin.set_fact:
-        _service_state: 'unknown'
-      delegate_to: "{{ inventory_hostname }}"
+        ovs_vswitchd_state: 'unknown'
 
-    - name: Set _service_state when ovs-vswitchd is defined
+    - name: Set ovs_vswitchd_state when ovs-vswitchd is defined
       ansible.builtin.set_fact:
-        _service_state: "{{ _result_services.ansible_facts.services['ovs-vswitchd'].state }}"
-      delegate_to: "{{ inventory_hostname }}"
+        ovs_vswitchd_state: "{{ _result_services.ansible_facts.services['ovs-vswitchd'].state }}"
       when: _result_services.ansible_facts.services['ovs-vswitchd'] is defined
 
-    - name: Set _service_state when ovs-vswitchd.service is defined
+    - name: Set ovs_vswitchd_state when ovs-vswitchd.service is defined
       ansible.builtin.set_fact:
-        _service_state: "{{ _result_services.ansible_facts.services['ovs-vswitchd.service'].state }}"
-      delegate_to: "{{ inventory_hostname }}"
+        ovs_vswitchd_state: "{{ _result_services.ansible_facts.services['ovs-vswitchd.service'].state }}"
       when: _result_services.ansible_facts.services['ovs-vswitchd.service'] is defined
 
-    - name: Set ovs_is_active
+    - name: Set ovs_vswitchd_active
       ansible.builtin.set_fact:
-        ovs_is_active: "{{ true if _service_state == 'running' else false }}"
+        ovs_vswitchd_active: "{{ true if ovs_vswitchd_state == 'running' else false }}"
 
-    - name: Generate an OpenSSH keypair on local and hypervisor hosts
+    - name: Clear libvirtd_state
+      ansible.builtin.set_fact:
+        libvirtd_state: ''
+
+    - name: Set libvirtd_state when libvirtd is defined
+      ansible.builtin.set_fact:
+        libvirtd_state: "{{ _result_services.ansible_facts.services['libvirtd'].state }}"
+      when: _result_services.ansible_facts.services['libvirtd'] is defined
+
+    - name: Set libvirtd_state when libvirtd.service is defined
+      ansible.builtin.set_fact:
+        libvirtd_state: "{{ _result_services.ansible_facts.services['libvirtd.service'].state }}"
+      when: _result_services.ansible_facts.services['libvirtd.service'] is defined
+
+    - name: Set libvirtd_active
+      ansible.builtin.set_fact:
+        libvirtd_active: "{{ true if libvirtd_state == 'running' else false }}"
+
+    - name: Get all the libvirt networks
+      community.libvirt.virt_net:
+        command: list_nets
+      register: _result_nets
+      when: libvirtd_active and _param_gather_host in groups['hypervisor_hosts']
+
+    - name: Get all the libvirt VMs
+      community.libvirt.virt:
+        command: list_vms
+      register: _result_vms
+      when: libvirtd_active and _param_gather_host in groups['hypervisor_hosts']
+
+    - name: Generate an OpenSSH keypair on hypervisor hosts
       community.crypto.openssh_keypair:
-        path: "~/.ssh/{{ hostvars['kubeinit-facts'].cluster_name }}_id_{{ hostvars['kubeinit-facts'].ssh_keytype }}"
-        type: "{{ hostvars['kubeinit-facts'].ssh_keytype }}"
-        comment: "{{ hostvars['kubeinit-facts'].cluster_name }} {{ 'ansible-controller' if (_param_gather_host == 'localhost') else _param_gather_host }}"
+        path: "~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }}"
+        type: "{{ kubeinit_common_ssh_keytype }}"
+        comment: "{{ kubeinit_cluster_name }} {{ _param_gather_host }}"
         regenerate: 'never'
       register: _result_keypair
-      when: _param_gather_host == 'localhost' or _param_gather_host in (groups['kubeinit_hypervisors'] | default([]))
+      when: _param_gather_host in (['localhost'] + groups['hypervisor_hosts'])
 
     - name: Create authorized_key from keypair
       ansible.builtin.set_fact:
-        authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"
-      when: _param_gather_host == 'localhost' or _param_gather_host in (groups['kubeinit_hypervisors'] | default([]))
+        hv_authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"
+      when: _param_gather_host in (['localhost'] + groups['hypervisor_hosts'])
 
-    - name: Add more facts to hostvars
-      ansible.builtin.set_fact:
+    - name: Add ansible facts to hostvars
+      ansible.builtin.add_host:
+        name: "{{ _param_gather_host }}"
+        groups: 'gathered'
+        ansible_connection: "{{ hostvars[_param_gather_host].ansible_connection | default(omit) }}"
         ansible_default_ipv4_address: "{{ _result_facts.ansible_facts.ansible_default_ipv4.address | default(omit) }}"
+        ansible_hostname: "{{ _result_facts.ansible_facts.ansible_hostname }}"
+        ansible_distribution: "{{ _result_facts.ansible_facts.ansible_distribution }}"
+        ansible_distribution_major_version: "{{ _result_facts.ansible_facts.ansible_distribution_major_version }}"
+        distribution_family: "{{ distro_family }}"
+        ssh_host_key_ecdsa: "{{ ssh_host_key_info | default(omit) }}"
+        libvirt_qemu_user: "{{ qemu_user }}"
         os: "{{ hostvars[_param_gather_host].os if (hostvars[_param_gather_host].os is defined) else host_os }}"
+        firewalld_is_active: "{{ firewalld_active }}"
+        podman_is_installed: "{{ podman_installed }}"
+        podman_is_active: "{{ podman_active }}"
+        ovs_is_active: "{{ ovs_vswitchd_active }}"
+        libvirt_nets: "{{ _result_nets.list_nets | default([]) }}"
+        libvirt_vms: "{{ _result_vms.list_vms | default([]) }}"
+        authorized_key: "{{ hv_authorized_key | default(omit) }}"
         remote_path: "{{ _result_facts.ansible_facts.ansible_env['PATH'] }}"
         remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
         ssh_connection_address: "{{ omit if (_result_facts.ansible_facts.ansible_env['SSH_CONNECTION'] is not defined) else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
@@ -178,16 +216,10 @@
 
     - name: Clear results
       ansible.builtin.set_fact:
-        ansible_facts: {}
-        packages: {}
-        services: {}
-        _result_facts: {}
-        _result_packages: {}
-        _result_services: {}
-        _result_nets: []
-        _result_vms: []
-        _result_keypair: ''
-        _service_state: ''
+        _result_facts: null
+        _result_services: null
+        _result_nets: null
+        _result_vms: null
+        _result_keypair: null
 
   delegate_to: "{{ _param_gather_host }}"
-  delegate_facts: true

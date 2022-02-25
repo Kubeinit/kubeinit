@@ -29,126 +29,87 @@
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-environment'
   tags: omit_from_grapher
 
-- name: Delegate to kubeinit_setup_host_name
+- name: Install python3-pip package
+  ansible.builtin.package:
+    name: "{{ hostvars[kubeinit_setup_host_name].package_pip }}"
+    state: present
+    use: "{{ hostvars[kubeinit_setup_host_name].package_manager }}"
+  become: true
+  become_user: root
+  delegate_to: "{{ kubeinit_setup_host_name }}"
+  register: _result
+  failed_when: _result is not defined
+
+- name: Setup kubic repo for Ubuntu
   block:
 
-    - name: Install python3-pip package
-      ansible.builtin.package:
-        name: "{{ hostvars[kubeinit_setup_host_name].package_pip }}"
-        state: present
-        use: "{{ hostvars[kubeinit_setup_host_name].package_manager }}"
+    - name: Set version facts
+      ansible.builtin.set_fact:
+        _version: "{{ hostvars[kubeinit_setup_host_name].ansible_distribution_version }}"
+        _stability: "{{ 'stable' if (hostvars[kubeinit_setup_host_name].ansible_distribution_version is version('21.04', 'le')) else 'testing' }}"
+
+    - name: Set version facts
+      ansible.builtin.set_fact:
+        _path_element: "{{ _stability + '/xUbuntu_' + _version }}"
+
+    - name: Add the Podman Ubuntu package repository to Apt
+      ansible.builtin.shell: |
+        set -eo pipefail
+        echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:{{ _stability }}.list
+        curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/Release.key" | apt-key add -
+        apt-get update
+      args:
+        executable: /bin/bash
       become: true
       become_user: root
+      delegate_to: "{{ kubeinit_setup_host_name }}"
       register: _result
-      failed_when: _result is not defined
+      changed_when: "_result.rc == 0"
 
-    - name: Setup kubic repo for Debian distribution
-      block:
+  when: hostvars[kubeinit_setup_host_name].ansible_distribution == 'Ubuntu'
 
-        - name: Set cgroup_manager for debian release
-          ansible.builtin.copy:
-            content: |
-              [engine]
-              cgroup_manager = "cgroupfs"
-            dest: '/etc/containers/containers.conf'
-            mode: '0644'
-          become: true
-          become_user: root
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _version: "{{ hostvars[kubeinit_setup_host_name].ansible_distribution_version.split('-')[0] }}"
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _stability: "{{ 'stable' if (_version is version('11', 'le')) else 'testing' }}"
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _path_element: "{{ _stability + '/' + hostvars[kubeinit_setup_host_name].ansible_distribution + '_' + _version }}"
-
-      when: hostvars[kubeinit_setup_host_name].ansible_distribution == 'Debian'
-
-    - name: Setup kubic repo for Ubuntu distribution
-      block:
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _version: "{{ hostvars[kubeinit_setup_host_name].ansible_distribution_version }}"
-            _stability: "{{ 'stable' if (hostvars[kubeinit_setup_host_name].ansible_distribution_version is version('21.04', 'le')) else 'testing' }}"
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _path_element: "{{ _stability + '/x' + hostvars[kubeinit_setup_host_name].ansible_distribution + '_' + _version }}"
-
-      when: hostvars[kubeinit_setup_host_name].ansible_distribution == 'Ubuntu'
-
-    - name: Setup kubic repo for Debian family
-      block:
-
-        - name: Make sure we have curl installed
-          ansible.builtin.package:
-            name: curl
-            state: present
-          become: true
-          become_user: root
-
-        - name: Add the Podman kubic package repository to Apt
-          ansible.builtin.shell: |
-            set -eo pipefail
-            echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:{{ _stability }}.list
-            curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/Release.key" | apt-key add -
-            apt-get update
-          args:
-            executable: /bin/bash
-          become: true
-          become_user: root
-          delegate_to: "{{ kubeinit_setup_host_name }}"
-          register: _result
-          changed_when: "_result.rc == 0"
-
-      when: hostvars[kubeinit_setup_host_name].distribution_family == 'Debian'
-
-    - name: Install podman package
-      ansible.builtin.package:
-        name: podman
-        state: present
-        use: "{{ hostvars[kubeinit_setup_host_name].package_manager }}"
-      become: true
-      become_user: root
-      register: _result
-      failed_when: _result is not defined
-
-    - name: Install jq package
-      ansible.builtin.package:
-        name: jq
-        state: present
-        use: "{{ hostvars[kubeinit_setup_host_name].package_manager }}"
-      become: true
-      become_user: root
-      register: _result
-      failed_when: _result is not defined
-
-    - name: Get status of kubeinit folder
-      ansible.builtin.stat:
-        path: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
-      register: _result_stat_kubeinit
-
-    - name: Remember that we will be cloning the kubeinit repo
-      ansible.builtin.add_host:
-        name: "{{ kubeinit_setup_host_name }}"
-        git_clone_kubeinit: "{{ not _result_stat_kubeinit.stat.exists|bool }}"
-
-    - name: Install git package when git clone is enabled
-      ansible.builtin.package:
-        name: git
-        state: present
-      become: true
-      become_user: root
-      register: _result
-      when: hostvars[kubeinit_setup_host_name].git_clone_kubeinit|bool
-
+- name: Install podman package
+  ansible.builtin.package:
+    name: podman
+    state: present
+    use: "{{ hostvars[kubeinit_setup_host_name].package_manager }}"
+  become: true
+  become_user: root
   delegate_to: "{{ kubeinit_setup_host_name }}"
+  register: _result
+  failed_when: _result is not defined
+
+- name: Install jq package
+  ansible.builtin.package:
+    name: jq
+    state: present
+    use: "{{ hostvars[kubeinit_setup_host_name].package_manager }}"
+  become: true
+  become_user: root
+  delegate_to: "{{ kubeinit_setup_host_name }}"
+  register: _result
+  failed_when: _result is not defined
+
+- name: Get status of kubeinit folder
+  ansible.builtin.stat:
+    path: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
+  register: _result_stat_kubeinit
+  delegate_to: "{{ kubeinit_setup_host_name }}"
+
+- name: Remember that we will be cloning the kubeinit repo
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_setup_host_name }}"
+    git_clone_kubeinit: "{{ not _result_stat_kubeinit.stat.exists|bool }}"
+
+- name: Install git package when git clone is enabled
+  ansible.builtin.package:
+    name: git
+    state: present
+  become: true
+  become_user: root
+  delegate_to: "{{ kubeinit_setup_host_name }}"
+  register: _result
+  when: hostvars[kubeinit_setup_host_name].git_clone_kubeinit|bool
 
 - block:
     - name: Add task-prepare-environment to tasks_completed

@@ -14,17 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Set _ssh_target fact
-  ansible.builtin.set_fact:
-    _ssh_target: "{{ hostvars[_param_ansible_host].ansible_ssh_user }}@{{ hostvars[_param_ansible_host].ansible_host }}"
-
-- name: Set _ssh_command fact
-  ansible.builtin.set_fact:
-    _ssh_command: "ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ hostvars[_param_ansible_host].ansible_ssh_extra_args | default() }} {{ _ssh_target }}"
 
 - name: Confirm that we can run ssh to _param_ansible_host
   ansible.builtin.command: |
-    {{ _ssh_command }} echo connected
+    ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} echo connected
   register: _result_ssh
   failed_when: _result_ssh is not defined
   changed_when: "_result_ssh.rc == 0"
@@ -32,12 +25,12 @@
 
 - name: Provide informative message if ssh connect fails
   ansible.builtin.fail:
-    msg: "KubeInit setup requires ssh remote access to {{ _ssh_target }}"
+    msg: "KubeInit setup requires ssh remote access to {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }}"
   when: _result_ssh.stdout != 'connected'
 
 - name: Confirm that we can run ssh to _param_ansible_host, and sudo without a password
   ansible.builtin.command: |
-    {{ _ssh_command }} sudo echo sudoer
+    ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} sudo echo sudoer
   register: _result_sudo
   failed_when: _result_sudo is not defined
   changed_when: "_result_sudo.rc == 0"
@@ -45,12 +38,12 @@
 
 - name: Provide informative message if sudo on ssh connect fails
   ansible.builtin.fail:
-    msg: "KubeInit setup requires being able to run sudo for {{ _ssh_target }}"
+    msg: "KubeInit setup requires {{ kubeinit_facts_hostvars.remote_user }} be able to run sudo on remote host {{ hostvars[_param_ansible_host].ansible_host }}"
   when: _result_sudo.stdout != 'sudoer'
 
 - name: Confirm that we can run ssh to _param_ansible_host, sudo without a password, and the python interpreter is present
   ansible.builtin.command: |
-    {{ _ssh_command }} sudo ls {{ ansible_python_interpreter }}
+    ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} sudo ls {{ ansible_python_interpreter }}
   register: _result_python_present
   failed_when: _result_python_present is not defined
   changed_when: "_result_python_present.rc == 0"
@@ -61,18 +54,18 @@
 
     - name: Provide informative message if python not present on remote host
       ansible.builtin.debug:
-        msg: "KubeInit setup requires that {{ ansible_python_interpreter }} be installed for {{ _ssh_target }}, will attempt to install it remotely."
+        msg: "KubeInit setup requires that {{ ansible_python_interpreter }} be installed on remote host {{ hostvars[_param_ansible_host].ansible_host }}, will attempt to install it remotely."
 
     - name: Fetch contents of /etc/os-release
       ansible.builtin.command: |
-        {{ _ssh_command }} cat /etc/os-release
+        ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} cat /etc/os-release
       register: _result_os_release
       changed_when: "_result_os_release.rc == 0"
       delegate_to: localhost
 
     - name: Run python install
       ansible.builtin.command: |
-        {{ _ssh_command }} sudo {{ python_package_manager }} install -y {{ python_package }}
+        ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} sudo {{ python_package_manager }} install -y {{ python_package }}
       register: _result_python_install
       changed_when: "_result_python_install.rc == 0"
       vars:
@@ -82,7 +75,7 @@
 
     - name: Reconfirm that we can run ssh to _param_ansible_host, sudo without a password, and the python interpreter is present
       ansible.builtin.command: |
-        {{ _ssh_command }} sudo ls {{ ansible_python_interpreter }}
+        ssh {{ hostvars[_param_ansible_host].ansible_ssh_common_args }} {{ kubeinit_facts_hostvars.remote_user }}@{{ hostvars[_param_ansible_host].ansible_host }} sudo ls {{ ansible_python_interpreter }}
       register: _result_python_present_recheck
       failed_when: _result_python_present_recheck is not defined
       changed_when: "_result_python_present_recheck.rc == 0"
@@ -90,7 +83,7 @@
 
     - name: Provide informative message if python not present on remote host
       ansible.builtin.fail:
-        msg: "KubeInit setup requires that {{ ansible_python_interpreter }} be installed for {{ _ssh_target }}"
+        msg: "KubeInit setup requires that {{ ansible_python_interpreter }} be installed on remote host {{ hostvars[_param_ansible_host].ansible_host }}"
       when: _result_python_present_recheck.stdout != ansible_python_interpreter
 
   when: _result_python_present.stdout != ansible_python_interpreter
@@ -98,4 +91,3 @@
 - name: Confirm that we have ansible host connectivity
   ansible.builtin.ping:
   delegate_to: "{{ _param_ansible_host }}"
-  when: not ansible_debug_enabled

@@ -33,146 +33,159 @@
 # Cleanup all resources left over from previous CI deployment
 #
 
-- name: Delegate to localhost for podman remote cleanup
-  block:
+- name: Get list of existing remote system connection definitions
+  ansible.builtin.shell: |
+    set -eo pipefail
+    podman --remote system connection list | sed -e 1d -e 's/[* ].*//'
+  args:
+    executable: /bin/bash
+  register: _result_connections
+  changed_when: "_result_connections.rc == 0"
 
-    - name: Get list of existing remote system connection definitions
-      ansible.builtin.shell: |
-        set -eo pipefail
-        podman --remote system connection list | sed -e 1d -e 's/[* ].*//'
-      args:
-        executable: /bin/bash
-      register: _result_connections
-      changed_when: "_result_connections.rc == 0"
+# - name: Remove any existing remote system connection definition for ci host
+#   ansible.builtin.command: |
+#     podman --remote system connection remove {{ item }}
+#   loop: "{{ _result_connections.stdout_lines | list }}"
+#   register: _result
+#   changed_when: "_result.rc == 0"
 
-    - name: Run gitlab-runner unregister in runner container
-      ansible.builtin.command: |
-        podman --remote --connection {{ kubeinit_ci_host_name }} exec kubeinit-merge-request-runner gitlab-runner unregister --all-runners
-      loop: "{{ _result_connections.stdout_lines | list }}"
-      register: _result
-      changed_when: "_result.rc == 0"
-      failed_when: _result is not defined
-      when: item == kubeinit_ci_host_name
+# - name: Reset local ssh keys
+#   ansible.builtin.known_hosts:
+#     name: "{{ item[1] }}"
+#     state: absent
+#   loop: "{{ kubeinit_facts_hostvars.node_aliases }}"
 
-    - name: Remove any existing remote system connection definition for ci host
-      ansible.builtin.command: |
-        podman --remote system connection remove {{ item }}
-      loop: "{{ _result_connections.stdout_lines | list }}"
-      register: _result
-      changed_when: "_result.rc == 0"
-      when: item == kubeinit_ci_host_name
+# - name: Reset ssh keys in hypervisors
+#   ansible.builtin.known_hosts:
+#     name: "{{ node_alias }}"
+#     state: absent
+#   loop: "{{ groups['all_hosts'] | product(kubeinit_facts_hostvars.node_aliases | flatten | unique) }}"
+#   vars:
+#     kubeinit_deployment_node_name: "{{ item[0] }}"
+#     node_alias: "{{ item[1] }}"
+#   delegate_to: "{{ kubeinit_ci_host_name }}"
 
-    - name: Clear _result_connections
-      ansible.builtin.set_fact:
-        _result_connections: {}
-
-  delegate_to: localhost
-
-- name: Delegate to kubeinit_ci_host_name
-  block:
-
-    - name: Find any CI pods from previous deployments
-      containers.podman.podman_pod_info:
-      register: _result_podinfo
-      when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
-
-    - name: Set facts about those pods
-      ansible.builtin.set_fact:
-        orphaned_pod: "{{ pod }}"
-      loop: "{{ _result_podinfo.pods | default([]) }}"
-      loop_control:
-        loop_var: pod
-      when: pod.Name == kubeinit_ci_pod_name
-
-    - name: Get container info from orphaned CI pod infra container
-      containers.podman.podman_container_info:
-        name: "{{ orphaned_pod.InfraContainerID }}"
-      register: _result_containerinfo
-      when: orphaned_pod is defined
-
-    - name: Set facts about container netns
-      ansible.builtin.set_fact:
-        sandbox_key: "{{ _result_containerinfo.containers[0].NetworkSettings.SandboxKey | basename }}"
-      when: orphaned_pod is defined
-
-    - name: Find any CI pod networks from previous deployments
-      containers.podman.podman_network_info:
-      register: _result_netinfo
-      when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
-
-    - name: Set facts about those networks
-      ansible.builtin.set_fact:
-        orphaned_network: "{{ network }}"
-      loop: "{{ _result_netinfo.networks | default([]) }}"
-      loop_control:
-        loop_var: network
-      when: network.name == kubeinit_ci_bridge_name
-
-    - name: Stop and disable user services
-      ansible.builtin.service:
-        name: "{{ service_name }}"
-        scope: user
-        state: stopped
-        enabled: false
-      register: _result_stop_service
-      failed_when: _result_stop_service is not defined
-      loop: ["kubeinit-merge-request-runner", "kubeinit-ara-output", "kubeinit-ara-api"]
-      loop_control:
-        loop_var: service_name
-
-    - name: Remove previous CI podman pod
-      containers.podman.podman_pod:
-        name: "{{ kubeinit_ci_pod_name }}"
-        state: absent
-      when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
-
-    - name: Remove any previous kubeinit CI podman network
-      containers.podman.podman_network:
-        name: "{{ kubeinit_ci_bridge_name }}"
-        state: absent
-      when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
-
-    - name: Remove netns for CI pods
-      community.general.ip_netns:
-        name: "{{ sandbox_key }}"
-        state: absent
-      when: sandbox_key is defined
-
-    - name: Find any podman volumes from previous deployments
-      containers.podman.podman_volume_info:
-      register: _result_volinfo
-      when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
-
-    - name: Remove any previous kubeinit podman volumes
-      containers.podman.podman_volume:
-        name: "{{ volume_name }}"
-        state: absent
-      loop: ["kubeinit-ara-config", "kubeinit-ara-output", "kubeinit-merge-request-runner-config", "kubeinit-runner-builds"]
-      loop_control:
-        loop_var: volume_name
-      when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
-
-    - name: Remove any previous kubeinit buildah containers
-      ansible.builtin.shell: |
-        set -eo pipefail
-        buildah rm --all || true
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
-      when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
-
-    - name: Prune container images created for the CI
-      ansible.builtin.shell: |
-        set -eo pipefail
-        podman image prune --filter label=kubeinit-ci-host-name={{ kubeinit_ci_host_name }} --all --force || true
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
-      when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
-
+- name: Find any CI pods from previous deployments
+  containers.podman.podman_pod_info:
+  register: _result_podinfo
   delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
+
+- name: Set facts about those pods
+  ansible.builtin.set_fact:
+    orphaned_pod: "{{ pod }}"
+  loop: "{{ _result_podinfo.pods | default([]) }}"
+  loop_control:
+    loop_var: pod
+  when: pod.Name == kubeinit_ci_pod_name
+
+- name: Get container info from orphaned CI pod infra container
+  containers.podman.podman_container_info:
+    name: "{{ orphaned_pod.InfraContainerID }}"
+  register: _result_containerinfo
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: orphaned_pod is defined
+
+- name: Set facts about container netns
+  ansible.builtin.set_fact:
+    sandbox_key: "{{ _result_containerinfo.containers[0].NetworkSettings.SandboxKey | basename }}"
+  when: orphaned_pod is defined
+
+- name: Find any CI pod networks from previous deployments
+  containers.podman.podman_network_info:
+  register: _result_netinfo
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
+
+- name: Set facts about those networks
+  ansible.builtin.set_fact:
+    orphaned_network: "{{ network }}"
+  loop: "{{ _result_netinfo.networks | default([]) }}"
+  loop_control:
+    loop_var: network
+  when: network.name == kubeinit_ci_bridge_name
+
+- name: Run gitlab-runner unregister in runner container
+  ansible.builtin.shell: |
+    set -eo pipefail
+    podman --remote exec kubeinit-merge-request-runner gitlab-runner unregister --all-runners || true
+  args:
+    executable: /bin/bash
+  register: _result_connections
+  changed_when: "_result_connections.rc == 0"
+  when: orphaned_pod is defined
+
+- name: Stop and disable user services
+  ansible.builtin.service:
+    name: "{{ service_name }}"
+    scope: user
+    state: stopped
+    enabled: false
+  register: _result_stop_service
+  failed_when: _result_stop_service is not defined
+  loop: ["kubeinit-merge-request-runner", "kubeinit-ara-output", "kubeinit-ara-api"]
+  loop_control:
+    loop_var: service_name
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+
+- name: Remove previous CI podman pod
+  containers.podman.podman_pod:
+    name: "{{ kubeinit_ci_pod_name }}"
+    state: absent
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
+
+- name: Remove any previous kubeinit CI podman network
+  containers.podman.podman_network:
+    name: "{{ kubeinit_ci_bridge_name }}"
+    state: absent
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
+
+- name: Remove netns for CI pods
+  community.general.ip_netns:
+    name: "{{ sandbox_key }}"
+    state: absent
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: sandbox_key is defined
+
+- name: Find any podman volumes from previous deployments
+  containers.podman.podman_volume_info:
+  register: _result_volinfo
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
+
+- name: Remove any previous kubeinit podman volumes
+  containers.podman.podman_volume:
+    name: "{{ volume_name }}"
+    state: absent
+  loop: ["kubeinit-ara-config", "kubeinit-ara-output", "kubeinit-merge-request-runner-config", "kubeinit-runner-builds"]
+  loop_control:
+    loop_var: volume_name
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
+
+- name: Remove any previous kubeinit buildah containers
+  ansible.builtin.shell: |
+    set -eo pipefail
+    buildah rm --all || true
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
+
+- name: Prune container images created for the CI
+  ansible.builtin.shell: |
+    set -eo pipefail
+    podman image prune --filter label=kubeinit-ci-host-name={{ kubeinit_ci_host_name }} --all --force || true
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_ci_host_name }}"
+  when: hostvars[kubeinit_ci_host_name].podman_is_installed is defined and hostvars[kubeinit_ci_host_name].podman_is_installed
 
 - block:
     - name: Add task-cleanup-deployment to tasks_completed

@@ -14,11 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Perform initial setup on ansible-controller host (localhost)
+- name: Initial setup
   hosts: localhost
   become: false
   gather_subset: "!all,network"
-  gather_facts: true
   pre_tasks:
     - name: Check if Ansible meets version requirements.
       tags: task_gather_facts
@@ -48,29 +47,25 @@
             public: true
 
 - name: Prepare all hypervisor hosts to deploy service and cluster nodes
-  hosts: kubeinit_hypervisors
+  hosts: hypervisor_hosts
   gather_facts: false
   tasks:
     - name: Skip play if playbook_terminated
       ansible.builtin.meta: end_play
       when: hostvars['kubeinit-facts'].playbook_terminated | default(false)
       tags: omit_from_grapher
-      run_once: true
 
     - name: Prepare individual hypervisors
       tags: task_prepare_hypervisors
       block:
-        - name: Set kubeinit_cluster_name fact
-          ansible.builtin.set_fact:
-            kubeinit_cluster_name: "{{ hostvars['kubeinit-facts'].cluster_name }}"
-            kubeinit_ssh_keytype: "{{ hostvars['kubeinit-facts'].ssh_keytype }}"
-          delegate_facts: true
-
         - name: Prepare each hypervisor in the deployment
           ansible.builtin.include_role:
             name: kubeinit.kubeinit.kubeinit_prepare
             tasks_from: prepare_hypervisor.yml
             public: true
+          vars:
+            kubeinit_cluster_name: "{{ hostvars['kubeinit-cluster-facts'].cluster_name }}"
+          when: inventory_hostname in hostvars['kubeinit-cluster-facts'].hypervisors
 
 - name: Run cluster deployment on prepared hypervisors
   hosts: localhost

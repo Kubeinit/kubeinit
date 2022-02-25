@@ -73,7 +73,7 @@
     - name: Setup Ubuntu container image
       block:
         - name: Create a new working container image
-          ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-provision docker.io/ubuntu:{{ 'focal' if (kubeinit_cluster_distro == 'cdk') else 'jammy' }}
+          ansible.builtin.command: buildah from --name {{ kubeinit_cluster_name }}-provision docker.io/ubuntu:{{ 'focal' if (kubeinit_cluster_distro == 'cdk') else 'hirsute' }}
           register: _result
           changed_when: "_result.rc == 0"
         - name: Update the container
@@ -331,8 +331,8 @@
 
     - name: Generate an OpenSSH keypair for provision host
       community.crypto.openssh_keypair:
-        path: "~/.ssh/id_{{ kubeinit_ssh_keytype }}"
-        type: "{{ kubeinit_ssh_keytype }}"
+        path: "~/.ssh/id_{{ kubeinit_common_ssh_keytype }}"
+        type: "{{ kubeinit_common_ssh_keytype }}"
         comment: "{{ kubeinit_cluster_name }} {{ kubeinit_provision_service_name }}"
         regenerate: 'never'
       register: _result_provision_service_keypair
@@ -359,31 +359,31 @@
 
 - name: Update the cluster authorized_keys
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
+    name: "{{ kubeinit_cluster_facts_name }}"
     authorized_keys: "{{ authorized_keys_with_provision }}"
 
 - name: Add registry auth info to cluster vars
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
+    name: "{{ kubeinit_cluster_facts_name }}"
     domain_cert: "{{ _result_domain_cert_b64.content | string | b64decode }}"
     registry_disconnected_auth: "{{ disconnected_auth }}"
     registry_pullsecret: "{{ kubeinit_registry_pullsecret }}"
 
 - name: Update kubeinit_cluster_hostvars
   ansible.builtin.set_fact:
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_name] }}"
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
 
 # Confirm connectivity
 - name: "Make sure we can execute remote commands on {{ kubeinit_deployment_node_name }} before we continue"
   ansible.builtin.shell: |
     set -o pipefail
     ssh \
-        -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} \
+        -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} \
         -o ConnectTimeout=5 \
         -o BatchMode=yes \
         -o UserKnownHostsFile=/dev/null \
         -o StrictHostKeyChecking=accept-new \
-        -o ProxyCommand="ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}" \
+        -o ProxyCommand="ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_common_ssh_keytype }} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}" \
         root@{{ hostvars[kubeinit_deployment_node_name].ansible_host }} 'echo connected' || true
   args:
     executable: /bin/bash
@@ -393,12 +393,6 @@
   delay: 10
   until: "'connected' in _result.stdout"
   delegate_to: "{{ kubeinit_bastion_host }}"
-
-- name: Gather network facts
-  ansible.builtin.gather_facts:
-    gather_subset: "!all,network"
-  register: _result_facts
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
 
 - block:
     - name: Gather network and host facts for provision service

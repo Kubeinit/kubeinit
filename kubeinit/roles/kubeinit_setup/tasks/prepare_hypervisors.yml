@@ -34,33 +34,40 @@
 
     - name: Define additional host facts
       ansible.builtin.set_fact:
-        kubeinit_deploy_keypair_path: "~/.ssh/kubeinit_id_{{ kubeinit_ssh_keytype }}"
-        kubeinit_deploy_ssh_config: "~/.ssh/kubeinit_config"
+        kubeinit_deploy_keypair_path: "~/.ssh/kubeinit_id_{{ kubeinit_common_ssh_keytype }}"
 
-    - name: Check if default ssh config exists
-      ansible.builtin.stat:
-        path: "~/.ssh/config"
-      register: _result_default_ssh_config_stat
+    - name: Create ssh config file
+      ansible.builtin.file:
+        path: ~/.ssh/config
+        state: touch
+        mode: 0644
+      when: (groups['hypervisor_hosts'] | default([]) | map('extract', hostvars, 'ssh_hostname') | list | length > 0)
 
-    - name: Create ssh config file from template
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_prepare
-        tasks_from: create_host_ssh_config.yml
-        public: true
-      vars:
-        _param_hosts: "{{ groups['kubeinit_hypervisors'] }}"
-        _param_keypair_path: "{{ kubeinit_deploy_keypair_path }}"
-        _param_dest_path: "{{ kubeinit_deploy_ssh_config }}"
-        _param_include_paths: "{{ [_result_default_ssh_config_stat.stat.path] if (_result_default_ssh_config_stat.stat.exists) else [] }}"
+    - name: Add hypervisor hosts ssh_hostname to ~/.ssh/config
+      ansible.builtin.blockinfile:
+        path: ~/.ssh/config
+        mode: '0644'
+        block: |
+          {% for host in groups['hypervisor_hosts'] %}
+          {% if hostvars[host].ssh_hostname is defined %}
+
+          Host {{ hostvars[host].ansible_host }}
+            Hostname {{ hostvars[host].ssh_hostname }}
+            IdentityFile {{ kubeinit_deploy_keypair_path }}
+            UserKnownHostsFile /dev/null
+            StrictHostKeyChecking accept-new
+          {% endif %}
+          {% endfor %}
+      when: (groups['hypervisor_hosts'] | default([]) | map('extract', hostvars, 'ssh_hostname') | list | length > 0)
 
     - name: Generate an OpenSSH keypair for setup_host to have remote access to hypervisor hosts
       community.crypto.openssh_keypair:
         path: "{{ kubeinit_deploy_keypair_path }}"
-        type: "{{ kubeinit_ssh_keytype }}"
-        comment: "{{ kubeinit_setup_host_name + ' ' + hostvars[kubeinit_setup_host_name].ansible_ssh_user + '@' + hostvars[kubeinit_setup_host_name].ssh_connection_address }}"
+        type: "{{ kubeinit_common_ssh_keytype }}"
+        comment: "{{ kubeinit_setup_host_name + ' ' + hostvars[kubeinit_setup_host_name].ansible_ssh_user + '@' + hostvars[kubeinit_setup_host_name].ansible_host }}"
         regenerate: 'never'
       register: _result_setup_keypair
-      when: "'kubeinit_hypervisors' in groups and groups['kubeinit_hypervisors'] | list | length > 0"
+      when: "'hypervisor_hosts' in groups and groups['hypervisor_hosts'] | list | length > 0"
 
     - name: Add keypair to authorized_keys on setup_host
       ansible.posix.authorized_key:
@@ -69,16 +76,17 @@
         comment: "{{ _result_setup_keypair.comment }}"
         state: present
 
-    - name: Ensure hypervisors have all requirements for ansible
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_setup
-        tasks_from: setup_ansible_host.yml
-        public: true
-      loop: "{{ groups['kubeinit_hypervisors'] | default([]) }}"
+    - name: Ensure hypervisor hosts have all requirements for ansible
+      ansible.builtin.include_tasks: setup_ansible_host.yml
+      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
       loop_control:
-        loop_var: hypervisor_host
-      vars:
-        _param_ansible_host: "{{ hypervisor_host }}"
+        loop_var: _param_ansible_host
+
+    - name: Gather hypervisor host facts
+      ansible.builtin.include_tasks: gather_host_facts.yml
+      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
+      loop_control:
+        loop_var: _param_gather_host
 
     - name: Add setup_host authorized key to hypervisor hosts
       ansible.posix.authorized_key:
@@ -86,7 +94,7 @@
         key: "{{ _result_setup_keypair.public_key }}"
         comment: "{{ _result_setup_keypair.comment }}"
         state: present
-      loop: "{{ groups['kubeinit_hypervisors'] | default([]) }}"
+      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
       loop_control:
         loop_var: hypervisor_host
       become: "{{ true if (hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) == 'root') else false }}"
@@ -97,7 +105,11 @@
       ansible.builtin.shell: |
         set -o pipefail
         ssh \
-            -F {{ kubeinit_deploy_ssh_config }} \
+            -i {{ kubeinit_deploy_keypair_path }} \
+            -o ConnectTimeout=5 \
+            -o BatchMode=yes \
+            -o UserKnownHostsFile=/dev/null \
+            -o StrictHostKeyChecking=accept-new \
             {{ hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) }}@{{ hostvars[hypervisor_host].ansible_host }} 'echo connected' || true
       args:
         executable: /bin/bash
@@ -106,7 +118,7 @@
       retries: 30
       delay: 10
       until: "'connected' in _result.stdout"
-      loop: "{{ groups['kubeinit_hypervisors'] | default([]) }}"
+      loop: "{{ groups['hypervisor_hosts'] | default([]) }}"
       loop_control:
         loop_var: hypervisor_host
 

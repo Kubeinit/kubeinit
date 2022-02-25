@@ -19,7 +19,7 @@
     name: kubeinit.kubeinit.kubeinit_prepare
     public: true
   vars:
-    environment_prepared: "{{ kubeinit_cluster_name is defined }}"
+    environment_prepared: "{{ kubeinit_cluster_facts_name is defined }}"
   when: not environment_prepared
 
 - name: Read in the contents of domain.crt
@@ -31,7 +31,7 @@
 
 - name: Add contents of domain.crt cluster vars
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
+    name: "{{ kubeinit_cluster_facts_name }}"
     domain_cert: "{{ _result_domain_cert_b64.content | string | b64decode }}"
   when: kubeinit_cluster_hostvars.domain_cert is not defined
 
@@ -44,13 +44,13 @@
 
 - name: Add contents of regustry-auths.json to cluster vars
   ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
+    name: "{{ kubeinit_cluster_facts_name }}"
     registry_disconnected_auth: "{{ _result_registry_auths_b64.content | string | b64decode }}"
   when: kubeinit_cluster_hostvars.registry_disconnected_auth is not defined
 
 - name: Update kubeinit_cluster_hostvars
   ansible.builtin.set_fact:
-    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_name] }}"
+    kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_facts_name] }}"
   when: >
     kubeinit_cluster_hostvars.domain_cert is not defined or
     kubeinit_cluster_hostvars.registry_disconnected_auth is not defined

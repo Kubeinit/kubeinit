@@ -87,14 +87,12 @@
         chdir: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
         cmd: ansible-galaxy collection build kubeinit --verbose --force --output-path releases/
       register: _result
-      changed_when: "_result.rc == 0"
 
     - name: Read the kubeinit/galaxy.xml file
       ansible.builtin.command:
         chdir: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
         cmd: cat kubeinit/galaxy.yml
       register: _result
-      changed_when: "_result.rc == 0"
 
     - name: Set galaxy file facts
       ansible.builtin.set_fact:
@@ -105,7 +103,6 @@
         chdir: "{{ kubeinit_git_clone_path | default('~/kubeinit') }}"
         cmd: ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-{{ galaxy_facts.version }}.tar.gz
       register: _result
-      changed_when: "_result.rc == 0"
       failed_when: _result is not defined
 
     - name: Clean up releases folder after installing the collection

@@ -75,7 +75,7 @@
   changed_when: "_result.rc == 0"
 
 - name: Create java keystore
-  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- keytool -genkeypair -keystore keystore.jks -storepass password -keypass password -alias {{ kubeinit_cluster_name }}-nexus -keyalg RSA -keysize 2048 -validity 5000 -dname "CN=*.{{ kubeinit_cluster_fqdn }}, OU={{ hostvars['kubeinit-env'].certificate_organizational_unit }}, O={{ hostvars['kubeinit-env'].certificate_organization }}, L={{ hostvars['kubeinit-env'].certificate_locality }}, ST={{ hostvars['kubeinit-env'].certificate_state }}, C={{ hostvars['kubeinit-env'].certificate_country }}" -ext "SAN=DNS:{{ kubeinit_nexus_fqdn }},IP:{{ kubeinit_nexus_service_address }}" -ext "BC=ca:true"
+  ansible.builtin.command: buildah run --user root:root {{ kubeinit_cluster_name }}-nexus -- keytool -genkeypair -keystore keystore.jks -storepass password -keypass password -alias {{ kubeinit_cluster_name }}-nexus -keyalg RSA -keysize 2048 -validity 5000 -dname "CN=*.{{ kubeinit_cluster_fqdn }}, OU={{ kubeinit_common_certificate_organizational_unit }}, O={{ kubeinit_common_certificate_organization }}, L={{ kubeinit_common_certificate_locality }}, ST={{ kubeinit_common_certificate_state }}, C={{ kubeinit_common_certificate_country }}" -ext "SAN=DNS:{{ kubeinit_nexus_fqdn }},IP:{{ kubeinit_nexus_service_address }}" -ext "BC=ca:true"
   register: _result
   changed_when: "_result.rc == 0"
 
@@ -206,26 +206,18 @@
     - name: Install the nexus3 cli
       ansible.builtin.command: |
         python3 -m pip install -q cryptography==3.3.2 nexus3-cli
-      register: _result
-      changed_when: "_result.rc == 0"
 
     - name: Login to nexus3 cli
       ansible.builtin.command: |
         env LC_ALL=C.UTF-8 LANG=C.UTF-8 nexus3 login -u admin -p {{ _result_admin_password.content | b64decode }} -U "https://{{ kubeinit_nexus_service_address }}:8443" --x509_verify
-      register: _result
-      changed_when: "_result.rc == 0"
       no_log: true
 
     - name: Create docker repository
       ansible.builtin.command: |
         env LC_ALL=C.UTF-8 LANG=C.UTF-8 REQUESTS_CA_BUNDLE="{{ kubeinit_nexus_directory_data }}/etc/ssl/public.cert" nexus3 repository create hosted docker --https-port {{ kubeinit_nexus_port }} --v1-enabled origin
-      register: _result
-      changed_when: "_result.rc == 0"
 
     - name: Activate security realm for docker tokens
       ansible.builtin.command: |
         env LC_ALL=C.UTF-8 LANG=C.UTF-8 REQUESTS_CA_BUNDLE="{{ kubeinit_nexus_directory_data }}/etc/ssl/public.cert" nexus3 security realm activate DockerToken
-      register: _result
-      changed_when: "_result.rc == 0"
 
   delegate_to: "{{ kubeinit_nexus_service_address }}"

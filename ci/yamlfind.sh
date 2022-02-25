@@ -30,12 +30,12 @@ fi
 
 # Match both docs and modules/roles
 
-roles_docs_number=`ls docs/src/roles | grep -v pycache | wc -l`
-roles_readmes_number=`find kubeinit/roles/ -name README.md | grep -v pycache | wc -l`
-roles_number=`ls kubeinit/roles/ | grep -v pycache | wc -l`
+roles_docs_number=`ls docs/src/roles | wc -l`
+roles_readmes_number=`find kubeinit/roles/ -name README.md | wc -l`
+roles_number=`ls kubeinit/roles/ | wc -l`
 
-modules_docs_number=`ls docs/src/modules | grep -v pycache | wc -l`
-modules_number=`ls kubeinit/plugins/modules/ | grep -v pycache | wc -l`
+modules_docs_number=`ls docs/src/modules | wc -l`
+modules_number=`ls kubeinit/plugins/modules/ | wc -l`
 
 echo "Roles in docs: $roles_docs_number"
 echo "Roles: $roles_number"
