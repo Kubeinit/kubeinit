@@ -22,6 +22,8 @@ import os
 import random
 import re
 
+from b2sdk.v2 import *
+
 from google.cloud import storage
 
 from jinja2 import Environment, FileSystemLoader
@@ -29,10 +31,10 @@ from jinja2 import Environment, FileSystemLoader
 import requests
 
 
-def render_index(gc_token_path):
+def render_index():
     """Render and upload the index file."""
     # Google cloud Storage init
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gc_token_path
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ['GC_STORAGE_KEY']
     bucket_name = "kubeinit-ci"
     client = storage.Client()
 
@@ -130,12 +132,12 @@ def render_index(gc_token_path):
     blob.upload_from_string(output, content_type='text/html')
 
 
-def upload_logs_to_google_cloud(job_path, gc_token_path):
+def upload_logs_to_google_cloud(job_path):
     """Upload the CI results to Google cloud Cloud Storage."""
     return_code = 0
 
     try:
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gc_token_path
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ['GC_STORAGE_KEY']
         bucket_name = "kubeinit-ci"
         bucket = storage.Client().get_bucket(bucket_name)
 
@@ -162,6 +164,62 @@ def upload_logs_to_google_cloud(job_path, gc_token_path):
             try:
                 blob = bucket.blob('jobs/' + entry.replace(prefix_path, ''))
                 blob.upload_from_filename(entry)
+            except Exception as e:
+                print("'kubeinit_ci_utils.py' ==> An exception hapened adding the initial log files, some files could not be added")
+                print(e)
+                return_code = 1
+    except Exception as e:
+        print("'kubeinit_ci_utils.py' ==> An exception hapened uploading files to Google Cloud Storage")
+        print(e)
+        return_code = 1
+    return return_code
+
+
+def upload_files_to_b2(job_path, prefix='jobs/'):
+    """Upload the CI results to Backblaze b2."""
+    return_code = 0
+
+    # The prefix should be jobs/
+
+    b2_token_id = os.environ['B2_STORAGE_ID']
+    b2_token_key = os.environ['B2_STORAGE_KEY']
+
+    try:
+        info = InMemoryAccountInfo()
+        b2_api = B2Api(info)
+        bucket_name = "kubeinit-ci"
+        b2_api.authorize_account("production", b2_token_id, b2_token_key)
+
+        bucket = b2_api.get_bucket_by_name(bucket_name)
+        print("'kubeinit_ci_utils.py' ==> ----Uploading logs to B2----")
+
+        print("'kubeinit_ci_utils.py' ==> Path at terminal when executing this file")
+        print(os.getcwd() + "\n")
+
+        print("'kubeinit_ci_utils.py' ==> This file path, relative to os.getcwd()")
+        print(__file__ + "\n")
+
+        file_list = []
+        path_to_upload = os.path.join(os.getcwd(), job_path)
+        print("'kubeinit_ci_utils.py' ==> Path to upload: " + path_to_upload)
+
+        for r, _d, f in os.walk(path_to_upload):
+            for file in f:
+                file_list.append(os.path.join(r, file))
+
+        prefix_path = os.getcwd() + '/'
+        print("'kubeinit_ci_utils.py' ==> The initial path: " + prefix_path + " will be removed")
+
+        for entry in file_list:
+            try:
+                # blob = bucket.blob('jobs/' + entry.replace(prefix_path, ''))
+                # blob.upload_from_filename(entry)
+                file_info = {'how': 'good-file'}
+                bucket.upload_local_file(
+                        local_file=entry,
+                        file_name=prefix + entry.replace(prefix_path, ''),
+                        file_infos=file_info,
+                    )
             except Exception as e:
                 print("'kubeinit_ci_utils.py' ==> An exception hapened adding the initial log files, some files could not be added")
                 print(e)

@@ -71,7 +71,6 @@ def main(cluster_type, job_type):
         #
         print("'launch_e2e.py' ==> Pull request job")
         gh = Github(os.environ['GH_TOKEN'])
-        gc_token_path = os.environ['GC_STORAGE_KEY']
         pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
         repo = gh.get_repo("kubeinit/kubeinit")
         branches = repo.get_branches()
@@ -144,7 +143,6 @@ def main(cluster_type, job_type):
                                          hypervisors,
                                          job_type,
                                          pipeline_id,
-                                         gc_token_path,
                                          repository,
                                          branch_name,
                                          pr_number,
@@ -204,7 +202,6 @@ def main(cluster_type, job_type):
         # hardware we called this script from [multinode-singlenode]
         #
         gh = Github(os.environ['GH_TOKEN'])
-        gc_token_path = os.environ['GC_STORAGE_KEY']
         pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
         repo = gh.get_repo("kubeinit/kubeinit")
 
@@ -265,7 +262,6 @@ def main(cluster_type, job_type):
                                      hypervisors,
                                      job_type,
                                      pipeline_id,
-                                     gc_token_path,
                                      repository,
                                      branch_name,
                                      pr_number,
@@ -293,7 +289,6 @@ def main(cluster_type, job_type):
     #
     if job_type == 'submariner':
         gh = Github(os.environ['GH_SUBMARINER_TOKEN'])
-        gc_token_path = os.environ['GC_STORAGE_KEY']
 
         pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
 
@@ -355,7 +350,6 @@ def main(cluster_type, job_type):
                                          hypervisors,
                                          job_type,
                                          pipeline_id,
-                                         gc_token_path,
                                          repository,
                                          branch_name,
                                          pr_number,
@@ -405,7 +399,7 @@ def main(cluster_type, job_type):
 
 def run_e2e_job(distro, driver, masters, workers,
                 hypervisors, job_type,
-                pipeline_id, gc_token_path, repository,
+                pipeline_id, repository,
                 branch_name, pr_number, launch_from, job_name):
     """Run the e2e job."""
     output = 0
@@ -486,11 +480,10 @@ def run_e2e_job(distro, driver, masters, workers,
     root_folder_path = os.path.join(os.getcwd(), str(job_name) + "-" + str(file_output))
 
     print("'launch_e2e.py' ==> starting the uploader job")
-    upload_logs_to_google_cloud(str(job_name) + "-" + str(file_output),
-                                gc_token_path)
+    upload_logs_to_google_cloud(str(job_name) + "-" + str(file_output))
 
     print("'launch_e2e.py' ==> rendering the index job page")
-    render_index(gc_token_path)
+    render_index()
 
     print("'launch_e2e.py' ==> Removing aux files: " + root_folder_path)
     shutil.rmtree(root_folder_path)
