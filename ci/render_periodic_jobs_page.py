@@ -30,6 +30,10 @@ def main():
 
     jobs = []
 
+    # If using Backblaze B2
+    data_backend_url = 'https://ci.kubeinit.org/file/kubeinit-ci/jobs/'
+    # If using Google cloud
+    # data_backend_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/''
     for label in labels:
 
         if re.match(r"[a-z|0-9|\.]+-[a-z]+-\d+-\d+-\d+-[c|h]", label):
@@ -72,7 +76,7 @@ def main():
                      'workers': workers,
                      'hypervisors': hypervisors,
                      'launch_from': launch_from,
-                     'url': "<a href='https://storage.googleapis.com/kubeinit-ci/jobs/" + label + "-periodic-pid-weekly-u/index.html'><img height='20px' src='https://storage.googleapis.com/kubeinit-ci/jobs/" + label + "-periodic-pid-weekly-u/badge_status.svg'/></a>"})
+                     'url': "<a href='" + data_backend_url + label + "-periodic-pid-weekly-u/index.html'><img height='20px' src='" + data_backend_url + label + "-periodic-pid-weekly-u/badge_status.svg'/></a>"})
 
     path = os.path.join(os.path.dirname(__file__))
     file_loader = FileSystemLoader(searchpath=path)

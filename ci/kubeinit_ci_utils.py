@@ -21,6 +21,9 @@ under the License.
 import os
 import random
 import re
+import tempfile
+
+from b2sdk.v2 import B2Api, InMemoryAccountInfo
 
 from google.cloud import storage
 
@@ -29,24 +32,43 @@ from jinja2 import Environment, FileSystemLoader
 import requests
 
 
-def render_index(gc_token_path):
+def render_index(destination='b2'):
     """Render and upload the index file."""
-    # Google cloud Storage init
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gc_token_path
-    bucket_name = "kubeinit-ci"
-    client = storage.Client()
+    if destination == 'gcp':
+        # Google cloud Storage init
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ['GC_STORAGE_KEY']
+        bucket_name = "kubeinit-ci"
+        client = storage.Client()
+        data_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/'
+        prefix = 'jobs/'
+        delimiter = None
+
+        root_blobs = list(client.list_blobs(bucket_name,
+                                            prefix=prefix,
+                                            delimiter=delimiter))
+        filtered = list(dict.fromkeys([re.sub('/.*', '', sub.name.replace(prefix, '')) for sub in root_blobs]))
+
+    if destination == 'b2':
+        # The prefix should be jobs/
+
+        b2_token_id = os.environ['B2_STORAGE_ID']
+        b2_token_key = os.environ['B2_STORAGE_KEY']
+        info = InMemoryAccountInfo()
+        b2_api = B2Api(info)
+        bucket_name = "kubeinit-ci"
+        b2_api.authorize_account("production", b2_token_id, b2_token_key)
+        bucket = b2_api.get_bucket_by_name(bucket_name)
+        data_url = 'https://ci.kubeinit.org/file/kubeinit-ci/jobs/'
+        prefix = 'jobs/'
+        root_blobs = []
+        for file_version, folder_name in bucket.ls(folder_to_list='jobs', latest_only=True):
+            print("'kubeinit_ci_utils.py' ==> Folder name: " + folder_name)
+            root_blobs.append(file_version.file_name)
+        filtered = list(dict.fromkeys([re.sub('/.*', '', sub.replace(prefix, '')) for sub in root_blobs]))
 
     jobs = []
 
     print("'kubeinit_ci_utils.py' ==> Rendering CI jobs index page")
-    prefix = 'jobs/'
-    delimiter = None
-
-    root_blobs = list(client.list_blobs(bucket_name,
-                                        prefix=prefix,
-                                        delimiter=delimiter))
-
-    filtered = list(dict.fromkeys([re.sub('/.*', '', sub.name.replace(prefix, '')) for sub in root_blobs]))
     print("'kubeinit_ci_utils.py' ==> Filtered blobs")
     print(filtered)
 
@@ -64,8 +86,8 @@ def render_index(gc_token_path):
         # If not stat == 'u' it means this is a PR job
         # we check the index content to verify it didnt fail.
         elif stat == 'u':
-            index_data_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/index.html'
-            resp = requests.get(url=index_data_url, timeout=5)
+            index_data_url = data_url + blob + '/index.html'
+            resp = requests.get(url=index_data_url, timeout=5, verify=False)
             m = re.search("btn-danger", resp.text)
             if m:
                 print("'kubeinit_ci_utils.py' ==> The periodic job failed...")
@@ -79,8 +101,8 @@ def render_index(gc_token_path):
             status = 'Running'
             badge = 'warning'
 
-        extra_data_date_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/records/1.html'
-        resp = requests.get(url=extra_data_date_url, timeout=5)
+        extra_data_date_url = data_url + blob + '/records/1.html'
+        resp = requests.get(url=extra_data_date_url, timeout=5, verify=False)
 
         m = re.search("[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9]", resp.text)
         # stat == 'u' means that this is a periodic job
@@ -115,7 +137,7 @@ def render_index(gc_token_path):
                      'pr_number': pr_number,
                      'date': date,
                      'badge': badge,
-                     'url': 'https://storage.googleapis.com/kubeinit-ci/jobs/' + blob + '/index.html'})
+                     'url': data_url + blob + '/index.html'})
 
     path = os.path.join(os.path.dirname(__file__))
     file_loader = FileSystemLoader(searchpath=path)
@@ -125,17 +147,28 @@ def render_index(gc_token_path):
     template = env.get_template(template_index)
     output = template.render(jobs=jobs)
 
-    bucket = client.get_bucket(bucket_name)
-    blob = bucket.blob('index.html')
-    blob.upload_from_string(output, content_type='text/html')
+    if destination == 'gcp':
+        bucket = client.get_bucket(bucket_name)
+        blob = bucket.blob('index.html')
+        blob.upload_from_string(output, content_type='text/html')
+    if destination == 'b2':
+        tmp = tempfile.NamedTemporaryFile()
+        with open(tmp.name, 'w') as f:
+            f.write(output)
+        file_info = {'type': 'Main index file'}
+        bucket.upload_local_file(
+            local_file=tmp.name,
+            file_name='index.html',
+            file_infos=file_info,
+        )
 
 
-def upload_logs_to_google_cloud(job_path, gc_token_path):
+def upload_logs_to_google_cloud(job_path):
     """Upload the CI results to Google cloud Cloud Storage."""
     return_code = 0
 
     try:
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gc_token_path
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ['GC_STORAGE_KEY']
         bucket_name = "kubeinit-ci"
         bucket = storage.Client().get_bucket(bucket_name)
 
@@ -168,6 +201,62 @@ def upload_logs_to_google_cloud(job_path, gc_token_path):
                 return_code = 1
     except Exception as e:
         print("'kubeinit_ci_utils.py' ==> An exception hapened uploading files to Google Cloud Storage")
+        print(e)
+        return_code = 1
+    return return_code
+
+
+def upload_files_to_b2(job_path, prefix='jobs/'):
+    """Upload the CI results to Backblaze b2."""
+    return_code = 0
+
+    # The prefix should be jobs/
+
+    b2_token_id = os.environ['B2_STORAGE_ID']
+    b2_token_key = os.environ['B2_STORAGE_KEY']
+
+    try:
+        info = InMemoryAccountInfo()
+        b2_api = B2Api(info)
+        bucket_name = "kubeinit-ci"
+        b2_api.authorize_account("production", b2_token_id, b2_token_key)
+
+        bucket = b2_api.get_bucket_by_name(bucket_name)
+        print("'kubeinit_ci_utils.py' ==> ----Uploading logs to B2----")
+
+        print("'kubeinit_ci_utils.py' ==> Path at terminal when executing this file")
+        print(os.getcwd() + "\n")
+
+        print("'kubeinit_ci_utils.py' ==> This file path, relative to os.getcwd()")
+        print(__file__ + "\n")
+
+        file_list = []
+        path_to_upload = os.path.join(os.getcwd(), job_path)
+        print("'kubeinit_ci_utils.py' ==> Path to upload: " + path_to_upload)
+
+        for r, _d, f in os.walk(path_to_upload):
+            for file in f:
+                file_list.append(os.path.join(r, file))
+
+        prefix_path = os.getcwd() + '/'
+        print("'kubeinit_ci_utils.py' ==> The initial path: " + prefix_path + " will be removed")
+
+        for entry in file_list:
+            try:
+                # blob = bucket.blob('jobs/' + entry.replace(prefix_path, ''))
+                # blob.upload_from_filename(entry)
+                file_info = {'how': 'good-file'}
+                bucket.upload_local_file(
+                    local_file=entry,
+                    file_name=prefix + entry.replace(prefix_path, ''),
+                    file_infos=file_info,
+                )
+            except Exception as e:
+                print("'kubeinit_ci_utils.py' ==> An exception hapened adding the initial log files, some files could not be added")
+                print(e)
+                return_code = 1
+    except Exception as e:
+        print("'kubeinit_ci_utils.py' ==> An exception hapened uploading files to Backblaze B2")
         print(e)
         return_code = 1
     return return_code

@@ -297,7 +297,7 @@ KUBEINIT_SPEC=${KUBEINIT_SPEC//,/$'\n'}
 if [[ "$LAUNCH_FROM" == "h" ]]; then
     {
         for SPEC in $KUBEINIT_SPEC; do
-            echo "(launch_e2e.sh) ==> Deploying ${SPEC}"
+        echo "(launch_e2e.sh) ==> Deploying ${SPEC}"
             CLUSTER_NAME="$(cut -d'-' -f1 <<<"${SPEC}")"
             ansible-playbook \
                 --user root \
