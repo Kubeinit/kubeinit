@@ -104,9 +104,12 @@ GITLAB_CI_HOST_NAME=$(hostname)
 #
 
 mkdir -p ~/.ssh
+mkdir -p ~/.ssh/kubeinit
+chmod 700 ~/.ssh
 touch ~/.ssh/config
-ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa <<< n || true
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 <<< n || true
+cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+echo 'KUBEINIT_COMMON_SSH_KEYTYPE=ed25519' >> ~/.bash_profile
 INGRESS_IP=$(ip route get "8.8.8.8" | grep -Po '(?<=(src )).*(?= uid)')
 echo "${INGRESS_IP}    nyctea" >> /etc/hosts
 echo "nyctea" > /etc/hostname
@@ -148,6 +151,10 @@ if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
     curl -LJO "https://gitlab-runner-downloads.s3.amazonaws.com/latest/deb/gitlab-runner_amd64.deb"
     dpkg -i gitlab-runner_amd64.deb
 
+fi
+
+if [ -f /etc/fedora-release ]; then
+    update-crypto-policies --set DEFAULT:FEDORA32
 fi
 
 # Configure git with the bot account
