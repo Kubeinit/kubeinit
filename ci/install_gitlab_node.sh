@@ -179,7 +179,8 @@ python3 -m pip install \
     pybadges \
     jinja2 \
     urllib3 \
-    google-cloud-storage
+    google-cloud-storage \
+    b2sdk
 
 # Install and configure ara
 # There are problems with multithread ara, we keep the last

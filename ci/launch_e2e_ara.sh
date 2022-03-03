@@ -34,8 +34,8 @@ echo "(launch_e2e_ara.sh) ==> Running ara-manage to store the results from insid
 podman exec -it api-server /bin/bash -c "ara-manage generate /opt/output_data/${PIPELINE_ID}"
 mv ~/.ara/output_data/${PIPELINE_ID} .
 
-touch ~/badge_status.svg
-cp ~/badge_status.svg ./$PIPELINE_ID/
+touch /tmp/badge_status.svg
+cp /tmp/badge_status.svg ./$PIPELINE_ID/
 ls -ltah
 pwd
 chmod -R 755 ./$PIPELINE_ID
@@ -57,8 +57,8 @@ find ./$PIPELINE_ID -type f -exec sed -i -e 's#static/images/favicon.ico#https:/
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#placeholderfororiginalurl#ara.recordsansible.org#g' {} \;
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -e 's#>ara #>KubeInit #g' {} \;
 
-find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/href=\".+\">Playbooks/ s/href=\".+\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/jobs\/${PIPELINE_ID}\/index.html\"/g" {} \;
-find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/href=\".+\">Hosts/ s/href=\".+\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/jobs\/${PIPELINE_ID}\/hosts\/index.html\"/g" {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/href=\".+\">Playbooks/ s/href=\".+\"/href=\"https:\/\/ci.kubeinit.org\/file\/kubeinit-ci\/jobs\/${PIPELINE_ID}\/index.html\"/g" {} \;
+find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/href=\".+\">Hosts/ s/href=\".+\"/href=\"https:\/\/ci.kubeinit.org\/file\/kubeinit-ci\/jobs\/${PIPELINE_ID}\/hosts\/index.html\"/g" {} \;
 
 find ./$PIPELINE_ID -type f -name '*.html' -exec sed -i -E -e "/class=\"navbar-brand\" href=\".*\">/ s/href=\".*\"/href=\"https:\/\/storage.googleapis.com\/kubeinit-ci\/index.html\"/g" {} \;
 
