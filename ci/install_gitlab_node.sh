@@ -93,6 +93,15 @@ else
     echo "Try: mv /var/lib/libvirt /home/"
     echo "     mkdir -p /home/libvirt/"
     echo "     ln -sf /home/libvirt/ /var/lib/libvirt"
+    echo "Or:"
+    echo "Get the device name and extend it, from the df -h"
+    echo "    vgdisplay"
+    echo "    lvextend -L +1000G /dev/mapper/this-is-an-lvm-volume-device-root"
+    echo "    If ext4:"
+    echo "    resize2fs /dev/mapper/this-is-an-lvm-volume-device"
+    echo "    If xfs:"
+    echo "    xfs_growfs /"
+
     echo "Exiting..."
     exit 1
 fi
