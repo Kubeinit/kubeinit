@@ -33,7 +33,8 @@ from datetime import datetime
 
 from github import Github
 
-from kubeinit_ci_utils import (get_periodic_jobs_labels,
+from kubeinit_ci_utils import (clean_old_files_b2,
+                               get_periodic_jobs_labels,
                                remove_label,
                                render_index,
                                upload_files_to_b2)
@@ -481,6 +482,9 @@ def run_e2e_job(distro, driver, masters, workers,
 
     print("'launch_e2e.py' ==> starting the uploader job")
     upload_files_to_b2(str(job_name) + "-" + str(file_output))
+
+    print("'launch_e2e.py' ==> cleaning old B2 files")
+    clean_old_files_b2()
 
     print("'launch_e2e.py' ==> rendering the index job page")
     render_index()

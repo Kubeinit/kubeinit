@@ -22,6 +22,7 @@ import os
 import random
 import re
 import tempfile
+from datetime import datetime
 
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
 
@@ -280,6 +281,28 @@ def add_label(the_label, pr, repo):
     else:
         new_label = repo.create_label(the_label, "32CD32")
     pr.add_to_labels(new_label)
+
+
+def clean_old_files_b2():
+    """Clean the old files in B2."""
+    b2_token_id = os.environ['B2_STORAGE_ID']
+    b2_token_key = os.environ['B2_STORAGE_KEY']
+
+    info = InMemoryAccountInfo()
+    b2_api = B2Api(info)
+    bucket_name = "kubeinit-ci"
+    b2_api.authorize_account("production", b2_token_id, b2_token_key)
+
+    bucket = b2_api.get_bucket_by_name(bucket_name)
+
+    dt = datetime.now()
+    older_than = (10 * 24 * 3600 * 1000)  # 10 days in milliseconds
+    compare_older_than = int(dt.microsecond) - int(older_than)
+
+    for file_version, folder_name in bucket.ls(recursive=True):
+        if compare_older_than > int(file_version.upload_timestamp):  # This means that is older than 10 days
+            print("'kubeinit_ci_utils.py' ==> Deleting files from:" + folder_name)
+            b2_api.delete_file_version(file_version.id_, file_version.file_name)
 
 
 def get_periodic_jobs_labels(distro='all'):
