@@ -89,6 +89,13 @@ eks-libvirt-1-0-1 are all valid.
 Deployment
 ~~~~~~~~~~
 
+Environmental variables
+-----------------------
+
+The following environmental variables can be used
+with the deployment command.
+
+.. autoyaml:: kubeinit/group_vars/kubeinit_env.yml
 
 Directly executing the deployment playbook
 ------------------------------------------
