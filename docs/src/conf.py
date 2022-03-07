@@ -32,7 +32,9 @@ author = 'Carlos Camacho'
 
 # -- General configuration ---------------------------------------------------
 
+# AutoYaml plugin configuration
 autoyaml_root = os.environ["PROJECT_ROOT"]
+autoyaml_level = 10
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
