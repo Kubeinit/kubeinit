@@ -41,6 +41,7 @@ jobs:
           sudo python3 -m pip install --upgrade ruamel.yaml
           sudo python3 -m pip install --upgrade sphinx
           sudo python3 -m pip install --upgrade sphinx-rtd-theme
+          sudo python3 -m pip install --upgrade yq
 
       - name: Install kubeinit's collection
         run: |
@@ -192,7 +193,7 @@ jobs:
               -e '/^\[controller_nodes\]$/ acontroller-01 target=hypervisor-01\ncontroller-02 target=hypervisor-02\ncontroller-03 target=hypervisor-03' \
               -e '/^\[compute_nodes\]$/ acompute-01 target=hypervisor-01\ncompute-02 target=hypervisor-02' \
               -e '/^service /s/ / target=hypervisor-01 /' \
-              -e '/^bootstrap /s/$/ target=hypervisor-03/' kubeinit/inventory > docs/src/static/inventory
+              -e '/^bootstrap /s/$/ target=hypervisor-03/' kubeinit/inventory.yml > docs/src/static/inventory
           ansible-inventory-grapher -i docs/src/static/inventory all -a 'rankdir=LR;' --visible-vars=ansible_host --visible-vars=target -t docs/src/static/inventory.j2 | dot -Tpng > docs/src/static/inventory.png
           cat << EOF >> docs/src/inventory_diagrams.rst
 
