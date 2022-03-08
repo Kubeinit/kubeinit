@@ -71,6 +71,25 @@ Google Cloud Platform
       service to test this software platform.
 
 ..
+    Backblaze
+    ~~~~~~~
+
+    .. container:: twocol
+
+       .. container:: leftside
+
+          .. figure:: _static/supporters/backblaze.svg
+             :target: http://www.backblaze.com
+
+       .. container:: rightside
+
+          `Backblaze <https://www.backblaze.com/>`_ Backblaze is a pioneer
+          in robust, scalable low cost cloud backup and storage services.
+          Personal online backup to enterprise scale data storage solutions.
+
+          `Backblaze <https://www.backblaze.com/>`_ contributes to this project
+          with specific CI resources to store the outputs of the CI jobs.
+
     Red Hat
     ~~~~~~~
 
