@@ -92,10 +92,18 @@ Deployment
 Group variables
 ---------------
 
+All
+^^^
+Default variables related to Ansible parameter, common
+across all the supported scenarios.
+
+.. autoyaml:: kubeinit/group_vars/all.yml
+
 Environment
 ^^^^^^^^^^^
-The following environmental variables can be used
+The following environment specific variables can be used
 with the deployment command.
+These variables might be specific to each scenario.
 
 .. autoyaml:: kubeinit/group_vars/kubeinit_env.yml
 
@@ -103,7 +111,8 @@ with the deployment command.
 Secrets
 ^^^^^^^
 
-Secrets are handled using the following variables.
+The common secrets supported across all the scenarios
+are handled using the following variables.
 
 .. autoyaml:: kubeinit/group_vars/kubeinit_secrets.yml
 
