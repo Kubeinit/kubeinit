@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 #############################################################################
 #                                                                           #
@@ -35,11 +35,8 @@ install_deps() {
 
 run_pr() {
     echo "(gitlab_ci_trigger.sh) ==> Run PR"
-    echo "(gitlab_ci_trigger.sh) ==> Cloning the repo"
-    git clone https://github.com/kubeinit/kubeinit.git kubeinit-aux
-    cd kubeinit-aux
-
     echo "(gitlab_ci_trigger.sh) ==> Get open PRs"
+
     pr_list=$(gh pr list --json title,number,labels)
     ci_label_found=0
     ci_verbosity_label_found=0
@@ -90,7 +87,16 @@ run_pr() {
         git remote add upstream https://github.com/kubeinit/kubeinit.git
         git fetch upstream
         git rebase upstream/main
+        echo "(gitlab_ci_trigger.sh) ==> Last 10 commit from this branch ..."
+        git log -10 --pretty=oneline --abbrev-commit
     fi
+}
+
+get_code(){
+    echo "(gitlab_ci_trigger.sh) ==> Cloning the repo"
+    rm -rf kubeinit-aux
+    git clone https://github.com/kubeinit/kubeinit.git kubeinit-aux
+    cd kubeinit-aux
 }
 
 run_periodic() {
@@ -116,12 +122,14 @@ main() {
     if [[ $JOB_TYPE =~ $pr_regex ]]; then
         echo "(gitlab_ci_trigger.sh) ==> PR testing"
         install_deps
+        get_code
         run_pr
     fi
 
     periodic_regex='periodic.*'
     if [[ $JOB_TYPE =~ $periodic_regex ]]; then
         echo "(gitlab_ci_trigger.sh) ==> Periodic job testing"
+        get_code
         run_periodic
     fi
 
