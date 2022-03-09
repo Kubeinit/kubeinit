@@ -547,8 +547,11 @@ if __name__ == "__main__":
     print(args)
     print("---")
 
-    main(job_type=args.job_type,
-         cluster_type=args.cluster_type,
-         job_label=args.job_label,
-         pr_id=args.pr_id,
-         verbosity=args.verbosity)
+    if args.job_type == 'pr' and args.pr_id == 'none':
+        print("'launch_e2e.py' ==> Nothing to do here")
+    else:
+        main(job_type=args.job_type,
+             cluster_type=args.cluster_type,
+             job_label=args.job_label,
+             pr_id=args.pr_id,
+             verbosity=args.verbosity)

@@ -83,8 +83,8 @@ fi
 # This should return a
 echo "(gitlab_ci_trigger_test.sh) ==> Run pr job"
 TEST_RESULT=$(JOB_TYPE='pr' ci_mock_cmd=1 ./ci/gitlab_ci_trigger.sh 2>&1)
-TEST_RESULT_NONE_REGEX='OUTPUT: ./ci/launch_e2e.py --pr_id=none'
-TEST_RESULT_REGEX='OUTPUT: .\/ci\/launch_e2e\.py (--verbosity=v+)|(--pr_id=[0-9]+)|(--job_label=[a-z]+-[a-z]+-[1|3]-[0-9]-[0-9]-h)'
+TEST_RESULT_NONE_REGEX='OUTPUT: ./ci/launch_e2e.py --job_type=pr --pr_id=none'
+TEST_RESULT_REGEX='OUTPUT: .\/ci\/launch_e2e\.py --job_type=pr (--verbosity=v+)|(--pr_id=[0-9]+)|(--job_label=[a-z]+-[a-z]+-[1|3]-[0-9]-[0-9]-h)'
 
 if [[ $TEST_RESULT =~ $TEST_RESULT_NONE_REGEX ]]; then
     echo "(gitlab_ci_trigger_test.sh) ==> PR job unit test passed"
