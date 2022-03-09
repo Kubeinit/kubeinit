@@ -81,7 +81,7 @@ run_pr() {
 
     if [ "$ci_label_found" -eq "0" ]; then
         echo "(gitlab_ci_trigger.sh) ==> We didnt find any PR matching a job label"
-        test_params="--pr_id=none "
+        test_params="--job_type=pr --pr_id=none "
     else
         echo "(gitlab_ci_trigger.sh) ==> We found a PR that will be tested with a valid label"
         echo "(gitlab_ci_trigger.sh) ==> Downloading KubeInit's code that will be tested ..."
@@ -130,6 +130,10 @@ main() {
 
     if [ "$ci_mock_cmd" -eq "0" ]; then
         echo "(gitlab_ci_trigger.sh) ==> Run the deployment script"
+        if [[ "${test_params}" == *pr* ]] && [[ "${test_params}" == *none* ]] ; then
+            echo "(gitlab_ci_trigger.sh) ==> There is no open PRs with labels"
+            exit 0
+        fi
         ${ci_cmd}
     else
         echo "(gitlab_ci_trigger.sh) ==> Mock test"

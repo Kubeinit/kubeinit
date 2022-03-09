@@ -77,14 +77,8 @@ echo "(launch_e2e.sh) ==> The job type is $JOB_TYPE"
 echo "(launch_e2e.sh) ==> The ansible will be launched from $LAUNCH_FROM"
 echo "(launch_e2e.sh) ==> The ansible verbosity is $KUBEINIT_ANSIBLE_VERBOSITY"
 
-echo "(launch_e2e.sh) ==> Removing old tmp files ..."
-rm -rf tmp
-mkdir -p tmp
-cd tmp
-
 # Install the collection
 echo "(launch_e2e.sh) ==> Installing KubeInit ..."
-cd kubeinit
 rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
 ansible-galaxy collection build -v --force --output-path releases/
 ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
