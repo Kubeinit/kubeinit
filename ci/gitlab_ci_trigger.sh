@@ -44,6 +44,8 @@ run_pr() {
     ci_label_found=0
     ci_verbosity_label_found=0
     test_params=''
+    test_params+="--job_type=pr "
+    pr_id="${pr_id:-0}"
 
     for pull_request in $(echo "${pr_list}" | jq -r '.[] | @base64'); do
         pr_number=$(echo $pull_request | base64 --decode | jq -r ${1} | jq .number)
@@ -59,10 +61,10 @@ run_pr() {
             if [[ $label =~ $label_regex ]];then
                 echo "(gitlab_ci_trigger.sh) ==> There was found a job matching label: $label" ;
                 echo "(gitlab_ci_trigger.sh) ==> We assign the matching PR: $pr_number" ;
-                test_params+="pr_number=${pr_number} "
-
+                test_params+="--pr_id=${pr_number} "
+                pr_id=${pr_number}
                 if [ "$ci_label_found" -eq "0" ]; then
-                    test_params+="job_label=${label} "
+                    test_params+="--job_label=${label} "
                 fi
                 ci_label_found=1
             else
@@ -79,20 +81,36 @@ run_pr() {
 
     if [ "$ci_label_found" -eq "0" ]; then
         echo "(gitlab_ci_trigger.sh) ==> We didnt find any PR matching a job label"
-        test_params="pr_number=none "
+        test_params="--pr_id=none "
+    else
+        echo "(gitlab_ci_trigger.sh) ==> We found a PR that will be tested with a valid label"
+        echo "(gitlab_ci_trigger.sh) ==> Downloading KubeInit's code that will be tested ..."
+        git fetch origin pull/${pr_id}/head:testbranch
+        git checkout testbranch
+        git remote add upstream https://github.com/kubeinit/kubeinit.git
+        git fetch upstream
+        git rebase upstream/main
     fi
 }
 
 run_periodic() {
     echo "(gitlab_ci_trigger.sh) ==> Run periodic"
-    # JOB_TYPE='periodic=random'
-    # JOB_TYPE='periodic=all'
-    # JOB_TYPE='periodic=k8s-libvirt-1-0-1-h'
-    test_params+=$JOB_TYPE
+    if [[ $CLUSTER_TYPE ]]; then
+        test_params+="--cluster_type=${CLUSTER_TYPE} "
+    fi
+    if [[ $JOB_TYPE ]]; then
+        test_params+="--job_type=${JOB_TYPE} "
+    fi
+    if [[ $JOB_LABEL ]]; then
+        test_params+="--job_label=${JOB_LABEL} "
+    fi
 }
 
 main() {
-    echo "(gitlab_ci_trigger.sh) ==> Job type: $JOB_TYPE"
+    echo "(gitlab_ci_trigger.sh) ==> Script parameters:"
+    echo "(gitlab_ci_trigger.sh) ==>   - Cluster type: $CLUSTER_TYPE"
+    echo "(gitlab_ci_trigger.sh) ==>   - Job type: $JOB_TYPE"
+    echo "(gitlab_ci_trigger.sh) ==>   - Job label: $JOB_LABEL"
 
     pr_regex='pr.*'
     if [[ $JOB_TYPE =~ $pr_regex ]]; then
@@ -108,6 +126,7 @@ main() {
     fi
 
     ci_cmd="./ci/launch_e2e.py ${test_params}"
+    echo "(gitlab_ci_trigger.sh) ==> The GitLab CI trigger output is: ${ci_cmd}"
 
     if [ "$ci_mock_cmd" -eq "0" ]; then
         echo "(gitlab_ci_trigger.sh) ==> Run the deployment script"
