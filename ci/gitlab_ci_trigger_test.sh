@@ -24,6 +24,9 @@
 #                                                                           #
 #############################################################################
 
+git config --global user.email "bot@kubeinit.org"
+git config --global user.name "kubeinit-bot"
+
 output_file='./trigger_results.txt'
 
 #

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 #############################################################################
 #                                                                           #
@@ -78,9 +78,17 @@ echo "(launch_e2e.sh) ==> The ansible will be launched from $LAUNCH_FROM"
 echo "(launch_e2e.sh) ==> The ansible verbosity is $KUBEINIT_ANSIBLE_VERBOSITY"
 
 # Install the collection
+
 echo "(launch_e2e.sh) ==> Installing KubeInit ..."
+echo "(launch_e2e.sh) ==> Current path"
+pwd
 rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
+echo "(launch_e2e.sh) ==> Current folder content"
+ls
+cd kubeinit
+echo "(launch_e2e.sh) ==> Build the collection"
 ansible-galaxy collection build -v --force --output-path releases/
+echo "(launch_e2e.sh) ==> Install the collection"
 ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
 cd ..
 
@@ -88,6 +96,7 @@ cd ..
 # Begin ARA configuration
 #
 
+echo "(launch_e2e.sh) ==> Kill, stop, and remove the ARA pod"
 podman pod kill ara-pod || true
 podman pod stop ara-pod || true
 podman pod rm ara-pod || true

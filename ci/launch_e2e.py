@@ -49,11 +49,6 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
     # pr, periodic or submariner
     #
 
-    if cluster_type == 'singlenode':
-        c_type = '1'
-    else:
-        c_type = '[2-9]'
-
     now = datetime.now()
 
     #
@@ -72,13 +67,13 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
         print("'launch_e2e.py' ==> The job results will be published in runtime at: " + url)
         global GH_LABELS
         GH_LABELS.append('GH_ANSIBLE_VERBOSITY=' + verbosity)
-        pr = repo.get_pull(pr_id)
+        pr = repo.get_pull(int(pr_id))
         sha = pr.head.sha
         execute = False
         # In a PR we only test one label at the time
-        print("'launch_e2e.py' ==> The label to be tested in PR: " + str(pr_id) + " is: " + str(job_label))
+        print("'launch_e2e.py' ==> The label to be tested in PR " + str(pr_id) + " is: " + str(job_label))
 
-        if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-" + c_type + "-[c|h]", job_label):
+        if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h]", str(job_label)):
             print("'launch_e2e.py' ==> Matching a PR label")
             params = job_label.split("-")
             distro = params[0]
@@ -88,7 +83,7 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
             hypervisors = params[4]
             launch_from = params[5]
             execute = True
-            remove_label(job_label, pr_id, repo)
+            remove_label(job_label, pr, repo)
 
         if execute:
             repo.get_commit(sha=sha).create_status(state="pending",
@@ -163,7 +158,7 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
             else:
                 exit(1)
         else:
-            print("'launch_e2e.py' ==> No need to do anything")
+            print("'launch_e2e.py' ==> The label do not match, no need to do anything")
 
     #
     # KubeInit's periodic job check
@@ -195,7 +190,7 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
             print("'launch_e2e.py' ==> The label to be processed is: " + label)
 
             # DISTRO-DRIVER-CONTROLLERS-COMPUTES-HYPERVISORS-[VIRTUAL_SERVICES|CONTAINERIZED_SERVICES]-[LAUNCH_FROM_CONTAINER|LAUNCH_FROM_HOST]
-            if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-" + c_type + "-[c|h]", label):
+            if re.match(r"[a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h]", label):
                 print("'launch_e2e.py' ==> Matching a PR label")
                 params = label.split("-")
                 distro = params[0]
@@ -549,9 +544,11 @@ if __name__ == "__main__":
 
     if args.job_type == 'pr' and args.pr_id == 'none':
         print("'launch_e2e.py' ==> Nothing to do here")
+        print("'launch_e2e.py' ==> Job type: " + str(args.job_type))
+        print("'launch_e2e.py' ==> PR id: " + str(args.pr_id))
     else:
         main(job_type=args.job_type,
              cluster_type=args.cluster_type,
              job_label=args.job_label,
-             pr_id=args.pr_id,
+             pr_id=int(args.pr_id),
              verbosity=args.verbosity)
