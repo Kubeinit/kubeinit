@@ -455,8 +455,8 @@ def save_logs(output, job_name):
         print(e)
         output = 1
     finish_time = datetime.now()
-    exec_time = initial_time - finish_time
-    print("'launch_e2e.py' ==> Getting the ARA data took: %s seconds", str(exec_time.total_seconds()))
+    exec_time = finish_time - initial_time
+    print("'launch_e2e.py' ==> Getting the ARA data took: %s seconds" % (str(exec_time.total_seconds())))
 
     file_output = output
     if 'periodic' in job_name:
@@ -474,29 +474,29 @@ def save_logs(output, job_name):
     initial_time = datetime.now()
     upload_files_to_b2(str(job_name) + "-" + str(file_output))
     finish_time = datetime.now()
-    exec_time = initial_time - finish_time
-    print("'launch_e2e.py' ==> Uploading files to b2 took: %s seconds", str(exec_time.total_seconds()))
+    exec_time = finish_time - initial_time
+    print("'launch_e2e.py' ==> Uploading files to b2 took: %s seconds" % (str(exec_time.total_seconds())))
 
     print("'launch_e2e.py' ==> cleaning old B2 files")
     initial_time = datetime.now()
     clean_old_files_b2()
     finish_time = datetime.now()
-    exec_time = initial_time - finish_time
-    print("'launch_e2e.py' ==> Cleaning files in b2 took: %s seconds", str(exec_time.total_seconds()))
+    exec_time = finish_time - initial_time
+    print("'launch_e2e.py' ==> Cleaning files in b2 took: %s seconds" % (str(exec_time.total_seconds())))
 
     print("'launch_e2e.py' ==> rendering the index job page")
     initial_time = datetime.now()
     render_index()
     finish_time = datetime.now()
-    exec_time = initial_time - finish_time
-    print("'launch_e2e.py' ==> Rendering the index took: %s seconds", str(exec_time.total_seconds()))
+    exec_time = finish_time - initial_time
+    print("'launch_e2e.py' ==> Rendering the index took: %s seconds" % (str(exec_time.total_seconds())))
 
     print("'launch_e2e.py' ==> Removing aux files: " + root_folder_path)
     initial_time = datetime.now()
     shutil.rmtree(root_folder_path)
     finish_time = datetime.now()
-    exec_time = initial_time - finish_time
-    print("'launch_e2e.py' ==> Removing the aux files took: %s seconds", str(exec_time.total_seconds()))
+    exec_time = finish_time - initial_time
+    print("'launch_e2e.py' ==> Removing the aux files took: %s seconds" % (str(exec_time.total_seconds())))
 
     print("'launch_e2e.py' ==> finishing the uploader job")
     return output
