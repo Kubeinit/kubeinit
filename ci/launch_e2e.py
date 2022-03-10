@@ -131,6 +131,13 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
             dur_mins = str(round((time.time() - start_time) / 60, 2))
             desc = ("Ended with %s in %s minutes" % (state, dur_mins))
 
+            # If the main deployment failed, we dont need to capture
+            # any other exception, this script must fail at the end
+            if output == 1:
+                save_logs(output, job_name)
+            else:
+                output = save_logs(output, job_name)
+
             dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
             print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
             # We update the status with the job result
@@ -249,6 +256,7 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
                                                                           state,
                                                                           str(start_time),
                                                                           dur_mins))
+                save_logs(output, job_name)
 
     #
     # KubeInit's submariner PR check
@@ -331,6 +339,13 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
                     dur_mins = str(round((time.time() - start_time) / 60, 2))
                     desc = ("Ended with %s in %s minutes" % (state, dur_mins))
 
+                    # If the main deployment failed, we dont need to capture
+                    # any other exception, this script must fail at the end
+                    if output == 1:
+                        save_logs(output, job_name)
+                    else:
+                        output = save_logs(output, job_name)
+
                     dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
                     print("'launch_e2e.py' ==> Desc message: " + desc)
 
@@ -410,11 +425,18 @@ def run_e2e_job(distro, driver, masters, workers,
 
     with open("/tmp/badge_status.svg", "w+") as text_file:
         text_file.write(badge_code)
+    return output
 
+
+def save_logs(output, job_name):
+    """Save the e2e job logs."""
+    print("'launch_e2e.py' ==> Rendering and saving the log files")
+
+    initial_time = datetime.now()
     try:
         print("'launch_e2e.py' ==> Render ara data")
         file_output = output
-        if job_type == 'periodic':
+        if 'periodic' in job_name:
             # We change here the pipeline id from GitLab
             # to have always the same value so we can fetch
             # it from the job status page
@@ -432,9 +454,12 @@ def run_e2e_job(distro, driver, masters, workers,
         print("'launch_e2e.py' ==> An exception hapened rendering ara data")
         print(e)
         output = 1
+    finish_time = datetime.now()
+    exec_time = initial_time - finish_time
+    print("'launch_e2e.py' ==> Getting the ARA data took: %s seconds", str(exec_time.total_seconds()))
 
     file_output = output
-    if job_type == 'periodic':
+    if 'periodic' in job_name:
         # We change here the pipeline id from GitLab
         # to have always the same value so we can fetch
         # it from the job status page
@@ -446,16 +471,32 @@ def run_e2e_job(distro, driver, masters, workers,
     root_folder_path = os.path.join(os.getcwd(), str(job_name) + "-" + str(file_output))
 
     print("'launch_e2e.py' ==> starting the uploader job")
+    initial_time = datetime.now()
     upload_files_to_b2(str(job_name) + "-" + str(file_output))
+    finish_time = datetime.now()
+    exec_time = initial_time - finish_time
+    print("'launch_e2e.py' ==> Uploading files to b2 took: %s seconds", str(exec_time.total_seconds()))
 
     print("'launch_e2e.py' ==> cleaning old B2 files")
+    initial_time = datetime.now()
     clean_old_files_b2()
+    finish_time = datetime.now()
+    exec_time = initial_time - finish_time
+    print("'launch_e2e.py' ==> Cleaning files in b2 took: %s seconds", str(exec_time.total_seconds()))
 
     print("'launch_e2e.py' ==> rendering the index job page")
+    initial_time = datetime.now()
     render_index()
+    finish_time = datetime.now()
+    exec_time = initial_time - finish_time
+    print("'launch_e2e.py' ==> Rendering the index took: %s seconds", str(exec_time.total_seconds()))
 
     print("'launch_e2e.py' ==> Removing aux files: " + root_folder_path)
+    initial_time = datetime.now()
     shutil.rmtree(root_folder_path)
+    finish_time = datetime.now()
+    exec_time = initial_time - finish_time
+    print("'launch_e2e.py' ==> Removing the aux files took: %s seconds", str(exec_time.total_seconds()))
 
     print("'launch_e2e.py' ==> finishing the uploader job")
     return output
