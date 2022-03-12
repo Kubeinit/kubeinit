@@ -22,7 +22,7 @@ import os
 import random
 import re
 import tempfile
-from datetime import datetime
+import time
 
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
 
@@ -295,14 +295,17 @@ def clean_old_files_b2():
 
     bucket = b2_api.get_bucket_by_name(bucket_name)
 
-    dt = datetime.now()
     older_than = (10 * 24 * 3600 * 1000)  # 10 days in milliseconds
-    compare_older_than = int(dt.microsecond) - int(older_than)
+    compare_older_than = int(round(time.time() * 1000) - int(older_than))
 
     for file_version, folder_name in bucket.ls(recursive=True):
-        if compare_older_than > int(file_version.upload_timestamp):  # This means that is older than 10 days
-            print("'kubeinit_ci_utils.py' ==> Deleting files from:" + folder_name)
-            b2_api.delete_file_version(file_version.id_, file_version.file_name)
+        # The following condition allows only to remove PR job files
+        # older than 10 days, in this case we will skip all the periodic
+        # jobs files and the main index file.
+        if 'jobs' in file_version.file_name and 'pr' in file_version.file_name:
+            if compare_older_than > int(file_version.upload_timestamp):  # This means that is older than 10 days
+                print("'kubeinit_ci_utils.py' ==> Deleting files from:" + folder_name)
+                b2_api.delete_file_version(file_version.id_, file_version.file_name)
 
 
 def get_periodic_jobs_labels(distro='all'):
