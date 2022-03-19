@@ -591,5 +591,5 @@ if __name__ == "__main__":
         main(job_type=args.job_type,
              cluster_type=args.cluster_type,
              job_label=args.job_label,
-             pr_id=int(args.pr_id),
+             pr_id=args.pr_id,
              verbosity=args.verbosity)
