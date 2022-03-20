@@ -304,7 +304,7 @@ def clean_old_files_b2():
         # jobs files and the main index file.
         if 'jobs' in file_version.file_name and 'pr' in file_version.file_name:
             if compare_older_than > int(file_version.upload_timestamp):  # This means that is older than 10 days
-                print("'kubeinit_ci_utils.py' ==> Deleting files from:" + folder_name)
+                print("'kubeinit_ci_utils.py' ==> Deleting files from:" + file_version.file_name)
                 b2_api.delete_file_version(file_version.id_, file_version.file_name)
 
 
