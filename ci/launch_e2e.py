@@ -138,7 +138,7 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
             else:
                 output = save_logs(output, job_name)
 
-            dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
+            dest_url = 'https://ci.kubeinit.org/file/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
             print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
             # We update the status with the job result
             repo.get_commit(sha=sha).create_status(state=state,
