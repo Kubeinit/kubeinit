@@ -45,15 +45,114 @@
   ansible.builtin.set_fact:
     kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-- name: Define cluster fact names needed to prepare groups
+#
+# Setup bastion_host group
+#
+- name: Parse bastion_host_spec into a dictionary if defined
   ansible.builtin.set_fact:
-    kubeinit_cluster_distro: "{{ hostvars[kubeinit_cluster_name].distro }}"
-    kubeinit_cluster_bastion_name:
-      "{{ 'bastion' if (('bastion_host' not in groups) or ((groups['bastion_host'] | list | length) == 0)) else groups['bastion_host'][0] }}"
-    kubeinit_cluster_ovn_central_name:
-      "{{ 'ovn-central' if (('ovn_central_host' not in groups) or ((groups['ovn_central_host'] | list | length) == 0)) else groups['ovn_central_host'][0] }}"
-  loop: "{{ ['localhost'] | union(groups['kubeinit_hypervisors']) }}"
-  delegate_to: "{{ item }}"
+    bastion_host_map: "{{ dict(_keys|zip(_vals)) }}"
+  vars:
+    _arr: "{{ bastion_host_spec | from_yaml }}"
+    _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
+    _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+  when: bastion_host_spec is defined
+
+- name: Assert bastion_host group and bastion_host_spec have same name when both defined
+  ansible.builtin.assert:
+    msg: "Cluster bastion host from inventory and command-line specification must match."
+    that: bastion_host_map['host'] == groups['bastion_host'][0]
+  when: bastion_host_map['host'] | default('') | length > 0 and groups['bastion_host'][0] | default('') | length > 0
+
+- name: Define kubeinit_bastion_host_name
+  ansible.builtin.set_fact:
+    kubeinit_bastion_host_name: "{{ groups['bastion_host'][0] | default(bastion_host_map['host']) | default('bastion') }}"
+
+- name: Assert bastion_host group does not have both target and ansible_host keys
+  ansible.builtin.assert:
+    msg: "The bastion_host group cannot have both target and ansible_host keys."
+    that: hostvars[kubeinit_bastion_host_name]['target'] is not defined or hostvars[kubeinit_bastion_host_name]['ansible_host'] is not defined
+  when: hostvars[kubeinit_bastion_host_name] is defined
+
+- name: Define default bastion target and ansible_host from group target
+  ansible.builtin.set_fact:
+    default_bastion_target: "{{ hostvars[kubeinit_bastion_host_name].target }}"
+    default_ansible_host: "{{ hostvars[hostvars[kubeinit_bastion_host_name].target].ansible_host }}"
+  when: hostvars[kubeinit_bastion_host_name].target | default('') | length > 0
+
+- name: Define default bastion target and ansible_host from group ansible_host
+  ansible.builtin.set_fact:
+    default_bastion_target: "{{ kubeinit_bastion_host_name }}"
+    default_ansible_host: "{{ hostvars[kubeinit_bastion_host_name].ansible_host }}"
+  when: hostvars[kubeinit_bastion_host_name].ansible_host | default('') | length > 0
+
+- name: Assert bastion_host_spec does not have both target and ansible_host keys
+  ansible.builtin.assert:
+    msg: "The bastion_host_spec cannot have both target and ansible_host keys."
+    that: bastion_host_map['target'] is not defined or bastion_host_map['ansible_host'] is not defined
+  when: bastion_host_map is defined
+
+- name: Define default bastion target and ansible_host from spec target
+  ansible.builtin.set_fact:
+    default_bastion_target: "{{ bastion_host_map['target'] }}"
+    default_ansible_host: "{{ hostvars[bastion_host_map['target']].ansible_host }}"
+  when: bastion_host_map['target'] | default('') | length > 0
+
+- name: Define default bastion target and ansible_host from spec ansible_host
+  ansible.builtin.set_fact:
+    default_bastion_target: "{{ kubeinit_bastion_host_name }}"
+    default_ansible_host: "{{ bastion_host_map['ansible_host'] }}"
+  when: bastion_host_map['ansible_host'] | default('') | length > 0
+
+- name: Use the first hypervisor if neither bastion host spec or group defines a target or ansible_host
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_bastion_host_name }}"
+    group: 'bastion_host'
+    target: "{{ default_bastion_target | default(groups['kubeinit_hypervisors'] | first) }}"
+    ansible_host: "{{ default_ansible_host | default(hostvars[groups['kubeinit_hypervisors'] | first].ansible_host) }}"
+
+#
+# Setup ovn_central_host group
+#
+- name: Parse ovn_central_host_spec into a dictionary if defined
+  ansible.builtin.set_fact:
+    ovn_central_host_map: "{{ dict(_keys|zip(_vals)) }}"
+  vars:
+    _arr: "{{ ovn_central_host_spec | from_yaml }}"
+    _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
+    _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+  when: ovn_central_host_spec is defined
+
+- name: Assert ovn_central_host group and ovn_central_host_spec have same name when both defined
+  ansible.builtin.assert:
+    msg: "Cluster ovn-central host from inventory and command-line specification must match."
+    that: ovn_central_host_map['host'] == groups['ovn_central_host'][0]
+  when: ovn_central_host_map['host'] | default('') | length > 0 and groups['ovn_central_host'][0] | default('') | length > 0
+
+- name: Define kubeinit_ovn_central_host_name
+  ansible.builtin.set_fact:
+    kubeinit_ovn_central_host_name: "{{ groups['ovn_central_host'][0] | default(ovn_central_host_map['host']) | default('ovn-central') }}"
+
+- name: Define default ovn-central target and ansible_host from group target
+  ansible.builtin.set_fact:
+    default_ovn_central_target: "{{ hostvars[kubeinit_ovn_central_host_name].target }}"
+  when: hostvars[kubeinit_ovn_central_host_name].target | default('') | length > 0
+
+- name: Define default ovn-central target and ansible_host from spec target
+  ansible.builtin.set_fact:
+    default_ovn_central_target: "{{ ovn_central_host_map['target'] }}"
+  when: ovn_central_host_map['target'] | default('') | length > 0
+
+- name: Use the first hypervisor if neither ovn-central host spec or group defines a target
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_ovn_central_host_name }}"
+    group: 'ovn_central_host'
+    target: "{{ default_ovn_central_target | default(groups['kubeinit_hypervisors'] | first) }}"
+
+- name: Add ansible_host for ovn_central_host
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_ovn_central_host_name }}"
+    group: 'ovn_central_host'
+    ansible_host: "{{ hostvars[hostvars[kubeinit_ovn_central_host_name].target].ansible_host }}"
 
 - name: Prepare groups
   ansible.builtin.include_tasks: prepare_groups.yml
@@ -61,8 +160,8 @@
 - name: Define group facts
   ansible.builtin.set_fact:
     kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_name] }}"
-    kubeinit_bastion_host: "{{ hostvars[kubeinit_cluster_bastion_name].target }}"
-    kubeinit_ovn_central_host: "{{ hostvars[kubeinit_cluster_ovn_central_name].target }}"
+    kubeinit_bastion_host: "{{ hostvars[kubeinit_bastion_host_name].target }}"
+    kubeinit_ovn_central_host: "{{ hostvars[kubeinit_ovn_central_host_name].target }}"
     kubeinit_first_controller_node: "{{ groups['all_controller_nodes'][0] }}"
     kubeinit_hypervisor_count: "{{ groups['kubeinit_hypervisors'] | length }}"
     kubeinit_controller_count: "{{ groups['all_controller_nodes'] | length }}"

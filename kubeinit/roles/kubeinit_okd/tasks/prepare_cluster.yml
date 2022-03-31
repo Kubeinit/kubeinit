@@ -24,21 +24,12 @@
 
     - name: Check for openshift pullsecret in kubeinit secrets
       ansible.builtin.set_fact:
-        _result_pullsecret_content: "{{ omit if (hostvars[kubeinit_secrets_name].secrets['openshift_pullsecret'] | default('') | length == 0) else hostvars[kubeinit_secrets_name].secrets['openshift_pullsecret'] }}"
-
-    - name: Create registry auth for pullsecret using individual auth values
-      ansible.builtin.set_fact:
-        # The spaces after the first single quote is required, do not remove
-        # Something in Ansible appears to be recognizing this as valid Python,
-        # so it's getting transformed into a Python list and then serialized
-        # using Python's str(), which is why we end up with the single-quoted values.
-        ocp_registry_token: '  { "auths": { "cloud.openshift.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_cloud_openshift_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"quay.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_quay_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.connect.redhat.com": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_connect_redhat_com }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } ,"registry.redhat.io": { "auth": "{{ kubeinit_okd_openshift_registry_token_registry_redhat_io }}", "email": "{{ kubeinit_okd_openshift_registry_token_email }}" } } }'
-      when: _result_pullsecret_content is not defined
+        _result_pullsecret_path: "{{ omit if (hostvars['kubeinit-secrets'].secrets['openshift-pullsecret'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['openshift-pullsecret'] }}"
 
     - name: Create registry auth for pullsecret
       ansible.builtin.shell: |
         set -eo pipefail
-        echo '{{ ocp_registry_token if (_result_pullsecret_content is not defined) else (_result_pullsecret_content | b64decode | trim) }}' | jq -c ".auths"
+        echo '{{ lookup('unvault', _result_pullsecret_path) | trim }}' | jq -c ".auths"
       args:
         executable: /bin/bash
       register: _result_registry_pullsecret
@@ -111,11 +102,13 @@
       ansible.builtin.get_url:
         url: "{{ kubeinit_okd_dependencies.installer }}"
         dest: ~/
+        mode: 0644
 
     - name: Download okd client
       ansible.builtin.get_url:
         url: "{{ kubeinit_okd_dependencies.client }}"
         dest: ~/
+        mode: 0644
 
     - name: Install okd client and installer
       ansible.builtin.shell: |

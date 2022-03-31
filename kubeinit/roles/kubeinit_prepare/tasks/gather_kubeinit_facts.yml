@@ -14,33 +14,14 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- block:
-    - block:
-        - name: "Stop before 'task-gather-facts' when requested"
-          ansible.builtin.add_host: name='kubeinit-facts' playbook_terminated=true
-        - name: End play
-          ansible.builtin.meta: end_play
-      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-gather-facts'
-  tags: omit_from_grapher
-
 #
-# Gather facts needed to create the kubeinit_hypervisors group
+# Gather kubeinit facts
 #
 
-- name: Set hostname we use to set kubeinit facts
-  ansible.builtin.set_fact:
-    kubeinit_facts_name: 'kubeinit-facts'
-
-- name: Add playbook context facts
+- name: Load kubeinit_defaults group
   ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
-    groups: 'kubeinit_facts'
-    container_run: "{{ kubeinit_container_run | default(false) }}"
-
-- name: Load kubeinit_env group
-  ansible.builtin.add_host:
-    name: 'kubeinit-env'
-    groups: 'kubeinit_env'
+    name: 'kubeinit-defaults'
+    groups: 'kubeinit_defaults'
 
 - name: Gather kubeinit secrets
   ansible.builtin.include_role:
@@ -49,237 +30,9 @@
     public: true
   vars:
     _param_secret_names:
-      - kubeinit_ssh_key
-      - dockerhub_username
-      - dockerhub_password
-      - openshift_pullsecret
-
-- name: Lookup remote_user from command-line
-  ansible.builtin.set_fact:
-    kubeinit_cli_remote_user: "{{ lookup('kubeinit.kubeinit.cli_args', 'remote_user') }}"
-
-- name: Check for empty remote user when running from kubeinit container
-  ansible.builtin.assert:
-    msg:
-      - "You must provide the user for the playbook when running from the kubeinit container."
-      - "e.g. --user root"
-    that: not hostvars[kubeinit_facts_name].container_run or kubeinit_cli_remote_user|length > 0
-
-- name: Define kubeinit remote_user
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
-    local_user: "{{ ansible_facts.user_id }}"
-    local_home: "{{ ansible_facts.user_dir }}"
-    remote_user: "{{ kubeinit_cli_remote_user if (kubeinit_cli_remote_user|length > 0) else ansible_facts.user_id }}"
-    ssh_keytype: "{{ hostvars['kubeinit-env'].ssh_keytype }}"
-
-- name: Prepare cluster topology using kubeinit_spec command-line specification
-  ansible.builtin.set_fact:
-    kubeinit_spec_parts: "{{ kubeinit_spec.split('-') | default([]) }}"
-
-- name: Assert we have a minimum number of spec parts
-  ansible.builtin.assert:
-    msg: "Usage: -e kubeinit_spec=<distro>-<driver>-<controllers>-<computes>-<hypervisors>[-<ignored>]"
-    that: kubeinit_spec_parts|length >= 5
-
-- name: Set facts from spec parts
-  ansible.builtin.set_fact:
-    kubeinit_spec_distro: "{{ kubeinit_spec_parts[0] }}"
-    kubeinit_spec_driver: "{{ kubeinit_spec_parts[1] }}"
-    kubeinit_spec_controllers: "{{ kubeinit_spec_parts[2] }}"
-    kubeinit_spec_computes: "{{ kubeinit_spec_parts[3] }}"
-    kubeinit_spec_hypervisors: "{{ kubeinit_spec_parts[4] }}"
-
-- name: Assert spec constraints
-  ansible.builtin.assert:
-    that:
-      - kubeinit_spec_distro in ['cdk', 'eks', 'k8s', 'kid', 'okd', 'rke']
-      - kubeinit_spec_driver in ['libvirt']
-      - kubeinit_spec_controllers in ['1', '3', '5']
-      - kubeinit_spec_computes|int >= 0
-      - kubeinit_spec_hypervisors|int >= 0
-
-- name: Load kubeinit_cluster_spec from yaml into a dictionary
-  ansible.builtin.set_fact:
-    kubeinit_cluster_map: "{{ dict(_keys|zip(_vals)) }}"
-  vars:
-    _arr: "{{ kubeinit_cluster_spec | from_yaml }}"
-    _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
-  when: kubeinit_cluster_spec is defined
-
-- name: Assert kubeinit_cluster group and kubeinit_cluster_spec have same name when both defined
-  ansible.builtin.assert:
-    msg: "Cluster name from inventory and command-line specification must match."
-    that: kubeinit_cluster_map['cluster_name'] == groups['kubeinit_cluster'][0]
-  when: kubeinit_cluster_map['cluster_name'] | default('') | length > 0 and groups['kubeinit_cluster'][0] | default('') | length > 0
-
-- name: Define kubeinit_cluster_name
-  ansible.builtin.set_fact:
-    kubeinit_cluster_name: "{{ kubeinit_cluster_map['cluster_name'] | default(groups['kubeinit_cluster'][0]) | default(kubeinit_spec_distro + 'cluster') }}"
-
-- name: Add kubeinit_cluster_name to kubeinit-facts
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
-    cluster_name: "{{ kubeinit_cluster_name }}"
-
-- name: Create .ssh folder if needed
-  ansible.builtin.file:
-    path: "{{ hostvars[kubeinit_facts_name].local_home + '/.ssh' }}"
-    state: directory
-    mode: 0700
-  when: hostvars[kubeinit_facts_name].container_run
-
-- name: Gather additional facts from localhost for kubeinit
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_prepare
-    tasks_from: gather_host_facts.yml
-    public: true
-  vars:
-    _param_gather_host: 'localhost'
-
-- name: Add kubeinit_cluster_map entries to kubeinit_cluster group
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
-    groups: 'kubeinit_cluster'
-    cluster_domain: "{{ kubeinit_cluster_map['cluster_domain'] | default(omit) }}"
-    hypervisor_name_pattern: "{{ kubeinit_cluster_map['hypervisor_name_pattern'] | default(omit) }}"
-    controller_name_pattern: "{{ kubeinit_cluster_map['controller_name_pattern'] | default(omit) }}"
-    compute_name_pattern: "{{ kubeinit_cluster_map['compute_name_pattern'] | default(omit) }}"
-    post_deployment_services: "{{ kubeinit_cluster_map['post_deployment_services'] | default(omit) }}"
-  when: kubeinit_cluster_map is defined
-
-- name: Assert that we have enough hypervisors defined for this cluster if they are provided by the inventory
-  ansible.builtin.assert:
-    msg: "Your kubeinit_spec needs {{ kubeinit_spec_hypervisors|int }} hypervisor hosts and your inventory only defines {{ groups['hypervisor_hosts'] | length }}."
-    that: groups['hypervisor_hosts'] | length >= kubeinit_spec_hypervisors|int
-  when: groups['hypervisor_hosts'] | default([]) | length > 0
-
-- name: Load hypervisor_hosts_spec from yaml into a list of dictionaries
-  ansible.builtin.set_fact:
-    hypervisor_hosts_map_list: "{{ (hypervisor_hosts_map_list | default([])) | union([_dict]) }}"
-  loop: "{{ hypervisor_hosts_spec | from_yaml }}"
-  vars:
-    _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
-    _dict: "{{ dict(_keys|zip(_vals)) }}"
-  when: hypervisor_hosts_spec is defined
-
-- name: Assert hypervisor_hosts group and hypervisor_hosts_spec have same names when both defined
-  ansible.builtin.assert:
-    msg: "Hypervisor names from inventory and command-line specification must match."
-    that: hypervisor_hosts_map_list[ansible_loop.index0]['host'] == groups['hypervisor_hosts'][ansible_loop.index0]
-  loop: "{{ range(kubeinit_spec_hypervisors|int) | list }}"
-  loop_control:
-    extended: true
-  when: hypervisor_hosts_map_list[ansible_loop.index0]['host'] | default('') | length > 0 and groups['hypervisor_hosts'][ansible_loop.index0] | default('') | length > 0
-
-- name: Create names and defaults for new cluster hypervisors
-  ansible.builtin.add_host:
-    name: "{{ hypervisor_hosts_map_list[ansible_loop.index0]['host'] | default(hostvars[kubeinit_cluster_name].hypervisor_name_pattern | format(ansible_loop.index)) }}"
-    groups:
-      - 'hypervisor_hosts'
-      - 'kubeinit_hypervisors'
-    ansible_connection: 'smart'
-    ansible_ssh_user: "{{ hostvars[kubeinit_facts_name].remote_user }}"
-  loop: "{{ range(kubeinit_spec_hypervisors|int) | list }}"
-  loop_control:
-    extended: true
-  when: groups['hypervisor_hosts'] | default([]) | length == 0
-
-- name: Assign defaults to existing cluster hypervisors
-  ansible.builtin.add_host:
-    name: "{{ groups['hypervisor_hosts'][ansible_loop.index0] }}"
-    groups: 'kubeinit_hypervisors'
-    ansible_connection: 'smart'
-    ansible_ssh_user: "{{ hostvars[kubeinit_facts_name].remote_user }}"
-  loop: "{{ range(kubeinit_spec_hypervisors|int) | list }}"
-  loop_control:
-    extended: true
-
-- name: Add remaining spec vars to kubeinit_hypervisors group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    groups: 'kubeinit_hypervisors'
-    ansible_host: "{{ hypervisor_hosts_map_list[ansible_loop.index0]['ansible_host'] | default(omit) }}"
-    ssh_hostname: "{{ hypervisor_hosts_map_list[ansible_loop.index0]['ssh_hostname'] | default(omit) }}"
-    ssh_username: "{{ hypervisor_hosts_map_list[ansible_loop.index0]['ssh_username'] | default(omit) }}"
-  loop: "{{ groups['kubeinit_hypervisors'] }}"
-  loop_control:
-    extended: true
-  when: hypervisor_hosts_map_list is defined
-
-- name: Add kubeinit_spec facts to cluster facts
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
-    groups: 'kubeinit_cluster'
-    distro: "{{ kubeinit_spec_distro }}"
-    controller_count: "{{ kubeinit_spec_controllers }}"
-    compute_count: "{{ kubeinit_spec_computes }}"
-    node_count: "{{ kubeinit_spec_controllers|int + kubeinit_spec_computes|int }}"
-
-- name: Set more cluster facts from inventory groups and kubeinit_spec
-  ansible.builtin.set_fact:
-    kubeinit_cluster_distro: "{{ kubeinit_spec_distro }}"
-    kubeinit_cluster_fqdn: "{{ kubeinit_cluster_name }}.{{ hostvars[kubeinit_cluster_name].cluster_domain }}"
-
-- name: Add more facts to cluster facts
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
-    groups: 'kubeinit_cluster'
-    cluster_distro: "{{ kubeinit_cluster_distro }}"
-    cluster_fqdn: "{{ kubeinit_cluster_fqdn }}"
-
-- name: Define kubeinit_facts_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
-
-- name: Define kubeinit_ssh_keytype
-  ansible.builtin.set_fact:
-    kubeinit_ssh_keytype: "{{ kubeinit_facts_hostvars.ssh_keytype }}"
-
-- name: Set kubeinit_cluster_ssh_config fact
-  ansible.builtin.set_fact:
-    kubeinit_cluster_ssh_config: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/' + kubeinit_cluster_name + '_config' }}"
-    kubeinit_cluster_keypair_path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/kubeinit_id_' + kubeinit_ssh_keytype }}"
-
-- name: Add ansible_ssh_extra_args to kubeinit_hypervisors group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    groups: 'kubeinit_hypervisors'
-    ansible_ssh_extra_args: "-i {{ kubeinit_cluster_keypair_path }} -F {{ kubeinit_cluster_ssh_config }}"
-  loop: "{{ groups['kubeinit_hypervisors'] }}"
-
-- name: Check if default ssh config exists
-  ansible.builtin.stat:
-    path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/config' }}"
-  register: _result_default_ssh_config_stat
-
-- name: Create ssh config file from template
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_prepare
-    tasks_from: create_host_ssh_config.yml
-    public: true
-  vars:
-    _param_hosts: "{{ groups['kubeinit_hypervisors'] }}"
-    _param_keypair_path: "{{ kubeinit_cluster_keypair_path }}"
-    _param_dest_path: "{{ kubeinit_cluster_ssh_config }}"
-    _param_include_paths: "{{ [_result_default_ssh_config_stat.stat.path] if (_result_default_ssh_config_stat.stat.exists) else [] }}"
-
-- name: Copy ssh key secret into ~/.ssh
-  ansible.builtin.copy:
-    content: "{{ hostvars[kubeinit_secrets_name].secrets['kubeinit_ssh_key'] | b64decode }}"
-    dest: "~/.ssh/kubeinit_id_{{ kubeinit_ssh_keytype }}"
-    mode: '0600'
-  when: kubeinit_facts_hostvars.container_run|bool
-
-### END FIRST PLAY
-
-- name: Gather hypervisor facts
-  ansible.builtin.include_tasks: gather_host_facts.yml
-  loop: "{{ groups['kubeinit_hypervisors'] }}"
-  vars:
-    _param_gather_host: "{{ item }}"
+      - dockerhub-username
+      - dockerhub-password
+      - openshift-pullsecret
 
 - name: Parse kubeinit_network_spec into a dictionary when defined
   ansible.builtin.set_fact:
@@ -296,9 +49,13 @@
     that: kubeinit_network_map['network_name'] == groups['kubeinit_network'][0]
   when: kubeinit_network_map['network_name'] | default('') | length > 0 and groups['kubeinit_network'][0] | default('') | length > 0
 
+- name: Set default_kubeinit_network_name fact
+  ansible.builtin.set_fact:
+    default_kubeinit_network_name: "{{ hostvars['kubeinit-defaults'].default_network_name }}"
+
 - name: Define kubeinit_network_name
   ansible.builtin.set_fact:
-    kubeinit_network_name: "{{ kubeinit_network_map['network_name'] | default(groups['kubeinit_network'][0]) | default(kubeinit_inventory_network_name) }}"
+    kubeinit_network_name: "{{ kubeinit_network_map['network_name'] | default(groups['kubeinit_network'][0]) | default(default_kubeinit_network_name) }}"
 
 - name: Add new entries to kubeinit_network group when not defined
   ansible.builtin.add_host:
@@ -381,6 +138,23 @@
   ansible.builtin.set_fact:
     kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_computes|int) }}"
 
+- name: Set default_extra_nodes_map_list fact
+  ansible.builtin.set_fact:
+    default_extra_nodes_map_list: "{{ hostvars['kubeinit-defaults'].default_extra_nodes_map_list }}"
+
+- name: Assign default entries to extra_nodes group when not defined
+  block:
+
+    - name: Add entries for the current distro only
+      ansible.builtin.add_host:
+        name: "{{ item['name'] }}"
+        group: 'extra_nodes'
+        when_distro: "{{ item['when_distro'] }}"
+      loop: "{{ default_extra_nodes_map_list }}"
+      when: item['when_distro'] == kubeinit_spec_distro
+
+  when: groups['extra_npdes'] | default([]) | length == 0
+
 - name: Assign extra_nodes addresses
   ansible.builtin.add_host:
     name: "{{ extra_node }}"
@@ -400,6 +174,22 @@
   loop_control:
     loop_var: extra_node
   when: hostvars[extra_node]['when_distro'] == kubeinit_spec_distro
+
+- name: Set default_service_nodes_map_list fact
+  ansible.builtin.set_fact:
+    default_service_nodes_map_list: "{{ hostvars['kubeinit-defaults'].default_service_nodes_map_list }}"
+
+- name: Assign default entries to service_nodes group when not defined
+  block:
+
+    - name: Add services default to service_nodes
+      ansible.builtin.add_host:
+        name: "{{ item['name'] }}"
+        group: 'service_nodes'
+        services: "{{ item['services'] }}"
+      loop: "{{ default_service_nodes_map_list }}"
+
+  when: groups['service_npdes'] | default([]) | length == 0
 
 - name: Assign service_nodes addresses
   ansible.builtin.add_host:
@@ -437,6 +227,36 @@
   ansible.builtin.set_fact:
     kubeinit_network_hostvars: null
 
+- name: Define default_cluster_nodes_map_list
+  ansible.builtin.set_fact:
+    default_cluster_nodes_map_list: "{{ hostvars['kubeinit-defaults'].default_cluster_nodes_map_list }}"
+
+- name: Add all other cluster node defaults using default_cluster_nodes_map_list
+  ansible.builtin.set_fact:
+    cluster_nodes_defaults: "{{ cluster_nodes_defaults | default([]) + (groups['inventory_nodes'] | product([item])) }}"
+  loop: "{{ default_cluster_nodes_map_list }}"
+  when: item['when_distro'] is not defined or item['when_distro'] == kubeinit_spec_distro
+
+- name: Apply defaults to all cluster nodes
+  ansible.builtin.add_host:
+    name: "{{ _host }}"
+    os: "{{ _defaults['os'] if (_defaults['os'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
+    vcpus: "{{ _defaults['vcpus'] if (_defaults['vcpus'] is defined and _group_matches and _type_matches) else omit }}"
+    maxvcpus: "{{ _defaults['maxvcpus'] if (_defaults['maxvcpus'] is defined and _group_matches and _type_matches) else omit }}"
+    disk: "{{ _defaults['disk'] if (_defaults['disk'] is defined and _group_matches and _type_matches) else omit }}"
+    ram: "{{ _defaults['ram'] if (_defaults['ram'] is defined and _group_matches and _type_matches) else omit }}"
+    target_order: "{{ _defaults['target_order'] if (_defaults['target_order'] is defined and _group_matches and _type_matches) else omit }}"
+  loop: "{{ cluster_nodes_defaults }}"
+  vars:
+    _host: "{{ item[0] }}"
+    _defaults: "{{ item[1] }}"
+    _group_matches: "{{ item[1]['when_group'] | default('inventory_nodes') in hostvars[item[0]].group_names }}"
+    _type_matches: "{{ item[1]['when_type'] | default(hostvars[item[0]].type) | default('') == hostvars[item[0]].type | default('') }}"
+
+- name: Clear cluster_nodes_defaults
+  ansible.builtin.set_fact:
+    cluster_nodes_defaults: null
+
 - name: Define kubeinit_facts_hostvars
   ansible.builtin.set_fact:
     kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
@@ -444,20 +264,6 @@
 - name: Define kubeinit_ssh_keytype
   ansible.builtin.set_fact:
     kubeinit_ssh_keytype: "{{ hostvars['kubeinit-env'].ssh_keytype }}"
-
-- name: Debug inventory_nodes ansible_host
-  ansible.builtin.debug:
-    var: hostvars[inventory_node].ansible_host
-  loop: "{{ groups['inventory_nodes'] }}"
-  loop_control:
-    loop_var: inventory_node
-
-- name: Debug inventory_nodes target
-  ansible.builtin.debug:
-    var: hostvars[inventory_node].target
-  loop: "{{ groups['inventory_nodes'] }}"
-  loop_control:
-    loop_var: inventory_node
 
 - name: Use cluster name as random number seed
   ansible.builtin.set_fact:
@@ -468,7 +274,6 @@
   ansible.builtin.add_host:
     name: "{{ controller_node }}"
     group: ['controller_nodes', 'inventory_nodes']
-    os: "{{ hostvars[controller_node].os[kubeinit_spec_distro] }}"
     mac: "{{ hostvars[controller_node].mac | default('52:54:00' | community.general.random_mac) }}"
     interfaceid: "{{ hostvars[controller_node].interfaceid | default(999999 | random | to_uuid) }}"
   loop: "{{ range(kubeinit_spec_controllers|int) | list }}"
@@ -481,7 +286,6 @@
   ansible.builtin.add_host:
     name: "{{ compute_node }}"
     group: ['compute_nodes', 'inventory_nodes']
-    os: "{{ hostvars[compute_node].os[kubeinit_spec_distro] }}"
     mac: "{{ hostvars[compute_node].mac | default('52:54:00' | community.general.random_mac) }}"
     interfaceid: "{{ hostvars[compute_node].interfaceid | default(999999 | random | to_uuid) }}"
   loop: "{{ range(kubeinit_spec_computes|int) | list }}"
@@ -494,21 +298,17 @@
   ansible.builtin.add_host:
     name: "{{ hostvars[extra_node].inventory_hostname }}"
     group: ['extra_nodes', 'inventory_nodes']
-    os: "{{ hostvars[extra_node].os[kubeinit_spec_distro] }}"
-    ram: "{{ hostvars[extra_node].ram[kubeinit_spec_distro] }}"
     mac: "{{ hostvars[extra_node].mac | default('52:54:00' | community.general.random_mac) }}"
     interfaceid: "{{ hostvars[extra_node].interfaceid | default(999999 | random | to_uuid) }}"
   loop: "{{ groups['extra_nodes'] | default([]) }}"
   loop_control:
     loop_var: extra_node
     extended: true
-  when: hostvars[extra_node]['when_distro'] == kubeinit_spec_distro
 
 - name: Assign remaining service_nodes facts
   ansible.builtin.add_host:
     name: "{{ hostvars[service_node].inventory_hostname }}"
     group: ['service_nodes', 'inventory_nodes']
-    os: "{{ hostvars[service_node].os[kubeinit_spec_distro] }}"
     mac: "{{ hostvars[service_node].mac | default('52:54:00' | community.general.random_mac) }}"
     interfaceid: "{{ hostvars[service_node].interfaceid | default(999999 | random | to_uuid) }}"
   loop: "{{ groups['service_nodes'] | default([]) }}"
@@ -532,7 +332,7 @@
 
 - name: Determine the hypervisor target for all inventory nodes
   ansible.builtin.set_fact:
-    node_targets: "{{ (node_targets | default([])) | union([inventory_node] | product(hostvars[inventory_node].target_order.split(',') | reverse)) }}"
+    node_targets: "{{ (node_targets | default([])) | union([inventory_node] | product(hostvars[inventory_node].target_order | reverse)) }}"
   loop: "{{ groups['inventory_nodes'] }}"
   loop_control:
     loop_var: inventory_node

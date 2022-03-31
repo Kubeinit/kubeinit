@@ -26,28 +26,33 @@
 - name: Authenticate with dockerhub username/password if defined
   block:
 
+    - name: Set tasks-hidden fact
+      ansible.builtin.set_fact:
+        _results: "{{ _results | combine({'tasks-hidden': not (lookup('env', 'KUBEINIT_PODMAN_SHOW_TASKS') or false)}) }}"
+      no_log: true
+
     - name: Set facts for dockerhub secrets
       block:
         - name: Set username_secret
           ansible.builtin.set_fact:
-            _results: "{{ _results | combine({'username_secret': omit if (hostvars['kubeinit-secrets'].secrets['dockerhub_username'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['dockerhub_username']}) }}"
+            _results: "{{ _results | combine({'username-secret': omit if (hostvars['kubeinit-secrets'].secrets['dockerhub-username'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['dockerhub-username']}) }}"
         - name: Set password_secret
           ansible.builtin.set_fact:
-            _results: "{{ _results | combine({'password_secret': omit if (hostvars['kubeinit-secrets'].secrets['dockerhub_password'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['dockerhub_password']}) }}"
-      no_log: true
+            _results: "{{ _results | combine({'password-secret': omit if (hostvars['kubeinit-secrets'].secrets['dockerhub-password'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['dockerhub-password']}) }}"
+      no_log: "{{ _results['tasks-hidden'] }}"
 
     - name: Podman login to docker.io
       containers.podman.podman_login:
-        username: "{{ _results['username_secret'] | b64decode | trim }}"
-        password: "{{ _results['password_secret'] | b64decode | trim }}"
+        username: "{{ lookup('unvault', _results['username-secret']) | trim }}"
+        password: "{{ lookup('unvault', _results['password-secret']) | trim }}"
         registry: "docker.io"
-      no_log: true
-      when: (_results['username_secret'] is defined) and (_results['password_secret'] is defined)
+      no_log: "{{ _results['tasks-hidden'] }}"
+      when: (_results['username-secret'] is defined) and (_results['password-secret'] is defined)
 
     - name: Clear any reference to dockerhub secrets
       ansible.builtin.set_fact:
         _results: {}
-      no_log: true
+      no_log: "{{ _results['tasks-hidden'] }}"
 
   vars:
     _results: {}

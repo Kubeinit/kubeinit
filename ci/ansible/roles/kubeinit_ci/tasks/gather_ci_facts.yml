@@ -49,11 +49,11 @@
     public: true
   vars:
     _param_secret_names:
-      - kubeinit_ci_ssh_key
-      - dockerhub_username
-      - dockerhub_password
-      - gitlab_runner_registration_token
-      - gitlab_runner_access_token
+      - kubeinit-ci-ssh-key
+      - dockerhub-username
+      - dockerhub-password
+      - gitlab-runner-registration-token
+      - gitlab-runner-access-token
 
 - name: Lookup remote_user from command-line
   ansible.builtin.set_fact:
@@ -96,7 +96,7 @@
 
 - name: Copy ci ssh key secret into ~/.ssh
   ansible.builtin.copy:
-    content: "{{ hostvars[kubeinit_secrets_name].secrets['kubeinit_ci_ssh_key'] | b64decode }}"
+    content: "{{ lookup('unvault', hostvars['kubeinit-secrets'].secrets['kubeinit-ci-ssh-key']) }}"
     dest: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/id_' + kubeinit_ssh_keytype }}"
     mode: '0600'
   when: kubeinit_facts_hostvars.container_run|bool

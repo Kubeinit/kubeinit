@@ -27,7 +27,7 @@
         -o UserKnownHostsFile=/dev/null \
         -o StrictHostKeyChecking=accept-new \
         -o ProxyCommand="ssh -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}" \
-        root@{{ hostvars[kubeinit_deployment_node_name].ansible_host }} 'echo connected' || true
+        {{ _param_guest_user | default('root') }}@{{ hostvars[kubeinit_deployment_node_name].ansible_host }} 'echo connected' || true
   args:
     executable: /bin/bash
   register: _result
@@ -43,4 +43,6 @@
     sleep: 5
     delay: 5
     timeout: 300
+  vars:
+    ansible_user: "{{ _param_guest_user | default('root') }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"

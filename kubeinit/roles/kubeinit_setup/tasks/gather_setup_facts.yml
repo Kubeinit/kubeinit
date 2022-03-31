@@ -49,7 +49,7 @@
     public: true
   vars:
     _param_secret_names:
-      - kubeinit_setup_ssh_key
+      - kubeinit-setup-ssh-key
 
 - name: Lookup remote_user from command-line
   ansible.builtin.set_fact:
@@ -87,7 +87,7 @@
 
 - name: Copy setup ssh key secret into ~/.ssh
   ansible.builtin.copy:
-    content: "{{ hostvars[kubeinit_secrets_name].secrets['kubeinit_setup_ssh_key'] | b64decode }}"
+    content: "{{ lookup('unvault', hostvars['kubeinit-secrets'].secrets['kubeinit-setup-ssh-key']) }}"
     dest: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/id_' + kubeinit_ssh_keytype }}"
     mode: '0600'
   when: kubeinit_facts_hostvars.container_run|bool
