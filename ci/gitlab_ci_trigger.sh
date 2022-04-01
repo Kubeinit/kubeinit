@@ -52,8 +52,11 @@ run_pr() {
                 echo ${row} | base64 --decode | jq -r ${1}
             }
             label=$(_jq '.name')
-            label_regex=".*-.*-.*-.*-.*-.*"
-            singlenode_label_regex=".*-.*-.*-.*-1-.*"
+            if [ "$CLUSTER_TYPE" = 'singlenode' ]; then
+                label_regex=".*-.*-.*-.*-1-.*"
+            else
+                label_regex=".*-.*-.*-.*-[^1]-.*"
+            fi
             verbosity_regex="verbosity=.*"
             if [[ $label =~ $label_regex ]];then
                 echo "(gitlab_ci_trigger.sh) ==> There was found a job matching label: $label" ;
@@ -66,7 +69,7 @@ run_pr() {
                 ci_label_found=1
             else
                 if [[ $label =~ $verbosity_regex ]]; then
-                    test_params+="${label} "
+                    test_params+="--${label} "
                 fi
             fi
         done
