@@ -132,48 +132,13 @@
     os: "{{ hostvars[item].os }}"
   loop: "{{ groups['all_service_nodes'] + groups['all_cluster_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
 
-- name: Add a default entry for the first hypervisor if there are no bastion_host members
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_bastion_name }}"
-    group: bastion_host
-    target: "{{ groups['kubeinit_hypervisors'] | first }}"
-  when: "('bastion_host' not in groups) or ((groups['bastion_host'] | list | length) == 0)"
-
-- name: Add ansible_host for bastion_host if not defined
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_bastion_name }}"
-    group: bastion_host
-    ansible_host: "{{ hostvars[hostvars[kubeinit_cluster_bastion_name].target].ansible_host }}"
-  when: "hostvars[kubeinit_cluster_bastion_name].ansible_host is not defined"
-
-- name: Add target for bastion_host if not defined
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_bastion_name }}"
-    group: bastion_host
-    target: "{{ kubeinit_cluster_bastion_name }}"
-  when: "hostvars[kubeinit_cluster_bastion_name].target is not defined"
-
-- name: Add a default entry for the first hypervisor if there are no ovn_central_host members
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_ovn_central_name }}"
-    group: ovn_central_host
-    target: "{{ groups['kubeinit_hypervisors'] | first }}"
-    ansible_host: "{{ hostvars[groups['kubeinit_hypervisors'] | first].ansible_host }}"
-  when: "('ovn_central_host' not in groups) or ((groups['ovn_central_host'] | list | length) == 0)"
-
-- name: Add ansible_host for ovn_central_host
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_ovn_central_name }}"
-    group: ovn_central_host
-    ansible_host: "{{ hostvars[hostvars[kubeinit_cluster_ovn_central_name].target].ansible_host }}"
-
 - name: Add all cluster hypervisors to the all_hosts group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_hosts
   loop: "{{ groups['kubeinit_hypervisors'] }}"
   when: >
-    item in hostvars[kubeinit_cluster_ovn_central_name].target or
+    item in hostvars[kubeinit_ovn_central_host_name].target or
     item in groups['kubeinit_hypervisors']
 
 - name: Add all hosts to the all_ovn_hosts group

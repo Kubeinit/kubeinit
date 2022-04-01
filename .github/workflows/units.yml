@@ -19,32 +19,32 @@ jobs:
       matrix:
         python-version: [3.9]
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        sudo apt update -y
-        sudo apt install jq -y
-        sudo apt-get remove ansible -y
-        sudo python3 -m pip uninstall ansible ansible-base ansible-core -y
-        sudo python3 -m pip install ansible==5.1.0
-        sudo locale-gen en_US.UTF-8
-        sudo dpkg-reconfigure locales
-        sudo apt install build-essential findutils -y
-        sudo apt-get --purge autoremove python3-pip
-        sudo apt install python3-pip
-        sudo python3 -m pip install --upgrade pip
-        sudo python3 -m pip install --upgrade virtualenv
-        sudo python3 -m pip install --upgrade setuptools
-        sudo python3 -m pip install -r ./test-requirements.txt
-    - name: Run unit tests
-      run: |
-        tox -e units
-    - uses: actions/upload-artifact@v1
-      with:
-        name: Unit tests result
-        path: /home/runner/units_report.html
-        if-no-files-found: error
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install jq -y
+          sudo apt-get remove ansible -y
+          sudo python3 -m pip uninstall ansible ansible-base ansible-core -y
+          sudo python3 -m pip install ansible==5.1.0
+          sudo locale-gen en_US.UTF-8
+          sudo dpkg-reconfigure locales
+          sudo apt install build-essential findutils -y
+          sudo apt-get --purge autoremove python3-pip
+          sudo apt install python3-pip
+          sudo python3 -m pip install --upgrade pip
+          sudo python3 -m pip install --upgrade virtualenv
+          sudo python3 -m pip install --upgrade setuptools
+          sudo python3 -m pip install -r ./test-requirements.txt
+      - name: Run unit tests
+        run: |
+          tox -e units
+      - uses: actions/upload-artifact@v1
+        with:
+          name: Unit tests result
+          path: /home/runner/units_report.html
+          if-no-files-found: error

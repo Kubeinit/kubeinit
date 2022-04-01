@@ -29,10 +29,57 @@
         msg: >
           "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
   tasks:
-    - name: Gather facts about the deployment environment
+    - name: Determine which hypervisor hosts will be used in this deployment
       tags: task_gather_facts
+      delegate_facts: true
       block:
         - name: task-gather-facts
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_prepare
+            tasks_from: build_hypervisors_group.yml
+            public: true
+
+- name: Gather facts from the cluster hypervisor hosts
+  hosts: kubeinit_hypervisors
+  become: false
+  gather_subset: "!all,network"
+  gather_facts: true
+  tasks:
+    - name: Skip play if playbook_terminated
+      ansible.builtin.meta: end_play
+      when: hostvars['kubeinit-facts'].playbook_terminated | default(false)
+      tags:
+        - omit_from_grapher
+        - task_gather_facts
+      run_once: true
+
+    - name: Gather additional hypervisor facts kubeinit will use during deployment
+      tags: task_gather_facts
+      delegate_facts: true
+      block:
+        - name: Gather facts from each hypervisor in the deployment
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_prepare
+            tasks_from: gather_host_facts.yml
+            public: true
+          vars:
+            _param_gather_host: "{{ inventory_hostname }}"
+
+- name: Determine facts needed to prepare all hypervisor hosts
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Skip play if playbook_terminated
+      ansible.builtin.meta: end_play
+      when: hostvars['kubeinit-facts'].playbook_terminated | default(false)
+      tags: omit_from_grapher
+
+    - name: Gather kubeinit facts
+      tags: task_gather_facts
+      delegate_facts: true
+      block:
+        - name: Gather facts to prepare the cluster hypervisors
           ansible.builtin.include_role:
             name: kubeinit.kubeinit.kubeinit_prepare
             tasks_from: gather_kubeinit_facts.yml

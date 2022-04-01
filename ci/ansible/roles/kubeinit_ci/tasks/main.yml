@@ -533,10 +533,11 @@
 
     - name: Define podman secret for gitlab_runner_access_token
       containers.podman.podman_secret:
-        name: 'gitlab_runner_access_token'
-        data: "{{ hostvars['kubeinit-secrets'].secrets['gitlab_runner_access_token'] | b64decode | trim }}"
+        name: 'gitlab-runner-access-token'
+        data: "{{ lookup('unvault', hostvars['kubeinit-secrets'].secrets['gitlab-runner-access-token']) | trim }}"
         force: true
         state: present
+      no_log: true
 
     - name: Remove any previous kubeinit-merge-request-runner container
       containers.podman.podman_container:
@@ -556,7 +557,7 @@
           DEBUG: true
           LOG_LEVEL: debug
         secrets:
-          - 'gitlab_runner_access_token'
+          - 'gitlab-runner-access-token'
         volumes:
           - "{{ _result_systemd_runtime_path.stdout }}/podman/podman.sock:/var/run/docker.sock"
           - "kubeinit-ara-output:/opt/output_data:z"
@@ -628,9 +629,10 @@
         timeout: 300
 
     - name: Register runner
-      ansible.builtin.command: gitlab-runner register --non-interactive --url {{ hostvars[kubeinit_ci_host_name].gitlab_url }}/ --clone-url {{ hostvars[kubeinit_ci_host_name].gitlab_url }} --registration-token {{ hostvars['kubeinit-secrets'].secrets['gitlab_runner_registration_token'] | b64decode | trim }} --name kubeinit-merge-request-runner --executor shell --tag-list kubeinit-merge-request --output-limit 50000
+      ansible.builtin.command: gitlab-runner register --non-interactive --url {{ hostvars[kubeinit_ci_host_name].gitlab_url }}/ --clone-url {{ hostvars[kubeinit_ci_host_name].gitlab_url }} --registration-token {{ lookup('unvault', hostvars['kubeinit-secrets'].secrets['gitlab-runner-registration-token']) | trim }} --name kubeinit-merge-request-runner --executor shell --tag-list kubeinit-merge-request --output-limit 50000
       register: _result
       changed_when: "_result.rc == 0"
+      no_log: true
 
   vars:
     ansible_ssh_pipelining: False
