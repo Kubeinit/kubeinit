@@ -1,0 +1,54 @@
+---
+name: clean_b2_old_files
+on:
+  schedule:
+  - cron: "30 15 */15 * *"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.9]
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install required packages
+      run: |
+        sudo apt-get update -y
+        python3 -m pip install --upgrade protobuf
+        python3 -m pip install -r test-requirements.txt
+        python3 -m pip install --upgrade pip
+        python3 -m pip install --upgrade virtualenv
+        python3 -m pip install --upgrade setuptools
+    - name: Clean old b2 files
+      run: |
+        #
+        # When passing env variables to scripts
+        # they are passed to the non-root user
+        # if running the script as root it wont
+        # be able to read those.
+        #
+        result=$(python3 <<EOF
+        from datetime import datetime
+        import sys
+        sys.path.append('./ci/')
+        from kubeinit_ci_utils import clean_old_files_b2
+
+        print("'clean_b2_old_files' ==> cleaning old B2 files")
+        initial_time = datetime.now()
+        clean_old_files_b2()
+        finish_time = datetime.now()
+        exec_time = finish_time - initial_time
+        print("'clean_b2_old_files' ==> Cleaning files in b2 took: %s seconds" % (str(exec_time.total_seconds())))
+        EOF
+        )
+        echo $result
+      env:
+        B2_STORAGE_ID: ${{ secrets.B2_STORAGE_ID }}
+        B2_STORAGE_KEY: ${{ secrets.B2_STORAGE_KEY }}
