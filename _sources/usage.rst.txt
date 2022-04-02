@@ -94,10 +94,22 @@ Group variables
 
 All
 ^^^
-Default variables related to Ansible parameter, common
+Default variables related to Ansible parameters, common
 across all the supported scenarios.
 
 .. autoyaml:: kubeinit/group_vars/all.yml
+
+Cluster
+^^^^^^^
+Initial configuration variables related to the cluster parameters.
+
+.. autoyaml:: kubeinit/group_vars/kubeinit_cluster.yml
+
+Defaults
+^^^^^^^^
+Default variables related to general cluster parameters.
+
+.. autoyaml:: kubeinit/group_vars/kubeinit_defaults.yml
 
 Environment
 ^^^^^^^^^^^
@@ -107,6 +119,11 @@ These variables might be specific to each scenario.
 
 .. autoyaml:: kubeinit/group_vars/kubeinit_env.yml
 
+Network
+^^^^^^^
+General deployment network parameters.
+
+.. autoyaml:: kubeinit/group_vars/kubeinit_network.yml
 
 Secrets
 ^^^^^^^
