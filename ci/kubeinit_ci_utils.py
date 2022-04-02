@@ -288,6 +288,12 @@ def clean_old_files_b2():
     b2_token_id = os.environ['B2_STORAGE_ID']
     b2_token_key = os.environ['B2_STORAGE_KEY']
 
+    #
+    # This method is higly API intensive as it
+    # will list all the files in the bucket,
+    # use it with precaution!!!!!!!!!!!!!!
+    #
+
     info = InMemoryAccountInfo()
     b2_api = B2Api(info)
     bucket_name = "kubeinit-ci"

@@ -61,10 +61,10 @@ run_pr() {
             if [[ $label =~ $label_regex ]];then
                 echo "(gitlab_ci_trigger.sh) ==> There was found a job matching label: $label" ;
                 echo "(gitlab_ci_trigger.sh) ==> We assign the matching PR: $pr_number" ;
-                test_params+="--pr_id=${pr_number} "
-                pr_id=${pr_number}
                 if [ "$ci_label_found" -eq "0" ]; then
                     test_params+="--job_label=${label} "
+                    test_params+="--pr_id=${pr_number} "
+                    pr_id=${pr_number}
                 fi
                 ci_label_found=1
             else

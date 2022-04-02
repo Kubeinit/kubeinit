@@ -27,8 +27,7 @@ from datetime import datetime
 
 from github import Github
 
-from kubeinit_ci_utils import (clean_old_files_b2,
-                               get_periodic_jobs_labels,
+from kubeinit_ci_utils import (get_periodic_jobs_labels,
                                remove_label,
                                render_index,
                                upload_files_to_b2)
@@ -472,21 +471,36 @@ def save_logs(output, job_name):
 
     print("'launch_e2e.py' ==> starting the uploader job")
     initial_time = datetime.now()
-    upload_files_to_b2(str(job_name) + "-" + str(file_output))
+    try:
+        upload_files_to_b2(str(job_name) + "-" + str(file_output))
+    except Exception as e:
+        print("'launch_e2e.py' ==> An exception hapened uploading files to b2")
+        print(e)
+        output = 1
     finish_time = datetime.now()
     exec_time = finish_time - initial_time
     print("'launch_e2e.py' ==> Uploading files to b2 took: %s seconds" % (str(exec_time.total_seconds())))
 
-    print("'launch_e2e.py' ==> cleaning old B2 files")
-    initial_time = datetime.now()
-    clean_old_files_b2()
-    finish_time = datetime.now()
-    exec_time = finish_time - initial_time
-    print("'launch_e2e.py' ==> Cleaning files in b2 took: %s seconds" % (str(exec_time.total_seconds())))
+    # print("'launch_e2e.py' ==> cleaning old B2 files")
+    # initial_time = datetime.now()
+    # try:
+    #     clean_old_files_b2()
+    # except Exception as e:
+    #     print("'launch_e2e.py' ==> An exception hapened cleaning old files in b2")
+    #     print(e)
+    #     output = 1
+    # finish_time = datetime.now()
+    # exec_time = finish_time - initial_time
+    # print("'launch_e2e.py' ==> Cleaning files in b2 took: %s seconds" % (str(exec_time.total_seconds())))
 
     print("'launch_e2e.py' ==> rendering the index job page")
     initial_time = datetime.now()
-    render_index()
+    try:
+        render_index()
+    except Exception as e:
+        print("'launch_e2e.py' ==> An exception hapened rendering and saving the index in b2")
+        print(e)
+        output = 1
     finish_time = datetime.now()
     exec_time = finish_time - initial_time
     print("'launch_e2e.py' ==> Rendering the index took: %s seconds" % (str(exec_time.total_seconds())))
