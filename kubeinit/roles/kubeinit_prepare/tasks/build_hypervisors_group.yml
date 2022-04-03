@@ -245,10 +245,16 @@
     ansible_ssh_extra_args: "-i {{ kubeinit_cluster_keypair_path }} -F {{ kubeinit_cluster_ssh_config }}"
   loop: "{{ groups['kubeinit_hypervisors'] }}"
 
-- name: Check if default ssh config exists
+- name: Check if kubeinit ssh config exists
+  ansible.builtin.stat:
+    path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/kubeinit_config' }}"
+  register: _result_kubeinit_ssh_config_stat
+
+- name: Check if ssh config exists
   ansible.builtin.stat:
     path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/config' }}"
-  register: _result_default_ssh_config_stat
+  register: _result_ssh_config_stat
+  when: not _result_kubeinit_ssh_config_stat.stat.exists
 
 - name: Create ssh config file from template
   ansible.builtin.include_role:
@@ -259,7 +265,8 @@
     _param_hosts: "{{ groups['kubeinit_hypervisors'] }}"
     _param_keypair_path: "{{ kubeinit_cluster_keypair_path }}"
     _param_dest_path: "{{ kubeinit_cluster_ssh_config }}"
-    _param_include_paths: "{{ [_result_default_ssh_config_stat.stat.path] if (_result_default_ssh_config_stat.stat.exists) else [] }}"
+    _param_include_paths:
+      "{{ [_result_kubeinit_ssh_config_stat.stat.path] if (_result_kubeinit_ssh_config_stat.stat.exists) else [_result_ssh_config_stat.stat.path] if (_result_ssh_config_stat.stat.exists) else [] }}"
 
 - name: Copy ssh key secret into ~/.ssh
   ansible.builtin.copy:
