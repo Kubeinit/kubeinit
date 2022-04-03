@@ -14,14 +14,83 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Install podman dependencies if requested
+  block:
 
-- name: Install podman dependencies
-  ansible.builtin.package:
-    name: "{{ kubeinit_prepare_podman_dependencies }}"
-    state: present
-  become: true
-  become_user: root
-  when: _param_install_dependencies | default(true)
+    - name: Setup kubic repo for Debian distribution
+      block:
+
+        - name: Set cgroup_manager for debian release
+          ansible.builtin.copy:
+            content: |
+              [engine]
+              cgroup_manager = "cgroupfs"
+            dest: '/etc/containers/containers.conf'
+            mode: '0644'
+          become: true
+          become_user: root
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _version: "{{ _param_hostvars.ansible_distribution_version.split('-')[0] }}"
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _stability: "{{ 'stable' if (_version is version('11', 'le')) else 'testing' }}"
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _path_element: "{{ _stability + '/' + _param_hostvars.ansible_distribution + '_' + _version }}"
+
+      when: _param_hostvars.ansible_distribution == 'Debian'
+
+    - name: Setup kubic repo for Ubuntu distribution
+      block:
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _version: "{{ _param_hostvars.ansible_distribution_version }}"
+            _stability: "{{ 'stable' if (_param_hostvars.ansible_distribution_version is version('21.04', 'le')) else 'testing' }}"
+
+        - name: Set version facts
+          ansible.builtin.set_fact:
+            _path_element: "{{ _stability + '/x' + _param_hostvars.ansible_distribution + '_' + _version }}"
+
+      when: _param_hostvars.ansible_distribution == 'Ubuntu'
+
+    - name: Setup kubic repo for Debian family
+      block:
+
+        - name: Make sure we have curl installed
+          ansible.builtin.package:
+            name: curl
+            state: present
+          become: true
+          become_user: root
+
+        - name: Add the Podman kubic package repository to Apt
+          ansible.builtin.shell: |
+            set -eo pipefail
+            echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:{{ _stability }}.list
+            curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/Release.key" | apt-key add -
+            apt-get update
+          args:
+            executable: /bin/bash
+          become: true
+          become_user: root
+          register: _result
+          changed_when: "_result.rc == 0"
+
+      when: _param_hostvars.distribution_family == 'Debian'
+
+    - name: Install podman dependencies
+      ansible.builtin.package:
+        name: "{{ kubeinit_prepare_podman_dependencies }}"
+        state: present
+      become: true
+      become_user: root
+
+  when: _param_install_dependencies | default(false)
 
 - name: Authenticate with dockerhub username/password if defined
   block:
