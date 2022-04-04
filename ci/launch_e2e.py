@@ -187,7 +187,7 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
         url = os.getenv('CI_PIPELINE_URL', "")
         print("'launch_e2e.py' ==> The job results will be published in runtime at: " + url)
 
-        labels = get_periodic_jobs_labels(job_label)
+        labels = get_periodic_jobs_labels(cluster_type, job_label)
         print("'launch_e2e.py' ==> All the labels to check are")
         print(labels)
 
