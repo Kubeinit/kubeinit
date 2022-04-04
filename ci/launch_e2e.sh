@@ -208,7 +208,7 @@ cat ./kubeinit/inventory || true
 
 kubeinit -b > ./kubeinit/aux_info_file.txt
 echo "" >> ./kubeinit/aux_info_file.txt
-echo "(launch_e2e.sh) ==> Hosts OS: ${OS_VERSION}" >> ./kubeinit/aux_info_file.txt
+echo "(launch_e2e.sh) ==> Hosts OS: ${OS_VERSION} - $(ip route get "8.8.8.8" | grep -Po '(?<=(src )).*(?= uid)')" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> Date: $(date +"%Y.%m.%d.%H.%M.%S")" >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> Kubeinit agent/cli version: $(kubeinit -v) " >> ./kubeinit/aux_info_file.txt
 echo "(launch_e2e.sh) ==> The repository is: ${REPOSITORY}" >> ./kubeinit/aux_info_file.txt
