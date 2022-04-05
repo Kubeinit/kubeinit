@@ -263,7 +263,8 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
                 -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
                 -e kubeinit_spec=${SPEC} \
                 -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
-                -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER']' \
+                -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER',network=10.0.'$COUNTER'.0/24]' \
+                -e hypervisor_hosts_spec='[[ansible_host=nyctea],[ansible_host=tyto]]' \
                 ./kubeinit/playbook.yml
             COUNTER="1"
         done
@@ -302,7 +303,8 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
             -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
             -e kubeinit_spec=${SPEC} \
             -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
-            -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER']' \
+            -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER',network=10.0.'$COUNTER'.0/24]' \
+            -e hypervisor_hosts_spec='[[ansible_host=nyctea],[ansible_host=tyto]]' \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./kubeinit/playbook.yml
         COUNTER="1"
