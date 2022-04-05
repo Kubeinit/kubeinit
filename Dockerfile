@@ -29,6 +29,8 @@ RUN set -x && \
     useradd --create-home --uid $UID --gid 0 $USER && \
     ln -s $HOME/kubeinit/ /kubeinit
 
+WORKDIR $HOME/kubeinit
+
 RUN chown -R ${USER}:0 $HOME
 
 USER $USER
@@ -43,8 +45,6 @@ RUN set -x && \
     python3 -m pip install --user --upgrade wheel && \
     python3 -m pip install --user --upgrade ansible && \
     python3 -m pip install --user --upgrade shyaml netaddr ipython
-
-WORKDIR $HOME/kubeinit
 
 COPY --chown=${USER}:0 . .
 

@@ -82,8 +82,6 @@ ansible-galaxy collection build -v --force --output-path releases/
 ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
 cd ..
 
-cat ./kubeinit/inventory || true
-
 export ANSIBLE_CALLBACK_PLUGINS="$(python3 -m ara.setup.callback_plugins)"
 export ANSIBLE_ACTION_PLUGINS="$(python3 -m ara.setup.action_plugins)"
 export ANSIBLE_LOAD_CALLBACK_PLUGINS=true
@@ -110,17 +108,11 @@ if [[ ${DISTRO} == *.* ]] ; then
     SECOND_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${SECOND_DISTRO}}"
     KUBEINIT_SPEC="${FIRST_KUBEINIT_SPEC},${SECOND_KUBEINIT_SPEC}"
 
-    # We enable two cluster ids in the inventory for both the cluster name and the network and
-    # add submariner to the post-deployment services
-    sed -i -e "/# cluster0/ s/# cluster0/${FIRST_DISTRO}cluster/" kubeinit/inventory
-    sed -i -e "/# cluster1/ s/# cluster1/${SECOND_DISTRO}cluster/" kubeinit/inventory
-    sed -i -e "/# kimgtnet/ s/# kimgtnet/kimgtnet/" kubeinit/inventory
-
     # We will enable only submariner in the
     # case of having a multicluster deployment
     # for okd.rke
     if [[ "$DISTRO" == "okd.rke" ]]; then
-        sed -i -e "/kubeinit_inventory_post_deployment_services/ s/none/submariner/" kubeinit/inventory
+        POST_DEPLOYMENT_SERVICES='submariner'
     fi
 fi
 
@@ -133,32 +125,38 @@ export > ../export_$ARA_PLAYBOOK_LABEL
 
 if [[ "$RUN_MODE" == "h" ]]; then
     {
+        COUNTER="0"
         for SPEC in $KUBEINIT_SPEC; do
             echo "(launch_e2e.sh) ==> Deploying ${SPEC}"
             ansible-playbook \
                 --user root \
                 -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
-                -i ./kubeinit/inventory \
                 -e ara_playbook_name=${ARA_PLAYBOOK_NAME}-deployment \
                 -e ara_playbook_labels=${ARA_PLAYBOOK_LABEL},${KUBEINIT_SPEC_LABEL},deployment \
                 -e kubeinit_spec=${SPEC} \
+                -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
+                -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER']' \
                 ./kubeinit/playbook.yml
+            COUNTER="1"
         done
     } || {
         echo "(launch_e2e.sh) ==> The deployment failed, we still need to run the cleanup tasks"
         FAILED="1"
     }
+    COUNTER="0"
     for SPEC in $KUBEINIT_SPEC; do
         echo "(launch_e2e.sh) ==> Cleaning ${SPEC}"
         ansible-playbook \
             --user root \
             -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
-            -i ./kubeinit/inventory \
             -e ara_playbook_name=${ARA_PLAYBOOK_NAME}-cleanup \
             -e ara_playbook_labels=${ARA_PLAYBOOK_LABEL},${KUBEINIT_SPEC_LABEL},cleanup \
             -e kubeinit_spec=${SPEC} \
+            -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
+            -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER']' \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./kubeinit/playbook.yml
+        COUNTER="1"
     done
 else
     echo "(launch_e2e.sh) ==> The parameter launch from do not match a valid value [c|h]"

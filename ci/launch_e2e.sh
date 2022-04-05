@@ -158,15 +158,6 @@ podman exec -it api-server /bin/bash -c "ara-manage migrate"
 # End ARA configuration
 #
 
-# #
-# # Adjust the inventory
-# #
-# # This is dinamically alocated based on the spec string
-# if [[ "$HYPERVISORS" == "2" ]]; then
-#     # We enable the other HV
-#     sed -i -e "/# hypervisor-02 ansible_host=tyto/ s/# //g" kubeinit/inventory
-# fi
-
 #
 # Install the CLI/agent
 #
@@ -181,6 +172,7 @@ KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 if [[ $DISTRO == *.* ]] ; then
     FIRST_DISTRO="$(cut -d'.' -f1 <<<"${DISTRO}")"
     SECOND_DISTRO="$(cut -d'.' -f2 <<<"${DISTRO}")"
+
     FIRST_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${FIRST_DISTRO}}"
     SECOND_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${SECOND_DISTRO}}"
     KUBEINIT_SPEC="${FIRST_KUBEINIT_SPEC},${SECOND_KUBEINIT_SPEC}"
@@ -192,15 +184,8 @@ if [[ $DISTRO == *.* ]] ; then
         # TODO:FIXME: Submariner might be configured like
         # submariner=broker or submariner=secondary
         POST_DEPLOYMENT_SERVICES='submariner'
-    # We enable two cluster ids in the inventory for both the cluster name and the network
-    sed -i -e "/# cluster0/ s/# cluster0/${FIRST_DISTRO}cluster/" kubeinit/inventory
-    sed -i -e "/# cluster1/ s/# cluster1/${SECOND_DISTRO}cluster/" kubeinit/inventory
-    sed -i -e "/# kimgtnet/ s/# kimgtnet/kimgtnet/" kubeinit/inventory
     fi
 fi
-
-echo "(launch_e2e.sh) ==> The inventory content..."
-cat ./kubeinit/inventory || true
 
 #
 # Create aux file with environment information
@@ -246,12 +231,6 @@ tee ./playbook_tmp.yml << endoffile
         value: "{{ lookup('file', './aux_info_file.txt') }}"
         type: text
 
-    - name: Record host file
-      ara_record:
-        key: inventory
-        value: "{{ lookup('file', './inventory') }}"
-        type: text
-
 endoffile
 
 # This will concatenate to the deployment playbook
@@ -276,17 +255,17 @@ KUBEINIT_SPEC=${KUBEINIT_SPEC//,/$'\n'}
 
 if [[ "$LAUNCH_FROM" == "h" ]]; then
     {
+        COUNTER="0"
         for SPEC in $KUBEINIT_SPEC; do
-        echo "(launch_e2e.sh) ==> Deploying ${SPEC}"
-            CLUSTER_NAME="$(cut -d'-' -f1 <<<"${SPEC}")"
+            echo "(launch_e2e.sh) ==> Deploying ${SPEC}"
             ansible-playbook \
                 --user root \
                 -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
-                -i ./kubeinit/inventory \
-                -e kubeinit_inventory_cluster_name=${CLUSTER_NAME}cluster \
-                -e kubeinit_inventory_post_deployment_services="${POST_DEPLOYMENT_SERVICES:-none}" \
                 -e kubeinit_spec=${SPEC} \
+                -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
+                -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER']' \
                 ./kubeinit/playbook.yml
+            COUNTER="1"
         done
     } || {
         echo "(launch_e2e.sh) ==> The deployment failed, we still need to run the cleanup tasks"
@@ -315,18 +294,18 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
         done
     fi
 
+    COUNTER="0"
     for SPEC in $KUBEINIT_SPEC; do
         echo "(launch_e2e.sh) ==> Cleaning ${SPEC}"
-        CLUSTER_NAME="$(cut -d'-' -f1 <<<"${SPEC}")"
         ansible-playbook \
             --user root \
             -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
-            -i ./kubeinit/inventory \
-            -e kubeinit_inventory_cluster_name=${CLUSTER_NAME}cluster \
-            -e kubeinit_inventory_post_deployment_services="${POST_DEPLOYMENT_SERVICES:-none}" \
             -e kubeinit_spec=${SPEC} \
+            -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
+            -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER']' \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./kubeinit/playbook.yml
+        COUNTER="1"
     done
 else
     echo "(launch_e2e.sh) ==> The parameter launch from do not match a valid value [c|h]"
