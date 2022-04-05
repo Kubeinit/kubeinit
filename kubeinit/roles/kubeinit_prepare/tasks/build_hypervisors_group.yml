@@ -149,8 +149,19 @@
     hypervisor_name_pattern: "{{ kubeinit_cluster_map['hypervisor_name_pattern'] | default(omit) }}"
     controller_name_pattern: "{{ kubeinit_cluster_map['controller_name_pattern'] | default(omit) }}"
     compute_name_pattern: "{{ kubeinit_cluster_map['compute_name_pattern'] | default(omit) }}"
-    post_deployment_services: "{{ kubeinit_cluster_map['post_deployment_services'] | default(omit) }}"
   when: kubeinit_cluster_map is defined
+
+- name: Load post_deployment_services_spec from yaml into a list
+  ansible.builtin.set_fact:
+    post_deployment_services_list: "{{ post_deployment_services_spec | from_yaml }}"
+  when: post_deployment_services_spec is defined
+
+- name: Add post_deployment_services_list to kubeinit_cluster group
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_name }}"
+    groups: 'kubeinit_cluster'
+    post_deployment_services: "{{ post_deployment_services_list }}"
+  when: post_deployment_services_list | default([]) | length > 0
 
 - name: Assert that we have enough hypervisors defined for this cluster if they are provided by the inventory
   ansible.builtin.assert:
