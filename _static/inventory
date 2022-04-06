@@ -2,55 +2,87 @@
 # Hosts definitions
 #
 
+###
 # The cluster's guest machines can be distributed across mutiple hosts. By default they
 # will be deployed in the first Hypervisor. These hypervisors are activated and used
 # depending on how they are referenced in the kubeinit spec string.
 #
 # When we are running the setup-playbook, if a hypervisor host has an ssh_hostname attribute
 # then a .ssh/config file will be created and an entry mapping the ansible_host to that
-# ssh hostname will be created. In the first commented out example we would associate
+# ssh hostname will be created. In the first example we would associate
 # the ansible_host of the first hypervisor host "nyctea" with the hostname provided, it
 # can be a short or fully qualified name, but it needs to be resolvable on the host we
 # are running the kubeinit setup from. The second example uses a host ip address, which
 # can be useful in those cases where the host you are using doesn't have a dns name.
+#
+# .. code-block:: yaml
+#
+#    hypervisor_hosts:
+#        hypervisor-01:
+#            ansible_host: nyctea
+#            ssh_hostname: server1.example.com
+#        hypervisor-02:
+#            ansible_host: tyto
+#            ssh_hostname: 192.168.222.202
+hypervisor_hosts:
+  hypervisor-01:
+    ansible_host: nyctea
+  hypervisor-02:
+    ansible_host: tyto
 
-[hypervisor_hosts]
-hypervisor-01 ansible_host=nyctea
-hypervisor-02 ansible_host=tyto
-# hypervisor-01 ansible_host=nyctea ssh_hostname=server1.example.com
-# hypervisor-02 ansible_host=tyto ssh_hostname=192.168.222.202
-
+###
 # The inventory will have one host identified as the bastion host. By default, this role will
-# be assumed by the first hypervisor, which is the same behavior as the first commented out
-# line. The second commented out line would set the second hypervisor to be the bastion host.
-# The final commented out line would set the bastion host to be a different host that is not
+# be assumed by the first hyperviso. The example would set the second hypervisor to be the bastion host.
+# The final example would set the bastion host to be a different host that is not
 # being used as a hypervisor for the guests VMs for the clusters using this inventory.
+#
+# .. code-block:: yaml
+#
+#    bastion_host:
+#        bastion:
+#            ansible_host: hypervisor-02
+#
+# .. code-block:: yaml
+#
+#    bastion_host:
+#        bastion:
+#            ansible_host: bastion
+bastion_host:
+  bastion:
+    target: hypervisor-01
 
-[bastion_host]
-# bastion target=hypervisor-01
-# bastion target=hypervisor-02
-# bastion ansible_host=bastion
-
+###
 # The inventory will have one host identified as the ovn-central host. By default, this role
-# will be assumed by the first hypervisor, which is the same behavior as the first commented
-# out line. The second commented out line would set the second hypervisor to be the ovn-central
-# host.
+# will be assumed by the first hypervisor. The first example would set the second hypervisor
+# to be the ovn-central host.
+#
+# .. code-block:: yaml
+#
+#    ovn_central_host:
+#        target: hypervisor-02
+ovn_central_host:
+  target: hypervisor-01
 
-[ovn_central_host]
-# ovn-central target=hypervisor-01
-# ovn-central target=hypervisor-02
-
+###
 #
 # Setup host definition (used only with the setup-playbook.yml)
 #
-
+#
 # This inventory will have one host identified as the setup host. By default, this will be
-# localhost, which is the same behavior as the first commented out line. The second commented
-# out line would set the first hypervisor host to be the setup host. The final commented out
-# line would set the setup host to be a different host that is not being used as a hypervisor
-# in this inventory.
-
-[setup_host]
-# kubeinit-setup ansible_host=localhost
-# kubeinit-setup ansible_host=nyctea
-# kubeinit-setup ansible_host=192.168.222.214
+# localhost. The first example would set the first hypervisor host to be the setup host.
+# The last example would set the setup host to be a different host that is not being used
+# as a hypervisor in this inventory.
+#
+# .. code-block:: yaml
+#
+#    setup_host:
+#        ansible_host: nyctea
+#
+# or
+#
+# .. code-block:: yaml
+#
+#    setup_host:
+#        ansible_host: 192.168.222.214
+setup_host:
+  ansible_host: localhost
