@@ -196,7 +196,8 @@ python3 -m pip install \
     jinja2 \
     urllib3 \
     google-cloud-storage \
-    b2sdk
+    b2sdk \
+    yq
 
 # Install and configure ara
 # There are problems with multithread ara, we keep the last

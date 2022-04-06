@@ -126,7 +126,7 @@ ansible-galaxy collection install --force --force-with-deps releases/kubeinit-ku
 ansible-playbook \
     -v --user root \
     -e kubeinit_spec=okd-libvirt-3-1-1 \
-    -i ./kubeinit/inventory \
+    -i ./kubeinit/inventory.yml \
     ./kubeinit/playbook.yml
 ```
 
@@ -164,7 +164,7 @@ podman run --rm -it \
     kubeinit/kubeinit \
         -v --user root \
         -e kubeinit_spec=okd-libvirt-3-1-1 \
-        -i ./kubeinit/inventory \
+        -i ./kubeinit/inventory.yml \
         ./kubeinit/playbook.yml
 ```
 
@@ -180,7 +180,7 @@ podman run --rm -it \
     quay.io/kubeinit/kubeinit:$TAG \
         -v --user root \
         -e kubeinit_spec=okd-libvirt-3-1-1 \
-        -i ./kubeinit/inventory \
+        -i ./kubeinit/inventory.yml \
         ./kubeinit/playbook.yml
 ```
 

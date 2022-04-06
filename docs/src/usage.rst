@@ -133,6 +133,13 @@ are handled using the following variables.
 
 .. autoyaml:: kubeinit/group_vars/kubeinit_secrets.yml
 
+Inventory
+---------
+
+The following einventory structure must be followed.
+
+.. autoyaml:: kubeinit/inventory.yml
+
 Directly executing the deployment playbook
 ------------------------------------------
 
@@ -146,7 +153,7 @@ in a single command and in approximately 30 minutes.
     ansible-playbook \
         -v --user root \
         -e kubeinit_spec=okd-libvirt-3-2-1 \
-        -i ./kubeinit/inventory \
+        -i ./kubeinit/inventory.yml \
         ./kubeinit/playbook.yml
 
 After provisioning any of the scenarios, you should have your environment ready to go.
@@ -183,7 +190,7 @@ Running from the GIT repository
         kubeinit/kubeinit \
             -v --user root \
             -e kubeinit_spec=okd-libvirt-3-2-1 \
-            -i ./kubeinit/inventory \
+            -i ./kubeinit/inventory.yml \
             ./kubeinit/playbook.yml
 
 Running from a release
@@ -200,7 +207,7 @@ Running from a release
         quay.io/kubeinit/kubeinit:$TAG \
             -v --user root \
             -e kubeinit_spec=okd-libvirt-3-2-1 \
-            -i ./kubeinit/inventory \
+            -i ./kubeinit/inventory.yml \
             ./kubeinit/playbook.yml
 
 Connecting to the cluster
@@ -286,7 +293,7 @@ from the project's root folder:
         -v --user root \
         -e kubeinit_spec=okd-libvirt-3-2-1 \
         -e kubeinit_stop_after_task=task-cleanup-hypervisors \
-        -i ./kubeinit/inventory \
+        -i ./kubeinit/inventory.yml \
         ./kubeinit/playbook.yml
 
 In this case the deployment will stop just after cleaning the

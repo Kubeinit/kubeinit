@@ -22,12 +22,6 @@ Copyright (c) 2018 David Garcia
 Original from: https://github.com/dgarcia360/sphinx-contributors
 """
 
-# -*- encoding: utf-8 -*-
-#
-# (c) 2018 David Garcia (@dgarcia360)
-# This code is licensed under MIT license (see LICENSE.md for details)
-
-
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 
