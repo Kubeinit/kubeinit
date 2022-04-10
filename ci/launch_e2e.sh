@@ -255,9 +255,10 @@ KUBEINIT_SPEC=${KUBEINIT_SPEC//,/$'\n'}
 
 if [[ "$LAUNCH_FROM" == "h" ]]; then
     {
-        COUNTER="0"
+        COUNTER="-1"
         for SPEC in $KUBEINIT_SPEC; do
             echo "(launch_e2e.sh) ==> Deploying ${SPEC}"
+            COUNTER=$(($COUNTER + 1))
             ansible-playbook \
                 --user root \
                 -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
@@ -266,7 +267,8 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
                 -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER',network=10.0.'$COUNTER'.0/24]' \
                 -e hypervisor_hosts_spec='[[ansible_host=nyctea],[ansible_host=tyto]]' \
                 ./kubeinit/playbook.yml
-            COUNTER="1"
+            # We can not have any other command after
+            # 'ansible-playbook' otherwise the || wont work
         done
     } || {
         echo "(launch_e2e.sh) ==> The deployment failed, we still need to run the cleanup tasks"
@@ -295,9 +297,10 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
         done
     fi
 
-    COUNTER="0"
+    COUNTER="-1"
     for SPEC in $KUBEINIT_SPEC; do
         echo "(launch_e2e.sh) ==> Cleaning ${SPEC}"
+        COUNTER=$(($COUNTER + 1))
         ansible-playbook \
             --user root \
             -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
@@ -307,7 +310,6 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
             -e hypervisor_hosts_spec='[[ansible_host=nyctea],[ansible_host=tyto]]' \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./kubeinit/playbook.yml
-        COUNTER="1"
     done
 else
     echo "(launch_e2e.sh) ==> The parameter launch from do not match a valid value [c|h]"

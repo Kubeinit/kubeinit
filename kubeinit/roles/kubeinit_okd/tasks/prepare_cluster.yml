@@ -126,6 +126,28 @@
       register: _result
       changed_when: "_result.rc == 0"
 
+    - name: Check FCOS version and stream match
+      ansible.builtin.shell: |
+        set -o pipefail
+        main_str=$(openshift-install coreos print-stream-json | jq -r '.architectures.x86_64.artifacts.openstack.formats["qcow2.xz"]'.disk.location)
+        if [[ "$main_str" == *"{{ kubeinit_okd_fcos_release }}"* ]]; then
+            echo "OK: The deployed FCOS version matches the openshift installer information."
+        else
+            echo "FAILURE: The deployed FCOS version {{ kubeinit_okd_fcos_release }} do not match the openshift installer information."
+            echo "FAILURE: It should be: $main_str"
+        fi
+        if [[ "$main_str" == *"{{ kubeinit_okd_fcos_stream }}"* ]]; then
+            echo "OK: The deployed FCOS stream matches the openshift installer information."
+        else
+            echo "FAILURE: The deployed FCOS stream {{ kubeinit_okd_fcos_stream }} do not match the openshift installer information."
+            echo "FAILURE: It should be testing of stable depending on: $main_str"
+        fi
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      failed_when: "'FAILURE' in _result.stdout"
+
     #
     # Configure local registry
     #
