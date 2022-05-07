@@ -152,6 +152,8 @@ keys needs to be also updated.
 
 ### Running from the GIT repository
 
+**Note:** Won't work with ARM.
+
 ```
 git clone https://github.com/Kubeinit/kubeinit.git
 cd kubeinit
@@ -171,6 +173,8 @@ podman run --rm -it \
 ### Running from a release
 
 ```
+Install [jq](https://stedolan.github.io/jq/)
+
 # Get latest release tag name
 TAG=$(curl --silent "https://api.github.com/repos/kubeinit/kubeinit/releases/latest" | jq -r .tag_name)
 podman run --rm -it \
