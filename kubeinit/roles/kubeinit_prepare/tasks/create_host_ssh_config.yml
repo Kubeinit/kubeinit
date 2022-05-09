@@ -14,41 +14,44 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+### DOCUMENTATION
 #
-# Create an ssh config file for a list of hosts
+# title: Create an ssh config file for a list of hosts
 #
-# This task has two params for the template task below
-# - _param_dest_path        optional       default: '~/.ssh/config'
-# - _param_file_mode        optional       default: '0644'
+# description: |-
+#   This task has two params for the template task below
+#     - config_path      optional       default: '~/.ssh/config'
+#     - file_mode        optional       default: '0644'
 #
-# and two passthrough params for the template itself
-# - _param_hosts            required       list of hosts
-# - _param_keypair_path     optional       default: '~/.ssh/id_' + kubeinit_ssh_keytype
-# - _param_include_paths    optional       default: empty list
+#   and two passthrough params for the template itself
+#     - ssh_hosts        required       list of hosts
+#     - keypair_path     optional       default: '~/.ssh/id_' + kubeinit_ssh_keytype
+#     - include_paths    optional       default: empty list
 #
-# kubeinit_ssh_keytype must be defined (otherwise defaults to 'rsa')
+#   kubeinit_ssh_keytype must be defined (otherwise defaults to 'rsa')
 #
-# The hosts are used as hostvars keys meeting the following expectations:
+#   The hosts are used as hostvars keys meeting the following expectations:
 #
-# hostvars[host].ansible_host must be defined.
+#   hostvars[host].ansible_host must be defined.
+#
 #   A stanza will be added to the ssh config pairing each host with the
 #   corresponding ansible_host
 #
-# hostvars[host].ssh_connection_address may be defined
-# hostvars[host].ssh_hostname may be defined
+#   hostvars[host].ssh_connection_address may be defined
+#   hostvars[host].ssh_hostname may be defined
+#
 #   A stanza will be added to the ssh config pairing each ansible_host with either of
 #   these, in the order listed. If neither is defined then the pairing will be omitted.
 #
-# Example usage:
+# examples: |-
 #   - include_role:
 #       name: kubeinit.kubeinit.kubeinit_prepare
 #       tasks_from: create_host_ssh_config
 #     vars:
-#       _param_hosts: "{{ groups['kubeinit_hypervisors'] }}"
-#       _param_keypair_path: "{{ kubeinit_cluster_keypair_path }}"
-#       _param_dest_path: "{{ kubeinit_cluster_ssh_config }}"
-#       _param_file_mode: '0644'
-#
+#       ssh_hosts: "{{ groups['kubeinit_hypervisors'] }}"
+#       keypair_path: "{{ kubeinit_cluster_keypair_path }}"
+#       config_path: "{{ kubeinit_cluster_ssh_config }}"
+#       file_mode: '0644'
 
 - name: Create ssh config file from template
   ansible.builtin.template:
