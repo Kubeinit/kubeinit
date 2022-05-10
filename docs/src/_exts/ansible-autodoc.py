@@ -318,7 +318,7 @@ class AnsibleAutoPluginDirective(Directive):
                     tasks_list_section.append(
                         nodes.doctest_block(
                             text=tasks_description,
-                            classes=[''],
+                            classes=['roledocs'],
                         )
                     )
 
