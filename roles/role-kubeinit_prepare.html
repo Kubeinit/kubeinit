@@ -77,6 +77,7 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Role - kubeinit_prepare</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#r-o-l-e-d-o-c-u-m-e-n-t-a-t-i-o-n">Role Documentation</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#r-o-l-e-d-e-f-a-u-l-t-s">Role Defaults</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#t-a-s-k-s-f-i-l-e-s">Tasks files</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#m-o-l-e-c-u-l-e-s-c-e-n-a-r-i-o-s">Molecule Scenarios</a></li>
 </ul>
 </li>
@@ -144,6 +145,51 @@ for further information.</p><section id="r-o-l-e-d-e-f-a-u-l-t-s">
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span><span class="w"></span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">buildah</span><span class="w"></span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">skopeo</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="t-a-s-k-s-f-i-l-e-s">
+<h3>Tasks files<a class="headerlink" href="#t-a-s-k-s-f-i-l-e-s" title="Permalink to this headline"></a></h3>
+<dd><p>This section highlights all the documentation available in the tasks files.</p>
+</dd>
+<section id="t-a-s-k-f-i-l-e-c-r-e-a-t-e-h-o-s-t-s-s-h-c-o-n-f-i-g-y-m-l-c-r-e-a-t-e-a-n-s-s-h-c-o-n-f-i-g-f-i-l-e-f-o-r-a-l-i-s-t-o-f-h-o-s-t-s">
+<h4>Task file: create_host_ssh_config.yml - Create an ssh config file for a list of hosts<a class="headerlink" href="#t-a-s-k-f-i-l-e-c-r-e-a-t-e-h-o-s-t-s-s-h-c-o-n-f-i-g-y-m-l-c-r-e-a-t-e-a-n-s-s-h-c-o-n-f-i-g-f-i-l-e-f-o-r-a-l-i-s-t-o-f-h-o-s-t-s" title="Permalink to this headline"></a></h4>
+</section>
+<p>Description:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">This</span> <span class="n">task</span> <span class="n">has</span> <span class="n">two</span> <span class="n">params</span> <span class="k">for</span> <span class="n">the</span> <span class="n">template</span> <span class="n">task</span> <span class="n">below</span>
+  <span class="o">-</span> <span class="n">config_path</span>      <span class="n">optional</span>       <span class="n">default</span><span class="p">:</span> <span class="s1">&#39;~/.ssh/config&#39;</span>
+  <span class="o">-</span> <span class="n">file_mode</span>        <span class="n">optional</span>       <span class="n">default</span><span class="p">:</span> <span class="s1">&#39;0644&#39;</span>
+
+<span class="ow">and</span> <span class="n">two</span> <span class="n">passthrough</span> <span class="n">params</span> <span class="k">for</span> <span class="n">the</span> <span class="n">template</span> <span class="n">itself</span>
+  <span class="o">-</span> <span class="n">ssh_hosts</span>        <span class="n">required</span>       <span class="nb">list</span> <span class="n">of</span> <span class="n">hosts</span>
+  <span class="o">-</span> <span class="n">keypair_path</span>     <span class="n">optional</span>       <span class="n">default</span><span class="p">:</span> <span class="s1">&#39;~/.ssh/id_&#39;</span> <span class="o">+</span> <span class="n">kubeinit_ssh_keytype</span>
+  <span class="o">-</span> <span class="n">include_paths</span>    <span class="n">optional</span>       <span class="n">default</span><span class="p">:</span> <span class="n">empty</span> <span class="nb">list</span>
+
+<span class="n">kubeinit_ssh_keytype</span> <span class="n">must</span> <span class="n">be</span> <span class="n">defined</span> <span class="p">(</span><span class="n">otherwise</span> <span class="n">defaults</span> <span class="n">to</span> <span class="s1">&#39;rsa&#39;</span><span class="p">)</span>
+
+<span class="n">The</span> <span class="n">hosts</span> <span class="n">are</span> <span class="n">used</span> <span class="k">as</span> <span class="n">hostvars</span> <span class="n">keys</span> <span class="n">meeting</span> <span class="n">the</span> <span class="n">following</span> <span class="n">expectations</span><span class="p">:</span>
+
+<span class="n">hostvars</span><span class="p">[</span><span class="n">host</span><span class="p">]</span><span class="o">.</span><span class="n">ansible_host</span> <span class="n">must</span> <span class="n">be</span> <span class="n">defined</span><span class="o">.</span>
+
+<span class="n">A</span> <span class="n">stanza</span> <span class="n">will</span> <span class="n">be</span> <span class="n">added</span> <span class="n">to</span> <span class="n">the</span> <span class="n">ssh</span> <span class="n">config</span> <span class="n">pairing</span> <span class="n">each</span> <span class="n">host</span> <span class="k">with</span> <span class="n">the</span>
+<span class="n">corresponding</span> <span class="n">ansible_host</span>
+
+<span class="n">hostvars</span><span class="p">[</span><span class="n">host</span><span class="p">]</span><span class="o">.</span><span class="n">ssh_connection_address</span> <span class="n">may</span> <span class="n">be</span> <span class="n">defined</span>
+<span class="n">hostvars</span><span class="p">[</span><span class="n">host</span><span class="p">]</span><span class="o">.</span><span class="n">ssh_hostname</span> <span class="n">may</span> <span class="n">be</span> <span class="n">defined</span>
+
+<span class="n">A</span> <span class="n">stanza</span> <span class="n">will</span> <span class="n">be</span> <span class="n">added</span> <span class="n">to</span> <span class="n">the</span> <span class="n">ssh</span> <span class="n">config</span> <span class="n">pairing</span> <span class="n">each</span> <span class="n">ansible_host</span> <span class="k">with</span> <span class="n">either</span> <span class="n">of</span>
+<span class="n">these</span><span class="p">,</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">order</span> <span class="n">listed</span><span class="o">.</span> <span class="n">If</span> <span class="n">neither</span> <span class="ow">is</span> <span class="n">defined</span> <span class="n">then</span> <span class="n">the</span> <span class="n">pairing</span> <span class="n">will</span> <span class="n">be</span> <span class="n">omitted</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">-</span> <span class="n">include_role</span><span class="p">:</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">kubeinit</span><span class="o">.</span><span class="n">kubeinit</span><span class="o">.</span><span class="n">kubeinit_prepare</span>
+    <span class="n">tasks_from</span><span class="p">:</span> <span class="n">create_host_ssh_config</span>
+  <span class="nb">vars</span><span class="p">:</span>
+    <span class="n">ssh_hosts</span><span class="p">:</span> <span class="s2">&quot;{{ groups[&#39;kubeinit_hypervisors&#39;] }}&quot;</span>
+    <span class="n">keypair_path</span><span class="p">:</span> <span class="s2">&quot;{{ kubeinit_cluster_keypair_path }}&quot;</span>
+    <span class="n">config_path</span><span class="p">:</span> <span class="s2">&quot;{{ kubeinit_cluster_ssh_config }}&quot;</span>
+    <span class="n">file_mode</span><span class="p">:</span> <span class="s1">&#39;0644&#39;</span>
 </pre></div>
 </div>
 </section>
