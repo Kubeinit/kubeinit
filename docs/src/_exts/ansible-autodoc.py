@@ -232,6 +232,34 @@ class AnsibleAutoPluginDirective(Directive):
             print("A README.md is required in each role")
             sys.exit("A readme file in markdown is required per role")
 
+    @staticmethod
+    def _get_taskfile_documentation(task_file):
+        if os.path.exists(task_file):
+            with open(task_file) as f:
+                print("Reading the task file")
+                task_file = f.readlines()
+                in_docstring = False
+                docstring = False
+                docs = []
+                for line in task_file:
+                    line = line.lstrip()
+                    if line.startswith("### DOCUMENTATION"):
+                        in_docstring = True
+                        docstring = True
+                    elif line.startswith("# ") and in_docstring:
+                        line = line[len("# "):]
+                        docs.append(line)
+                    elif line.startswith("#") and in_docstring:
+                        line = line[len("#"):]
+                        docs.append(line)
+                    elif in_docstring:
+                        in_docstring = False
+                        break
+                if docstring is False:
+                    return docstring
+                else:
+                    return docs
+
     def _run_role(self, role):
         html = self._get_readme_html(os.path.join(role, 'README.md'))
 
@@ -254,6 +282,60 @@ class AnsibleAutoPluginDirective(Directive):
                                  ' role.'.format(os.path.basename(role))
                 )
             )
+
+        tasks_list_section = self._section_block(
+            title='Tasks files',
+            text='This section highlights all the documentation'
+                 ' available in the tasks files.'
+        )
+        task_files = [f for f in os.listdir(os.path.join(role, 'tasks')) if os.path.isfile(os.path.join(os.path.join(role, 'tasks'), f))]
+        for file in task_files:
+            task_file = os.path.join(role, 'tasks', file)
+            if os.path.exists(task_file):
+                task_docs = self._get_taskfile_documentation(task_file)
+                if task_docs:
+                    # Convert the data to a YAML object TODO:FIXME:optimize
+                    with open('aux_data.yml', 'w') as f:
+                        for ele in task_docs:
+                            f.write(ele)
+                    data = RYAML(typ='safe').load(open('aux_data.yml'))
+                    tasks_title = data['title']
+                    tasks_description = data['description']
+                    tasks_example = data['examples']
+
+                    tasks_list_section.append(
+                        self._section_block(
+                            title="Task file: %s - %s" % (file, tasks_title,)
+                        )
+                    )
+
+                    tasks_list_section.append(
+                        nodes.paragraph(
+                            text="Description:"
+                        )
+                    )
+
+                    tasks_list_section.append(
+                        nodes.doctest_block(
+                            text=tasks_description,
+                            classes=[''],
+                        )
+                    )
+
+                    tasks_list_section.append(
+                        nodes.paragraph(
+                            text="Examples:"
+                        )
+                    )
+
+                    tasks_list_section.append(
+                        nodes.literal_block(
+                            text=tasks_example
+                        )
+                    )
+
+        section.append(tasks_list_section)
+
         vars_path = os.path.join(role, 'vars')
         if os.path.exists(vars_path):
             for v_file in os.listdir(vars_path):
