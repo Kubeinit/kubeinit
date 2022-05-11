@@ -14,14 +14,16 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- block:
+- name: Update hosts and stop if required
+  block:
     - name: Gather kubeinit ci facts if needed
       ansible.builtin.include_tasks: gather_ci_facts.yml
       vars:
         facts_prepared: "{{ kubeinit_facts_name is defined }}"
       when: not facts_prepared
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: "Stop before 'task-prepare-environment' when requested"
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
@@ -168,7 +170,8 @@
 
   delegate_to: "{{ kubeinit_ci_host_name }}"
 
-- block:
+- name: UPdate hosts and stop if required
+  block:
     - name: Add task-prepare-environment to tasks_completed
       ansible.builtin.add_host:
         name: "{{ kubeinit_facts_name }}"
@@ -178,7 +181,8 @@
       ansible.builtin.set_fact:
         kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: Stop after 'task-prepare-environment' when requested
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play

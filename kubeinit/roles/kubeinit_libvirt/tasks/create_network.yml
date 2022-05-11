@@ -14,7 +14,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- block:
+- name: Clean hypervisors and stop if required
+  block:
     - name: Cleanup hypervisors if needed
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_prepare
@@ -24,7 +25,8 @@
         hypervisors_cleaned: "{{ kubeinit_facts_name is defined }}"
       when: not hypervisors_cleaned
 
-    - block:
+    - name: Stop the deployment
+      block:
         - name: "Stop before 'task-create-network' when requested"
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
@@ -570,7 +572,8 @@
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_ovn_central_host }}"
 
-- block:
+- name: Add hosts and stop if required
+  block:
     - name: Add task-create-network to tasks_completed
       ansible.builtin.add_host:
         name: "{{ kubeinit_facts_name }}"
@@ -580,7 +583,8 @@
       ansible.builtin.set_fact:
         kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: Stop after 'task-create-network' when requested
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play

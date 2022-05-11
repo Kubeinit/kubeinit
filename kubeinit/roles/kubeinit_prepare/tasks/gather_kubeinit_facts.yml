@@ -347,7 +347,8 @@
     candidate: "{{ item[1] }}"
   when: candidate in groups['kubeinit_hypervisors']
 
-- block:
+- name: Update hosts and stop the deployment if required
+  block:
     - name: Add tasks-gather-facts to tasks completed
       ansible.builtin.add_host:
         name: "{{ kubeinit_facts_name }}"
@@ -357,7 +358,8 @@
       ansible.builtin.set_fact:
         kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: Stop after 'task-gather-facts' when requested
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
