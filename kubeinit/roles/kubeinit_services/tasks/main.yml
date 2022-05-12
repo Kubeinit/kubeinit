@@ -14,7 +14,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- block:
+- name: Prepare the environment and stop the deployment if required
+  block:
     - name: Prepare environment if not prepared
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_prepare
@@ -23,7 +24,8 @@
         environment_prepared: "{{ kubeinit_facts_name is defined }}"
       when: not environment_prepared
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: "Stop before 'task-create-services' when requested"
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
@@ -57,7 +59,8 @@
     kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}-pod"
     kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
 
-- block:
+- name: Gather hosts facts and stop the deployment if required
+  block:
     - name: Add task-create-services to tasks_completed
       ansible.builtin.add_host:
         name: "{{ kubeinit_facts_name }}"
@@ -67,7 +70,8 @@
       ansible.builtin.set_fact:
         kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: Stop after 'task-create-services' when requested
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play

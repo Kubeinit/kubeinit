@@ -14,7 +14,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- block:
+- name: Prepare the environment and stop if required
+  block:
     - name: Prepare environment if not prepared
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_prepare
@@ -23,7 +24,8 @@
         environment_prepared: "{{ kubeinit_facts_name is defined }}"
       when: not environment_prepared
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: "Stop before 'task-download-images' when requested"
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
@@ -93,7 +95,8 @@
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
-- block:
+- name: Add hosts and stop if required
+  block:
     - name: Add task-download-images to tasks_completed
       ansible.builtin.add_host:
         name: "{{ kubeinit_facts_name }}"
@@ -103,7 +106,8 @@
       ansible.builtin.set_fact:
         kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: Stop after 'task-download-images' when requested
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play

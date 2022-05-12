@@ -14,7 +14,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- block:
+- name: Cleanup the hypervisors and stop the deployment if required
+  block:
     - name: Cleanup hypervisors if needed
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_prepare
@@ -24,7 +25,8 @@
         hypervisors_cleaned: "{{ kubeinit_facts_name is defined }}"
       when: not hypervisors_cleaned
 
-    - block:
+    - name: Gather hosts facts and stop the deployment if required
+      block:
         - name: "Stop before 'task-run-validations' when requested"
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
@@ -45,7 +47,8 @@
 - name: Check that the hypervisor has enough cores
   ansible.builtin.include_tasks: 30_libvirt_check_cpu_cores.yml
 
-- block:
+- name: Gather hosts facts and stop the deployment if required
+  block:
     - name: Add task-run-validations to tasks_completed
       ansible.builtin.add_host:
         name: "{{ kubeinit_facts_name }}"
@@ -55,7 +58,8 @@
       ansible.builtin.set_fact:
         kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: Stop after 'task-run-validations' when requested
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play

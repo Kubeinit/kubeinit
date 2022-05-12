@@ -14,7 +14,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- block:
+- name: Prepare the environment and stop if required
+  block:
     - name: Prepare environment if not prepared
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_prepare
@@ -23,7 +24,8 @@
         environment_prepared: "{{ kubeinit_facts_name is defined }}"
       when: not environment_prepared
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: "Stop before 'task-cleanup-hypervisors' when requested"
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
@@ -336,7 +338,8 @@
     tasks_from: cleanup_libvirt.yml
     public: true
 
-- block:
+- name: Include hosts and stop the deployment if required
+  block:
     - name: Add task-cleanup-hypervisors to tasks_completed
       ansible.builtin.add_host:
         name: "{{ kubeinit_facts_name }}"
@@ -346,7 +349,8 @@
       ansible.builtin.set_fact:
         kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: Stop after 'task-cleanup-hypervisors' when requested
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play

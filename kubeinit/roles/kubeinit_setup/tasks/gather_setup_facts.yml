@@ -14,8 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- block:
-    - block:
+- name: Omit from the documentation grapher
+  block:
+    - name: Gather hosts facts and stop the deployment if required
+      block:
         - name: "Stop before 'task-gather-facts' when requested"
           ansible.builtin.add_host: name='kubeinit-setup-facts' playbook_terminated=true
         - name: End play
@@ -224,7 +226,8 @@
     _param_dest_path: "{{ kubeinit_setup_ssh_config }}"
     _param_include_paths: "{{ [_result_default_ssh_config_stat.stat.path] if (_result_default_ssh_config_stat.stat.exists) else [] }}"
 
-- block:
+- name: Gather hosts facts and stop the deployment if required
+  block:
     - name: Add tasks-gather-facts to tasks completed
       ansible.builtin.add_host:
         name: "{{ kubeinit_facts_name }}"
@@ -234,7 +237,8 @@
       ansible.builtin.set_fact:
         kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-    - block:
+    - name: Stop the deployment if required
+      block:
         - name: Stop after 'task-gather-facts' when requested
           ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
         - name: End play
