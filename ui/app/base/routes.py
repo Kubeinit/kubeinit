@@ -16,6 +16,8 @@ License for the specific language governing permissions and limitations
 under the License.
 """
 
+from datetime import date
+
 import app
 from app import version as kubeinit_ui_version
 from app.base import blueprint
@@ -26,6 +28,9 @@ from app.base.k8sclient import (cluster_name_configured,
                                 web_terminal)
 
 from flask import jsonify, redirect, render_template, request, url_for
+
+from google.cloud import firestore
+
 # , session
 
 # from flask_login import (current_user,
@@ -33,7 +38,7 @@ from flask import jsonify, redirect, render_template, request, url_for
 #                          login_user,
 #                          logout_user)
 
-from google.cloud import firestore
+from models import DataCenter, db
 
 from pystol.lister import list_actions, show_actions
 
@@ -333,6 +338,81 @@ def internal_error(error):
     """
     return render_template('page-500.html',
                            template_folder="../home/templates/"), 500
+
+
+@blueprint.route('/api/v1/DataCenters', methods=['GET'])
+def get_datacenters():
+    """
+    Define a route.
+
+    This is a main routing method for getting the datacenters
+    """
+    #
+    # Basic authentication module requirement
+    # If the auth module is installed and the user is not authenticated, so go to login
+    #
+    session = {}
+    if hasattr(app, 'auth'):
+        try:
+            session = get_session_data(transaction=transaction, session_id=request.cookies.get('session_id'))
+        except Exception as e:
+            print(e)
+            return redirect(url_for('auth_blueprint.login'))
+    else:
+        session['kubeconfig'] = None
+    # not current_user.is_authenticated:
+    if hasattr(app, 'auth') and session['email'] is None:
+        return redirect(url_for('auth_blueprint.login'))
+    #
+    # End basic authentication requirement
+    #
+    print("------ Get DataCenters ------")
+    return jsonify(DataCenter.query.all())
+    # return jsonify({'hola':'mundo'})
+
+
+@blueprint.route('/api/v1/AddDataCenter', methods=['GET'])
+def add_datacenters():
+    """
+    Define a route.
+
+    This is a main routing method for getting the datacenters
+    """
+    #
+    # Basic authentication module requirement
+    # If the auth module is installed and the user is not authenticated, so go to login
+    #
+    session = {}
+    if hasattr(app, 'auth'):
+        try:
+            session = get_session_data(transaction=transaction, session_id=request.cookies.get('session_id'))
+        except Exception as e:
+            print(e)
+            return redirect(url_for('auth_blueprint.login'))
+    else:
+        session['kubeconfig'] = None
+    # not current_user.is_authenticated:
+    if hasattr(app, 'auth') and session['email'] is None:
+        return redirect(url_for('auth_blueprint.login'))
+    #
+    # End basic authentication requirement
+    #
+
+    cluster_1 = DataCenter(availability_zone='john',
+                           airport_name='john',
+                           name='john',
+                           created=date.today(),
+                           location='john')
+
+    db.session.add(cluster_1)
+    db.session.commit()
+
+    print("------ Get DataCenters ------")
+    dc = DataCenter.query.all()
+    print(dc)
+    # return jsonify(DataCenter.query.all())
+    return jsonify({'hola': 'mundo'})
+
 
 # Errors
 # @login_manager.unauthorized_handler
