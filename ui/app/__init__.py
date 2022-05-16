@@ -24,6 +24,8 @@ from os import path
 
 from flask import Flask, url_for
 
+from models import db
+
 # from flask_login import LoginManager
 
 app = Flask(__name__, static_folder='base/static')
@@ -150,4 +152,6 @@ def create_app(config, selenium=False):
     apply_themes(app)
     register_blueprints(app)
     app.jinja_env.globals.update(render_menu=render_menu)
+    db.init_app(app)
+
     return app

@@ -28,7 +28,7 @@ following the next steps.
 ```bash
 git clone git@github.com:kubeinit/kubeinit.git
 cd kubeinit/ui
-pip3 install -r requirements.txt
+python3 -m pip install -r requirements.txt
 export FLASK_APP=run.py
 # Set up the DEBUG environment
 #export FLASK_ENV=development
