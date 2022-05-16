@@ -507,7 +507,10 @@ def save_logs(output, job_name):
 
     print("'launch_e2e.py' ==> Removing aux files: " + root_folder_path)
     initial_time = datetime.now()
-    shutil.rmtree(root_folder_path)
+    if os.path.exists(root_folder_path) and os.path.isdir(root_folder_path):
+        shutil.rmtree(root_folder_path)
+    else:
+        print("'launch_e2e.py' ==> The folder %s was not found, logs were not rendered" % (root_folder_path))
     finish_time = datetime.now()
     exec_time = finish_time - initial_time
     print("'launch_e2e.py' ==> Removing the aux files took: %s seconds" % (str(exec_time.total_seconds())))
