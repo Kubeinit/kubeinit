@@ -24,6 +24,8 @@ from app import create_app
 
 from config import config_dict
 
+from models import db
+
 
 get_config_mode = environ.get('KUBEINIT_CONFIG_MODE', 'Debug')
 
@@ -35,6 +37,5 @@ except KeyError:
 app = create_app(config_mode)
 app.app_context().push()
 
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port='3000', threaded=True)
+db.drop_all(app=app)
+db.create_all(app=app)
