@@ -13,7 +13,7 @@ on:
     - cron: '0 */8 * * *'
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       max-parallel: 4
       matrix:
@@ -24,10 +24,15 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Build kubeinit/kubeinit container
-        run: podman build -t kubeinit/kubeinit .
       - name: Update package manager first, the runner could reference stale repos
         run: sudo apt-get update -y
+      - name: Install podman
+        run: |
+          sudo apt-get install podman dbus-x11 -y
+          CONTAINER_RUNTIME=$(podman system info --format=json | jq .host.ociRuntime.name)
+          echo "$CONTAINER_RUNTIME"
+      - name: Build kubeinit/kubeinit container
+        run: podman --cgroup-manager cgroupfs build -t kubeinit/kubeinit .
       - name: Setup ssh
         run: |
           ssh-keygen -t rsa -b 4096 -N '' -C "distro_test $(whoami)@$(hostname)" -f ~/.ssh/id_rsa
@@ -48,11 +53,11 @@ jobs:
           echo "  StrictHostKeyChecking accept-new" >> ~/.ssh/config
       - name: Run a deployment from the kubeinit/kubeinit container
         run: |
-          podman secret create kubeinit-ssh-key ~/.ssh/kubeinit_id_rsa
-          podman run --rm --network host \
+          podman --cgroup-manager cgroupfs secret create kubeinit-ssh-key ~/.ssh/kubeinit_id_rsa
+          podman --cgroup-manager cgroupfs run --rm --network host \
               --secret kubeinit-ssh-key \
               localhost/kubeinit/kubeinit:latest \
-                  -v \
+                  -vvv \
                   --user root \
                   -e hypervisor_hosts_spec="[[host=hypervisor-01,ansible_host=nyctea,ssh_hostname=$(hostname)]]" \
                   -e kubeinit_spec=cdk-libvirt-1-0-1-c \
