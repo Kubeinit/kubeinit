@@ -21,18 +21,6 @@ set -ex
 
 ci_mock_cmd="${ci_mock_cmd:-0}"
 
-install_deps() {
-    echo "(gitlab_ci_trigger.sh) ==> Install packages dependencies"
-    # Make sure dependencies are installed
-    if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
-        sudo dnf install -y git jq gh
-    fi
-
-    if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
-        sudo apt-get install -y git jq gh
-    fi
-}
-
 run_pr() {
     echo "(gitlab_ci_trigger.sh) ==> Run PR"
     echo "(gitlab_ci_trigger.sh) ==> Get open PRs"
@@ -124,7 +112,6 @@ main() {
     pr_regex='pr.*'
     if [[ $JOB_TYPE =~ $pr_regex ]]; then
         echo "(gitlab_ci_trigger.sh) ==> PR testing"
-        install_deps
         get_code
         run_pr
     fi

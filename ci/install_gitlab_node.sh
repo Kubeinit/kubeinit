@@ -42,7 +42,7 @@ fi
 
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     # Install jq
-    yum install -y jq
+    yum install -y jq gh
 
     # Install selinux python bindings
     yum install -y libselinux-python3
@@ -59,7 +59,7 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
 fi
 
 if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
-    apt-get install -y jq
+    apt-get install -y jq gh
 fi
 
 # Check disk free space
