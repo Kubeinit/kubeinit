@@ -51,6 +51,8 @@ run_pr() {
                 echo "(gitlab_ci_trigger.sh) ==> We assign the matching PR: $pr_number" ;
                 if [ "$ci_label_found" -eq "0" ]; then
                     test_params+="--job_label=${label} "
+                    IFS="-" read -a specarray <<< ${label}
+                    test_params+="--kubeinit_spec={'distro':\'${specarray[0]}\', 'driver': \'${specarray[1]}\', 'controllers':${specarray[2]}, 'computes':${specarray[3]}, 'wcomputes':1, 'hypervisors': ${specarray[4]}} "
                     test_params+="--pr_id=${pr_number} "
                     pr_id=${pr_number}
                 fi
@@ -100,6 +102,11 @@ run_periodic() {
     fi
     if [[ $JOB_LABEL ]]; then
         test_params+="--job_label=${JOB_LABEL} "
+        if [[ "${JOB_LABEL}" == *"-"* ]]; then
+            IFS="-" read -a specarray <<< ${JOB_LABEL}
+            test_params+="--kubeinit_spec={'distro':\'${specarray[0]}\', 'driver': \'${specarray[1]}\', 'controllers':${specarray[2]}, 'computes':${specarray[3]}, 'wcomputes':1, 'hypervisors': ${specarray[4]}} "
+        fi
+
     fi
 }
 

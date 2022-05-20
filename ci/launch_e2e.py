@@ -17,6 +17,7 @@ under the License.
 """
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -38,7 +39,7 @@ from pybadges import badge
 GH_LABELS = []
 
 
-def main(job_type, cluster_type, job_label, pr_id, verbosity):
+def main(job_type, cluster_type, job_label, kubeinit_spec, pr_id, verbosity):
     """Run the main method."""
     #
     # This method can deploy multiple
@@ -566,6 +567,11 @@ if __name__ == "__main__":
                         action='store',
                         type=valid_labels_regex,
                         help='The CI job label to be executed')
+    parser.add_argument('--kubeinit_spec',
+                        action='store',
+                        default={},
+                        type=json.loads,
+                        help='The Kubeinit spec dictionary')
 
     args = parser.parse_args()
     # The job type is a mandatory parameter
@@ -608,5 +614,6 @@ if __name__ == "__main__":
         main(job_type=args.job_type,
              cluster_type=args.cluster_type,
              job_label=args.job_label,
+             kubeinit_spec=args.kubeinit_spec,
              pr_id=args.pr_id,
              verbosity=args.verbosity)
