@@ -95,6 +95,33 @@
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
+#
+# Download extra cloud images for Windows compute nodes or any miscelaneous image requirement
+#
+
+- name: Create tuples for hosts and extra cloud images
+  ansible.builtin.set_fact:
+    all_hosts_extra_cloud_images: "{{ (all_hosts_extra_cloud_images | default([])) + ([hypervisor] | product(kubeinit_libvirt_extra_cloud_images)) }}"
+  loop: "{{ all_hosts_guest_vms }}"
+  vars:
+    hypervisor: "{{ item[0] }}"
+
+- name: Download extra cloud images
+  ansible.builtin.get_url:
+    validate_certs: False
+    use_proxy: True
+    url: "{{ cloud_image.uri }}{{ cloud_image.image }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ cloud_image.image }}"
+    force: no
+    mode: '0666'
+    owner: "{{ hostvars[kubeinit_deployment_node_name].libvirt_qemu_user }}"
+  loop: "{{ all_hosts_extra_cloud_images }}"
+  vars:
+    kubeinit_deployment_node_name: "{{ item[0] }}"
+    cloud_image: "{{ item[1] }}"
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+
 - name: Add hosts and stop if required
   block:
     - name: Add task-download-images to tasks_completed
