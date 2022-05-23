@@ -44,7 +44,7 @@
       register: _result
       failed_when: _result is not defined
 
-    - name: Setup kubic repo for Debian distribution
+    - name: Setup kubeinit repo for Debian distribution
       block:
 
         - name: Set cgroup_manager for debian release
@@ -71,21 +71,22 @@
 
       when: hostvars[kubeinit_setup_host_name].ansible_distribution == 'Debian'
 
-    - name: Setup kubic repo for Ubuntu distribution
+    - name: Setup kubeinit repo for Ubuntu distribution
       block:
 
         - name: Set version facts
           ansible.builtin.set_fact:
             _version: "{{ hostvars[kubeinit_setup_host_name].ansible_distribution_version }}"
-            _stability: "{{ 'stable' if (hostvars[kubeinit_setup_host_name].ansible_distribution_version is version('21.04', 'le')) else 'testing' }}"
+            _stability: "{{ 'stable' if (hostvars[kubeinit_setup_host_name].ansible_distribution_version is version('22.04', 'le')) else 'testing' }}"
 
         - name: Set version facts
           ansible.builtin.set_fact:
-            _path_element: "{{ _stability + '/x' + hostvars[kubeinit_setup_host_name].ansible_distribution + '_' + _version }}"
+            # _path_element: "{{ _stability + '/x' + hostvars[kubeinit_setup_host_name].ansible_distribution + '_' + _version }}"
+            _path_element: "{{ '/x' + hostvars[kubeinit_setup_host_name].ansible_distribution + '_' + _version }}"
 
       when: hostvars[kubeinit_setup_host_name].ansible_distribution == 'Ubuntu'
 
-    - name: Setup kubic repo for Debian family
+    - name: Setup kubeinit repo for Debian family
       block:
 
         - name: Make sure we have curl installed
@@ -95,11 +96,11 @@
           become: true
           become_user: root
 
-        - name: Add the Podman kubic package repository to Apt
+        - name: Add the Podman kubeinit package repository to Apt
           ansible.builtin.shell: |
             set -eo pipefail
-            echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:{{ _stability }}.list
-            curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/{{ _path_element }}/Release.key" | apt-key add -
+            echo "deb https://download.opensuse.org/repositories/home:/kubeinit/{{ _path_element }}/ /" > /etc/apt/sources.list.d/kubeinit.list
+            curl -L "https://download.opensuse.org/repositories/home:/kubeinit/{{ _path_element }}/Release.key" | apt-key add -
             apt-get update
           args:
             executable: /bin/bash

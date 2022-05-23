@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8-minimal
+FROM quay.io/centos/centos:stream8
 
 LABEL maintainer="Carlos Camacho <carloscamachoucv@gmail.com>"
 LABEL quay.expires-after=30w
@@ -12,12 +12,19 @@ ENTRYPOINT ["ansible-playbook", "-e", "kubeinit_container_run=true"]
 
 RUN set -x && \
     \
-    echo "==> Installing dependencies..."  && \
-    microdnf --noplugins update -y && rm -rf /var/cache/yum && \
-    microdnf --noplugins install -y python39 python39-pip openssh-clients podman jq && rm -rf /var/cache/yum && \
-    python3 -m pip install --upgrade netaddr && \
-    microdnf --noplugins install -y dnf && rm -rf /var/cache/yum && \
+    echo "==> Installing pacakges repo dependencies..."  && \
+    curl -L -o /etc/yum.repos.d/kubeinit.repo https://download.opensuse.org/repositories/home:/kubeinit/CentOS_8_Stream/home:kubeinit.repo && \
+    echo "priority=1" >> /etc/yum.repos.d/kubeinit.repo && \
+    echo "module_hotfixes=1" >> /etc/yum.repos.d/kubeinit.repo && \
+    dnf --noplugins update -y && rm -rf /var/cache/yum && \
     dnf upgrade -y && dnf clean all
+
+RUN set -x && \
+    \
+    echo "==> Installing packages dependencies..."  && \
+    dnf --noplugins install -y python39 python39-pip openssh-clients podman jq && rm -rf /var/cache/yum && \
+    python3 -m pip install --upgrade netaddr && rm -rf /var/cache/yum && \
+    dnf upgrade -y && dnf clean all && podman system migrate
 
 ARG USER=kiuser
 ARG UID=1001

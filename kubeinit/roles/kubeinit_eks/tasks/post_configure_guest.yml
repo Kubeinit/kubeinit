@@ -18,12 +18,9 @@
 # cri-o repos
 #
 
-- name: Download cri-o repos
+- name: Download cri-o (kubeinit) repos
   ansible.builtin.shell: |
-    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo \
-      https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8_Stream/devel:kubic:libcontainers:stable.repo
-    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_eks_kubernetes_version }}.repo \
-      https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_eks_kubernetes_version }}/CentOS_8_Stream/devel:kubic:libcontainers:stable:cri-o:{{ kubeinit_eks_kubernetes_version }}.repo
+    curl -L -o /etc/yum.repos.d/home:kubeinit.repo https://download.opensuse.org/repositories/home:/kubeinit/CentOS_8_Stream/home:kubeinit.repo
   args:
     executable: /bin/bash
   register: _result
@@ -37,6 +34,15 @@
   ansible.builtin.package:
     name: cri-o
     state: present
+
+- name: Make sure crio binary is reachable
+  ansible.builtin.shell: |
+    # Make sure crio binary is reachable
+    ln -s /usr/bin/crio /usr/local/bin/crio
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
 
 - name: Add insecure registry
   ansible.builtin.blockinfile:
