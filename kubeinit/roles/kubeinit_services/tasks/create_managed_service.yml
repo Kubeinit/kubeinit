@@ -56,6 +56,7 @@
     daemon_reexec: yes
     scope: user
   environment:
+    XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR|default('unix:path=/run/user/' +  ansible_effective_user_id|string) }}"
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
 - name: Enable {{ _param_systemd_service_name }}.service
@@ -64,6 +65,7 @@
     enabled: yes
     scope: user
   environment:
+    XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR|default('unix:path=/run/user/' +  ansible_effective_user_id|string) }}"
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"
 
 - name: Start {{ _param_systemd_service_name }}.service
@@ -72,4 +74,5 @@
     state: started
     scope: user
   environment:
+    XDG_RUNTIME_DIR: "{{ ansible_env.XDG_RUNTIME_DIR|default('unix:path=/run/user/' +  ansible_effective_user_id|string) }}"
     DBUS_SESSION_BUS_ADDRESS: "{{ ansible_env.DBUS_SESSION_BUS_ADDRESS|default('unix:path=/run/user/' +  ansible_effective_user_id|string + '/bus') }}"

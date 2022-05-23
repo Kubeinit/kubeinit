@@ -19,15 +19,19 @@ RUN set -x && \
     microdnf --noplugins install -y dnf && rm -rf /var/cache/yum && \
     dnf upgrade -y && dnf clean all
 
-ARG USER=kiuser
-ARG UID=1001
-ARG HOME=/home/$USER
+ARG USER=root
+ARG HOME=/root
+ARG UID=0
 
-RUN set -x && \
-    \
-    echo "==> Creating local user account..."  && \
-    useradd --create-home --uid $UID --gid 0 $USER && \
-    ln -s $HOME/kubeinit/ /kubeinit
+#ARG USER=kiuser
+#ARG UID=1537
+#ARG HOME=/home/$USER
+
+#RUN set -x && \
+#    \
+#    echo "==> Creating local user account..."  && \
+#    useradd --create-home --uid $UID --gid 0 $USER && \
+#    ln -s $HOME/kubeinit/ /kubeinit
 
 WORKDIR $HOME/kubeinit
 
