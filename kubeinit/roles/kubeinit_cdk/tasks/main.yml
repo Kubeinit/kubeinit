@@ -14,6 +14,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+- name: Show the cluster nodes
+  ansible.builtin.debug:
+    msg: "Node: {{ item }}"
+  loop: "{{ groups['all_cluster_nodes'] + groups['all_extra_nodes'] }}"
+
 - name: Deploy the cluster nodes
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
@@ -155,13 +160,13 @@
   delegate_to: "{{ kubeinit_provision_service_node }}"
   until: all_controllers_healthy_text == _result.stdout
 
-- name: Verify that the kubernetes_master application is up and healthy
+- name: Verify that the kubernetes_control_plane application is up and healthy
   ansible.builtin.shell: |
     set -o pipefail
     juju status --format=json | \
         sed 's/application-status/application_status/g' | \
-        sed 's/kubernetes-master/kubernetes_master/g' | \
-        jq -r .applications.kubernetes_master.application_status.message
+        sed 's/kubernetes-control-plane/kubernetes_control_plane/g' | \
+        jq -r .applications.kubernetes_control_plane.application_status.message
   args:
     executable: /bin/bash
   vars:
@@ -182,8 +187,8 @@
 
 - name: Get the kubectl binary and kubeconfig from the first controller node
   ansible.builtin.shell: |
-    juju scp kubernetes-master/0:/usr/bin/kubectl /usr/bin/kubectl
-    juju scp kubernetes-master/0:config ~/.kube/config
+    juju scp kubernetes-control-plane/0:/usr/bin/kubectl /usr/bin/kubectl
+    juju scp kubernetes-control-plane/0:config ~/.kube/config
   args:
     executable: /bin/bash
   register: _result
