@@ -253,6 +253,9 @@ echo "(launch_e2e.sh) ==> Deploying the cluster ..."
 FAILED="0"
 KUBEINIT_SPEC=${KUBEINIT_SPEC//,/$'\n'}
 
+# For enabling Windows deployments use the cluster_nodes_spec like
+# -e cluster_nodes_spec='[[when_group=compute_nodes,os=windows]]' \
+
 if [[ "$LAUNCH_FROM" == "h" ]]; then
     {
         COUNTER="-1"

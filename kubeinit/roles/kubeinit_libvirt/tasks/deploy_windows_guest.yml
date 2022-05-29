@@ -1,0 +1,306 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Deploy a Windows server guest
+  block:
+    - name: Print Windows EULA so users accept it
+      ansible.builtin.debug:
+        msg: |
+          *********************************************************************************************************************
+          * Please read: https://docs.microsoft.com/en-us/legal/windows-server/system-insights-eula                           *
+          *********************************************************************************************************************
+          * MICROSOFT.WINDOWSSERVER.SYSTEMINSIGHTS                                                                            *
+          * These license terms are an agreement between you and Microsoft Corporation (or one of its affiliates).            *
+          * They apply to the software named above and any Microsoft services or software updates (except to the              *
+          * extent such services or updates are accompanied by new or additional terms, in which case those                   *
+          * different terms apply prospectively and do not alter your or Microsoft's rights relating to pre-updated           *
+          * software or services).                                                                                            *
+          * IF YOU COMPLY WITH THESE LICENSE TERMS, YOU HAVE THE RIGHTS BELOW. BY USING THE SOFTWARE, YOU ACCEPT THESE TERMS. *
+          *********************************************************************************************************************
+          * If you do not comply with these license terms, please stop this deployment right now.                             *
+          *********************************************************************************************************************
+
+    - name: Wait 1 minute for displaying the EULA text
+      ansible.builtin.pause:
+        minutes: 1
+
+    - name: Remove old disk images
+      ansible.builtin.file:
+        path: "{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2"
+        state: absent
+
+    - name: Create the config data folder
+      ansible.builtin.file:
+        path: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/"
+        state: directory
+        mode: 0775
+        recurse: yes
+
+    - name: Create the config data folder template
+      ansible.builtin.template:
+        src: "autounattend.xml.j2"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/autounattend.xml"
+        mode: "0644"
+
+    - name: Render the se up script
+      ansible.builtin.template:
+        src: "windows_setup.ps1.j2"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/windows_setup.ps1"
+        mode: "0644"
+
+    - name: Get the Ansible install script
+      ansible.builtin.shell: |
+        wget https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1 \
+            -P {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Create the .iso disk with the install assets
+      ansible.builtin.shell: |
+        # We create an iso file with the config unnatended data
+        mkisofs -o {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}_config.iso -r -J {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Create a qcow empty disk to install the OS
+      ansible.builtin.shell: |
+        # We create the server disk image
+        qemu-img create -f qcow2 {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2 {{ hostvars[kubeinit_deployment_node_name].disk }}
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Install Windows
+      ansible.builtin.shell: |
+        virt-install \
+          --name={{ hostvars[kubeinit_deployment_node_name].guest_name }} \
+          --memory memory={{ hostvars[kubeinit_deployment_node_name].ram|int // 1024 }} \
+          --cpuset=auto \
+          --vcpus={{ hostvars[kubeinit_deployment_node_name].vcpus }},maxvcpus={{ hostvars[kubeinit_deployment_node_name].maxvcpus }} \
+          --network network={{ kubeinit_cluster_hostvars.network_name }},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }},target.dev=veth0-{{ hostvars[kubeinit_deployment_node_name].ansible_host | ansible.netcommon.ip4_hex }},model=virtio \
+          --disk path={{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2,format=qcow2,bus=virtio \
+          --cdrom {{ kubeinit_libvirt_target_image_dir }}/SERVER_EVAL_x64FRE_en-us.iso \
+          --disk path={{ kubeinit_libvirt_target_image_dir }}/virtio-win-0.1.217.iso,device=cdrom \
+          --disk path={{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}_config.iso,device=cdrom \
+          --os-type windows \
+          --os-variant win2k8 \
+          --vnc \
+          --autostart \
+          --console pty \
+          --connect qemu:///system \
+          --import \
+          --noautoconsole
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Wait until {{ hostvars[kubeinit_deployment_node_name].guest_name }} is running
+      community.libvirt.virt:
+        command: list_vms
+        state: running
+      register: _result
+      retries: 30
+      delay: 10
+      until: hostvars[kubeinit_deployment_node_name].guest_name in _result.list_vms
+
+    - name: Wait until {{ hostvars[kubeinit_deployment_node_name].guest_name }} setup finish and the guest is shut down
+      community.libvirt.virt:
+        command: list_vms
+        state: shutdown
+      register: _result
+      retries: 100
+      delay: 10
+      until: hostvars[kubeinit_deployment_node_name].guest_name in _result.list_vms
+
+    - name: Start {{ hostvars[kubeinit_deployment_node_name].guest_name }} again
+      community.libvirt.virt:
+        name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}"
+        state: running
+
+    - name: Wait until {{ hostvars[kubeinit_deployment_node_name].guest_name }} is running again
+      community.libvirt.virt:
+        command: list_vms
+        state: running
+      register: _result
+      retries: 30
+      delay: 10
+      until: hostvars[kubeinit_deployment_node_name].guest_name in _result.list_vms
+
+    - name: Show some information for connecting with VNC
+      ansible.builtin.debug:
+        msg: |
+          Make sure the VNC session is up and running with:
+          virsh vncdisplay {{ hostvars[kubeinit_deployment_node_name].guest_name }}
+          Create a tunnel from your machine to the hypervisor hosting the Windows guest
+          ssh root@tyto -L 5900:127.0.0.1:5900
+          from your machine connect to the VNC server at 127.0.0.1
+  delegate_to: "{{ kubeinit_deployment_delegate }}"
+
+- name: So far so good
+  ansible.builtin.fail:
+    msg: The deployment should be fine up to this point.
+
+# - name: Check cluster nodes are up and running
+#   ansible.builtin.include_tasks: 70_check_nodes_up.yml
+#
+# - name: Configure common requirements in Ubuntu guests
+#   block:
+#
+#     - name: Add kubernetes repo for latest kubectl (Ubuntu)
+#       ansible.builtin.shell: |
+#         set -eo pipefail
+#         apt-get install -y apt-transport-https ca-certificates curl
+#         curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+#         echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list
+#         apt-get update
+#       args:
+#         executable: /bin/bash
+#       register: _result
+#       changed_when: "_result.rc == 0"
+#
+#     - name: Install resolvconf
+#       ansible.builtin.package:
+#         name: resolvconf
+#         state: present
+#
+#     - name: Make sure base file exists
+#       ansible.builtin.copy:
+#         content: ""
+#         dest: /etc/resolvconf/resolv.conf.d/tail
+#         force: no
+#         mode: "0644"
+#
+#     - name: Get resolv lines
+#       ansible.builtin.slurp:
+#         src: /etc/resolvconf/resolv.conf.d/tail
+#       register: _result_resolv_conf
+#
+#     - name: Add the local DNS server as a local resolver when not empty
+#       ansible.builtin.lineinfile:
+#         path: /etc/resolvconf/resolv.conf.d/tail
+#         line: "nameserver {{ kubeinit_bind_service_address }}"
+#         insertbefore: nameserver.*
+#       when: (_result_resolv_conf.content | b64decode).splitlines() | length > 0
+#
+#     - name: Add the local DNS server as a local resolver when empty
+#       ansible.builtin.lineinfile:
+#         path: /etc/resolvconf/resolv.conf.d/tail
+#         line: "nameserver {{ kubeinit_bind_service_address }}"
+#       when: (_result_resolv_conf.content | b64decode).splitlines() | length == 0
+#
+#     - name: Add the local DNS server as a local resolver
+#       ansible.builtin.lineinfile:
+#         path: /etc/resolvconf/resolv.conf.d/tail
+#         line: "nameserver {{ kubeinit_dns_public }}"
+#         insertafter: nameserver.*
+#
+#     - name: Restart the resolvconf service
+#       ansible.builtin.service:
+#         name: "resolvconf"
+#         state: restarted
+#         enabled: yes
+#
+#     - name: Restart the systemd-resolved service
+#       ansible.builtin.service:
+#         name: "systemd-resolved"
+#         state: restarted
+#         enabled: yes
+#
+#     - name: Regenerate the resolv.conf
+#       ansible.builtin.shell: |
+#         set -o pipefail
+#         resolvconf -u
+#       args:
+#         executable: /bin/bash
+#       register: _result
+#       changed_when: "_result.rc == 0"
+#
+#     - name: Force apt-get update
+#       ansible.builtin.shell: |
+#         apt-get update
+#       args:
+#         executable: /bin/bash
+#       register: _result
+#       changed_when: "_result.rc == 0"
+#
+#     - name: Disable SWAP
+#       ansible.builtin.shell: |
+#         swapoff -a
+#       args:
+#         executable: /bin/bash
+#       register: _result
+#       changed_when: "_result.rc == 0"
+#
+#     - name: Resize root partition
+#       ansible.builtin.shell: |
+#         echo 'Reclaim space for root partition'
+#         growpart /dev/vda 1
+#         resize2fs /dev/vda1
+#       args:
+#         executable: /bin/bash
+#       register: _result
+#       changed_when: "_result.rc == 0"
+#
+#     - name: Enable cloud init
+#       ansible.builtin.shell: |
+#         systemctl enable cloud-init
+#         systemctl start cloud-init
+#       args:
+#         executable: /bin/bash
+#       register: _result
+#       changed_when: "_result.rc == 0"
+#
+#     - name: Perform any distro-specific post-deployment guest configuration
+#       ansible.builtin.include_role:
+#         name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}"
+#         tasks_from: post_configure_guest.yml
+#         public: true
+#
+#     - name: Update packages
+#       ansible.builtin.package:
+#         name: "*"
+#         state: latest
+#       register: _result_update_packages
+#
+#     - name: Reboot immediately after the package update
+#       ansible.builtin.shell: "sleep 5 && reboot"
+#       args:
+#         executable: /bin/bash
+#       async: 1
+#       poll: 0
+#       when: _result_update_packages is changed and kubeinit_libvirt_reboot_guests_after_package_update
+#
+#   delegate_to: "{{ kubeinit_deployment_node_name }}"
+#
+# - name: Check cluster nodes are up and running
+#   ansible.builtin.include_tasks: 70_check_nodes_up.yml
+#
+# - name: Gather guest network facts
+#   block:
+#     - name: Gather network and host facts for guest
+#       ansible.builtin.include_role:
+#         name: kubeinit.kubeinit.kubeinit_prepare
+#         tasks_from: gather_host_facts.yml
+#         public: yes
+#       vars:
+#         _param_gather_host: "{{ kubeinit_deployment_node_name }}"
+#   tags: omit_from_grapher

@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+    <settings pass="windowsPE">
+
+        <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <SetupUILanguage>
+                <UILanguage>en-US</UILanguage>
+            </SetupUILanguage>
+            <InputLocale>en-US</InputLocale>
+            <SystemLocale>en-US</SystemLocale>
+            <UILanguage>en-US</UILanguage>
+            <UserLocale>en-US</UserLocale>
+        </component>
+
+        <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <!--
+             This makes the VirtIO drivers available to Windows, assuming that
+             the VirtIO driver disk https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/
+             is available as drive D:
+             If the paths change try `mkdir kk; mount -o loop virtio-win-0.1.217.iso kk` and explore the
+             .iso content
+             To debug the virtio driver letter mount if the disks are nont found, remove the disk info from the autounattend file and
+             select it manually, you will see what unit letter is selected.
+          -->
+            <DriverPaths>
+                <PathAndCredentials wcm:action="add" wcm:keyValue="1">
+                    <Path>E:\amd64\2k22</Path>
+                </PathAndCredentials>
+                <PathAndCredentials wcm:action="add" wcm:keyValue="2">
+                    <Path>E:\Balloon\2k22</Path>
+                </PathAndCredentials>
+                <PathAndCredentials wcm:action="add" wcm:keyValue="3">
+                    <Path>E:\NetKVM\2k22</Path>
+                </PathAndCredentials>
+                <PathAndCredentials wcm:action="add" wcm:keyValue="4">
+                    <Path>E:\smbus\2k22</Path>
+                </PathAndCredentials>
+            </DriverPaths>
+        </component>
+
+        <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <!--
+              Create a partition onto which we will install Windows.
+          -->
+            <DiskConfiguration>
+                <WillShowUI>OnError</WillShowUI>
+                <Disk wcm:action="add">
+                    <CreatePartitions>
+                        <CreatePartition wcm:action="add">
+                            <Size>250</Size>
+                            <Order>1</Order>
+                            <Type>Primary</Type>
+                        </CreatePartition>
+                        <CreatePartition wcm:action="add">
+                            <Order>2</Order>
+                            <Extend>true</Extend>
+                            <Type>Primary</Type>
+                        </CreatePartition>
+                    </CreatePartitions>
+
+                    <ModifyPartitions>
+                        <ModifyPartition wcm:action="add">
+                            <Order>1</Order>
+                            <PartitionID>1</PartitionID>
+                            <Format>NTFS</Format>
+                            <Label>Boot</Label>
+                            <Active>true</Active>
+                        </ModifyPartition>
+                        <ModifyPartition wcm:action="add">
+                            <Order>2</Order>
+                            <PartitionID>2</PartitionID>
+                            <Format>NTFS</Format>
+                            <Label>System</Label>
+                        </ModifyPartition>
+                    </ModifyPartitions>
+
+                    <DiskID>0</DiskID>
+                    <WillWipeDisk>true</WillWipeDisk>
+                </Disk>
+            </DiskConfiguration>
+
+
+            <ImageInstall>
+                <OSImage>
+                    <InstallFrom>
+                        <MetaData wcm:action="add">
+                            <Key>/IMAGE/NAME</Key>
+                            <Value>Windows Server 2022 SERVERDATACENTER</Value>
+                        </MetaData>
+                    </InstallFrom>
+                    <InstallTo>
+                        <DiskID>0</DiskID>
+                        <PartitionID>2</PartitionID>
+                    </InstallTo>
+                    <WillShowUI>OnError</WillShowUI>
+                    <InstallToAvailablePartition>false</InstallToAvailablePartition>
+                </OSImage>
+            </ImageInstall>
+
+            <!--
+                 This accepts the EULA and installs a product key.
+                 Key from: https://docs.microsoft.com/en-us/windows-server/get-started/kms-client-activation-keys#windows-server-2022
+                 We will use a trial version for installing so we dont need to add any key, these machine will shutdown in 10 days.
+                 If you put here a key it must be valid, so do not add anything there for now
+            -->
+            <UserData>
+                <AcceptEula>true</AcceptEula>
+                <ProductKey>
+                    <WillShowUI>OnError</WillShowUI>
+                    <!--
+                        <Key>11111-22222-33333-44444-55555</Key>
+                    -->
+                </ProductKey>
+            </UserData>
+
+        </component>
+    </settings>
+
+    <settings pass="specialize">
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <TimeZone>Central Standard Time</TimeZone>
+            <ComputerName>{{ kubeinit_deployment_node_name }}</ComputerName>
+        </component>
+
+        <component name="Microsoft-Windows-UnattendedJoin"  processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <Identification>
+            <JoinWorkgroup>{{ hostvars[kubeinit_cluster_name].cluster_domain }}</JoinWorkgroup>
+          </Identification>
+        </component>
+        <!--
+        <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <RunSynchronous>
+                <RunSynchronousCommand wcm:action="add">
+                    <WillReboot>Always</WillReboot>
+                    <Path>a:vmtools.cmd</Path>
+                    <Order>1</Order>
+                </RunSynchronousCommand>
+            </RunSynchronous>
+        </component>
+        -->
+        <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <fDenyTSConnections>false</fDenyTSConnections>
+        </component>
+
+        <component name="Networking-MPSSVC-Svc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <FirewallGroups>
+                <FirewallGroup wcm:action="add" wcm:keyValue="RemoteDesktop">
+                    <Active>true</Active>
+                    <Group>Remote Desktop</Group>
+                    <Profile>all</Profile>
+                </FirewallGroup>
+            </FirewallGroups>
+        </component>
+
+        <component name="Microsoft-Windows-TerminalServices-RDP-WinStationExtensions" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <SecurityLayer>2</SecurityLayer>
+            <UserAuthentication>1</UserAuthentication>
+        </component>
+
+        <component name="Microsoft-Windows-ServerManager-SvrMgrNc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <DoNotOpenServerManagerAtLogon>true</DoNotOpenServerManagerAtLogon>
+        </component>
+
+        <!--
+        <component name="Microsoft-Windows-TCPIP" processorArchitecture="x86" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <Interfaces>
+                <Interface wcm:action="add">
+                    <Ipv4Settings>
+                        <DhcpEnabled>false</DhcpEnabled>
+                    </Ipv4Settings>
+                    <UnicastIpAddresses>
+                        <IpAddress wcm:action="add" wcm:keyValue="1">{{ hostvars[kubeinit_deployment_node_name].ansible_host }}/{{ kubeinit_cluster_prefix }}</IpAddress>
+                    </UnicastIpAddresses>
+                    <Identifier>Ethernet</Identifier>
+                    <Routes>
+                        <Route wcm:action="add">
+                            <Identifier>0</Identifier>
+                            <Prefix>0.0.0.0/0</Prefix>
+                            <NextHopAddress>{{ kubeinit_cluster_gateway }}</NextHopAddress>
+                            <Metric>20</Metric>
+                        </Route>
+                    </Routes>
+                </Interface>
+            </Interfaces>
+        </component>
+
+        <component name="Microsoft-Windows-DNS-Client" processorArchitecture="x86" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <Interfaces>
+                <Interface wcm:action="add">
+                    <DNSServerSearchOrder>
+                        <IpAddress wcm:action="add" wcm:keyValue="1">{{ kubeinit_dns_public }}</IpAddress>
+                    </DNSServerSearchOrder>
+                    <DisableDynamicUpdate>false</DisableDynamicUpdate>
+                    <DNSDomain>{{ hostvars[kubeinit_cluster_name].cluster_domain }}</DNSDomain>
+                    <Identifier>Ethernet</Identifier>
+                    <EnableAdapterDomainNameRegistration>true</EnableAdapterDomainNameRegistration>
+                </Interface>
+            </Interfaces>
+        </component>
+        -->
+    </settings>
+
+    <settings pass="oobeSystem">
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <OOBE>
+            <HideEULAPage>true</HideEULAPage>
+            <ProtectYourPC>3</ProtectYourPC>
+            <NetworkLocation>Work</NetworkLocation>
+            <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+          </OOBE>
+
+          <!--
+               Arrange to auto-login as the Administrator user when we
+               first boot.  We will use FirstLogonCommands section, below,
+               to call sysprep after performing some configuration tasks
+               (which will remove the administrator password).
+          -->
+          <UserAccounts>
+            <AdministratorPassword>
+              <Value>Passw0rd</Value>
+              <PlainText>true</PlainText>
+            </AdministratorPassword>
+            <LocalAccounts>
+                       <LocalAccount wcm:action="add">
+                           <Password>
+                               <Value>Passw0rd</Value>
+                               <PlainText>true</PlainText>
+                           </Password>
+                           <Description>toor</Description>
+                           <DisplayName>toor</DisplayName>
+                           <Group>administrators</Group>
+                           <Name>toor</Name>
+                       </LocalAccount>
+              </LocalAccounts>
+          </UserAccounts>
+
+          <AutoLogon>
+            <Password>
+              <Value>Passw0rd</Value>
+              <PlainText>true</PlainText>
+            </Password>
+            <Enabled>true</Enabled>
+            <LogonCount>50</LogonCount>
+            <Username>Administrator</Username>
+          </AutoLogon>
+
+
+          <FirstLogonCommands>
+            <!--
+            <SynchronousCommand wcm:action="add">
+              <CommandLine>certutil.exe -addstore "TrustedPublisher" "d:\rhcert.cer"</CommandLine>
+              <Order>1</Order>
+            </SynchronousCommand>
+
+            <SynchronousCommand wcm:action="add">
+              <CommandLine>e:\virtio-win-guest-tools.exe /s /qn</CommandLine>
+              <Order>2</Order>
+            </SynchronousCommand>
+
+            <SynchronousCommand wcm:action="add">
+              <CommandLine>pnputil.exe /add-driver e:\*.inf /subdirs /install</CommandLine>
+              <Order>3</Order>
+            </SynchronousCommand>
+            -->
+            <!--
+                 install cloudbase-init (a cloud-init-alike that uses
+                 metadata provided by a cloud service such as OpenStack to
+                 configure the system).
+            -->
+            <!--
+            <SynchronousCommand wcm:action="add">
+              <CommandLine>msiexec /i c:\windows\temp\cloudbase.msi /qb /l*v c:\windows\temp\cloudbase.log LOGGINGSERIALPORTNAME=COM1</CommandLine>
+              <Order>1</Order>
+            </SynchronousCommand>
+            -->
+
+            <!--
+                 run sysprep to generalize the system (and reboot)
+                 We install the OS from the .iso installer for every node
+                 so there is no need to generalize the install because
+                 we run specific customizations for each node.
+                 This is done when it is required to create generic OS images.
+            -->
+            <!--
+            <SynchronousCommand wcm:action="add">
+              <CommandLine>c:\windows\system32\sysprep\sysprep /generalize /oobe /reboot</CommandLine>
+              <Order>1</Order>
+            </SynchronousCommand>
+           -->
+          </FirstLogonCommands>
+
+        </component>
+    </settings>
+    <cpi:offlineImage cpi:source="wim:c:/wims/install.wim#Windows Server 2022 SERVERDATACENTER" xmlns:cpi="urn:schemas-microsoft-com:cpi" />
+</unattend>

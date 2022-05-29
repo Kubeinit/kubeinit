@@ -153,7 +153,7 @@
       loop: "{{ default_extra_nodes_map_list }}"
       when: item['when_distro'] == kubeinit_spec_distro
 
-  when: groups['extra_npdes'] | default([]) | length == 0
+  when: groups['extra_nodes'] | default([]) | length == 0
 
 - name: Assign extra_nodes addresses
   ansible.builtin.add_host:
@@ -189,7 +189,7 @@
         services: "{{ item['services'] }}"
       loop: "{{ default_service_nodes_map_list }}"
 
-  when: groups['service_npdes'] | default([]) | length == 0
+  when: groups['service_nodes'] | default([]) | length == 0
 
 - name: Assign service_nodes addresses
   ansible.builtin.add_host:
@@ -236,6 +236,22 @@
     cluster_nodes_defaults: "{{ cluster_nodes_defaults | default([]) + (groups['inventory_nodes'] | product([item])) }}"
   loop: "{{ default_cluster_nodes_map_list }}"
   when: item['when_distro'] is not defined or item['when_distro'] == kubeinit_spec_distro
+
+- name: Load cluster_nodes_spec from yaml into a list of dictionaries
+  ansible.builtin.set_fact:
+    cluster_nodes_map_list: "{{ (cluster_nodes_map_list | default([])) | union([_dict]) }}"
+  loop: "{{ cluster_nodes_spec | from_yaml }}"
+  vars:
+    _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
+    _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+    _dict: "{{ dict(_keys|zip(_vals)) }}"
+  when: cluster_nodes_spec is defined
+
+- name: Add cluster_nodes_spec defaults
+  ansible.builtin.set_fact:
+    cluster_nodes_defaults: "{{ cluster_nodes_defaults | default([]) + (groups['inventory_nodes'] | product([item])) }}"
+  loop: "{{ cluster_nodes_map_list }}"
+  when: cluster_nodes_spec is defined and (item['when_distro'] is not defined or item['when_distro'] == kubeinit_spec_distro)
 
 - name: Apply defaults to all cluster nodes
   ansible.builtin.add_host:
