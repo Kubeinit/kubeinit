@@ -24,10 +24,36 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Build kubeinit/kubeinit container
-        run: podman build -t kubeinit/kubeinit .
       - name: Update package manager first, the runner could reference stale repos
         run: sudo apt-get update -y
+      - name: Reinstall podman with a newer version (breaking change from 3 to 4)
+        run: |
+          sudo apt remove podman -y
+          sudo apt autoclean && sudo apt autoremove
+          export DEBIAN_FRONTEND="noninteractive"
+          echo "deb http://download.opensuse.org/repositories/home:/kubeinit/xUbuntu_20.04/ /" | sudo tee /etc/apt/sources.list.d/kubeinit.list
+          curl -fsSL https://download.opensuse.org/repositories/home:kubeinit/xUbuntu_20.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/kubeinit.gpg > /dev/null
+          sudo -E apt-get update
+          sudo apt-get install -y crun podman catatonit
+          sudo systemctl list-unit-files | grep podman
+          sudo ln -s /usr/bin/catatonit /usr/libexec/podman/catatonit
+          podman system migrate
+      - name: Get some debug information
+        run: |
+          podman --version
+          podman info --debug
+          CONTAINER_RUNTIME=$(podman system info --format=json | jq .host.ociRuntime.name)
+          echo "-----------------------------------------------------------------"
+          echo "| Make sure the container runtime is CRUN                       |"
+          echo "| currently is: ${CONTAINER_RUNTIME}                                            |"
+          echo "-----------------------------------------------------------------"
+          if [[ $CONTAINER_RUNTIME == "crun" ]]; then
+              echo "****** OK: The container runtime is crun ******"
+          else
+              echo "****** ERROR:FATAL: Container runtime must be crun ******"
+          fi
+      - name: Build kubeinit/kubeinit container
+        run: podman build -t kubeinit/kubeinit .
       - name: Setup ssh
         run: |
           ssh-keygen -t rsa -b 4096 -N '' -C "distro_test $(whoami)@$(hostname)" -f ~/.ssh/id_rsa
