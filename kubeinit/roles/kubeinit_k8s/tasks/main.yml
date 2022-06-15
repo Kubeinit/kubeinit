@@ -152,6 +152,7 @@
   loop_control:
     loop_var: compute_node
   delegate_to: "{{ compute_node }}"
+  when: hostvars[compute_node].os != 'windows'
 
 # The kubeconfig file is on the controller nodes so we run kubectl label on the first controller
 - name: Label node
@@ -163,20 +164,35 @@
   loop_control:
     loop_var: compute_node
   delegate_to: "{{ kubeinit_first_controller_node }}"
+  when: hostvars[compute_node].os != 'windows'
+
+- name: Check if there is at least one compute Windows node
+  ansible.builtin.set_fact:
+    windows_compute_node_exists: true
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
 
 - name: Allow schedule workloads in controller nodes if there are no compute nodes
   ansible.builtin.shell: |
     set -o pipefail
     dnf install -y jq
+    # Deprecated in 1.24
     for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.spec.taints[]?.key=="node-role.kubernetes.io/master") | .metadata.labels."kubernetes.io/hostname"');
     do
       kubectl taint node ${node} node-role.kubernetes.io/master:NoSchedule-
+    done
+    # Working starting on 1.24
+    for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.spec.taints[]?.key=="node-role.kubernetes.io/control-plane") | .metadata.labels."kubernetes.io/hostname"');
+    do
+      kubectl taint node ${node} node-role.kubernetes.io/control-plane:NoSchedule-
     done
   args:
     executable: /bin/bash
   register: _result
   changed_when: "_result.rc == 0"
-  when: not kubeinit_compute_count|int > 0
+  when: not kubeinit_compute_count|int > 0 or (windows_compute_node_exists | default(false))
   delegate_to: "{{ kubeinit_first_controller_node }}"
 
 # We fetch the kubeconfig from the first controller node

@@ -204,9 +204,12 @@
         <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <OOBE>
             <HideEULAPage>true</HideEULAPage>
-            <ProtectYourPC>3</ProtectYourPC>
-            <NetworkLocation>Work</NetworkLocation>
+            <HideLocalAccountScreen>true</HideLocalAccountScreen>
+            <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+            <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
             <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+            <NetworkLocation>Home</NetworkLocation>
+            <ProtectYourPC>3</ProtectYourPC>
           </OOBE>
 
           <!--
@@ -226,10 +229,10 @@
                                <Value>Passw0rd</Value>
                                <PlainText>true</PlainText>
                            </Password>
-                           <Description>toor</Description>
-                           <DisplayName>toor</DisplayName>
+                           <Description>root</Description>
+                           <DisplayName>root</DisplayName>
                            <Group>administrators</Group>
-                           <Name>toor</Name>
+                           <Name>root</Name>
                        </LocalAccount>
               </LocalAccounts>
           </UserAccounts>
@@ -246,12 +249,24 @@
 
 
           <FirstLogonCommands>
-            <!--
             <SynchronousCommand wcm:action="add">
-              <CommandLine>certutil.exe -addstore "TrustedPublisher" "d:\rhcert.cer"</CommandLine>
-              <Order>1</Order>
-            </SynchronousCommand>
-
+                 <Order>1</Order>
+                 <Description>Set Execution Policy 64 Bit</Description>
+                 <CommandLine>cmd.exe /c powershell -Command "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force"</CommandLine>
+                 <RequiresUserInput>true</RequiresUserInput>
+             </SynchronousCommand>
+             <SynchronousCommand wcm:action="add">
+                 <Order>2</Order>
+                 <Description>Set Execution Policy 32 Bit</Description>
+                 <CommandLine>C:\Windows\SysWOW64\cmd.exe /c powershell -Command "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force"</CommandLine>
+                 <RequiresUserInput>true</RequiresUserInput>
+             </SynchronousCommand>
+              <SynchronousCommand wcm:action="add">
+                  <Order>3</Order>
+                  <Description>Install and configure OpenSSH Server</Description>
+                  <CommandLine>cmd.exe /c powershell.exe -File F:\install-openssh.ps1 "F:\authorized_keys"</CommandLine>
+              </SynchronousCommand>
+            <!--
             <SynchronousCommand wcm:action="add">
               <CommandLine>e:\virtio-win-guest-tools.exe /s /qn</CommandLine>
               <Order>2</Order>

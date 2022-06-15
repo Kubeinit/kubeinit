@@ -55,15 +55,27 @@
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/autounattend.xml"
         mode: "0644"
 
-    - name: Render the se up script
+    - name: Render the setup script
       ansible.builtin.template:
         src: "windows_setup.ps1.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/windows_setup.ps1"
         mode: "0644"
 
+    - name: Render the authorized keys file
+      ansible.builtin.template:
+        src: "authorized_keys.j2"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/authorized_keys"
+        mode: "0644"
+
+    - name: Render the setup SSH script
+      ansible.builtin.template:
+        src: "install-openssh.ps1.j2"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/install-openssh.ps1"
+        mode: "0644"
+
     - name: Get the Ansible install script
       ansible.builtin.shell: |
-        wget https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1 \
+        wget -nc https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1 \
             -P {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/
       args:
         executable: /bin/bash
@@ -153,147 +165,46 @@
           Create a tunnel from your machine to the hypervisor hosting the Windows guest
           ssh root@tyto -L 5900:127.0.0.1:5900
           from your machine connect to the VNC server at 127.0.0.1
+
+    - name: "Make sure we can execute remote commands in {{ hostvars[kubeinit_deployment_node_name].guest_name }} before continue"
+      ansible.builtin.shell: |
+        set -o pipefail
+        ssh {{ hostvars[kubeinit_deployment_node_name].ansible_ssh_common_args }} \
+            {{ _param_guest_user | default('root') }}@{{ hostvars[kubeinit_deployment_node_name].ansible_host }} 'echo connected' || true
+      args:
+        executable: /bin/bash
+      register: _result
+      retries: 60
+      delay: 10
+      until: "'connected' in _result.stdout"
+      changed_when: "_result.rc == 0"
+
   delegate_to: "{{ kubeinit_deployment_delegate }}"
 
-- name: So far so good
-  ansible.builtin.fail:
-    msg: The deployment should be fine up to this point.
+- name: Configure common requirements in Windows guests
+  block:
+    - name: Ping
+      ansible.windows.win_ping:
 
-# - name: Check cluster nodes are up and running
-#   ansible.builtin.include_tasks: 70_check_nodes_up.yml
-#
-# - name: Configure common requirements in Ubuntu guests
-#   block:
-#
-#     - name: Add kubernetes repo for latest kubectl (Ubuntu)
-#       ansible.builtin.shell: |
-#         set -eo pipefail
-#         apt-get install -y apt-transport-https ca-certificates curl
-#         curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
-#         echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list
-#         apt-get update
-#       args:
-#         executable: /bin/bash
-#       register: _result
-#       changed_when: "_result.rc == 0"
-#
-#     - name: Install resolvconf
-#       ansible.builtin.package:
-#         name: resolvconf
-#         state: present
-#
-#     - name: Make sure base file exists
-#       ansible.builtin.copy:
-#         content: ""
-#         dest: /etc/resolvconf/resolv.conf.d/tail
-#         force: no
-#         mode: "0644"
-#
-#     - name: Get resolv lines
-#       ansible.builtin.slurp:
-#         src: /etc/resolvconf/resolv.conf.d/tail
-#       register: _result_resolv_conf
-#
-#     - name: Add the local DNS server as a local resolver when not empty
-#       ansible.builtin.lineinfile:
-#         path: /etc/resolvconf/resolv.conf.d/tail
-#         line: "nameserver {{ kubeinit_bind_service_address }}"
-#         insertbefore: nameserver.*
-#       when: (_result_resolv_conf.content | b64decode).splitlines() | length > 0
-#
-#     - name: Add the local DNS server as a local resolver when empty
-#       ansible.builtin.lineinfile:
-#         path: /etc/resolvconf/resolv.conf.d/tail
-#         line: "nameserver {{ kubeinit_bind_service_address }}"
-#       when: (_result_resolv_conf.content | b64decode).splitlines() | length == 0
-#
-#     - name: Add the local DNS server as a local resolver
-#       ansible.builtin.lineinfile:
-#         path: /etc/resolvconf/resolv.conf.d/tail
-#         line: "nameserver {{ kubeinit_dns_public }}"
-#         insertafter: nameserver.*
-#
-#     - name: Restart the resolvconf service
-#       ansible.builtin.service:
-#         name: "resolvconf"
-#         state: restarted
-#         enabled: yes
-#
-#     - name: Restart the systemd-resolved service
-#       ansible.builtin.service:
-#         name: "systemd-resolved"
-#         state: restarted
-#         enabled: yes
-#
-#     - name: Regenerate the resolv.conf
-#       ansible.builtin.shell: |
-#         set -o pipefail
-#         resolvconf -u
-#       args:
-#         executable: /bin/bash
-#       register: _result
-#       changed_when: "_result.rc == 0"
-#
-#     - name: Force apt-get update
-#       ansible.builtin.shell: |
-#         apt-get update
-#       args:
-#         executable: /bin/bash
-#       register: _result
-#       changed_when: "_result.rc == 0"
-#
-#     - name: Disable SWAP
-#       ansible.builtin.shell: |
-#         swapoff -a
-#       args:
-#         executable: /bin/bash
-#       register: _result
-#       changed_when: "_result.rc == 0"
-#
-#     - name: Resize root partition
-#       ansible.builtin.shell: |
-#         echo 'Reclaim space for root partition'
-#         growpart /dev/vda 1
-#         resize2fs /dev/vda1
-#       args:
-#         executable: /bin/bash
-#       register: _result
-#       changed_when: "_result.rc == 0"
-#
-#     - name: Enable cloud init
-#       ansible.builtin.shell: |
-#         systemctl enable cloud-init
-#         systemctl start cloud-init
-#       args:
-#         executable: /bin/bash
-#       register: _result
-#       changed_when: "_result.rc == 0"
-#
-#     - name: Perform any distro-specific post-deployment guest configuration
-#       ansible.builtin.include_role:
-#         name: "kubeinit.kubeinit.kubeinit_{{ kubeinit_cluster_distro }}"
-#         tasks_from: post_configure_guest.yml
-#         public: true
-#
-#     - name: Update packages
-#       ansible.builtin.package:
-#         name: "*"
-#         state: latest
-#       register: _result_update_packages
-#
-#     - name: Reboot immediately after the package update
-#       ansible.builtin.shell: "sleep 5 && reboot"
-#       args:
-#         executable: /bin/bash
-#       async: 1
-#       poll: 0
-#       when: _result_update_packages is changed and kubeinit_libvirt_reboot_guests_after_package_update
-#
-#   delegate_to: "{{ kubeinit_deployment_node_name }}"
-#
-# - name: Check cluster nodes are up and running
-#   ansible.builtin.include_tasks: 70_check_nodes_up.yml
-#
+    - name: Run the setup script
+      ansible.windows.win_powershell:
+        script: |
+          F:\windows_setup.ps1
+      register: _result
+      changed_when: "_result.host_err == ''"
+
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+# TODO:FIXME: Do we need a Windows gather facts?
 # - name: Gather guest network facts
 #   block:
 #     - name: Gather network and host facts for guest
