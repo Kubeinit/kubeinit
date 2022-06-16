@@ -329,9 +329,9 @@ def get_periodic_jobs_labels(cluster_type='all', distro='all'):
     cluster_pattern = re.compile(cluster_type_regex)
 
     cdk_configs = ["cdk-libvirt-3-1-2-h",
-                   "cdk-libvirt-3-0-1-h",
+                   "cdk-libvirt-3-1-1-h",
                    "cdk-libvirt-1-1-1-h",
-                   "cdk-libvirt-1-0-1-h"]
+                   "cdk-libvirt-1-2-1-h"]
 
     okd_configs = ["okd-libvirt-3-1-1-h",
                    "okd-libvirt-3-0-2-h",
