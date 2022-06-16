@@ -88,8 +88,14 @@
         mode: '0644'
       when: kubeinit_controller_count|int > 1
 
-    - name: Install Network Add-on
-      ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+    - name: Render the flannel template
+      ansible.builtin.template:
+        src: "kube-flannel.yml.j2"
+        dest: "~/kube-flannel.yml"
+        mode: "0644"
+
+    - name: Install the Flannel network Add-on
+      ansible.builtin.command: kubectl apply -f ~/kube-flannel.yml
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -215,3 +221,65 @@
     dest: ~/.kube/config
     mode: '0644'
   delegate_to: "{{ kubeinit_provision_service_node }}"
+
+#
+# Configure additional steps for including the Windows compute nodes
+#
+
+- name: Create the kubeinit folder
+  ansible.windows.win_file:
+    path: C:\kubeinit
+    state: directory
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+
+- name: Copy the kubeconfig file
+  ansible.windows.win_copy:
+    content: "{{ _result_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
+    dest: C:\kubeinit\kube_config
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+
+- name: Write the join command
+  ansible.windows.win_powershell:
+    script: |
+      write-output {{ _result_join_command.stdout }} | out-file C:\kubeinit\k8s_join_command.ps1
+  # C:\k\k8s_join_command.ps1
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'

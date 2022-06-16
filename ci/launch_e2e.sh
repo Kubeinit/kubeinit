@@ -276,6 +276,7 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
                 -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER',network=10.0.'$COUNTER'.0/24]' \
                 -e hypervisor_hosts_spec='[[ansible_host=nyctea],[ansible_host=tyto]]' \
                 -e cluster_nodes_spec=${CLUSTER_NODES:-[[]]} \
+                -e compute_node_ram_size=16777216 \
                 ./kubeinit/playbook.yml
             # We can not have any other command after
             # 'ansible-playbook' otherwise the || wont work
