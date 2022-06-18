@@ -38,7 +38,7 @@ from pybadges import badge
 GH_LABELS = []
 
 
-def main(job_type, cluster_type, job_label, pr_id, verbosity):
+def main(job_type, cluster_type, job_label, pr_id, verbosity, nolog=False):
     """Run the main method."""
     #
     # This method can deploy multiple
@@ -133,9 +133,9 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
             # If the main deployment failed, we dont need to capture
             # any other exception, this script must fail at the end
             if output == 1:
-                save_logs(output, job_name)
+                save_logs(output, job_name, nolog)
             else:
-                output = save_logs(output, job_name)
+                output = save_logs(output, job_name, nolog)
 
             dest_url = 'https://ci.kubeinit.org/file/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
             print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
@@ -255,7 +255,7 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
                                                                           state,
                                                                           str(start_time),
                                                                           dur_mins))
-                save_logs(output, job_name)
+                save_logs(output, job_name, nolog)
 
     #
     # KubeInit's submariner PR check
@@ -341,9 +341,9 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity):
                     # If the main deployment failed, we dont need to capture
                     # any other exception, this script must fail at the end
                     if output == 1:
-                        save_logs(output, job_name)
+                        save_logs(output, job_name, nolog)
                     else:
-                        output = save_logs(output, job_name)
+                        output = save_logs(output, job_name, nolog)
 
                     dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
                     print("'launch_e2e.py' ==> Desc message: " + desc)
@@ -427,9 +427,11 @@ def run_e2e_job(distro, driver, masters, workers,
     return output
 
 
-def save_logs(output, job_name):
+def save_logs(output, job_name, nolog=False):
     """Save the e2e job logs."""
     print("'launch_e2e.py' ==> Rendering and saving the log files")
+    if nolog:
+        return 0
 
     initial_time = datetime.now()
     try:
@@ -566,6 +568,10 @@ if __name__ == "__main__":
                         action='store',
                         type=valid_labels_regex,
                         help='The CI job label to be executed')
+    parser.add_argument('--nolog',
+                        action='store_true',
+                        default=False,
+                        help='The CI job label to be executed')
 
     args = parser.parse_args()
     # The job type is a mandatory parameter
@@ -609,4 +615,5 @@ if __name__ == "__main__":
              cluster_type=args.cluster_type,
              job_label=args.job_label,
              pr_id=args.pr_id,
-             verbosity=args.verbosity)
+             verbosity=args.verbosity,
+             nolog=args.nolog)

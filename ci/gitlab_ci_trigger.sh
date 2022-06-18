@@ -28,6 +28,7 @@ run_pr() {
     pr_list=$(gh pr list --json title,number,labels)
     ci_label_found=0
     ci_verbosity_label_found=0
+    ci_nolog_label_found=0
     test_params=''
     test_params+="--job_type=pr "
     pr_id="${pr_id:-0}"
@@ -45,7 +46,10 @@ run_pr() {
             else
                 label_regex=".*-.*-.*-.*-[^1]-.*"
             fi
+
             verbosity_regex="verbosity=.*"
+            nolog_regex='nolog'
+
             if [[ $label =~ $label_regex ]];then
                 echo "(gitlab_ci_trigger.sh) ==> There was found a job matching label: $label" ;
                 echo "(gitlab_ci_trigger.sh) ==> We assign the matching PR: $pr_number" ;
@@ -58,6 +62,10 @@ run_pr() {
             else
                 if [[ $label =~ $verbosity_regex ]]; then
                     test_params+="--${label} "
+                fi
+
+                if [[ $label =~ $nolog_regex ]]; then
+                    test_params+="--nolog "
                 fi
             fi
         done
@@ -117,6 +125,7 @@ main() {
     fi
 
     periodic_regex='periodic.*'
+
     if [[ $JOB_TYPE =~ $periodic_regex ]]; then
         echo "(gitlab_ci_trigger.sh) ==> Periodic job testing"
         get_code
