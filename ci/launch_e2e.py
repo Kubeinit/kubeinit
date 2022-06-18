@@ -137,7 +137,11 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity, nolog=False):
             else:
                 output = save_logs(output, job_name, nolog)
 
-            dest_url = 'https://ci.kubeinit.org/file/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
+            # If we dont upload the final logs, we dont update the job URL
+            if nolog:
+                dest_url = url + str(pipeline_id)
+            else:
+                dest_url = 'https://ci.kubeinit.org/file/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
             print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
             # We update the status with the job result
             repo.get_commit(sha=sha).create_status(state=state,
@@ -345,7 +349,11 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity, nolog=False):
                     else:
                         output = save_logs(output, job_name, nolog)
 
-                    dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
+                    # If we dont upload the final logs, we dont update the job URL
+                    if nolog:
+                        dest_url = url + str(pipeline_id)
+                    else:
+                        dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
                     print("'launch_e2e.py' ==> Desc message: " + desc)
 
                     print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
