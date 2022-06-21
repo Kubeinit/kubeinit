@@ -35,10 +35,16 @@
     name: cri-o
     state: present
 
-- name: Make sure crio binary is reachable
+- name: Make sure cri-o binary is reachable and the configuration is correct
   ansible.builtin.shell: |
+    yum install -y jq
     # Make sure crio binary is reachable
     ln -s /usr/bin/crio /usr/local/bin/crio
+    tmp=$(mktemp)
+    jq '.ipam.ranges[0][0].subnet = "{{ kubeinit_k8s_pod_network }}/{{ kubeinit_k8s_pod_subnet_len }}"' /etc/cni/net.d/87-crio-bridge.conf > "$tmp" && mv -f "$tmp" /etc/cni/net.d/87-crio-bridge.conf
+    # jq '.type = "flannel"' /etc/cni/net.d/87-crio-bridge.conf > "$tmp" && mv -f "$tmp" /etc/cni/net.d/87-crio-bridge.conf
+    # rm -rf /etc/cni/net.d/87-crio-bridge.conf
+    # echo '{"name": "crio","type": "flannel"}' > /etc/cni/net.d/10-crio.conf
   args:
     executable: /bin/bash
   register: _result

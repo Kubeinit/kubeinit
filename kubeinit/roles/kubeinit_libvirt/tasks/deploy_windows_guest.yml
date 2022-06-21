@@ -55,32 +55,29 @@
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/autounattend.xml"
         mode: "0644"
 
-    - name: Render the setup script
-      ansible.builtin.template:
-        src: "windows_setup.ps1.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/windows_setup.ps1"
-        mode: "0644"
-
     - name: Render the authorized keys file
       ansible.builtin.template:
         src: "authorized_keys.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/authorized_keys"
         mode: "0644"
 
-    - name: Render the setup SSH script
+    - name: Render the setup scripts
       ansible.builtin.template:
-        src: "install-openssh.ps1.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/install-openssh.ps1"
+        src: "{{ item }}.j2"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/{{ item }}"
         mode: "0644"
+      loop:
+        - Install-Openssh.ps1
+        - Install-Containerd.ps1
+        - PrepareNode.ps1
 
-    - name: Get the Ansible install script
-      ansible.builtin.shell: |
-        wget -nc https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1 \
-            -P {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
+    # - name: Download configuration scripts
+    #   ansible.builtin.get_url:
+    #     url: "{{ item }}"
+    #     dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config"
+    #     mode: '0644'
+    #   loop:
+    #     - https://raw.githubusercontent.com/kubernetes-sigs/sig-windows-tools/master/kubeadm/scripts/PrepareNode.ps1
 
     - name: Create the .iso disk with the install assets
       ansible.builtin.shell: |
@@ -166,7 +163,7 @@
           ssh root@tyto -L 5900:127.0.0.1:5900
           from your machine connect to the VNC server at 127.0.0.1
 
-    - name: "Make sure we can execute remote commands in {{ hostvars[kubeinit_deployment_node_name].guest_name }} before continue"
+    - name: "Make sure we can execute SSH remote commands in {{ hostvars[kubeinit_deployment_node_name].guest_name }} before continue"
       ansible.builtin.shell: |
         set -o pipefail
         ssh {{ hostvars[kubeinit_deployment_node_name].ansible_ssh_common_args }} \
@@ -183,16 +180,61 @@
 
 - name: Configure common requirements in Windows guests
   block:
+    - name: Make sure there is enough RAM for Windows computes
+      ansible.builtin.assert:
+        that:
+          - compute_node_ram_size | int >= 16777216
+        fail_msg: "'compute_node_ram_size' must be greater than 16777216, that is, 16GB RAM"
+        success_msg: "'compute_node_ram_size' is more than 16GB RAM, OK"
+
     - name: Ping
       ansible.windows.win_ping:
 
-    - name: Run the setup script
+    - name: Enable the required container features
       ansible.windows.win_powershell:
         script: |
-          F:\windows_setup.ps1
+          Install-WindowsFeature Containers
+          Install-WindowsFeature Hyper-V
+          Install-WindowsFeature Hyper-V-PowerShell
       register: _result
       changed_when: "_result.host_err == ''"
 
+    - name: Reboot the server after installing the new features
+      # This might take a lot of time depending on updates,
+      # and finishing to enable the container features.
+      ansible.windows.win_reboot:
+        reboot_timeout: 3600
+
+    - name: Install ContainerD
+      ansible.windows.win_powershell:
+        script: |
+          # Download and extract desired containerd Windows binaries
+          $Version="1.6.6"
+          curl.exe -L https://github.com/containerd/containerd/releases/download/v$Version/containerd-$Version-windows-amd64.tar.gz -o containerd-windows-amd64.tar.gz
+          tar.exe xvf .\containerd-windows-amd64.tar.gz
+
+          # Copy and configure
+          Copy-Item -Path ".\bin\" -Destination "$Env:ProgramFiles\containerd" -Recurse -Force
+          cd $Env:ProgramFiles\containerd\
+          .\containerd.exe config default | Out-File config.toml -Encoding ascii
+
+          # Review the configuration. Depending on setup you may want to adjust:
+          # - the sandbox_image (Kubernetes pause image)
+          # - cni bin_dir and conf_dir locations
+          # Get-Content config.toml
+
+          # Register and start service
+          .\containerd.exe --register-service
+          Start-Service containerd
+      register: _result
+      changed_when: "_result.host_err == ''"
+
+    - name: Prepare the node for K8s
+      ansible.windows.win_powershell:
+        script: |
+          F:\PrepareNode.ps1 -KubernetesVersion v1.24.0 -ContainerRuntime containerD
+      register: _result
+      changed_when: "_result.host_err == ''"
   # TODO:FIXME: The following variables should be
   # added as group vars for those compute nodes which the
   # os is equals to 'windows'
