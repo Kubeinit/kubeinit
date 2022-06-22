@@ -22,6 +22,8 @@ kubeinit_k8s_debug: "{{ (ansible_verbosity | int) >= 2 | bool }}"
 kubeinit_k8s_hide_sensitive_logs: true
 
 kubeinit_k8s_kubernetes_version: "1.24"
+kubeinit_k8s_kubernetes_version_full: "1.24.2"
+
 kubeinit_k8s_flannel_version: "0.18.1"
 
 # TODO:FIXME: There must be a bug in the way flannel and cri-o
@@ -29,9 +31,16 @@ kubeinit_k8s_flannel_version: "0.18.1"
 # This can not be changed, it needs to match
 # https://github.com/flannel-io/flannel/blob/796457b0cd4cba2025166f9625330ea905a18033/Documentation/kube-flannel.yml
 kubeinit_k8s_pod_network: 10.244.0.0
+# This is the cluster CIDR
 kubeinit_k8s_pod_network_cidr: 10.244.0.0/16
 kubeinit_k8s_pod_subnet_len: 24
 # 10.85.0.1/16 is the default cri-o network that
 # should match kubeinit_k8s_pod_network_cidr using
 # the kubeinit_k8s_pod_subnet_len mask
 kubeinit_k8s_crio_pod_network_cidr: 10.244.0.0/24
+
+# Cluster CIDR
+# kubectl cluster-info dump | grep -m 1 service-cluster-ip-range
+
+# Service CIDR
+# kubectl cluster-info dump | grep -m 1 cluster-cidr

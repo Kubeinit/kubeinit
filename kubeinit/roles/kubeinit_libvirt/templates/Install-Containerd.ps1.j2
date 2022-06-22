@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-Installs ContainerD on a Windows machines in preparation for joining the node to a Kubernetes cluster.
+Installs ContainerD on a Windows machines in preperation for joining the node to a Kubernetes cluster.
 
 .DESCRIPTION
 This script
-- Verifies that Windows Features required for running containers are enabled (and enables then if they are not)
+- Verifies that Windows Features requried for running contianers are enabled (and enables then if they are not)
 - Downloads ContainerD binaries from from at the version specified.
 - Downloads Windows SND CNI plugins.
 - Sets up a basic nat networking config for ContainerD to use until another CNI is configured
@@ -16,8 +16,10 @@ ContainerD version to download and use.
 .PARAMETER netAdapterName
 Name of network adapter to use when configuring basic nat network.
 
+# From: https://github.com/kubernetes-sigs/sig-windows-tools/blob/master/kubeadm/scripts/Install-Containerd.ps1
+
 .EXAMPLE
-PS> .\Install-Containerd.ps1
+PS> .\Install-Conatinerd.ps1
 
 #>
 
@@ -118,7 +120,9 @@ tar.exe -xvf "$global:ConainterDPath\containerd.tar.gz" --strip=1 -C $global:Con
 $env:Path += ";$global:ConainterDPath"
 [Environment]::SetEnvironmentVariable("Path", $env:Path, [System.EnvironmentVariableTarget]::Machine)
 containerd.exe config default | Out-File "$global:ConainterDPath\config.toml" -Encoding ascii
-#config file fixups
+
+# Config file fixups
+
 $config = Get-Content "$global:ConainterDPath\config.toml"
 $config = $config -replace "bin_dir = (.)*$", "bin_dir = `"c:/opt/cni/bin`""
 $config = $config -replace "conf_dir = (.)*$", "conf_dir = `"c:/etc/cni/net.d`""
@@ -128,15 +132,27 @@ mkdir -Force c:\opt\cni\bin | Out-Null
 mkdir -Force c:\etc\cni\net.d | Out-Null
 
 Write-Output "Getting SDN CNI binaries"
-DownloadFile "c:\opt\cni\cni-plugins.zip" https://github.com/microsoft/windows-container-networking/releases/download/v0.2.0/windows-container-networking-cni-amd64-v0.2.0.zip
+DownloadFile "c:\opt\cni\cni-plugins.zip" https://github.com/microsoft/windows-container-networking/releases/download/v0.3.0/windows-container-networking-cni-amd64-v0.3.0.zip
 Expand-Archive -Path "c:\opt\cni\cni-plugins.zip" -DestinationPath "c:\opt\cni\bin" -Force
+
+curl.exe -OL https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-windows-amd64-v1.1.1.tgz
+tar.exe xvf .\cni-plugins-windows-amd64-v1.1.1.tgz -C C:\opt\cni\bin
 
 Write-Output "Creating network config for nat network"
 $gateway = (Get-NetIPAddress -InterfaceAlias $netAdapterName -AddressFamily IPv4).IPAddress
 $prefixLength = (Get-NetIPAddress -InterfaceAlias $netAdapterName -AddressFamily IPv4).PrefixLength
 
-# $subnet = CalculateSubNet -gateway $gateway -prefixLength $prefixLength
-$subnet = "10.244.0.0/16"
+$subnet = CalculateSubNet -gateway $gateway -prefixLength $prefixLength
+
+#
+# TODO:FIXME:CHECK
+#
+# What's the difference between sdnoverlay from
+# https://github.com/microsoft/windows-container-networking/releases/download/v0.3.0/windows-container-networking-cni-amd64-v0.3.0.zip
+# and win-overlay from
+# https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-windows-amd64-v1.1.1.tgz ?
+# we use the ones from
+#     "type":"win-overlay",,.
 
 @"
 {
@@ -159,6 +175,8 @@ $subnet = "10.244.0.0/16"
 }
 "@ | Set-Content "c:\etc\cni\net.d\0-containerd-nat.json" -Force
 
+Add-MpPreference -ExclusionProcess "$global:ConainterDPath\containerd.exe"
+
 Write-Output "Registering ContainerD as a service"
 containerd.exe --register-service
 
@@ -166,3 +184,23 @@ Write-Output "Starting ContainerD service"
 Start-Service containerd
 
 Write-Output "Done - please remember to add '--cri-socket `"npipe:////./pipe/containerd-containerd`"' to your kubeadm join command"
+
+# Install CriCtl and test it
+
+$CriCtlVersion = '1.24.2'
+curl.exe -LO "https://github.com/kubernetes-sigs/cri-tools/releases/download/v${CriCtlVersion}/crictl-v${CriCtlVersion}-windows-amd64.tar.gz"
+tar.exe xvzf ".\crictl-v${CriCtlVersion}-windows-amd64.tar.gz"
+mv crictl.exe "C:\Program Files\containerd"
+del ".\crictl-v${CriCtlVersion}-windows-amd64.tar.gz"
+
+mkdir -Force "$home\.crictl"
+@"
+runtime-endpoint: npipe://./pipe/containerd-containerd
+image-endpoint: npipe://./pipe/containerd-containerd
+timeout: 10
+"@ | Set-Content "$home\.crictl\crictl.yaml" -Force
+
+crictl -r "npipe:////./pipe/containerd-containerd" info
+crictl info
+
+Write-Host "Finishing Script"

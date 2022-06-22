@@ -1,0 +1,14 @@
+# We create this L2 network to trigger a vSwitch creation
+# Note: RDP connection will hiccup when running this command.
+Rename-NetAdapter -Name "Ethernet Instance 0" -NewName "Ethernet"
+<#
+New-Item C:\k -Force -ItemType Directory | Out-Null
+curl.exe --silent --fail -Lo C:\k\hns.psm1 https://github.com/Microsoft/SDN/raw/master/Kubernetes/windows/hns.psm1
+Import-Module "C:\k\hns.psm1"
+New-HNSNetwork -Type L2Bridge `
+               -AddressPrefix "192.168.255.0/30" `
+               -Gateway "192.168.255.1" `
+               -AdapterName "Ethernet" `
+               -Name "External" `
+               -Verbose
+#>

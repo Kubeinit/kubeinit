@@ -300,8 +300,8 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
                             --request GET "https://api.github.com/repos/kubeinit/kubeinit/issues/${PULL_REQUEST}/labels" | \
                             jq -c '.[] | select(.name | contains("waitfordebug")).name' | tr -d '"')
             if [ "$waitfordebug" == "waitfordebug" ]; then
-                echo "Wait for debugging the environment for 10 minutes"
-                sleep 600
+                echo "Wait for debugging the environment for 3 minutes"
+                sleep 180
             else
                 break
             fi
