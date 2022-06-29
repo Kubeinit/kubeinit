@@ -107,9 +107,18 @@ New-Item -path C:\var\lib\kubelet\etc\kubernetes\pki -type SymbolicLink -value C
 # --image-pull-progress-deadline=20m
 # The following files do not exist
 # --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf
+# --config=/var/lib/kubelet/config.yaml
 
-$StartKubeletFileContent = '$FileContent = Get-Content -Path "/var/lib/kubelet/kubeadm-flags.env"
-$global:KubeletArgs = $FileContent.TrimStart(''KUBELET_KUBEADM_ARGS='').Trim(''"'')
+#
+# This pattern will build a startup script for the kubelet nssm service to start
+#
+$StartKubeletFileContent = '
+if (Test-Path -Path /var/lib/kubelet/kubeadm-flags.env ) {
+    $FileContent = Get-Content -Path "/var/lib/kubelet/kubeadm-flags.env"
+    $global:KubeletArgs = $FileContent.TrimStart(''KUBELET_KUBEADM_ARGS='').Trim(''"'')
+}else{
+    $global:KubeletArgs = ""
+}
 
 $global:containerRuntime = {% raw %}{{CONTAINER_RUNTIME}}{% endraw %}
 
@@ -121,9 +130,13 @@ if ($global:containerRuntime -eq "Docker") {
     }
 }
 
-$cmd = "C:\k\kubelet.exe $global:KubeletArgs --container-runtime-endpoint=npipe:////./pipe/containerd-containerd --cert-dir=$env:SYSTEMDRIVE\var\lib\kubelet\pki --config=/var/lib/kubelet/config.yaml --kubeconfig=/k/config --hostname-override={{ kubeinit_deployment_node_name }}.{{ kubeinit_cluster_fqdn }} --pod-infra-container-image=`"mcr.microsoft.com/oss/kubernetes/pause:3.6`" --enable-debugging-handlers --cgroups-per-qos=false --enforce-node-allocatable=`"`" --resolv-conf=`"`" --log-dir=/var/log/kubelet --logtostderr=true"
+$cmd = "C:\k\kubelet.exe $global:KubeletArgs --container-runtime-endpoint=npipe:////./pipe/containerd-containerd --cert-dir=$env:SYSTEMDRIVE\var\lib\kubelet\pki --kubeconfig=/k/config --hostname-override={{ kubeinit_deployment_node_name }}.{{ kubeinit_cluster_fqdn }} --pod-infra-container-image=`"mcr.microsoft.com/oss/kubernetes/pause:3.6`" --enable-debugging-handlers --cgroups-per-qos=false --enforce-node-allocatable=`"`" --resolv-conf=`"`" --log-dir=/var/log/kubelet --logtostderr=true"
 
 Invoke-Expression $cmd'
+#
+# End script rendering
+#
+
 $StartKubeletFileContent = $StartKubeletFileContent -replace "{% raw %}{{CONTAINER_RUNTIME}}{% endraw %}", "`"$ContainerRuntime`""
 Set-Content -Path $global:StartKubeletScript -Value $StartKubeletFileContent
 
@@ -145,6 +158,9 @@ $newPath = "$global:NssmInstallDirectory;" +
 [Environment]::SetEnvironmentVariable("PATH", $newPath, [EnvironmentVariableTarget]::Machine)
 
 Write-Host "Registering kubelet service"
+
+# This nssm service will run the script defined in c:\k\StartKubelet.ps1
+# In the case is not working run the script directly
 nssm install kubelet $global:Powershell $global:PowershellArgs $global:StartKubeletScript
 
 if ($ContainerRuntime -eq "Docker") {

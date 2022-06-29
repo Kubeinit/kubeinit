@@ -54,7 +54,9 @@
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
-      retries: 60
+      # This Windows application might take a lot of time to start running,
+      # the 2022 server image where it runs on top is fairly heavy.
+      retries: 160
       delay: 5
       until: _result.stdout_lines | list | length == kubeinit_apps_sampleapp_replicas|int
       delegate_to: "{{ kubeinit_provision_service_node }}"

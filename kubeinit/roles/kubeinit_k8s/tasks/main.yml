@@ -367,7 +367,7 @@
       $env:Path += ";C:\k;C:\Program Files\containerd;C:\Program Files\nssm"
       # The prepare node script will start kubelet as an nssm service
       # Make sure is like the following command, otherwise it will fail
-      # C:\k\kubelet.exe --container-runtime-endpoint=npipe:////./pipe/containerd-containerd --cert-dir=$env:SYSTEMDRIVE\var\lib\kubelet\pki --config=/var/lib/kubelet/config.yaml --kubeconfig=/k/config --hostname-override=compute-01.k8scluster.kubeinit.local --pod-infra-container-image=`"mcr.microsoft.com/oss/kubernetes/pause:3.6`" --enable-debugging-handlers --cgroups-per-qos=false --enforce-node-allocatable=`"`" --resolv-conf=`"`" --log-dir=/var/log/kubelet --logtostderr=true
+      # for example: C:\k\kubelet.exe --container-runtime-endpoint=npipe:////./pipe/containerd-containerd --cert-dir=$env:SYSTEMDRIVE\var\lib\kubelet\pki --config=/var/lib/kubelet/config.yaml --kubeconfig=/k/config --hostname-override=compute-01.k8scluster.kubeinit.local --pod-infra-container-image=`"mcr.microsoft.com/oss/kubernetes/pause:3.6`" --enable-debugging-handlers --cgroups-per-qos=false --enforce-node-allocatable=`"`" --resolv-conf=`"`" --log-dir=/var/log/kubelet --logtostderr=true
       powershell C:\k\PrepareNode.ps1 -KubernetesVersion v1.24.2 -ContainerRuntime containerD
   # TODO:FIXME: The following variables should be
   # added as group vars for those compute nodes which the
@@ -431,7 +431,7 @@
 - name: Tag Windows compute nodes as workers
   ansible.builtin.shell: |
     set -o pipefail
-    kubectl label node {{ node }}.{{ kubeinit_cluster_fqdn }} node-role.kubernetes.io/worker=worker
+    kubectl label node {{ compute_node }}.{{ kubeinit_cluster_fqdn }} node-role.kubernetes.io/worker=worker
   args:
     executable: /bin/bash
   register: _result
