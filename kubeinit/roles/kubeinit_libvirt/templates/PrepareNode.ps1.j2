@@ -79,7 +79,18 @@ if ($ContainerRuntime -eq "Docker") {
     DownloadFile "c:\k\hns.psm1" https://github.com/Microsoft/SDN/raw/master/Kubernetes/windows/hns.psm1
     Import-Module "c:\k\hns.psm1"
     # TODO(marosset): check if network already exists before creatation
-    New-HnsNetwork -Type NAT -Name nat
+    # New-HnsNetwork -Type NAT -Name nat
+    # We do this at deploy_windows_guest.yml
+    <#
+    Import-Module "c:\k\hns.psm1"
+    New-HNSNetwork -Type "Overlay" `
+                   -AddressPrefix "10.244.0.0/16" `
+                   -Gateway "10.244.0.1" `
+                   -Name "vxlan0" `
+                   -AdapterName "$((Get-NetAdapter -Physical).Name)" `
+                   -SubnetPolicies @(@{Type = "VSID"; VSID = 4096; }) `
+                   -Verbose
+    #>
 }
 
 Write-Host "Registering wins service"
@@ -90,6 +101,12 @@ mkdir -force C:\var\log\kubelet
 mkdir -force C:\var\lib\kubelet\etc\kubernetes
 mkdir -force C:\etc\kubernetes\pki
 New-Item -path C:\var\lib\kubelet\etc\kubernetes\pki -type SymbolicLink -value C:\etc\kubernetes\pki\
+
+# The following parameters are deprecated when starting the kubelet service
+# --network-plugin=cni
+# --image-pull-progress-deadline=20m
+# The following files do not exist
+# --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf
 
 $StartKubeletFileContent = '$FileContent = Get-Content -Path "/var/lib/kubelet/kubeadm-flags.env"
 $global:KubeletArgs = $FileContent.TrimStart(''KUBELET_KUBEADM_ARGS='').Trim(''"'')
@@ -104,7 +121,7 @@ if ($global:containerRuntime -eq "Docker") {
     }
 }
 
-$cmd = "C:\k\kubelet.exe $global:KubeletArgs --cert-dir=$env:SYSTEMDRIVE\var\lib\kubelet\pki --config=/var/lib/kubelet/config.yaml --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --hostname-override={{ kubeinit_deployment_node_name }}.{{ kubeinit_cluster_fqdn }} --pod-infra-container-image=`"mcr.microsoft.com/oss/kubernetes/pause:3.6`" --enable-debugging-handlers --cgroups-per-qos=false --enforce-node-allocatable=`"`" --network-plugin=cni --resolv-conf=`"`" --log-dir=/var/log/kubelet --logtostderr=true --image-pull-progress-deadline=20m"
+$cmd = "C:\k\kubelet.exe $global:KubeletArgs --container-runtime-endpoint=npipe:////./pipe/containerd-containerd --cert-dir=$env:SYSTEMDRIVE\var\lib\kubelet\pki --config=/var/lib/kubelet/config.yaml --kubeconfig=/k/config --hostname-override={{ kubeinit_deployment_node_name }}.{{ kubeinit_cluster_fqdn }} --pod-infra-container-image=`"mcr.microsoft.com/oss/kubernetes/pause:3.6`" --enable-debugging-handlers --cgroups-per-qos=false --enforce-node-allocatable=`"`" --resolv-conf=`"`" --log-dir=/var/log/kubelet --logtostderr=true"
 
 Invoke-Expression $cmd'
 $StartKubeletFileContent = $StartKubeletFileContent -replace "{% raw %}{{CONTAINER_RUNTIME}}{% endraw %}", "`"$ContainerRuntime`""
@@ -136,14 +153,13 @@ if ($ContainerRuntime -eq "Docker") {
     nssm set kubelet DependOnService containerd
 }
 
-New-NetFirewallRule -Name kubelet -DisplayName 'kubelet' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 10250
-
 <#
 # Testing containerD with crictl
 # All the following commands should work
+$env:Path += ";C:\k;C:\Program Files\containerd;C:\Program Files\nssm"
 cd 'C:\Program Files\containerd\'
-.\crictl.exe pull k8s.gcr.io/pause:3.6
-.\crictl.exe pull mcr.microsoft.com/windows/servercore:ltsc2022
+crictl pull k8s.gcr.io/pause:3.6
+crictl pull mcr.microsoft.com/windows/servercore:ltsc2022
 
 # Creating a sandbox / Pod
 @"
@@ -178,10 +194,10 @@ crictl exec $CONTAINER_ID ipconfig
 hcsdiag list
 
 # Run the pod
-.\crictl.exe runp .\pod-config.json
+crictl runp .\pod-config.json
 
 # Get the pods
-.\crictl pods
+crictl pods
 
 # Get Hns network information
 Get-HnsNetwork

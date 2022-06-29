@@ -131,28 +131,22 @@ $config | Set-Content "$global:ConainterDPath\config.toml" -Force
 mkdir -Force c:\opt\cni\bin | Out-Null
 mkdir -Force c:\etc\cni\net.d | Out-Null
 
-Write-Output "Getting SDN CNI binaries"
+Write-Output "Getting SDN CNI binaries from Microsoft"
 DownloadFile "c:\opt\cni\cni-plugins.zip" https://github.com/microsoft/windows-container-networking/releases/download/v0.3.0/windows-container-networking-cni-amd64-v0.3.0.zip
 Expand-Archive -Path "c:\opt\cni\cni-plugins.zip" -DestinationPath "c:\opt\cni\bin" -Force
 
+Write-Output "Getting SDN CNI binaries from CNI"
+# TODO:FIXME: We should use the ones from CNI but they do not work with containerd in 1.1.1
+# there should be released a new version supporting containerD
 curl.exe -OL https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-windows-amd64-v1.1.1.tgz
 tar.exe xvf .\cni-plugins-windows-amd64-v1.1.1.tgz -C C:\opt\cni\bin
 
+<#
+# We are not using NAT anymore
 Write-Output "Creating network config for nat network"
 $gateway = (Get-NetIPAddress -InterfaceAlias $netAdapterName -AddressFamily IPv4).IPAddress
 $prefixLength = (Get-NetIPAddress -InterfaceAlias $netAdapterName -AddressFamily IPv4).PrefixLength
-
 $subnet = CalculateSubNet -gateway $gateway -prefixLength $prefixLength
-
-#
-# TODO:FIXME:CHECK
-#
-# What's the difference between sdnoverlay from
-# https://github.com/microsoft/windows-container-networking/releases/download/v0.3.0/windows-container-networking-cni-amd64-v0.3.0.zip
-# and win-overlay from
-# https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-windows-amd64-v1.1.1.tgz ?
-# we use the ones from
-#     "type":"win-overlay",,.
 
 @"
 {
@@ -174,6 +168,66 @@ $subnet = CalculateSubNet -gateway $gateway -prefixLength $prefixLength
     }
 }
 "@ | Set-Content "c:\etc\cni\net.d\0-containerd-nat.json" -Force
+#>
+
+#
+# TODO:FIXME:CHECK
+#
+# What's the difference between sdnoverlay from
+# https://github.com/microsoft/windows-container-networking/releases/download/v0.3.0/windows-container-networking-cni-amd64-v0.3.0.zip
+# and win-overlay from
+# https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-windows-amd64-v1.1.1.tgz ?
+# we use the ones from
+#     "type":"win-overlay",,.
+
+@"
+{
+  "cniVersion": "0.3.0",
+  "name": "vxlan0",
+  "type": "sdnoverlay",
+  "ipam": {
+    "type": "host-local",
+    "subnet": "10.244.0.0/16"
+  },
+  "apiVersion": 2,
+  "capabilities": {
+    "portMappings": true,
+    "dns": true
+  },
+  "policies": [
+    {
+      "name": "EndpointPolicy",
+      "value": {
+        "Type": "OutBoundNAT",
+        "Settings": {
+          "Exceptions": [
+            "10.244.0.0/16"
+          ]
+        }
+      }
+    },
+    {
+      "name": "EndpointPolicy",
+      "value": {
+        "Type": "SDNRoute",
+        "Settings": {
+          "DestinationPrefix": "10.244.0.0/16",
+          "NeedEncap": true
+        }
+      }
+    },
+    {
+      "name": "EndpointPolicy",
+      "value": {
+        "Type": "ProviderAddress",
+        "Settings": {
+          "ProviderAddress": "10.0.0.1"
+        }
+      }
+    }
+  ]
+}
+"@ | Set-Content "c:\etc\cni\net.d\net.json" -Force
 
 Add-MpPreference -ExclusionProcess "$global:ConainterDPath\containerd.exe"
 

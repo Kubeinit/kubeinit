@@ -39,6 +39,8 @@ ipmo $helper
 $NetworkMode = $NetworkMode.ToLower()
 cd c:\k
 
+# This is done at the PrepareRequirements.ps1 step
+<#
 @"
 {
   "Network": "10.244.0.0/16",
@@ -48,6 +50,7 @@ cd c:\k
   }
 }
 "@ | Set-Content "C:\etc\kube-flannel\net-conf.json" -Force
+#>
 
 Write-Host "Registering flanneld"
 # register flanneld
@@ -96,7 +99,8 @@ Get-NetAdapter
 
 # This will drop the connection for a second
 Import-Module "c:\k\hns.psm1"
-New-HNSNetwork -Type 'Overlay' -AddressPrefix "10.244.0.0/16" -Gateway "10.244.0.1" -Name "vxlan0" -AdapterName "$((Get-NetAdapter -Physical).Name)"  -SubnetPolicies @(@{Type = "VSID"; VSID = 4096; }) -Verbose
+# We do this when the guest is created
+#New-HNSNetwork -Type 'Overlay' -AddressPrefix "10.244.0.0/16" -Gateway "10.244.0.1" -Name "vxlan0" -AdapterName "$((Get-NetAdapter -Physical).Name)"  -SubnetPolicies @(@{Type = "VSID"; VSID = 4096; }) -Verbose
 
 
 $env:Path += ";C:\k;C:\Program Files\containerd;C:\Program Files\nssm"
