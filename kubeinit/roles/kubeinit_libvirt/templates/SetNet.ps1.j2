@@ -1,0 +1,30 @@
+# Initial steps that will run from the autounattend.xml file the first time the guest boots up
+Rename-NetAdapter -Name "Ethernet Instance 0" -NewName "Ethernet"
+
+# We disable the firewall completely
+Set-NetFirewallProfile -All -Enabled False
+
+<#
+# This step didnt work, the hns network is not created and there are no logs about the error
+New-Item C:\k -Force -ItemType Directory | Out-Null
+curl.exe --silent --fail -Lo C:\k\hns.psm1 https://github.com/Microsoft/SDN/raw/master/Kubernetes/windows/hns.psm1
+Import-Module "C:\k\hns.psm1"
+New-HNSNetwork -Type "Overlay" `
+               -AddressPrefix "10.244.0.0/16" `
+               -Gateway "10.244.0.1" `
+               -Name "vxlan0" `
+               -AdapterName "$((Get-NetAdapter -Physical).Name)" `
+               -SubnetPolicies @(@{Type = "VSID"; VSID = 4096; }) `
+               -Verbose
+
+# We could open specific ports instead of disabling the firewall
+New-NetFirewallRule -Name kubelet2379 -DisplayName "Kubelet2379" -LocalPort 2379 -Enabled True -Direction Inbound -Protocol TCP -Action Allow -EdgeTraversalPolicy Allow
+New-NetFirewallRule -Name kubelet2380 -DisplayName "Kubelet2380" -LocalPort 2380 -Enabled True -Direction Inbound -Protocol TCP -Action Allow -EdgeTraversalPolicy Allow
+New-NetFirewallRule -Name kubelet4789 -DisplayName "Kubelet4789" -LocalPort 4789 -Enabled True -Direction Inbound -Protocol TCP -Action Allow -EdgeTraversalPolicy Allow
+New-NetFirewallRule -Name kubelet6443 -DisplayName "Kubelet6443" -LocalPort 6443 -Enabled True -Direction Inbound -Protocol TCP -Action Allow -EdgeTraversalPolicy Allow
+New-NetFirewallRule -Name kubelet10248 -DisplayName "Kubelet10248" -LocalPort 10248 -Enabled True -Direction Inbound -Protocol TCP -Action Allow -EdgeTraversalPolicy Allow
+New-NetFirewallRule -Name kubelet10250 -DisplayName "Kubelet10250" -LocalPort 10250 -Enabled True -Direction Inbound -Protocol TCP -Action Allow -EdgeTraversalPolicy Allow
+New-NetFirewallRule -Name kubelet10251 -DisplayName "Kubelet10251" -LocalPort 10251 -Enabled True -Direction Inbound -Protocol TCP -Action Allow -EdgeTraversalPolicy Allow
+New-NetFirewallRule -Name kubelet10252 -DisplayName "Kubelet10252" -LocalPort 10252 -Enabled True -Direction Inbound -Protocol TCP -Action Allow -EdgeTraversalPolicy Allow
+New-NetFirewallRule -Name kubelet10255 -DisplayName "Kubelet10254" -LocalPort 10255 -Enabled True -Direction Inbound -Protocol TCP -Action Allow -EdgeTraversalPolicy Allow
+#>

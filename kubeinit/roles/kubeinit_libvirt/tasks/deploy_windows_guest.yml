@@ -67,17 +67,12 @@
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config/{{ item }}"
         mode: "0644"
       loop:
+        - SetNet.ps1
         - Install-Openssh.ps1
+        - PrepareRequirements.ps1
         - Install-Containerd.ps1
         - PrepareNode.ps1
-
-    # - name: Download configuration scripts
-    #   ansible.builtin.get_url:
-    #     url: "{{ item }}"
-    #     dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/config"
-    #     mode: '0644'
-    #   loop:
-    #     - https://raw.githubusercontent.com/kubernetes-sigs/sig-windows-tools/master/kubeadm/scripts/PrepareNode.ps1
+        - PrepareFlannel.ps1
 
     - name: Create the .iso disk with the install assets
       ansible.builtin.shell: |
@@ -190,7 +185,30 @@
     - name: Ping
       ansible.windows.win_ping:
 
-    - name: Enable the required container features
+    - name: Create the k folder
+      ansible.windows.win_file:
+        path: C:\k
+        state: directory
+
+    - name: Copy all the ISO resources to a writable folder
+      ansible.windows.win_copy:
+        src: F:\
+        dest: C:\k
+        remote_src: yes
+
+    - name: Install KB5012637
+      ansible.windows.win_powershell:
+        script: |
+          $patchFile = "windows10.0-kb5012637-x64_6a7459b60e226b0ad0d30b34a4be069bee4d2867.msu"
+          $url = "https://catalog.s.download.windowsupdate.com/c/msdownload/update/software/updt/2022/04/$patchFile"
+          $dest = "C:\Windows\Temp\$patchFile"
+          Invoke-WebRequest -Uri $url -OutFile $dest
+          # Install the patch, bypassing any prompts
+          cmd.exe /c wusa.exe $dest /quiet /norestart
+      register: _result
+      changed_when: "_result.host_err == ''"
+
+    - name: Enable the required container features and required modules
       ansible.windows.win_powershell:
         script: |
           Install-WindowsFeature Containers
@@ -205,36 +223,33 @@
       ansible.windows.win_reboot:
         reboot_timeout: 3600
 
-    - name: Install ContainerD
+    - name: Configure Overlay HNSNetwork for the overlay network
+      # This task MUST be executed after the initial guest reboot
       ansible.windows.win_powershell:
         script: |
-          # Download and extract desired containerd Windows binaries
-          $Version="1.6.6"
-          curl.exe -L https://github.com/containerd/containerd/releases/download/v$Version/containerd-$Version-windows-amd64.tar.gz -o containerd-windows-amd64.tar.gz
-          tar.exe xvf .\containerd-windows-amd64.tar.gz
+          # We do this when there is no network created, this will create a network glitch
+          # as there must be created a new virtual switch where each pod will be connected to
+          # Note: RDP connection will hiccup when running this command (New-HNSNetwork).
+          New-Item C:\k -Force -ItemType Directory | Out-Null
+          curl.exe --silent --fail -Lo C:\k\hns.psm1 https://github.com/Microsoft/SDN/raw/master/Kubernetes/windows/hns.psm1
+          Import-Module "c:\k\hns.psm1"
+          # There is no need to remove the nhs nets as this is a new environment
+          # get-hnsnetwork | remove-hnsnetwork
+          New-HNSNetwork -Type "Overlay" `
+                         -AddressPrefix "10.244.0.0/16" `
+                         -Gateway "10.244.0.1" `
+                         -Name "vxlan0" `
+                         -AdapterName "$((Get-NetAdapter -Physical).Name)" `
+                         -SubnetPolicies @(@{Type = "VSID"; VSID = 4096; }) `
+                         -Verbose
+          # This task will make Ansible to hang, there is a connection hiccup
+          # and then we are not able to continue, so we trigger this as async
+          # and then we ping again the machine to see we can communicate over SSH
+      async: 60
+      poll: 0
 
-          # Copy and configure
-          Copy-Item -Path ".\bin\" -Destination "$Env:ProgramFiles\containerd" -Recurse -Force
-          cd $Env:ProgramFiles\containerd\
-          .\containerd.exe config default | Out-File config.toml -Encoding ascii
-
-          # Review the configuration. Depending on setup you may want to adjust:
-          # - the sandbox_image (Kubernetes pause image)
-          # - cni bin_dir and conf_dir locations
-          # Get-Content config.toml
-
-          # Register and start service
-          .\containerd.exe --register-service
-          Start-Service containerd
-      register: _result
-      changed_when: "_result.host_err == ''"
-
-    - name: Prepare the node for K8s
-      ansible.windows.win_powershell:
-        script: |
-          F:\PrepareNode.ps1 -KubernetesVersion v1.24.0 -ContainerRuntime containerD
-      register: _result
-      changed_when: "_result.host_err == ''"
+    - name: Ping
+      ansible.windows.win_ping:
   # TODO:FIXME: The following variables should be
   # added as group vars for those compute nodes which the
   # os is equals to 'windows'

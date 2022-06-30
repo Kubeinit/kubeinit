@@ -228,7 +228,7 @@
 
 - name: Create the kubeinit folder
   ansible.windows.win_file:
-    path: C:\kubeinit
+    path: C:\k
     state: directory
   # TODO:FIXME: The following variables should be
   # added as group vars for those compute nodes which the
@@ -248,7 +248,45 @@
 - name: Copy the kubeconfig file
   ansible.windows.win_copy:
     content: "{{ _result_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
-    dest: C:\kubeinit\kube_config
+    dest: C:\k\kube_config
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+
+- name: Copy the kubeconfig file
+  ansible.windows.win_copy:
+    content: "{{ _result_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
+    dest: C:\k\Kubeconfig
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+
+- name: Copy the kubeconfig file
+  ansible.windows.win_copy:
+    content: "{{ _result_cluster_kubeconfig.content | default('Empty file') | b64decode }}"
+    dest: C:\k\config
   # TODO:FIXME: The following variables should be
   # added as group vars for those compute nodes which the
   # os is equals to 'windows'
@@ -265,10 +303,9 @@
   when: hostvars[compute_node].os == 'windows'
 
 - name: Write the join command
-  ansible.windows.win_powershell:
-    script: |
-      write-output {{ _result_join_command.stdout }} | out-file C:\kubeinit\k8s_join_command.ps1
-  # C:\k\k8s_join_command.ps1
+  ansible.windows.win_copy:
+    content: "{{ _result_join_command.stdout | replace('kubeadm','c:\\k\\kubeadm.exe') }} --node-name {{ compute_node }}.{{ kubeinit_cluster_fqdn }} --cri-socket 'npipe:////./pipe/containerd-containerd' -v=10"
+    dest: C:\k\k8s_join_command.ps1
   # TODO:FIXME: The following variables should be
   # added as group vars for those compute nodes which the
   # os is equals to 'windows'
@@ -283,3 +320,124 @@
   loop_control:
     loop_var: compute_node
   when: hostvars[compute_node].os == 'windows'
+
+- name: Install prereqs
+  ansible.windows.win_powershell:
+    script: |
+      $env:Path += ";C:\k;C:\Program Files\containerd;C:\Program Files\nssm"
+      powershell c:\k\PrepareRequirements.ps1
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+
+- name: Install containerd
+  ansible.windows.win_powershell:
+    script: |
+      $env:Path += ";C:\k;C:\Program Files\containerd;C:\Program Files\nssm"
+      powershell C:\k\Install-Containerd.ps1 -netAdapterName 'Ethernet' -ContainerDVersion '1.6.6'
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+
+- name: Prepare the Windows computes (register containerd and kubelet)
+  ansible.windows.win_powershell:
+    script: |
+      $env:Path += ";C:\k;C:\Program Files\containerd;C:\Program Files\nssm"
+      # The prepare node script will start kubelet as an nssm service
+      # Make sure is like the following command, otherwise it will fail
+      # for example: C:\k\kubelet.exe --container-runtime-endpoint=npipe:////./pipe/containerd-containerd --cert-dir=$env:SYSTEMDRIVE\var\lib\kubelet\pki --config=/var/lib/kubelet/config.yaml --kubeconfig=/k/config --hostname-override=compute-01.k8scluster.kubeinit.local --pod-infra-container-image=`"mcr.microsoft.com/oss/kubernetes/pause:3.6`" --enable-debugging-handlers --cgroups-per-qos=false --enforce-node-allocatable=`"`" --resolv-conf=`"`" --log-dir=/var/log/kubelet --logtostderr=true
+      powershell C:\k\PrepareNode.ps1 -KubernetesVersion v1.24.2 -ContainerRuntime containerD
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+
+- name: Install prereqs and start script (register flannel)
+  ansible.windows.win_powershell:
+    script: |
+      $env:Path += ";C:\k;C:\Program Files\containerd;C:\Program Files\nssm"
+      # Default domain: controller-01.k8scluster.kubeinit.local
+      # The management IP is the node's IP not the controller's IP.
+      # for example: powershell C:\k\PrepareFlannel.ps1 -ManagementIP 10.0.0.2 -Hostname compute-01.k8scluster.kubeinit.local -NetworkMode overlay
+      powershell C:\k\PrepareFlannel.ps1 -ManagementIP {{ hostvars[compute_node].ansible_host }}  -Hostname {{ compute_node }}.{{ kubeinit_cluster_fqdn }} -NetworkMode overlay
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+
+- name: Join the Windows computes in the cluster
+  ansible.windows.win_powershell:
+    script: |
+      $env:Path += ";C:\k;C:\Program Files\containerd;C:\Program Files\nssm"
+      # The kubelet service automatically joins the node to the cluster as kubelet is running as an nssm service
+      # powershell C:\k\k8s_join_command.ps1
+  # TODO:FIXME: The following variables should be
+  # added as group vars for those compute nodes which the
+  # os is equals to 'windows'
+  # TODO:FIXME: The usage of ansible_shell_type might
+  # be different depending on the win_* task, the
+  # supported values are [cmd | powershell]
+  vars:
+    ansible_shell_type: 'cmd'
+    ansible_remote_tmp: 'C:\Windows\Temp'
+  delegate_to: "{{ compute_node }}"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+
+- name: Tag Windows compute nodes as workers
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl label node {{ compute_node }}.{{ kubeinit_cluster_fqdn }} node-role.kubernetes.io/worker=worker
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  loop: "{{ groups['all_compute_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: compute_node
+  when: hostvars[compute_node].os == 'windows'
+  delegate_to: "{{ kubeinit_first_controller_node }}"
