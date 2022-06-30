@@ -3,6 +3,8 @@
 # Hosts definitions
 #
 
+all:
+  children:
 ###
 # The cluster's guest machines can be distributed across mutiple hosts. By default they
 # will be deployed in the first Hypervisor. These hypervisors are activated and used
@@ -25,12 +27,12 @@
 #        hypervisor-02:
 #            ansible_host: tyto
 #            ssh_hostname: 192.168.222.202
-hypervisor_hosts:
-  hypervisor-01:
-    ansible_host: nyctea
-  hypervisor-02:
-    ansible_host: tyto
-
+    hypervisor_hosts:
+      hosts:
+        hypervisor-01:
+          ansible_host: nyctea
+        hypervisor-02:
+          ansible_host: tyto
 ###
 # The inventory will have one host identified as the bastion host. By default, this role will
 # be assumed by the first hyperviso. The example would set the second hypervisor to be the bastion host.
@@ -48,10 +50,10 @@ hypervisor_hosts:
 #    bastion_host:
 #        bastion:
 #            ansible_host: bastion
-bastion_host:
-  bastion:
-    target: hypervisor-01
-
+    bastion_host:
+      hosts:
+        bastion:
+          target: hypervisor-01
 ###
 # The inventory will have one host identified as the ovn-central host. By default, this role
 # will be assumed by the first hypervisor. The first example would set the second hypervisor
@@ -61,10 +63,10 @@ bastion_host:
 #
 #    ovn_central_host:
 #        target: hypervisor-02
-ovn_central_host:
-  ovn-central:
-    target: hypervisor-01
-
+    ovn_central_host:
+      hosts:
+        ovn-central:
+          target: hypervisor-01
 ###
 #
 # Setup host definition (used only with the setup-playbook.yml)
@@ -86,6 +88,7 @@ ovn_central_host:
 #
 #    setup_host:
 #        ansible_host: 192.168.222.214
-setup_host:
-  kubeinit-setup:
-    ansible_host: localhost
+    setup_host:
+      hosts:
+        kubeinit-setup:
+          ansible_host: localhost

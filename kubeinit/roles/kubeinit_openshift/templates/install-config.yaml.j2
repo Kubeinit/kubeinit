@@ -12,18 +12,18 @@ metadata:
   name: {{ kubeinit_cluster_name }}
 networking:
   clusterNetwork:
-    - cidr: {{ kubeinit_okd_pod_cidr }}
+    - cidr: {{ kubeinit_openshift_pod_cidr }}
       hostPrefix: 23
-  networkType: {{ kubeinit_okd_network_type }}
+  networkType: {{ kubeinit_openshift_network_type }}
   serviceNetwork:
-    - {{ kubeinit_okd_service_cidr }}
+    - {{ kubeinit_openshift_service_cidr }}
 platform:
   none: {}
 fips: false
 {% if 'registry' in kubeinit_cluster_hostvars.services %}
-pullSecret: '  {{ kubeinit_registry_pullsecret }}'
+pullSecret: '  {{ kubeinit_registry_pullsecret | to_json }}'
 {% else %}
-pullSecret: '  {{ kubeinit_okd_registry_pullsecret }}'
+pullSecret: '  {{ kubeinit_openshift_registry_pullsecret | to_json }}'
 {% endif %}
 sshKey: |
 {% for authorized_key in kubeinit_cluster_hostvars.authorized_keys %}

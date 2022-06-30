@@ -22,34 +22,10 @@
         path: "{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2"
         state: absent
 
-    - name: Set guest images facts
-      ansible.builtin.set_fact:
-        kubeinit_coreos_initrd: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}"
-        kubeinit_coreos_raw: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].raw }}"
-        kubeinit_coreos_rootfs: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].rootfs }}"
-
     - name: "Create VM definition for {{ kubeinit_deployment_node_name }}"
       ansible.builtin.shell: |
         set -o pipefail
-        # If you use the kernel args to deploy the machine
-        # Is not possible to render the template as --print-xml > vm.xml
-        # If so then is good to have it like 'virsh define vm.xml'
-        kernel_args=$(echo "$kernel_args_aux" | paste -sd "" -)
-        kernel_args_aux='initrd=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_initrd }}
-                         ip=dhcp
-                         nameserver={{ kubeinit_bind_service_address }}
-                         rd.neednet=1
-                         console=tty0
-                         console=ttyS0
-                         coreos.inst=yes
-                         coreos.inst.insecure=yes
-                         coreos.inst.install_dev=/dev/vda
-                         coreos.inst.image_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_raw }}
-                         coreos.inst.ignition_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_ignition_name }}.ign
-                         coreos.live.rootfs_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_rootfs }}'
-
         kernel_args='initrd=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_initrd }} ip=dhcp nameserver={{ kubeinit_bind_service_address }} rd.neednet=1 console=tty0 console=ttyS0 coreos.inst=yes coreos.inst.insecure=yes coreos.inst.install_dev=/dev/vda coreos.inst.image_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_raw }} coreos.inst.ignition_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_ignition_name }}.ign coreos.live.rootfs_url=http://{{ kubeinit_apache_service_address }}:8080/kubeinit/okd4/{{ kubeinit_coreos_rootfs }}'
-
         virt-install \
             --connect qemu:///system \
             --name={{ hostvars[kubeinit_deployment_node_name].guest_name }} \
@@ -83,3 +59,4 @@
   ansible.builtin.include_tasks: 70_check_nodes_up.yml
   vars:
     _param_guest_user: 'core'
+    _param_request_ping: false

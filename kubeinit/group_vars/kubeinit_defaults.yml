@@ -15,9 +15,12 @@ default_network_name: kimgtnet0
 # manually provisioned baremetal machines for the deployment.
 default_extra_nodes_map_list:
 - name: juju-controller
-  when_distro: cdk
+  when_distro:
+  - cdk
 - name: bootstrap
-  when_distro: okd
+  when_distro:
+  - ocp
+  - okd
 
 ###
 # Service nodes are a set of service containers sharing the same pod network.
@@ -36,8 +39,8 @@ cdk_cluster_node_os: ubuntu
 eks_cluster_node_os: centos
 k8s_cluster_node_os: centos
 kid_cluster_node_os: debian
-okd_cluster_node_os: coreos
-okd_service_node_os: centos
+openshift_cluster_node_os: coreos
+openshift_service_node_os: centos
 rke_cluster_node_os: ubuntu
 
 cluster_node_vcpus: 8
@@ -70,20 +73,29 @@ service_node_target_order:
 # any of these defaults, e.g.
 #   -e cluster_nodes_spec='[[when_group=controller_nodes,disk=35G]]'
 default_cluster_nodes_map_list:
-- when_distro: cdk
+- when_distro:
+  - cdk
   os: "{{ cdk_cluster_node_os }}"
-- when_distro: eks
+- when_distro:
+  - eks
   os: "{{ eks_cluster_node_os }}"
-- when_distro: k8s
+- when_distro:
+  - k8s
   os: "{{ k8s_cluster_node_os }}"
-- when_distro: kid
+- when_distro:
+  - kid
   os: "{{ kid_cluster_node_os }}"
-- when_distro: okd
-  os: "{{ okd_cluster_node_os }}"
-- when_distro: okd
+- when_distro:
+  - ocp
+  - okd
+  os: "{{ openshift_cluster_node_os }}"
+- when_distro:
+  - ocp
+  - okd
   when_group: service_nodes
-  os: "{{ okd_service_node_os }}"
-- when_distro: rke
+  os: "{{ openshift_service_node_os }}"
+- when_distro:
+  - rke
   os: "{{ rke_cluster_node_os }}"
 - when_type: virtual
   vcpus: "{{ cluster_node_vcpus }}"
@@ -100,10 +112,13 @@ default_cluster_nodes_map_list:
   disk: "{{ extra_node_disk_size }}"
   target_order: "{{ extra_node_target_order }}"
 - when_group: extra_nodes
-  when_distro: cdk
+  when_distro:
+  - cdk
   ram: "{{ juju_controller_node_ram_size }}"
 - when_group: extra_nodes
-  when_distro: okd
+  when_distro:
+  - ocp
+  - okd
   ram: "{{ bootstrap_node_ram_size }}"
 - when_group: service_nodes
   target_order: "{{ service_node_target_order }}"

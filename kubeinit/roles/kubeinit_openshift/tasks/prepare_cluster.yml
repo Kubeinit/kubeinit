@@ -14,52 +14,46 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Override initial pullsecret with fake auth
+- name: Set fact if kubeinit_openshift_registry_pullsecret is empty
   ansible.builtin.set_fact:
-    kubeinit_okd_registry_pullsecret: '  { "auths": { "fakeregistry:5000": { "auth": "foo" } } }'
-  when: not 'registry' in kubeinit_cluster_hostvars.services and kubeinit_okd_registry_pullsecret_empty in kubeinit_okd_registry_pullsecret
+    pullsecret_empty: "{{ kubeinit_openshift_registry_pullsecret_empty|dict2items | symmetric_difference(kubeinit_openshift_registry_pullsecret|dict2items) | length == 0 }}"
+  when: not 'registry' in kubeinit_cluster_hostvars.services
+
+- name: Override initial pullsecret with fake auth if empty
+  ansible.builtin.set_fact:
+    kubeinit_openshift_registry_pullsecret: "{{ '{\"auths\": {\"fakeregistry:5000\": {\"auth\": \"foo\"}}}' | from_json }}"
+  when: not 'registry' in kubeinit_cluster_hostvars.services and pullsecret_empty|bool
 
 - name: Only use these tasks if we are deploying OCP and not OKD
   block:
 
     - name: Check for openshift pullsecret in kubeinit secrets
       ansible.builtin.set_fact:
-        _result_pullsecret_path: "{{ omit if (hostvars['kubeinit-secrets'].secrets['openshift-pullsecret'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['openshift-pullsecret'] }}"
+        _result_pullsecret_path: "{{ hostvars['kubeinit-secrets'].secrets['openshift-pullsecret'] }}"
 
     - name: Create registry auth for pullsecret
-      ansible.builtin.shell: |
-        set -eo pipefail
-        echo '{{ lookup('unvault', _result_pullsecret_path) | trim }}' | jq -c ".auths"
-      args:
-        executable: /bin/bash
-      register: _result_registry_pullsecret
-      changed_when: "_result_registry_pullsecret.rc == 0"
-
-    - name: Append openshift auth to pullsecret
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo '{{ kubeinit_okd_registry_pullsecret }}' | jq -c \
-          '.auths += {{ _result_registry_pullsecret.stdout }}'
-      args:
-        executable: /bin/bash
-      register: _result_new_pullsecret
-      changed_when: "_result_new_pullsecret.rc == 0"
-
-    - name: Override final openshift kubeinit_okd_registry_pullsecret with both auths
       ansible.builtin.set_fact:
-        kubeinit_okd_registry_pullsecret: '  {{ _result_new_pullsecret.stdout }}'
+        _result_registry_pullsecret: "{{ lookup('unvault', _result_pullsecret_path) | from_json }}"
 
-  when: kubeinit_okd_openshift_deploy
+    - name: Combine openshift auth with pullsecret
+      ansible.builtin.set_fact:
+        _result_new_pullsecret: "{{ kubeinit_openshift_registry_pullsecret | combine(_result_registry_pullsecret, recursive=true) }}"
 
-- name: Debug kubeinit_okd_registry_pullsecret before overriding kubeinit_registry_pullsecret
+    - name: Override final openshift kubeinit_openshift_registry_pullsecret with both auths
+      ansible.builtin.set_fact:
+        kubeinit_openshift_registry_pullsecret: "{{ _result_new_pullsecret }}"
+
+  when: kubeinit_cluster_distro == 'ocp'
+
+- name: Debug kubeinit_openshift_registry_pullsecret before overriding kubeinit_registry_pullsecret
   ansible.builtin.debug:
-    var: kubeinit_okd_registry_pullsecret
+    var: kubeinit_openshift_registry_pullsecret
 
 # This task will override the default "empty" pullsecret from the registry playbook
 # with the content of the pullsecret defined in the OKD playbook
 - name: Assign a default pullsecret when we use a local registry and deploying OKD
   ansible.builtin.set_fact:
-    kubeinit_registry_pullsecret: '  {{ kubeinit_okd_registry_pullsecret }}'
+    kubeinit_registry_pullsecret: "{{ kubeinit_openshift_registry_pullsecret }}"
 
 - name: Debug kubeinit_registry_pullsecret after overriding it
   ansible.builtin.debug:
@@ -78,45 +72,63 @@
 - name: Delegate to the provision service node
   block:
 
-    - name: "Render net info"
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo "{{ kubeinit_okd_pod_cidr }}" > ~/pod_cidr
-        echo "{{ kubeinit_okd_service_cidr }}" > ~/service_cidr
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
+    - name: Copy pod cidr into remote file
+      ansible.builtin.copy:
+        content: |
+          {{ kubeinit_openshift_pod_cidr }}
+        dest: ~/pod_cidr
+        mode: 0644
+
+    - name: Copy service cidr into remote file
+      ansible.builtin.copy:
+        content: |
+          {{ kubeinit_openshift_service_cidr }}
+        dest: ~/service_cidr
+        mode: 0644
 
     - name: Install services requirements
-      ansible.builtin.yum:
-        name: socat
+      ansible.builtin.dnf:
+        name:
+          - libvirt
+          - socat
         state: present
-        use_backend: dnf
 
     #
     # Include the install configuration
     #
 
-    - name: Download okd installer
+    - name: Download okd client
       ansible.builtin.get_url:
-        url: "{{ kubeinit_okd_dependencies.installer }}"
+        url: "{{ kubeinit_openshift_download_url.client }}"
         dest: ~/
         mode: 0644
 
-    - name: Download okd client
+    - name: Download okd installer
       ansible.builtin.get_url:
-        url: "{{ kubeinit_okd_dependencies.client }}"
+        url: "{{ kubeinit_openshift_download_url.installer }}"
         dest: ~/
         mode: 0644
+
+    - name: Download okd release.txt
+      ansible.builtin.get_url:
+        url: "{{ kubeinit_openshift_download_url.release_txt }}"
+        dest: ~/
+        mode: 0644
+
+    - name: Remove old install dir
+      ansible.builtin.file:
+        path: ~/install_dir
+        state: absent
+
+    - name: Create new install dir
+      ansible.builtin.file:
+        path: ~/install_dir
+        state: directory
+        mode: 0755
 
     - name: Install okd client and installer
       ansible.builtin.shell: |
         set -o pipefail
-        dnf install -y libvirt
-        cd
-        rm -rf install_dir
-        mkdir install_dir
         for f in *.tar.gz; do tar -xvf "$f"; done
         mv kubectl oc openshift-install /usr/local/bin/
         oc version
@@ -126,27 +138,41 @@
       register: _result
       changed_when: "_result.rc == 0"
 
-    - name: Check FCOS version and stream match
+    - name: Get coreos stream json
       ansible.builtin.shell: |
         set -o pipefail
-        main_str=$(openshift-install coreos print-stream-json | jq -r '.architectures.x86_64.artifacts.openstack.formats["qcow2.xz"]'.disk.location)
-        if [[ "$main_str" == *"{{ kubeinit_okd_fcos_release }}"* ]]; then
-            echo "OK: The deployed FCOS version matches the openshift installer information."
-        else
-            echo "FAILURE: The deployed FCOS version {{ kubeinit_okd_fcos_release }} do not match the openshift installer information."
-            echo "FAILURE: It should be: $main_str"
-        fi
-        if [[ "$main_str" == *"{{ kubeinit_okd_fcos_stream }}"* ]]; then
-            echo "OK: The deployed FCOS stream matches the openshift installer information."
-        else
-            echo "FAILURE: The deployed FCOS stream {{ kubeinit_okd_fcos_stream }} do not match the openshift installer information."
-            echo "FAILURE: It should be testing of stable depending on: $main_str"
-        fi
+        openshift-install coreos print-stream-json | jq -r '.architectures.x86_64.artifacts.metal'
       args:
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
-      failed_when: "'FAILURE' in _result.stdout"
+
+    - name: Set fact for coreos stream json
+      ansible.builtin.set_fact:
+        coreos_stream_json: "{{ _result.stdout | from_json }}"
+
+    - name: Set fact for coreos stream release
+      ansible.builtin.set_fact:
+        coreos_stream_release: "{{ coreos_stream_json.release }}"
+
+    - name: Set facts for coreos image locations
+      ansible.builtin.set_fact:
+        kernel_image_url: "{{ coreos_stream_json.formats.pxe.kernel.location }}"
+        initrd_image_url: "{{ coreos_stream_json.formats.pxe.initramfs.location }}"
+        rootfs_image_url: "{{ coreos_stream_json.formats.pxe.rootfs.location }}"
+        raw_image_url: "{{ coreos_stream_json.formats['raw.' + ('gz' if kubeinit_cluster_distro == 'ocp' else 'xz')].disk.location }}"
+
+    - name: Set facts for image filenames
+      ansible.builtin.set_fact:
+        kubeinit_openshift_coreos_initrd: "{{ initrd_image_url | regex_replace('^.*/', '') }}"
+        kubeinit_openshift_coreos_kernel: "{{ kernel_image_url | regex_replace('^.*/', '') }}"
+        kubeinit_openshift_coreos_raw: "{{ raw_image_url | regex_replace('^.*/', '') }}"
+        kubeinit_openshift_coreos_rootfs: "{{ rootfs_image_url | regex_replace('^.*/', '') }}"
+
+    - name: Set facts for coreos image signatures
+      ansible.builtin.set_fact:
+        raw_image_sig_url: "{{ coreos_stream_json.formats['raw.xz'].disk.signature }}"
+      when: kubeinit_cluster_distro == 'okd'
 
     #
     # Configure local registry
@@ -155,16 +181,7 @@
     - name: Render the required container images
       ansible.builtin.shell: |
         set -o pipefail
-
-        {% if ( kubeinit_okd_openshift_deploy | default(False) ) %}
-        URL="{{ kubeinit_okd_registry_release_url }}"
-        {% else %}
-        URL=$( curl -s "{{ kubeinit_okd_registry_release_url }}" \
-           | jq -r '.assets[] | select(.name=="release.txt") | .browser_download_url' )
-        {% endif %}
-
-        curl -LO "$URL"
-        cat release.txt | grep quay | grep -v "Pull From" | tr -s ' ' | cut -d ' ' -f 3 > ~/kubeinit_deployment_images.txt
+        cat release.txt | grep {{ kubeinit_openshift_registry_site }} | grep -v "Pull From" | tr -s ' ' | cut -d ' ' -f 3 > ~/kubeinit_deployment_images.txt
       args:
         executable: /bin/bash
       register: _result
@@ -176,18 +193,18 @@
         oc adm \
             release mirror \
             --registry-config={{ kubeinit_registry_auth_file }} \
-            --from={{ kubeinit_okd_registry }}/{{ kubeinit_okd_registry_organization }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}{% if ( kubeinit_okd_openshift_deploy | default(False) ) %}-x86_64{% endif %} \
-            --to={{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }} \
-            --to-release-image={{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }} \
+            --from={{ kubeinit_openshift_registry_site }}/{{ kubeinit_openshift_registry_organization }}/{{ kubeinit_openshift_registry_repository }}:{{ kubeinit_openshift_release_tag }}{% if kubeinit_cluster_distro == 'ocp' %}-x86_64{% endif %} \
+            --to={{ kubeinit_registry_uri }}/{{ kubeinit_openshift_registry_repository }} \
+            --to-release-image={{ kubeinit_registry_uri }}/{{ kubeinit_openshift_registry_repository }}:{{ kubeinit_openshift_release_tag }} \
             2>&1 | tee mirror-output.txt
         oc adm \
             release extract \
             --registry-config={{ kubeinit_registry_auth_file }} \
-            --command=openshift-install "{{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}"
+            --command=openshift-install "{{ kubeinit_registry_uri }}/{{ kubeinit_openshift_registry_repository }}:{{ kubeinit_openshift_release_tag }}"
         oc adm \
             release extract \
             --registry-config={{ kubeinit_registry_auth_file }} \
-            --command=oc "{{ kubeinit_registry_uri }}/{{ kubeinit_okd_registry_repository }}:{{ kubeinit_okd_registry_release_tag }}"
+            --command=oc "{{ kubeinit_registry_uri }}/{{ kubeinit_openshift_registry_repository }}:{{ kubeinit_openshift_release_tag }}"
         # This will override the current client and installer binaries
         cp oc openshift-install /usr/local/bin/
         oc version
@@ -200,16 +217,12 @@
 
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
-- name: Set name of CoreOS distribution
-  ansible.builtin.set_fact:
-    kubeinit_coreos_distribution: "{{ 'rhcos' if (kubeinit_okd_openshift_deploy) else 'fcos' }}"
-
 - name: Download kernel image
   ansible.builtin.get_url:
     validate_certs: False
     use_proxy: True
-    url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].kernel }}"
-    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].kernel }}"
+    url: "{{ kernel_image_url }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/"
     force: no
     mode: '0666'
   loop: "{{ groups['kubeinit_hypervisors'] }}"
@@ -221,8 +234,8 @@
   ansible.builtin.get_url:
     validate_certs: False
     use_proxy: True
-    url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}"
-    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}"
+    url: "{{ initrd_image_url }}"
+    dest: "{{ kubeinit_libvirt_target_image_dir }}/"
     force: no
     mode: '0666'
   loop: "{{ groups['kubeinit_hypervisors'] }}"
@@ -237,10 +250,10 @@
     arch = x86_64
     family = Fedora CoreOS
     platforms = x86_64
-    version = kubeinit_libvirt_fcos_release.split(".")[0]
+    version = {{ coreos_stream_release.split(".")[0] }}
     [images-x86_64]
-    initrd = {{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}
-    kernel = {{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].kernel }}
+    initrd = {{ kubeinit_openshift_coreos_initrd }}
+    kernel = {{ kubeinit_openshift_coreos_kernel }}
     EOF
   args:
     executable: /bin/bash
@@ -250,7 +263,7 @@
   loop_control:
     loop_var: kubeinit_deployment_node_name
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: not kubeinit_okd_openshift_deploy
+  when: kubeinit_cluster_distro == 'okd'
 
 - name: Create the treeinfo directory for RHCOS
   ansible.builtin.shell: |
@@ -259,10 +272,10 @@
     arch = x86_64
     family = Red Hat CoreOS
     platforms = x86_64
-    version = {{ kubeinit_okd_registry_release_tag_aux | default(omit) }}
+    version = {{ kubeinit_openshift_release_tag }}
     [images-x86_64]
-    initrd = {{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}
-    kernel = {{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].kernel }}
+    initrd = {{ kubeinit_openshift_coreos_initrd }}
+    kernel = {{ kubeinit_openshift_coreos_kernel }}
     EOF
   args:
     executable: /bin/bash
@@ -272,7 +285,7 @@
   loop_control:
     loop_var: kubeinit_deployment_node_name
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-  when: kubeinit_okd_openshift_deploy
+  when: kubeinit_cluster_distro == 'ocp'
 
 - name: Delegate to kubeinit_provision_service_node
   block:
@@ -286,28 +299,28 @@
 
     - name: Download initrd image
       ansible.builtin.get_url:
-        url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].initrd }}"
+        url: "{{ initrd_image_url }}"
         dest: "/var/kubeinit/html/okd4/"
         mode: 0775
 
     - name: Download rootfs image
       ansible.builtin.get_url:
-        url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].rootfs }}"
+        url: "{{ rootfs_image_url }}"
         dest: "/var/kubeinit/html/okd4/"
         mode: 0775
 
     - name: Download raw image
       ansible.builtin.get_url:
-        url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].raw }}"
+        url: "{{ raw_image_url }}"
         dest: "/var/kubeinit/html/okd4/"
         mode: 0775
 
     - name: Download signature file
       ansible.builtin.get_url:
-        url: "{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].uri }}{{ kubeinit_okd_coreos_images[kubeinit_coreos_distribution].sig }}"
+        url: "{{ raw_image_sig_url }}"
         dest: "/var/kubeinit/html/okd4/"
         mode: 0775
-      when: not kubeinit_okd_openshift_deploy
+      when: kubeinit_cluster_distro == 'okd'
 
     - name: Render the cluster template
       ansible.builtin.template:
