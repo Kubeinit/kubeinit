@@ -80,7 +80,7 @@ jobs:
 
           tasktag=task_gather_facts
           taskname=$(echo ${tasktag} | tr '_' '-')
-          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd -e kubeinit_cluster_distro_role=kubeinit_openshift kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
           sed -e ':again;$!N;$!b again; s/subgraph "Play #[23]:[^"]*"{[^}]*}//g' -e 's/"Play #1: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
           cat << EOF >> docs/src/playbook_diagrams.rst
 
@@ -95,7 +95,7 @@ jobs:
 
           tasktag=task_prepare_hypervisors
           taskname=$(echo ${tasktag} | tr '_' '-')
-          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd -e kubeinit_cluster_distro_role=kubeinit_openshift kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
           sed -e ':again;$!N;$!b again; s/subgraph "Play #[13]:[^"]*"{[^}]*}//g' -e 's/"Play #2: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
           cat << EOF >> docs/src/playbook_diagrams.rst
 
@@ -110,7 +110,7 @@ jobs:
 
           for tasktag in task_prepare_environment task_cleanup_hypervisors task_run_validations task_create_network task_create_services; do
               taskname=$(echo ${tasktag} | tr '_' '-')
-              ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
+              ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd -e kubeinit_cluster_distro_role=kubeinit_openshift kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
               sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
           cat << EOF >> docs/src/playbook_diagrams.rst
 
@@ -126,8 +126,8 @@ jobs:
 
           tasktag=task_prepare_cluster
           taskname=$(echo ${tasktag} | tr '_' '-')
-          for distro in cdk eks k8s kid okd rke; do
-              ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${distro}_${tasktag} --save-dot-file
+          for distro in cdk eks k8s kid rke; do
+              ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} -e kubeinit_cluster_distro_role=kubeinit_${distro} kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${distro}_${tasktag} --save-dot-file
               sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${distro}_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${distro}_${tasktag}.svg
           cat << EOF >> docs/src/playbook_diagrams.rst
 
@@ -140,10 +140,23 @@ jobs:
 
           EOF
           done
+          distro=okd
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} -e kubeinit_cluster_distro_role=kubeinit_openshift kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${distro}_${tasktag} --save-dot-file
+          sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${distro}_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${distro}_${tasktag}.svg
+          cat << EOF >> docs/src/playbook_diagrams.rst
+
+          playbook task ${taskname} [${distro}]
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/playbook_${distro}_${tasktag}.svg
+            :width: 400
+            :alt: Alternative text
+
+          EOF
 
           tasktag=task_download_images
           taskname=$(echo ${tasktag} | tr '_' '-')
-          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd -e kubeinit_cluster_distro_role=kubeinit_openshift kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag} --save-dot-file
           sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
           cat << EOF >> docs/src/playbook_diagrams.rst
 
@@ -158,8 +171,8 @@ jobs:
 
           tasktag=task_deploy_cluster
           taskname=$(echo ${tasktag} | tr '_' '-')
-          for distro in cdk eks k8s kid okd rke; do
-              ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${distro}_${tasktag} --save-dot-file
+          for distro in cdk eks k8s kid rke; do
+              ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} -e kubeinit_cluster_distro_role=kubeinit_${distro} kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${distro}_${tasktag} --save-dot-file
               sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${distro}_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${distro}_${tasktag}.svg
           cat << EOF >> docs/src/playbook_diagrams.rst
 
@@ -172,10 +185,23 @@ jobs:
 
           EOF
           done
+          distro=okd
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=${distro} -e kubeinit_cluster_distro_role=kubeinit_openshift kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${distro}_${tasktag} --save-dot-file
+          sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${distro}_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${distro}_${tasktag}.svg
+          cat << EOF >> docs/src/playbook_diagrams.rst
+
+          playbook task ${taskname} [${distro}]
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+          .. image:: static/playbook_${distro}_${tasktag}.svg
+            :width: 400
+            :alt: Alternative text
+
+          EOF
 
           tasktag=task_post_deployment
           taskname=$(echo ${tasktag} | tr '_' '-')
-          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag}  --save-dot-file
+          ansible-playbook-grapher -t ${tasktag} --skip-tags omit_from_grapher -e kubeinit_cluster_distro=okd -e kubeinit_cluster_distro_role=kubeinit_openshift kubeinit/playbook.yml --include-role-tasks -o docs/src/static/playbook_${tasktag}  --save-dot-file
           sed -e ':again;$!N;$!b again; s/subgraph "Play #[12]:[^"]*"{[^}]*}//g' -e 's/"Play #3: [^"]*"/"'${taskname}'"/g' -e 's/shape=box/shape=octagon/g' -e 's/#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/#000000/g' -e 's/ style=filled / /' docs/src/static/playbook_${tasktag}.dot | dot -Tsvg > docs/src/static/playbook_${tasktag}.svg
           cat << EOF >> docs/src/playbook_diagrams.rst
 
