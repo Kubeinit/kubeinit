@@ -189,6 +189,7 @@
       delay: 10
       until: _result.stdout == '200'
       changed_when: "_result.rc == 0"
+      when: "'registry' in kubeinit_cluster_hostvars.services"
 
     - name: Make sure packages to generate registry credentials are installed
       ansible.builtin.package:
@@ -211,47 +212,28 @@
 
     - name: Set disconnected_auth
       ansible.builtin.set_fact:
-        disconnected_registry_up: "{{ kubeinit_registry_user }}:{{ kubeinit_registry_password }}"
-      no_log: true
+        disconnected_registry_up: "{{ (kubeinit_registry_user + ':' + kubeinit_registry_password) | b64encode }}"
 
     - name: Create registry auth for pullsecret
       ansible.builtin.set_fact:
-        # The spaces after the first single quote is required, do not remove
-        # Something in Ansible appears to be recognizing this as valid Python,
-        # so it's getting transformed into a Python list and then serialized
-        # using Python's str(), which is why we end up with the single-quoted values.
-        disconnected_auth: '  {"{{ kubeinit_registry_uri }}": {"auth": "{{ disconnected_registry_up | b64encode }}" } }'
-      no_log: true
+        disconnected_auth: "{{ ('{\"auths\": {\"' + kubeinit_registry_uri + '\": {\"auth\": \"' + disconnected_registry_up + '\"}}}') | from_json }}"
 
-    - name: Append auths to pullsecret
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo '{{ kubeinit_registry_pullsecret }}' | jq -c \
-          '.auths += {{ disconnected_auth }}'
-      args:
-        executable: /bin/bash
-      register: _result_pullsecret
-      changed_when: "_result_pullsecret.rc == 0"
+    - name: Add disconnected auth to pullsecret
+      ansible.builtin.set_fact:
+        _result_pullsecret: "{{ kubeinit_registry_pullsecret | combine(disconnected_auth, recursive=true) }}"
 
     - name: Override final kubeinit_registry_pullsecret with both auths
       ansible.builtin.set_fact:
-        kubeinit_registry_pullsecret: '  {{ _result_pullsecret.stdout }}'
+        kubeinit_registry_pullsecret: "{{ _result_pullsecret }}"
 
     - name: Debug the creds dictionary
       ansible.builtin.debug:
         var: kubeinit_registry_pullsecret
 
-    - name: Write auth for disconnected registry auth details
-      ansible.builtin.copy:
-        content: '  {{ kubeinit_registry_pullsecret }}'
-        dest: "~/{{ kubeinit_registry_auth_file }}"
-        mode: '0755'
-        backup: yes
-        force: yes
-
     - name: Create registry auth pullsecret file
       ansible.builtin.copy:
-        content: "{{ kubeinit_registry_pullsecret }}"
+        content: |
+          {{ kubeinit_registry_pullsecret }}
         dest: "{{ kubeinit_service_user_dir }}/{{ kubeinit_registry_auth_file }}"
         group: "{{ kubeinit_service_user }}"
         owner: "{{ kubeinit_service_user }}"

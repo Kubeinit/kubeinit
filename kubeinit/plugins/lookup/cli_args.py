@@ -8,7 +8,7 @@ __metaclass__ = type
 from ansible.plugins.lookup import LookupBase
 
 try:
-    from __main__ import context
+    from ansible import context
 except ImportError:
     context = False
 

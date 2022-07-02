@@ -25,6 +25,9 @@
   vars:
     kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
     kubeinit_ignition_name: bootstrap
+    kubeinit_coreos_initrd: "{{ kubeinit_openshift_coreos_initrd }}"
+    kubeinit_coreos_raw: "{{ kubeinit_openshift_coreos_raw }}"
+    kubeinit_coreos_rootfs: "{{ kubeinit_openshift_coreos_rootfs }}"
 
 - name: Deploy the cluster controller nodes
   ansible.builtin.include_role:
@@ -37,6 +40,9 @@
   vars:
     kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
     kubeinit_ignition_name: master
+    kubeinit_coreos_initrd: "{{ kubeinit_openshift_coreos_initrd }}"
+    kubeinit_coreos_raw: "{{ kubeinit_openshift_coreos_raw }}"
+    kubeinit_coreos_rootfs: "{{ kubeinit_openshift_coreos_rootfs }}"
 
 - name: Verify that controller nodes are ok
   ansible.builtin.shell: |
@@ -57,27 +63,6 @@
     set -o pipefail
     export KUBECONFIG=~/install_dir/auth/kubeconfig
     oc get nodes
-    oc patch clusterversion/version --type='merge' -p "$(cat <<- EOF
-    spec:
-      overrides:
-        - group: apps/v1
-          kind: Deployment
-          name: etcd-quorum-guard
-          namespace: openshift-machine-config-operator
-          unmanaged: true
-    EOF
-    )"
-    oc scale --replicas=1 deployment/etcd-quorum-guard -n openshift-machine-config-operator || true
-    oc scale --replicas=1 ingresscontroller/default -n openshift-ingress-operator || true
-    oc scale --replicas=1 deployment.apps/console -n openshift-console || true
-    oc scale --replicas=1 deployment.apps/downloads -n openshift-console || true
-    oc scale --replicas=1 deployment.apps/oauth-openshift -n openshift-authentication || true
-    oc scale --replicas=1 deployment.apps/packageserver -n openshift-operator-lifecycle-manager || true
-    # Optional
-    oc scale --replicas=1 deployment.apps/prometheus-adapter -n openshift-monitoring || true
-    oc scale --replicas=1 deployment.apps/thanos-querier -n openshift-monitoring || true
-    oc scale --replicas=1 statefulset.apps/prometheus-k8s -n openshift-monitoring || true
-    oc scale --replicas=1 statefulset.apps/alertmanager-main -n openshift-monitoring || true
     oc patch etcd cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableEtcd": true }}}' --type=merge
     oc patch authentications.operator.openshift.io cluster -p='{"spec": {"unsupportedConfigOverrides": {"useUnsupportedUnsafeNonHANonProductionUnstableOAuthServer": true }}}' --type=merge
   args:
@@ -152,6 +137,9 @@
   vars:
     kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
     kubeinit_ignition_name: worker
+    kubeinit_coreos_initrd: "{{ kubeinit_openshift_coreos_initrd }}"
+    kubeinit_coreos_raw: "{{ kubeinit_openshift_coreos_raw }}"
+    kubeinit_coreos_rootfs: "{{ kubeinit_openshift_coreos_rootfs }}"
 
 - name: Complete the cluster deployment on the provision service node
   block:
@@ -160,7 +148,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         export KUBECONFIG=~/install_dir/auth/kubeconfig; \
-        oc get csr -ojson | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve >/dev/null 2>&1; \
+        oc get csr -o json | jq -r '.items[] | .metadata.name' | xargs oc adm certificate approve >/dev/null 2>&1; \
         oc get nodes | grep " Ready"
       args:
         executable: /bin/bash

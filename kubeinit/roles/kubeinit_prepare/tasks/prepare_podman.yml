@@ -104,10 +104,13 @@
       block:
         - name: Set username_secret
           ansible.builtin.set_fact:
-            _results: "{{ _results | combine({'username-secret': omit if (hostvars['kubeinit-secrets'].secrets['dockerhub-username'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['dockerhub-username']}) }}"
+            _results: "{{ _results | combine({'username-secret': hostvars['kubeinit-secrets'].secrets['dockerhub-username']}) }}"
+          when: hostvars['kubeinit-secrets'].secrets['dockerhub-username'] | default('') | length > 0
+
         - name: Set password_secret
           ansible.builtin.set_fact:
-            _results: "{{ _results | combine({'password-secret': omit if (hostvars['kubeinit-secrets'].secrets['dockerhub-password'] | default('') | length == 0) else hostvars['kubeinit-secrets'].secrets['dockerhub-password']}) }}"
+            _results: "{{ _results | combine({'password-secret': hostvars['kubeinit-secrets'].secrets['dockerhub-password']}) }}"
+          when: hostvars['kubeinit-secrets'].secrets['dockerhub-password'] | default('') | length > 0
       no_log: "{{ _results['tasks-hidden'] }}"
 
     - name: Podman login to docker.io

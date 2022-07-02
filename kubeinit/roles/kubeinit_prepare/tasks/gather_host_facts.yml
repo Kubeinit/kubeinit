@@ -169,11 +169,19 @@
 
     - name: Add more facts to hostvars
       ansible.builtin.set_fact:
-        ansible_default_ipv4_address: "{{ _result_facts.ansible_facts.ansible_default_ipv4.address | default(omit) }}"
+        ansible_default_ipv4_address: "{{ _result_facts.ansible_facts.ansible_default_ipv4.address }}"
+      when: _result_facts.ansible_facts.ansible_default_ipv4.address is defined
+
+    - name: Add more facts to hostvars
+      ansible.builtin.set_fact:
+        ssh_connection_address: "{{ _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
+      when: _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'] is defined
+
+    - name: Add more facts to hostvars
+      ansible.builtin.set_fact:
         os: "{{ hostvars[_param_gather_host].os if (hostvars[_param_gather_host].os is defined) else host_os }}"
         remote_path: "{{ _result_facts.ansible_facts.ansible_env['PATH'] }}"
         remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
-        ssh_connection_address: "{{ omit if (_result_facts.ansible_facts.ansible_env['SSH_CONNECTION'] is not defined) else _result_facts.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
         runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
 
     - name: Clear results

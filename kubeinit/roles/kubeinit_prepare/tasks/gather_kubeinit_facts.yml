@@ -151,7 +151,7 @@
         group: 'extra_nodes'
         when_distro: "{{ item['when_distro'] }}"
       loop: "{{ default_extra_nodes_map_list }}"
-      when: item['when_distro'] == kubeinit_spec_distro
+      when: kubeinit_cluster_distro in item['when_distro']
 
   when: groups['extra_nodes'] | default([]) | length == 0
 
@@ -165,7 +165,7 @@
   loop: "{{ groups['extra_nodes'] | default([]) }}"
   loop_control:
     loop_var: extra_node
-  when: hostvars[extra_node]['when_distro'] == kubeinit_spec_distro
+  when: kubeinit_cluster_distro in hostvars[extra_node]['when_distro']
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
@@ -173,7 +173,7 @@
   loop: "{{ groups['extra_nodes'] | default([]) }}"
   loop_control:
     loop_var: extra_node
-  when: hostvars[extra_node]['when_distro'] == kubeinit_spec_distro
+  when: kubeinit_cluster_distro in hostvars[extra_node]['when_distro']
 
 - name: Set default_service_nodes_map_list fact
   ansible.builtin.set_fact:
@@ -235,7 +235,7 @@
   ansible.builtin.set_fact:
     cluster_nodes_defaults: "{{ cluster_nodes_defaults | default([]) + (groups['inventory_nodes'] | product([item])) }}"
   loop: "{{ default_cluster_nodes_map_list }}"
-  when: item['when_distro'] is not defined or item['when_distro'] == kubeinit_spec_distro
+  when: item['when_distro'] is not defined or kubeinit_cluster_distro in item['when_distro']
 
 - name: Load cluster_nodes_spec from yaml into a list of dictionaries
   ansible.builtin.set_fact:
@@ -251,7 +251,7 @@
   ansible.builtin.set_fact:
     cluster_nodes_defaults: "{{ cluster_nodes_defaults | default([]) + (groups['inventory_nodes'] | product([item])) }}"
   loop: "{{ cluster_nodes_map_list }}"
-  when: cluster_nodes_spec is defined and (item['when_distro'] is not defined or item['when_distro'] == kubeinit_spec_distro)
+  when: cluster_nodes_spec is defined and (item['when_distro'] is not defined or kubeinit_cluster_distro in item['when_distro'])
 
 - name: Apply defaults to all cluster nodes
   ansible.builtin.add_host:

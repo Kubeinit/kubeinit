@@ -89,14 +89,19 @@
     kubeinit_spec_computes: "{{ kubeinit_spec_parts[3] }}"
     kubeinit_spec_hypervisors: "{{ kubeinit_spec_parts[4] }}"
 
+- name: Set fact for the spec distro role
+  ansible.builtin.set_fact:
+    kubeinit_distro_role: "{{ hostvars[kubeinit_facts_name].distro_facts[kubeinit_spec_distro].role }}"
+  when: hostvars[kubeinit_facts_name].distro_facts[kubeinit_spec_distro] is defined
+
 - name: Assert spec constraints
   ansible.builtin.assert:
     that:
-      - kubeinit_spec_distro in ['cdk', 'eks', 'k8s', 'kid', 'okd', 'rke']
+      - kubeinit_distro_role is defined
       - kubeinit_spec_driver in ['libvirt']
       - kubeinit_spec_controllers in ['1', '3', '5']
       - kubeinit_spec_computes|int >= 0
-      - kubeinit_spec_hypervisors|int >= 0
+      - kubeinit_spec_hypervisors|int >= 1
 
 - name: Load kubeinit_cluster_spec from yaml into a dictionary
   ansible.builtin.set_fact:
@@ -230,12 +235,14 @@
     name: "{{ kubeinit_cluster_name }}"
     groups: 'kubeinit_cluster'
     distro: "{{ kubeinit_spec_distro }}"
+    distro_role: "{{ kubeinit_distro_role }}"
     controller_count: "{{ kubeinit_spec_controllers }}"
     compute_count: "{{ kubeinit_spec_computes }}"
 
 - name: Set more cluster facts from inventory groups and kubeinit_spec
   ansible.builtin.set_fact:
     kubeinit_cluster_distro: "{{ kubeinit_spec_distro }}"
+    kubeinit_cluster_distro_role: "{{ kubeinit_distro_role }}"
     kubeinit_cluster_fqdn: "{{ kubeinit_cluster_name }}.{{ hostvars[kubeinit_cluster_name].cluster_domain }}"
 
 - name: Define kubeinit_facts_hostvars
