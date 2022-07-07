@@ -12,7 +12,10 @@ default_network_name: kimgtnet0
 
 ###
 # Controller, compute, and extra nodes can be configured as virtual machines or using the
-# manually provisioned baremetal machines for the deployment.
+# manually provisioned baremetal machines for the deployment.  Additional
+# specifications provided on the command line can be used to override
+# any of these defaults, e.g.
+#   -e extra_nodes_spec='[[name=nova-compute,when_distro=okd,os=centos]]'
 default_extra_nodes_map_list:
 - name: juju-controller
   when_distro:
@@ -51,6 +54,7 @@ controller_node_ram_size: 25165824
 compute_node_disk_size: 30G
 compute_node_ram_size: 8388608
 extra_node_disk_size: 20G
+extra_node_ram_size: 16777216
 
 juju_controller_node_ram_size: 8388608
 bootstrap_node_ram_size: 16777216
@@ -111,6 +115,8 @@ default_cluster_nodes_map_list:
 - when_group: extra_nodes
   disk: "{{ extra_node_disk_size }}"
   target_order: "{{ extra_node_target_order }}"
+- when_group: extra_nodes
+  ram: "{{ extra_node_ram_size }}"
 - when_group: extra_nodes
   when_distro:
   - cdk

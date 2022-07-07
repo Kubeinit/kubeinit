@@ -145,12 +145,28 @@
 - name: Assign default entries to extra_nodes group when not defined
   block:
 
+    - name: Load extra_nodes_spec from yaml into a list of dictionaries
+      ansible.builtin.set_fact:
+        extra_nodes_map_list: "{{ (extra_nodes_map_list | default([])) | union([_dict]) }}"
+      loop: "{{ extra_nodes_spec | from_yaml }}"
+      vars:
+        _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
+        _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+        _dict: "{{ dict(_keys|zip(_vals)) }}"
+      when: extra_nodes_spec is defined
+
+    # TODO:FIXME: This will take into account any node in default_extra_nodes_map_list
+    # not only one the default extra nodes for the specific distro
+    - name: Set facts to get the number of extra nodes
+      ansible.builtin.set_fact:
+        kubeinit_spec_extra_nodes: "{{ (default_extra_nodes_map_list | default([]) + extra_nodes_map_list | default([])) | length | int }}"
+
     - name: Add entries for the current distro only
       ansible.builtin.add_host:
         name: "{{ item['name'] }}"
         group: 'extra_nodes'
         when_distro: "{{ item['when_distro'] }}"
-      loop: "{{ default_extra_nodes_map_list }}"
+      loop: "{{ default_extra_nodes_map_list + (extra_nodes_map_list | default([])) }}"
       when: kubeinit_cluster_distro in item['when_distro']
 
   when: groups['extra_nodes'] | default([]) | length == 0
@@ -160,16 +176,17 @@
     name: "{{ extra_node }}"
     group: ['extra_nodes', 'inventory_nodes']
     ansible_connection: 'ssh'
-    ansible_host: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipv4('address') }}"
+    ansible_host: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(ansible_loop.index0|int) }}"
     type: 'virtual'
   loop: "{{ groups['extra_nodes'] | default([]) }}"
   loop_control:
+    extended: true
     loop_var: extra_node
   when: kubeinit_cluster_distro in hostvars[extra_node]['when_distro']
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
-    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(1) }}"
+    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_extra_nodes|int) }}"
   loop: "{{ groups['extra_nodes'] | default([]) }}"
   loop_control:
     loop_var: extra_node
@@ -257,11 +274,11 @@
   ansible.builtin.add_host:
     name: "{{ _host }}"
     os: "{{ _defaults['os'] if (_defaults['os'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
-    vcpus: "{{ _defaults['vcpus'] if (_defaults['vcpus'] is defined and _group_matches and _type_matches) else omit }}"
-    maxvcpus: "{{ _defaults['maxvcpus'] if (_defaults['maxvcpus'] is defined and _group_matches and _type_matches) else omit }}"
-    disk: "{{ _defaults['disk'] if (_defaults['disk'] is defined and _group_matches and _type_matches) else omit }}"
-    ram: "{{ _defaults['ram'] if (_defaults['ram'] is defined and _group_matches and _type_matches) else omit }}"
-    target_order: "{{ _defaults['target_order'] if (_defaults['target_order'] is defined and _group_matches and _type_matches) else omit }}"
+    vcpus: "{{ _defaults['vcpus'] if (_defaults['vcpus'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
+    maxvcpus: "{{ _defaults['maxvcpus'] if (_defaults['maxvcpus'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
+    disk: "{{ _defaults['disk'] if (_defaults['disk'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
+    ram: "{{ _defaults['ram'] if (_defaults['ram'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
+    target_order: "{{ _defaults['target_order'] if (_defaults['target_order'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
   loop: "{{ cluster_nodes_defaults }}"
   vars:
     _host: "{{ item[0] }}"
