@@ -23,8 +23,8 @@ RUN set -x && \
     \
     echo "==> Installing packages dependencies..."  && \
     dnf --noplugins install -y python39 python39-pip openssh-clients podman jq && rm -rf /var/cache/yum && \
-    python3 -m pip install --upgrade netaddr && rm -rf /var/cache/yum && \
-    dnf upgrade -y && dnf clean all && podman system migrate
+    python3 -m pip install --user --upgrade netaddr && rm -rf /var/cache/yum && \
+    dnf upgrade -y && dnf clean all
 
 ARG USER=kiuser
 ARG UID=1001
