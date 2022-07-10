@@ -257,8 +257,14 @@ KUBEINIT_SPEC=${KUBEINIT_SPEC//,/$'\n'}
 # for the k8s-1-1-1 spec scenario
 if [[ "$DISTRO" == "k8s" && "$MASTERS" == "1" &&  "$WORKERS" == "1" &&  "$HYPERVISORS" == "1" ]]; then
     # For enabling Windows deployments use the cluster_nodes_spec like
-    # -e cluster_nodes_spec='[[when_group=compute_nodes,os=windows]]' \
-    CLUSTER_NODES='[[when_group=compute_nodes,os=windows]]'
+    # -e cluster_nodes_spec='[{"when_group":"compute_nodes","os":"windows"}]'
+    CLUSTER_NODES='[{"when_group":"compute_nodes","os":"windows"}]'
+fi
+
+if [[ "$DISTRO" == "okd" && "$MASTERS" == "1" &&  "$WORKERS" == "1" &&  "$HYPERVISORS" == "1" ]]; then
+    # For enabling additional extra nodes use the extra_nodes_spec like
+    # -e extra_nodes_spec='[{"name":"nova-compute","when_distro":["okd"],"os":"centos"}]'
+    EXTRA_NODES='[{"name":"nova-compute","when_distro":["okd"],"os":"centos"}]'
 fi
 
 if [[ "$LAUNCH_FROM" == "h" ]]; then
@@ -273,9 +279,10 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
                 -e kubeinit_spec=${SPEC} \
                 -e kubeinit_libvirt_cloud_user_create=true \
                 -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
-                -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER',network=10.0.'$COUNTER'.0/24]' \
-                -e hypervisor_hosts_spec='[[ansible_host=nyctea],[ansible_host=tyto]]' \
-                -e cluster_nodes_spec=${CLUSTER_NODES:-[[]]} \
+                -e kubeinit_network_spec='{"network_name":"kimgtnet'$COUNTER'","network":"10.0.'$COUNTER'.0/24"}' \
+                -e hypervisor_hosts_spec='[{"ansible_host":"nyctea"},{"ansible_host":"tyto"}]' \
+                -e cluster_nodes_spec=${CLUSTER_NODES:-[]} \
+                -e extra_nodes_spec=${EXTRA_NODES:-[]} \
                 -e compute_node_ram_size=16777216 \
                 ./kubeinit/playbook.yml
             # We can not have any other command after
@@ -317,8 +324,8 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
             -${KUBEINIT_ANSIBLE_VERBOSITY:=v} \
             -e kubeinit_spec=${SPEC} \
             -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
-            -e kubeinit_network_spec='[network_name=kimgtnet'$COUNTER',network=10.0.'$COUNTER'.0/24]' \
-            -e hypervisor_hosts_spec='[[ansible_host=nyctea],[ansible_host=tyto]]' \
+            -e kubeinit_network_spec='{"network_name":"kimgtnet'$COUNTER'","network":"10.0.'$COUNTER'.0/24"}' \
+            -e hypervisor_hosts_spec='[{"ansible_host":"nyctea"},{"ansible_host":"tyto"}]' \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./kubeinit/playbook.yml
     done

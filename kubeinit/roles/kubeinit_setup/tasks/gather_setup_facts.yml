@@ -96,11 +96,7 @@
 
 - name: Parse setup_host_spec into a dictionary if defined
   ansible.builtin.set_fact:
-    setup_host_map: "{{ dict(_keys|zip(_vals)) }}"
-  vars:
-    _arr: "{{ setup_host_spec | from_yaml }}"
-    _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+    setup_host_map: "{{ setup_host_spec | from_yaml }}"
   when: setup_host_spec is defined
 
 - name: Define default_setup_host_name
@@ -178,12 +174,7 @@
 
 - name: Load hypervisor_hosts_spec from yaml into a list of dictionaries
   ansible.builtin.set_fact:
-    hypervisor_hosts_map_list: "{{ (hypervisor_hosts_map_list | default([])) | union([_dict]) }}"
-  loop: "{{ hypervisor_hosts_spec | from_yaml }}"
-  vars:
-    _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
-    _dict: "{{ dict(_keys|zip(_vals)) }}"
+    hypervisor_hosts_map_list: "{{ hypervisor_hosts_spec | from_yaml }}"
   when: hypervisor_hosts_spec is defined
 
 - name: Build kubeinit_hypervisors group

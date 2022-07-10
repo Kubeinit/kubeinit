@@ -14,20 +14,20 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Deploy the cluster bootstrap node
+- name: Deploy the cluster bootstrap and any other extra nodes requested
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
-    tasks_from: deploy_coreos_guest.yml
+    tasks_from: deploy_{{ hostvars[kubeinit_deployment_node_name].os }}_guest.yml
     public: yes
   loop: "{{ groups['all_extra_nodes'] }}"
   loop_control:
     loop_var: kubeinit_deployment_node_name
   vars:
     kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
-    kubeinit_ignition_name: bootstrap
-    kubeinit_coreos_initrd: "{{ kubeinit_openshift_coreos_initrd }}"
-    kubeinit_coreos_raw: "{{ kubeinit_openshift_coreos_raw }}"
-    kubeinit_coreos_rootfs: "{{ kubeinit_openshift_coreos_rootfs }}"
+    kubeinit_ignition_name: "{{ 'bootstrap' if kubeinit_deployment_node_name == 'bootstrap' else omit }}"
+    kubeinit_coreos_initrd: "{{ kubeinit_openshift_coreos_initrd if kubeinit_deployment_node_name == 'bootstrap' else omit }}"
+    kubeinit_coreos_raw: "{{ kubeinit_openshift_coreos_raw if kubeinit_deployment_node_name == 'bootstrap' else omit }}"
+    kubeinit_coreos_rootfs: "{{ kubeinit_openshift_coreos_rootfs if kubeinit_deployment_node_name == 'bootstrap' else omit }}"
 
 - name: Deploy the cluster controller nodes
   ansible.builtin.include_role:
