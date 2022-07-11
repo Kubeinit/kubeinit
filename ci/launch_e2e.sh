@@ -265,6 +265,7 @@ if [[ "$DISTRO" == "okd" && "$MASTERS" == "1" &&  "$WORKERS" == "1" &&  "$HYPERV
     # For enabling additional extra nodes use the extra_nodes_spec like
     # -e extra_nodes_spec='[{"name":"nova-compute","when_distro":["okd"],"os":"centos"}]'
     EXTRA_NODES='[{"name":"nova-compute","when_distro":["okd"],"os":"centos"}]'
+    EXTRA_ROLES='kubeinit_openstack'
 fi
 
 if [[ "$LAUNCH_FROM" == "h" ]]; then
@@ -279,6 +280,7 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
                 -e kubeinit_spec=${SPEC} \
                 -e kubeinit_libvirt_cloud_user_create=true \
                 -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
+                -e extra_roles_spec='['${EXTRA_ROLES:-}']' \
                 -e kubeinit_network_spec='{"network_name":"kimgtnet'$COUNTER'","network":"10.0.'$COUNTER'.0/24"}' \
                 -e hypervisor_hosts_spec='[{"ansible_host":"nyctea"},{"ansible_host":"tyto"}]' \
                 -e cluster_nodes_spec=${CLUSTER_NODES:-[]} \

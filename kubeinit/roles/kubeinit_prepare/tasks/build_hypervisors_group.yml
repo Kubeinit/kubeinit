@@ -166,6 +166,18 @@
     post_deployment_services: "{{ post_deployment_services_list }}"
   when: post_deployment_services_list | default([]) | length > 0
 
+- name: Load extra_roles_spec from yaml into a list
+  ansible.builtin.set_fact:
+    extra_roles_list: "{{ extra_roles_spec | from_yaml }}"
+  when: extra_roles_spec is defined
+
+- name: Add extra_roles_list to kubeinit_cluster group
+  ansible.builtin.add_host:
+    name: "{{ kubeinit_cluster_name }}"
+    groups: 'kubeinit_cluster'
+    extra_roles: "{{ extra_roles_list }}"
+  when: extra_roles_list | default([]) | length > 0
+
 - name: Assert that we have enough hypervisors defined for this cluster if they are provided by the inventory
   ansible.builtin.assert:
     msg: "Your kubeinit_spec needs {{ kubeinit_spec_hypervisor_count|int }} hypervisor hosts and your inventory only defines {{ groups['hypervisor_hosts'] | length }}."
