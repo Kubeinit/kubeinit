@@ -105,47 +105,28 @@
 
 - name: Parse ci_host_spec into a dictionary if defined
   ansible.builtin.set_fact:
-    ci_host_map: "{{ dict(_keys|zip(_vals)) }}"
-  vars:
-    _arr: "{{ ci_host_spec | from_yaml }}"
-    _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+    ci_host_map: "{{ ci_host_spec | from_yaml }}"
   when: ci_host_spec is defined
-
-- name: Define default_ci_host_name
-  ansible.builtin.set_fact:
-    default_ci_host_name: "{{ 'kubeinit-ci' if (ci_host_map is not defined or ci_host_map['host'] is not defined) else ci_host_map['host'] }}"
-
-- name: Define default_ci_ansible_host
-  ansible.builtin.set_fact:
-    default_ci_ansible_host: "{{ 'localhost' if (ci_host_map is not defined or ci_host_map['ansible_host'] is not defined) else ci_host_map['ansible_host'] }}"
 
 - name: Define kubeinit_ci_host_name
   ansible.builtin.set_fact:
-    kubeinit_ci_host_name: "{{ default_ci_host_name if (('ci_host' not in groups) or ((groups['ci_host'] | list | length) == 0)) else groups['ci_host'][0] }}"
+    kubeinit_ci_host_name: "{{ ci_host_map['host'] | default('kubeinit-ci' }}"
 
-- name: Add a default entry for localhost if there are no ci_host members
+- name: Define kubeinit_ci_ansible_host
+  ansible.builtin.set_fact:
+    kubeinit_ci_ansible_host: "{{ ci_host_map['ansible_host'] | default('localhost') }}"
+
+- name: Define kubeinit_ci_ansible_connection
+  ansible.builtin.set_fact:
+    kubeinit_ci_ansible_connection: "{{ 'local' if (kubeinit_ci_ansible_host == 'localhost') else 'smart' }}"
+
+- name: Add host entry for ci host
   ansible.builtin.add_host:
     name: "{{ kubeinit_ci_host_name }}"
     groups: 'kubeinit_ci_host'
-    ansible_host: "{{ default_ci_ansible_host }}"
-    ansible_connection: "{{ 'local' if (default_ci_ansible_host == 'localhost') else 'smart' }}"
+    ansible_host: "{{ kubeinit_ci_ansible_host }}"
+    ansible_connection: "{{ kubeinit_ci_ansible_connection }}"
     target: "{{ kubeinit_ci_host_name }}"
-  when: "('ci_host' not in groups) or ((groups['ci_host'] | list | length) == 0)"
-
-- name: Add ansible_host for ci_host if not defined
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_ci_host_name }}"
-    groups: 'kubeinit_ci_host'
-    ansible_host: "{{ hostvars[hostvars[kubeinit_ci_host_name].target].ansible_host }}"
-  when: "hostvars[kubeinit_ci_host_name].ansible_host is not defined"
-
-- name: Add target for ci_host if not defined
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_ci_host_name }}"
-    groups: 'kubeinit_ci_host'
-    target: "{{ kubeinit_ci_host_name }}"
-  when: "hostvars[kubeinit_ci_host_name].target is not defined"
 
 - name: Change the ansible_host to the ansible_fqdn of the host running the container
   ansible.builtin.add_host:
@@ -153,7 +134,7 @@
     groups: 'kubeinit_ci_host'
     ansible_host: "{{ ansible_facts.fqdn }}"
     ansible_connection: 'smart'
-  when: kubeinit_facts_hostvars.container_run and (hostvars[kubeinit_ci_host_name].ansible_connection | default('') == 'local')|bool
+  when: kubeinit_facts_hostvars.container_run and kubeinit_ci_ansible_connection == 'local'
 
 - name: Add gitlab_url for ci_host
   ansible.builtin.add_host:
@@ -165,20 +146,20 @@
 - name: Add local_install fact
   ansible.builtin.add_host:
     name: "{{ kubeinit_facts_name }}"
-    local_install: "{{ (hostvars[kubeinit_ci_host_name].ansible_connection | default('') == 'local')|bool }}"
+    local_install: "{{ kubeinit_ci_ansible_connection == 'local' }}"
 
 - name: Update kubeinit_facts_hostvars
   ansible.builtin.set_fact:
     kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
 
-- name: Add remote ssh params for ci_host when install is not local
+- name: Add remote ssh params for ci host when install is not local
   ansible.builtin.add_host:
     name: "{{ kubeinit_ci_host_name }}"
     groups: 'kubeinit_ci_host'
     ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
   when: not kubeinit_facts_hostvars.local_install
 
-- name: Ensure ci_host has all requirements for ansible
+- name: Ensure ci host has all requirements for ansible
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_setup
     tasks_from: setup_ansible_host.yml
@@ -188,12 +169,7 @@
 
 - name: Load hypervisor_hosts_spec from yaml into a list of dictionaries
   ansible.builtin.set_fact:
-    hypervisor_hosts_map_list: "{{ (hypervisor_hosts_map_list | default([])) | union([_dict]) }}"
-  loop: "{{ hypervisor_hosts_spec | from_yaml }}"
-  vars:
-    _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
-    _dict: "{{ dict(_keys|zip(_vals)) }}"
+    hypervisor_hosts_map_list: "{{ hypervisor_hosts_spec | from_yaml }}"
   when: hypervisor_hosts_spec is defined
 
 - name: Build kubeinit_hypervisors group

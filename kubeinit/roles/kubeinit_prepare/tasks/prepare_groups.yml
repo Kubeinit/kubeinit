@@ -79,7 +79,7 @@
     guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
     group: all_service_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
-    services: "{{ hostvars[item].services.split(',') }}"
+    services: "{{ hostvars[item].services }}"
     target: "{{ hostvars[item].target }}"
     os: "{{ hostvars[item].os }}"
     type: container
@@ -113,15 +113,15 @@
     all_cluster_services: "{{ (all_cluster_services | default({})) | combine({item.key: item.value[0]}) }}"
   loop: "{{ cluster_services_dict | dict2items | flatten }}"
 
-- name: Check that the dns server address in the inventory matches the bind service node
-  ansible.builtin.fail:
-    msg:
-      "The kubeinit_cluster_nameserver and bind service node addresses do not match."
-  when: "'bind' in all_cluster_services and kubeinit_cluster_nameserver != hostvars[all_cluster_services['bind']].ansible_host"
+- name: Set fact for cluster nameserver
+  ansible.builtin.set_fact:
+    kubeinit_cluster_nameserver: "{{ hostvars[all_cluster_services['bind']].ansible_host }}"
+  when: "'bind' in all_cluster_services"
 
 - name: Set all services cluster fact
   ansible.builtin.add_host:
     name: "{{ kubeinit_cluster_name }}"
+    nameserver: "{{ kubeinit_cluster_nameserver | default(omit) }}"
     services: "{{ all_cluster_services }}"
 
 - name: Add all service and cluster nodes to the all_nodes group

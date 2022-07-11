@@ -36,32 +36,17 @@
 
 - name: Parse kubeinit_network_spec into a dictionary when defined
   ansible.builtin.set_fact:
-    kubeinit_network_map: "{{ dict(_keys|zip(_vals)) }}"
-  vars:
-    _arr: "{{ kubeinit_network_spec | from_yaml }}"
-    _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+    kubeinit_network_map: "{{ kubeinit_network_spec | from_yaml }}"
   when: kubeinit_network_spec is defined
-
-- name: Assert kubeinit_network group and kubeinit_network_spec have same name when both defined
-  ansible.builtin.assert:
-    msg: "Cluster network name from inventory and command-line specification must match."
-    that: kubeinit_network_map['network_name'] == groups['kubeinit_network'][0]
-  when: kubeinit_network_map['network_name'] | default('') | length > 0 and groups['kubeinit_network'][0] | default('') | length > 0
-
-- name: Set default_kubeinit_network_name fact
-  ansible.builtin.set_fact:
-    default_kubeinit_network_name: "{{ hostvars['kubeinit-defaults'].default_network_name }}"
 
 - name: Define kubeinit_network_name
   ansible.builtin.set_fact:
-    kubeinit_network_name: "{{ kubeinit_network_map['network_name'] | default(groups['kubeinit_network'][0]) | default(default_kubeinit_network_name) }}"
+    kubeinit_network_name: "{{ kubeinit_network_map['network_name'] | default(hostvars['kubeinit-defaults'].default_network_name) }}"
 
-- name: Add new entries to kubeinit_network group when not defined
+- name: Use kubeinit_network_name as host for kubeinit_network group and load default properties
   ansible.builtin.add_host:
     name: "{{ kubeinit_network_name }}"
     groups: 'kubeinit_network'
-  when: groups['kubeinit_network'] | default([]) | length == 0
 
 - name: Add kubeinit_network_map entries to kubeint_network group
   ansible.builtin.add_host:
@@ -69,10 +54,9 @@
     groups: 'kubeinit_network'
     network: "{{ kubeinit_network_map['network'] | default(omit) }}"
     gateway_offset: "{{ kubeinit_network_map['gateway_offset'] | default(omit) }}"
-    nameserver_offset: "{{ kubeinit_network_map['nameserver_offset'] | default(omit) }}"
     dhcp_start_offset: "{{ kubeinit_network_map['dhcp_start_offset'] | default(omit) }}"
     dhcp_end_offset: "{{ kubeinit_network_map['dhcp_end_offset'] | default(omit) }}"
-  when: kubeinit_network_map is defined
+  when: kubeinit_network_spec is defined
 
 - name: Define kubeinit_network_hostvars and kubeinit_fact_natwork
   ansible.builtin.set_fact:
@@ -86,8 +70,8 @@
     kubeinit_cluster_prefix: "{{ kubeinit_fact_network | ansible.netcommon.ipv4('prefix') }}"
     kubeinit_cluster_netmask: "{{ kubeinit_fact_network | ansible.netcommon.ipv4('netmask') | ansible.netcommon.ipv4('address') }}"
     kubeinit_cluster_gateway: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_network_hostvars.gateway_offset|int) | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_nameserver: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_network_hostvars.nameserver_offset|int) | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_next_available: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_network_hostvars.dhcp_start_offset|int) }}"
+    kubeinit_cluster_next_available: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_network_hostvars.dhcp_start_offset|int) | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_last_available: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_network_hostvars.dhcp_end_offset|int) | ansible.netcommon.ipv4('address') }}"
 
 - name: Assert additional constraints
   ansible.builtin.assert:
@@ -102,16 +86,15 @@
     prefix: "{{ kubeinit_cluster_prefix }}"
     netmask: "{{ kubeinit_cluster_netmask }}"
     gateway: "{{ kubeinit_cluster_gateway }}"
-    nameserver: "{{ kubeinit_cluster_nameserver }}"
 
 - name: Assign controller_nodes addresses
   ansible.builtin.add_host:
     name: "{{ controller_node }}"
-    group: ['controller_nodes', 'inventory_nodes']
+    group: ['controller_nodes', 'cluster_nodes']
     ansible_connection: 'ssh'
     ansible_host: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
     type: 'virtual'
-  loop: "{{ range(kubeinit_spec_controllers|int) | list }}"
+  loop: "{{ range(kubeinit_spec_controller_count|int) | list }}"
   loop_control:
     extended: true
   vars:
@@ -119,16 +102,16 @@
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
-    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_controllers|int) }}"
+    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_controller_count|int) }}"
 
 - name: Assign compute_nodes addresses
   ansible.builtin.add_host:
     name: "{{ compute_node }}"
-    group: ['compute_nodes', 'inventory_nodes']
+    group: ['compute_nodes', 'cluster_nodes']
     ansible_connection: 'ssh'
     ansible_host: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
     type: 'virtual'
-  loop: "{{ range(kubeinit_spec_computes|int) | list }}"
+  loop: "{{ range(kubeinit_spec_compute_count|int) | list }}"
   loop_control:
     extended: true
   vars:
@@ -136,77 +119,87 @@
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
-    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_computes|int) }}"
+    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_compute_count|int) }}"
 
-- name: Set default_extra_nodes_map_list fact
+- name: Set extra_nodes_map_list fact to defaults
   ansible.builtin.set_fact:
-    default_extra_nodes_map_list: "{{ hostvars['kubeinit-defaults'].default_extra_nodes_map_list }}"
+    extra_nodes_map_list: "{{ hostvars['kubeinit-defaults'].default_extra_nodes_map_list }}"
 
-- name: Assign default entries to extra_nodes group when not defined
-  block:
+- name: Add entries from extra_nodes_spec to extra_nodes_map_list when defined
+  ansible.builtin.set_fact:
+    extra_nodes_map_list: "{{ extra_nodes_map_list + (extra_nodes_spec | from_yaml) }}"
+  when: extra_nodes_spec is defined
 
-    - name: Add entries for the current distro only
-      ansible.builtin.add_host:
-        name: "{{ item['name'] }}"
-        group: 'extra_nodes'
-        when_distro: "{{ item['when_distro'] }}"
-      loop: "{{ default_extra_nodes_map_list }}"
-      when: kubeinit_cluster_distro in item['when_distro']
+- name: Add extra_nodes entries for the current distro only
+  ansible.builtin.add_host:
+    name: "{{ item['name'] }}"
+    group: 'extra_nodes'
+    when_distro: "{{ item['when_distro'] | default(omit) }}"
+  loop: "{{ extra_nodes_map_list }}"
+  when: (item['when_distro'] is not defined or kubeinit_cluster_distro in item['when_distro']) and item['name'] is defined
 
-  when: groups['extra_nodes'] | default([]) | length == 0
+- name: Set fact for the number of extra nodes in this cluster
+  ansible.builtin.set_fact:
+    kubeinit_spec_extra_count: "{{ groups['extra_nodes'] | default([]) | length | int }}"
 
 - name: Assign extra_nodes addresses
   ansible.builtin.add_host:
     name: "{{ extra_node }}"
-    group: ['extra_nodes', 'inventory_nodes']
+    group: 'extra_nodes'
     ansible_connection: 'ssh'
-    ansible_host: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipv4('address') }}"
+    ansible_host: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
     type: 'virtual'
   loop: "{{ groups['extra_nodes'] | default([]) }}"
   loop_control:
     loop_var: extra_node
-  when: kubeinit_cluster_distro in hostvars[extra_node]['when_distro']
+    extended: true
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
-    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(1) }}"
-  loop: "{{ groups['extra_nodes'] | default([]) }}"
-  loop_control:
-    loop_var: extra_node
-  when: kubeinit_cluster_distro in hostvars[extra_node]['when_distro']
+    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_extra_count|int) }}"
+  when: kubeinit_spec_extra_count|int > 0
 
-- name: Set default_service_nodes_map_list fact
+- name: Set service_nodes_map_list fact to defaults
   ansible.builtin.set_fact:
-    default_service_nodes_map_list: "{{ hostvars['kubeinit-defaults'].default_service_nodes_map_list }}"
+    service_nodes_map_list: "{{ hostvars['kubeinit-defaults'].default_service_nodes_map_list }}"
 
-- name: Assign default entries to service_nodes group when not defined
-  block:
+- name: Add entries from service_nodes_spec to service_nodes_map_list when defined
+  ansible.builtin.set_fact:
+    service_nodes_map_list: "{{ service_nodes_map_list + (service_nodes_spec | from_yaml) }}"
+  when: service_nodes_spec is defined
 
-    - name: Add services default to service_nodes
-      ansible.builtin.add_host:
-        name: "{{ item['name'] }}"
-        group: 'service_nodes'
-        services: "{{ item['services'] }}"
-      loop: "{{ default_service_nodes_map_list }}"
+- name: Add service_nodes entries for the current distro only
+  ansible.builtin.add_host:
+    name: "{{ item['name'] }}"
+    group: 'service_nodes'
+    when_distro: "{{ item['when_distro'] | default(omit) }}"
+  loop: "{{ service_nodes_map_list }}"
+  when: (item['when_distro'] is not defined or kubeinit_cluster_distro in item['when_distro']) and item['name'] is defined
 
-  when: groups['service_nodes'] | default([]) | length == 0
+- name: Set fact for the number of service nodes in this cluster
+  ansible.builtin.set_fact:
+    kubeinit_spec_service_count: "{{ groups['service_nodes'] | length | int }}"
 
 - name: Assign service_nodes addresses
   ansible.builtin.add_host:
     name: "{{ service_node }}"
-    group: ['service_nodes', 'inventory_nodes']
+    group: 'service_nodes'
     ansible_connection: 'ssh'
-    ansible_host: "{{ kubeinit_cluster_nameserver | ansible.netcommon.ipv4(0 - ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
+    ansible_host: "{{ kubeinit_cluster_last_available | ansible.netcommon.ipmath(0 - ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
     type: 'container'
-  loop: "{{ groups['service_nodes'] | default([]) }}"
+  loop: "{{ groups['service_nodes'] }}"
   loop_control:
     loop_var: service_node
     extended: true
 
+- name: Update last available address for allocation
+  ansible.builtin.set_fact:
+    kubeinit_cluster_last_available: "{{ kubeinit_cluster_last_available | ansible.netcommon.ipmath(0 - (kubeinit_spec_service_count|int)) }}"
+
 - name: Set cluster dhcp facts
   ansible.builtin.set_fact:
     kubeinit_cluster_dhcp_start: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_dhcp_end: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_network_hostvars.dhcp_end_offset|int) | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_dhcp_end: "{{ kubeinit_cluster_last_available | ansible.netcommon.ipv4('address') }}"
 
 - name: Set cluster dhcp range size
   ansible.builtin.set_fact:
@@ -227,51 +220,80 @@
   ansible.builtin.set_fact:
     kubeinit_network_hostvars: null
 
-- name: Define default_cluster_nodes_map_list
+- name: Set cluster_nodes_map_list fact to defaults
   ansible.builtin.set_fact:
-    default_cluster_nodes_map_list: "{{ hostvars['kubeinit-defaults'].default_cluster_nodes_map_list }}"
+    cluster_nodes_map_list: "{{ hostvars['kubeinit-defaults'].default_cluster_nodes_map_list }}"
 
-- name: Add all other cluster node defaults using default_cluster_nodes_map_list
+- name: Add entries from cluster_nodes_spec to cluster_nodes_map_list when defined
   ansible.builtin.set_fact:
-    cluster_nodes_defaults: "{{ cluster_nodes_defaults | default([]) + (groups['inventory_nodes'] | product([item])) }}"
-  loop: "{{ default_cluster_nodes_map_list }}"
-  when: item['when_distro'] is not defined or kubeinit_cluster_distro in item['when_distro']
-
-- name: Load cluster_nodes_spec from yaml into a list of dictionaries
-  ansible.builtin.set_fact:
-    cluster_nodes_map_list: "{{ (cluster_nodes_map_list | default([])) | union([_dict]) }}"
-  loop: "{{ cluster_nodes_spec | from_yaml }}"
-  vars:
-    _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
-    _dict: "{{ dict(_keys|zip(_vals)) }}"
+    cluster_nodes_map_list: "{{ cluster_nodes_map_list + (cluster_nodes_spec | from_yaml) }}"
   when: cluster_nodes_spec is defined
 
-- name: Add cluster_nodes_spec defaults
+- name: Add all items in cluster_nodes_map_list to cluster_nodes_defaults for this distro
   ansible.builtin.set_fact:
-    cluster_nodes_defaults: "{{ cluster_nodes_defaults | default([]) + (groups['inventory_nodes'] | product([item])) }}"
+    cluster_nodes_defaults: "{{ cluster_nodes_defaults | default([]) + (groups['cluster_nodes'] | product([item])) }}"
   loop: "{{ cluster_nodes_map_list }}"
-  when: cluster_nodes_spec is defined and (item['when_distro'] is not defined or kubeinit_cluster_distro in item['when_distro'])
+  when: item['when_distro'] is not defined or kubeinit_cluster_distro in item['when_distro']
 
 - name: Apply defaults to all cluster nodes
   ansible.builtin.add_host:
     name: "{{ _host }}"
     os: "{{ _defaults['os'] if (_defaults['os'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
-    vcpus: "{{ _defaults['vcpus'] if (_defaults['vcpus'] is defined and _group_matches and _type_matches) else omit }}"
-    maxvcpus: "{{ _defaults['maxvcpus'] if (_defaults['maxvcpus'] is defined and _group_matches and _type_matches) else omit }}"
-    disk: "{{ _defaults['disk'] if (_defaults['disk'] is defined and _group_matches and _type_matches) else omit }}"
-    ram: "{{ _defaults['ram'] if (_defaults['ram'] is defined and _group_matches and _type_matches) else omit }}"
-    target_order: "{{ _defaults['target_order'] if (_defaults['target_order'] is defined and _group_matches and _type_matches) else omit }}"
+    vcpus: "{{ _defaults['vcpus'] if (_defaults['vcpus'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
+    maxvcpus: "{{ _defaults['maxvcpus'] if (_defaults['maxvcpus'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
+    disk: "{{ _defaults['disk'] if (_defaults['disk'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
+    ram: "{{ _defaults['ram'] if (_defaults['ram'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
+    target_order: "{{ _defaults['target_order'] if (_defaults['target_order'] is defined and _group_matches|bool and _type_matches|bool) else omit }}"
   loop: "{{ cluster_nodes_defaults }}"
   vars:
     _host: "{{ item[0] }}"
     _defaults: "{{ item[1] }}"
-    _group_matches: "{{ item[1]['when_group'] | default('inventory_nodes') in hostvars[item[0]].group_names }}"
+    _group_matches: "{{ item[1]['when_group'] | default('cluster_nodes') in hostvars[item[0]].group_names }}"
     _type_matches: "{{ item[1]['when_type'] | default(hostvars[item[0]].type) | default('') == hostvars[item[0]].type | default('') }}"
 
 - name: Clear cluster_nodes_defaults
   ansible.builtin.set_fact:
     cluster_nodes_defaults: null
+
+- name: Add extra_nodes_map_list to config for current distro only
+  ansible.builtin.set_fact:
+    extra_nodes_config: "{{ extra_nodes_config | default([]) + (groups['extra_nodes'] | default([]) | product([item])) }}"
+  loop: "{{ extra_nodes_map_list }}"
+  when: item['when_distro'] is not defined or kubeinit_cluster_distro in item['when_distro']
+
+- name: Apply config to all extra nodes
+  ansible.builtin.add_host:
+    name: "{{ _host }}"
+    os: "{{ _config['os'] if (_config['os'] is defined and _type_matches|bool) else omit }}"
+    vcpus: "{{ _config['vcpus'] if (_config['vcpus'] is defined and _type_matches|bool) else omit }}"
+    maxvcpus: "{{ _config['maxvcpus'] if (_config['maxvcpus'] is defined and _type_matches|bool) else omit }}"
+    disk: "{{ _config['disk'] if (_config['disk'] is defined and _type_matches|bool) else omit }}"
+    ram: "{{ _config['ram'] if (_config['ram'] is defined and _type_matches|bool) else omit }}"
+    target_order: "{{ _config['target_order'] if (_config['target_order'] is defined and _type_matches|bool) else omit }}"
+  loop: "{{ extra_nodes_config }}"
+  vars:
+    _host: "{{ item[0] }}"
+    _config: "{{ item[1] }}"
+    _type_matches: "{{ item[1]['when_type'] | default(hostvars[item[0]].type) | default('') == hostvars[item[0]].type | default('') }}"
+  when: _config['name'] | default(_host) == _host
+
+- name: Add service_nodes_map_list to config for current distro only
+  ansible.builtin.set_fact:
+    service_nodes_config: "{{ service_nodes_config | default([]) + (groups['service_nodes'] | product([item])) }}"
+  loop: "{{ service_nodes_map_list }}"
+  when: item['when_distro'] is not defined or kubeinit_cluster_distro in item['when_distro']
+
+- name: Apply config to all service nodes
+  ansible.builtin.add_host:
+    name: "{{ _host }}"
+    os: "{{ _config['os'] if (_config['os'] is defined) else omit }}"
+    services: "{{ _config['services'] if (_config['services'] is defined) else omit }}"
+    target_order: "{{ _config['target_order'] if (_config['target_order'] is defined) else omit }}"
+  loop: "{{ service_nodes_config }}"
+  vars:
+    _host: "{{ item[0] }}"
+    _config: "{{ item[1] }}"
+  when: _config['name'] | default(_host) == _host
 
 - name: Define kubeinit_facts_hostvars
   ansible.builtin.set_fact:
@@ -289,10 +311,10 @@
 - name: Assign remaining controller_nodes facts
   ansible.builtin.add_host:
     name: "{{ controller_node }}"
-    group: ['controller_nodes', 'inventory_nodes']
+    group: ['controller_nodes', 'cluster_nodes']
     mac: "{{ hostvars[controller_node].mac | default('52:54:00' | community.general.random_mac) }}"
     interfaceid: "{{ hostvars[controller_node].interfaceid | default(999999 | random | to_uuid) }}"
-  loop: "{{ range(kubeinit_spec_controllers|int) | list }}"
+  loop: "{{ range(kubeinit_spec_controller_count|int) | list }}"
   loop_control:
     extended: true
   vars:
@@ -301,10 +323,10 @@
 - name: Assign remaining compute_nodes facts
   ansible.builtin.add_host:
     name: "{{ compute_node }}"
-    group: ['compute_nodes', 'inventory_nodes']
+    group: ['compute_nodes', 'cluster_nodes']
     mac: "{{ hostvars[compute_node].mac | default('52:54:00' | community.general.random_mac) }}"
     interfaceid: "{{ hostvars[compute_node].interfaceid | default(999999 | random | to_uuid) }}"
-  loop: "{{ range(kubeinit_spec_computes|int) | list }}"
+  loop: "{{ range(kubeinit_spec_compute_count|int) | list }}"
   loop_control:
     extended: true
   vars:
@@ -313,7 +335,7 @@
 - name: Assign remaining extra_nodes facts
   ansible.builtin.add_host:
     name: "{{ hostvars[extra_node].inventory_hostname }}"
-    group: ['extra_nodes', 'inventory_nodes']
+    group: 'extra_nodes'
     mac: "{{ hostvars[extra_node].mac | default('52:54:00' | community.general.random_mac) }}"
     interfaceid: "{{ hostvars[extra_node].interfaceid | default(999999 | random | to_uuid) }}"
   loop: "{{ groups['extra_nodes'] | default([]) }}"
@@ -324,7 +346,7 @@
 - name: Assign remaining service_nodes facts
   ansible.builtin.add_host:
     name: "{{ hostvars[service_node].inventory_hostname }}"
-    group: ['service_nodes', 'inventory_nodes']
+    group: 'service_nodes'
     mac: "{{ hostvars[service_node].mac | default('52:54:00' | community.general.random_mac) }}"
     interfaceid: "{{ hostvars[service_node].interfaceid | default(999999 | random | to_uuid) }}"
   loop: "{{ groups['service_nodes'] | default([]) }}"
@@ -349,7 +371,7 @@
 - name: Determine the hypervisor target for all inventory nodes
   ansible.builtin.set_fact:
     node_targets: "{{ (node_targets | default([])) | union([inventory_node] | product(hostvars[inventory_node].target_order | reverse)) }}"
-  loop: "{{ groups['inventory_nodes'] }}"
+  loop: "{{ groups['cluster_nodes'] + (groups['extra_nodes'] | default([])) + groups['service_nodes'] }}"
   loop_control:
     loop_var: inventory_node
 

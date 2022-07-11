@@ -85,9 +85,9 @@
   ansible.builtin.set_fact:
     kubeinit_spec_distro: "{{ kubeinit_spec_parts[0] }}"
     kubeinit_spec_driver: "{{ kubeinit_spec_parts[1] }}"
-    kubeinit_spec_controllers: "{{ kubeinit_spec_parts[2] }}"
-    kubeinit_spec_computes: "{{ kubeinit_spec_parts[3] }}"
-    kubeinit_spec_hypervisors: "{{ kubeinit_spec_parts[4] }}"
+    kubeinit_spec_controller_count: "{{ kubeinit_spec_parts[2] }}"
+    kubeinit_spec_compute_count: "{{ kubeinit_spec_parts[3] }}"
+    kubeinit_spec_hypervisor_count: "{{ kubeinit_spec_parts[4] }}"
 
 - name: Set fact for the spec distro role
   ansible.builtin.set_fact:
@@ -99,17 +99,13 @@
     that:
       - kubeinit_distro_role is defined
       - kubeinit_spec_driver in ['libvirt']
-      - kubeinit_spec_controllers in ['1', '3', '5']
-      - kubeinit_spec_computes|int >= 0
-      - kubeinit_spec_hypervisors|int >= 1
+      - kubeinit_spec_controller_count in ['1', '3', '5']
+      - kubeinit_spec_compute_count|int >= 0
+      - kubeinit_spec_hypervisor_count|int >= 1
 
 - name: Load kubeinit_cluster_spec from yaml into a dictionary
   ansible.builtin.set_fact:
-    kubeinit_cluster_map: "{{ dict(_keys|zip(_vals)) }}"
-  vars:
-    _arr: "{{ kubeinit_cluster_spec | from_yaml }}"
-    _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
+    kubeinit_cluster_map: "{{ kubeinit_cluster_spec | from_yaml }}"
   when: kubeinit_cluster_spec is defined
 
 - name: Assert kubeinit_cluster group and kubeinit_cluster_spec have same name when both defined
@@ -172,25 +168,20 @@
 
 - name: Assert that we have enough hypervisors defined for this cluster if they are provided by the inventory
   ansible.builtin.assert:
-    msg: "Your kubeinit_spec needs {{ kubeinit_spec_hypervisors|int }} hypervisor hosts and your inventory only defines {{ groups['hypervisor_hosts'] | length }}."
-    that: groups['hypervisor_hosts'] | length >= kubeinit_spec_hypervisors|int
+    msg: "Your kubeinit_spec needs {{ kubeinit_spec_hypervisor_count|int }} hypervisor hosts and your inventory only defines {{ groups['hypervisor_hosts'] | length }}."
+    that: groups['hypervisor_hosts'] | length >= kubeinit_spec_hypervisor_count|int
   when: groups['hypervisor_hosts'] | default([]) | length > 0
 
 - name: Load hypervisor_hosts_spec from yaml into a list of dictionaries
   ansible.builtin.set_fact:
-    hypervisor_hosts_map_list: "{{ (hypervisor_hosts_map_list | default([])) | union([_dict]) }}"
-  loop: "{{ hypervisor_hosts_spec | from_yaml }}"
-  vars:
-    _keys: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\1') | trim }}"
-    _vals: "{{ item | map('regex_replace', '^(.*?)=(.*)$', '\\2') | trim }}"
-    _dict: "{{ dict(_keys|zip(_vals)) }}"
+    hypervisor_hosts_map_list: "{{ hypervisor_hosts_spec | from_yaml }}"
   when: hypervisor_hosts_spec is defined
 
 - name: Assert hypervisor_hosts group and hypervisor_hosts_spec have same names when both defined
   ansible.builtin.assert:
     msg: "Hypervisor names from inventory and command-line specification must match."
     that: hypervisor_hosts_map_list[ansible_loop.index0]['host'] == groups['hypervisor_hosts'][ansible_loop.index0]
-  loop: "{{ range(kubeinit_spec_hypervisors|int) | list }}"
+  loop: "{{ range(kubeinit_spec_hypervisor_count|int) | list }}"
   loop_control:
     extended: true
   when: hypervisor_hosts_map_list[ansible_loop.index0]['host'] | default('') | length > 0 and groups['hypervisor_hosts'][ansible_loop.index0] | default('') | length > 0
@@ -203,7 +194,7 @@
       - 'kubeinit_hypervisors'
     ansible_connection: 'smart'
     ansible_ssh_user: "{{ hostvars[kubeinit_facts_name].remote_user }}"
-  loop: "{{ range(kubeinit_spec_hypervisors|int) | list }}"
+  loop: "{{ range(kubeinit_spec_hypervisor_count|int) | list }}"
   loop_control:
     extended: true
   when: groups['hypervisor_hosts'] | default([]) | length == 0
@@ -214,7 +205,7 @@
     groups: 'kubeinit_hypervisors'
     ansible_connection: 'smart'
     ansible_ssh_user: "{{ hostvars[kubeinit_facts_name].remote_user }}"
-  loop: "{{ range(kubeinit_spec_hypervisors|int) | list }}"
+  loop: "{{ range(kubeinit_spec_hypervisor_count|int) | list }}"
   loop_control:
     extended: true
 
@@ -236,8 +227,8 @@
     groups: 'kubeinit_cluster'
     distro: "{{ kubeinit_spec_distro }}"
     distro_role: "{{ kubeinit_distro_role }}"
-    controller_count: "{{ kubeinit_spec_controllers }}"
-    compute_count: "{{ kubeinit_spec_computes }}"
+    controller_count: "{{ kubeinit_spec_controller_count }}"
+    compute_count: "{{ kubeinit_spec_compute_count }}"
 
 - name: Set more cluster facts from inventory groups and kubeinit_spec
   ansible.builtin.set_fact:
