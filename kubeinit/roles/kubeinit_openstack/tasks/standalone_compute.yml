@@ -1,0 +1,83 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+#
+# "kubeinit_openstack" tasks
+#
+
+- name: Run the deployment tasks in each extra node (those extra nodes having the 'nova' string)
+  block:
+
+    - name: Install CentOS based OpenStack dependencies
+      ansible.builtin.package:
+        name: "{{ kubeinit_openstack_dependencies }}"
+        state: present
+
+    - name: Checkout latest ooo Ansible code
+      ansible.builtin.git:
+        repo: "https://opendev.org/openstack/tripleo-ansible.git"
+        dest: "/src/tripleo-ansible"
+
+    - name: Install Ansible
+      ansible.builtin.shell: |
+        set -o pipefail
+        pip3 install ansible
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Get the tripleo-ansible standalone WIP code
+      ansible.builtin.shell: |
+        set -o pipefail
+
+        cd /src/tripleo-ansible
+        gerrit_patch=840509
+        # We get the latest change given a gerrit review
+        change=$(git ls-remote https://review.opendev.org/openstack/tripleo-ansible | grep ${gerrit_patch} | cut -f2 -d$'\t' | sort -t / -k 5 -g -r | head -n 1)
+        echo ${change}
+
+        # We fetch the change
+        git fetch https://review.opendev.org/openstack/tripleo-ansible ${change} && git checkout FETCH_HEAD
+
+        # I didnt find a way to get the gerrit change given the changeid
+        # Now we need to pull all the depends on changes
+        ## dependson=$(git --no-pager log -n1 | grep 'Depends-On:' | tr -s " " | cut -f3 -d' ')
+
+        dependson="840675 841795 841996 841997 842150 842234 842437 842152"
+
+        for d in ${dependson}; do
+            echo ${d}
+            change=$(git ls-remote https://review.opendev.org/openstack/tripleo-ansible | grep ${d} | cut -f2 -d$'\t' | sort -t / -k 5 -g -r | head -n 1)
+            echo ${change}
+            git fetch https://review.opendev.org/openstack/tripleo-ansible ${change} && git cherry-pick FETCH_HEAD
+        done
+
+        # TODO:FIXME:
+        # I should be able to install this tripleo-ansible
+        # as a galaxy requirement to fetch and delegate correctly
+        # the tasks execution.
+        ansible-galaxy install --force -r requirements.yml
+        export ANSIBLE_ROLES_PATH=/src/tripleo-ansible/tripleo_ansible/roles
+        export ANSIBLE_LIBRARY=/src/tripleo-ansible/tripleo_ansible/ansible_plugins/modules/
+        ansible-playbook -i tripleo_ansible/inventory/02-compute ./tripleo_ansible/playbooks/deploy-overcloud-compute.yaml
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+  delegate_to: "{{ kubeinit_deployment_node_name }}"

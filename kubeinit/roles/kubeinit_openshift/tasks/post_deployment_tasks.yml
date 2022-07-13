@@ -167,3 +167,14 @@
   vars:
     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
+
+#
+# Deploy extra roles
+#
+- name: Deploy extra roles
+  ansible.builtin.include_role:
+    name: "kubeinit.kubeinit.{{ extra_role }}"
+    public: yes
+  loop: "{{ kubeinit_cluster_hostvars['extra_roles'] | default([]) }}"
+  loop_control:
+    loop_var: extra_role
