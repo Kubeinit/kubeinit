@@ -19,15 +19,46 @@
 # "kubeinit_openstack" tasks
 #
 
+#
+# This tasks files can deploy a standalone TripleO node
+# in the extra node attached to the OpenShift cluster
+# or the podified control plane services
+#
+# A potential new usecase might be having two extra nodes
+# one node with the standalone TripleO and another that will
+# get the Nova compute services.
+#
+
+#
+# Install standalone TripleO
+#
+
+- name: Install standalone Tripleo
+  ansible.builtin.include_tasks: standalone_tripleo.yml
+  loop: "{{ groups['all_extra_nodes'] | default([]) }}"
+  loop_control:
+    loop_var: extra_node
+  when: "'nova' in extra_node and not kubeinit_openstack_deploy_podified | default(false) and false"
+  vars:
+    kubeinit_deployment_node_name: "{{ extra_node }}"
+    tripleo_network_config_template: "templates/net_config_static_bridge.j2"
+    tripleo_network_config_hide_sensitive_logs: false
+    neutron_public_interface_name: "eth1"
+
+#
+# Install podified control plane
+#
+
 - name: Install the podified controlplane operators
   ansible.builtin.include_tasks: podified_controlplane.yml
+  when: kubeinit_openstack_deploy_podified | default(false)
 
 - name: Run the standalone compute tasks
   ansible.builtin.include_tasks: standalone_compute.yml
   loop: "{{ groups['all_extra_nodes'] | default([]) }}"
   loop_control:
     loop_var: extra_node
-  when: "'nova' in extra_node"
+  when: "'nova' in extra_node and kubeinit_openstack_deploy_podified | default(false)"
   vars:
     kubeinit_deployment_node_name: "{{ extra_node }}"
     tripleo_network_config_template: "templates/net_config_static_bridge.j2"

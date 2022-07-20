@@ -57,7 +57,7 @@
           --install python3 \
           --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
           --run-command "ssh-keygen -A" \
-          --run-command "sed -i s/^SELINUX=.*$/SELINUX=disabled/g /etc/selinux/config" \
+          --run-command "sed -i s/^SELINUX=.*$/SELINUX=permissive/g /etc/selinux/config" \
           {% for authorized_key in kubeinit_cluster_hostvars.authorized_keys %}
             --ssh-inject root:string:"{{ authorized_key }}" \
           {% endfor %}
@@ -167,10 +167,6 @@
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
-
-    - name: Disable SELinux
-      ansible.posix.selinux:
-        state: disabled
 
     - name: Enable kernel modules and IP forward
       ansible.builtin.shell: |

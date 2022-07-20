@@ -40,6 +40,7 @@
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
+      when: false
 
     - name: Get the tripleo-ansible standalone WIP code
       ansible.builtin.shell: |
@@ -67,10 +68,13 @@
             git fetch https://review.opendev.org/openstack/tripleo-ansible ${change} && git cherry-pick FETCH_HEAD
         done
 
+        #
         # TODO:FIXME:
-        # I should be able to install this tripleo-ansible
-        # as a galaxy requirement to fetch and delegate correctly
-        # the tasks execution.
+        # I should be able to install tripleo-ansible
+        # as a galaxy collection requirement to fetch
+        # and delegate correctly the tasks execution.
+        #
+
         ansible-galaxy install --force -r requirements.yml
         export ANSIBLE_ROLES_PATH=/src/tripleo-ansible/tripleo_ansible/roles
         export ANSIBLE_LIBRARY=/src/tripleo-ansible/tripleo_ansible/ansible_plugins/modules/
@@ -79,5 +83,6 @@
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
+      when: false
 
   delegate_to: "{{ kubeinit_deployment_node_name }}"
