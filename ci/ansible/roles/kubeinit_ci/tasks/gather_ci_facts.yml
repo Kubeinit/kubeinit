@@ -19,7 +19,7 @@
     - name: Stop the deployment if required
       block:
         - name: "Stop before 'task-gather-facts' when requested"
-          ansible.builtin.add_host: name='kubeinit-ci-facts' playbook_terminated=true
+          ansible.builtin.add_host: name='kubeinit-facts' playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-gather-facts'
@@ -29,14 +29,10 @@
 # Gather kubeinit ci facts
 #
 
-- name: Set hostname we use to set kubeinit ci facts
-  ansible.builtin.set_fact:
-    kubeinit_facts_name: 'kubeinit-ci-facts'
-
 - name: Add playbook context facts
   ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
-    groups: 'kubeinit_ci_facts'
+    name: "kubeinit-facts"
+    groups: 'kubeinit_facts'
     container_run: "{{ kubeinit_container_run|default(false)|bool }}"
 
 - name: Load kubeinit_env group
@@ -66,11 +62,11 @@
     msg:
       - "You must provide the user for the playbook when running from the kubeinit container."
       - "e.g. --user root"
-    that: not hostvars[kubeinit_facts_name].container_run or kubeinit_cli_remote_user|length > 0
+    that: not hostvars['kubeinit-facts'].container_run or kubeinit_cli_remote_user|length > 0
 
 - name: Define kubeinit remote_user
   ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
+    name: "kubeinit-facts"
     dns_public: "{{ hostvars['kubeinit-env'].dns_public }}"
     local_home: "{{ ansible_facts.user_dir }}"
     local_user: "{{ ansible_facts.user_id }}"
@@ -79,7 +75,7 @@
 
 - name: Define kubeinit_facts_hostvars
   ansible.builtin.set_fact:
-    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+    kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
 - name: Define kubeinit_dns_public
   ansible.builtin.set_fact:
@@ -145,18 +141,18 @@
 
 - name: Add local_install fact
   ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
+    name: "kubeinit-facts"
     local_install: "{{ kubeinit_ci_ansible_connection == 'local' }}"
 
 - name: Update kubeinit_facts_hostvars
   ansible.builtin.set_fact:
-    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+    kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
 - name: Add remote ssh params for ci host when install is not local
   ansible.builtin.add_host:
     name: "{{ kubeinit_ci_host_name }}"
     groups: 'kubeinit_ci_host'
-    ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
+    ansible_user: "{{ kubeinit_facts_hostvars.remote_user }}"
   when: not kubeinit_facts_hostvars.local_install
 
 - name: Ensure ci host has all requirements for ansible
@@ -177,7 +173,7 @@
     name: "{{ item['host'] }}"
     groups: 'kubeinit_hypervisors'
     ansible_connection: 'smart'
-    ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
+    ansible_user: "{{ kubeinit_facts_hostvars.remote_user }}"
     ansible_host: "{{ item['ansible_host'] }}"
     ssh_hostname: "{{ item['ssh_hostname'] | default(omit) }}"
     ssh_username: "{{ item['ssh_username'] | default(omit) }}"

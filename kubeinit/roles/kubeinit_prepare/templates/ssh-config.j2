@@ -5,20 +5,20 @@ Include {{ include_path }}
 {% for host in _param_hosts %}
 Host {{ host }}
   Hostname {{ hostvars[host].ansible_host }}
-  IdentityFile {{ _param_keypair_path | default('~/.ssh/id_' + kubeinit_ssh_keytype) }}
+  IdentityFile {{ _param_keypair_path | default('~/.ssh/id_' + (_param_ssh_keytype | default('rsa'))) }}
   UserKnownHostsFile /dev/null
   StrictHostKeyChecking accept-new
 
-{% if hostvars[host].ansible_host | ansible.netcommon.ipv4 %}
+{% if hostvars[host].ansible_host | ansible.utils.ipv4 %}
 Host {{ hostvars[host].ansible_host }}
-  IdentityFile {{ _param_keypair_path | default('~/.ssh/id_' + kubeinit_ssh_keytype) }}
+  IdentityFile {{ _param_keypair_path | default('~/.ssh/id_' + (_param_ssh_keytype | default('rsa'))) }}
   UserKnownHostsFile /dev/null
   StrictHostKeyChecking accept-new
 
 {% elif hostvars[host].ssh_connection_address is defined or hostvars[host].ssh_hostname is defined %}
 Host {{ hostvars[host].ansible_host }}
   Hostname {{ hostvars[host].ssh_connection_address if (hostvars[host].ssh_connection_address is defined) else hostvars[host].ssh_hostname }}
-  IdentityFile {{ _param_keypair_path | default('~/.ssh/id_' + kubeinit_ssh_keytype) }}
+  IdentityFile {{ _param_keypair_path | default('~/.ssh/id_' + (_param_ssh_keytype | default('rsa'))) }}
   UserKnownHostsFile /dev/null
   StrictHostKeyChecking accept-new
 

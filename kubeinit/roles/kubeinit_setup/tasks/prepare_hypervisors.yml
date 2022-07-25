@@ -19,13 +19,13 @@
     - name: Prepare environment if needed
       ansible.builtin.include_tasks: prepare_environment.yml
       vars:
-        environment_prepared: "{{ kubeinit_facts_name is defined }}"
+        environment_prepared: "{{ 'kubeinit_facts' in groups }}"
       when: not environment_prepared
 
     - name: Stop the deployment if required
       block:
         - name: "Stop before 'task-prepare-hypervisors' when requested"
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-hypervisors'
@@ -34,59 +34,20 @@
 - name: Delegate to kubeinit_setup_host_name
   block:
 
-    - name: Define additional host facts
-      ansible.builtin.set_fact:
-        kubeinit_deploy_keypair_path: "~/.ssh/kubeinit_id_{{ kubeinit_ssh_keytype }}"
-        kubeinit_deploy_ssh_config: "~/.ssh/kubeinit_config"
-
-    - name: Check if default ssh config exists
-      ansible.builtin.stat:
-        path: "~/.ssh/config"
-      register: _result_default_ssh_config_stat
-
-    - name: Create ssh config file from template
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_prepare
-        tasks_from: create_host_ssh_config.yml
-        public: true
-      vars:
-        _param_hosts: "{{ groups['kubeinit_hypervisors'] }}"
-        _param_keypair_path: "{{ kubeinit_deploy_keypair_path }}"
-        _param_dest_path: "{{ kubeinit_deploy_ssh_config }}"
-        _param_include_paths: "{{ [_result_default_ssh_config_stat.stat.path] if (_result_default_ssh_config_stat.stat.exists) else [] }}"
-
-    - name: Generate an OpenSSH keypair for setup_host to have remote access to hypervisor hosts
-      community.crypto.openssh_keypair:
-        path: "{{ kubeinit_deploy_keypair_path }}"
-        type: "{{ kubeinit_ssh_keytype }}"
-        comment: "{{ kubeinit_setup_host_name + ' ' + kubeinit_facts_hostvars.remote_user + '@' + hostvars[kubeinit_setup_host_name].ssh_connection_address }}"
-        regenerate: 'never'
-      register: _result_setup_keypair
-      when: "'kubeinit_hypervisors' in groups and groups['kubeinit_hypervisors'] | list | length > 0"
-
-    - name: Add keypair to authorized_keys on setup_host
-      ansible.posix.authorized_key:
-        user: "{{ kubeinit_facts_hostvars.remote_user }}"
-        key: "{{ _result_setup_keypair.public_key }}"
-        comment: "{{ _result_setup_keypair.comment }}"
-        state: present
-
     - name: Ensure hypervisors have all requirements for ansible
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_setup
         tasks_from: setup_ansible_host.yml
         public: true
       loop: "{{ groups['kubeinit_hypervisors'] | default([]) }}"
-      loop_control:
-        loop_var: hypervisor_host
       vars:
-        _param_ansible_host: "{{ hypervisor_host }}"
+        _param_ansible_host: "{{ item }}"
 
     - name: Add setup_host authorized key to hypervisor hosts
       ansible.posix.authorized_key:
         user: "{{ hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) }}"
-        key: "{{ _result_setup_keypair.public_key }}"
-        comment: "{{ _result_setup_keypair.comment }}"
+        key: "{{ hostvars[kubeinit_setup_host_name].keypair_pubkey }}"
+        comment: "{{ hostvars[kubeinit_setup_host_name].keypair_comment }}"
         state: present
       loop: "{{ groups['kubeinit_hypervisors'] | default([]) }}"
       loop_control:
@@ -99,7 +60,7 @@
       ansible.builtin.shell: |
         set -o pipefail
         ssh \
-            -F {{ kubeinit_deploy_ssh_config }} \
+            -F {{ hostvars[hypervisor_host].deploy_ssh_config }} \
             {{ hostvars[hypervisor_host].ssh_username | default(kubeinit_facts_hostvars.remote_user) }}@{{ hostvars[hypervisor_host].ansible_host }} 'echo connected' || true
       args:
         executable: /bin/bash
@@ -109,28 +70,30 @@
       delay: 10
       until: "'connected' in _result.stdout"
       loop: "{{ groups['kubeinit_hypervisors'] | default([]) }}"
-      loop_control:
-        loop_var: hypervisor_host
+      vars:
+        hypervisor_host: "{{ item }}"
 
+  vars:
+    kubeinit_setup_host_name: "{{ groups['setup_host'] | first }}"
   environment:
     PATH: "{{ hostvars[kubeinit_setup_host_name].remote_home }}/.local/bin:{{ hostvars[kubeinit_setup_host_name].remote_path }}"
   delegate_to: "{{ kubeinit_setup_host_name }}"
 
-- name: Gather hosts facts and stop the deployment if required
+- name: Update progress and stop the deployment if required
   block:
     - name: Add task-prepare-hypervisors to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_facts_name }}"
-        tasks_completed: "{{ kubeinit_facts_hostvars.tasks_completed | union(['task-prepare-hypervisors']) }}"
+        name: "kubeinit-facts"
+        tasks_completed: "{{ hostvars['kubeinit-facts'].tasks_completed | union(['task-prepare-hypervisors']) }}"
 
     - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
     - name: Stop the deployment if required
       block:
         - name: Stop after 'task-prepare-hypervisors' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed

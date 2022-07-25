@@ -19,13 +19,13 @@
     - name: Prepare environment if needed
       ansible.builtin.include_tasks: prepare_environment.yml
       vars:
-        environment_prepared: "{{ kubeinit_facts_name is defined }}"
+        environment_prepared: "{{ 'kubeinit_facts' in groups }}"
       when: not environment_prepared
 
     - name: Stop the deplotment if required
       block:
         - name: "Stop before 'task-deploy-ci' when requested"
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name='kubeinit-facts' playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-ci'
@@ -34,8 +34,8 @@
 - name: Define hostvars used in these tasks
   ansible.builtin.set_fact:
     kubeinit_ci_keypair_path: "{{ hostvars['localhost'].kubeinit_ci_keypair_path }}"
-    kubeinit_dns_public: "{{ hostvars[kubeinit_facts_name].dns_public }}"
-    kubeinit_ssh_keytype: "{{ hostvars[kubeinit_facts_name].ssh_keytype }}"
+    kubeinit_dns_public: "{{ hostvars['kubeinit-facts'].dns_public }}"
+    kubeinit_ssh_keytype: "{{ hostvars['kubeinit-facts'].ssh_keytype }}"
 
 - name: Set ssh port to use
   ansible.builtin.set_fact:
@@ -657,17 +657,17 @@
   block:
     - name: Add task-deploy-ci to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_facts_name }}"
+        name: 'kubeinit-facts'
         tasks_completed: "{{ kubeinit_facts_hostvars.tasks_completed | union(['task-deploy-ci']) }}"
 
     - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
     - name: Stop the deployment if required
       block:
         - name: Stop after 'task-deploy-ci' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name='kubeinit-facts' playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed

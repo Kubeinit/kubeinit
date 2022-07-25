@@ -19,20 +19,37 @@
     - name: Gather kubeinit setup facts if needed
       ansible.builtin.include_tasks: gather_setup_facts.yml
       vars:
-        facts_prepared: "{{ kubeinit_facts_name is defined }}"
+        facts_prepared: "{{ 'kubeinit_facts' in groups }}"
       when: not facts_prepared
 
     - name: Stop the deployment if required
       block:
         - name: "Stop before 'task-prepare-environment' when requested"
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-environment'
   tags: omit_from_grapher
 
+- name: Define kubeinit_facts_hostvars
+  ansible.builtin.set_fact:
+    kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
+
+- name: Set kubeinit_setup_host_name fact
+  ansible.builtin.set_fact:
+    kubeinit_setup_host_name: "{{ groups['setup_host'] | first }}"
+
+- name: Gather facts from setup_host
+  ansible.builtin.include_tasks: gather_host_facts.yml
+  vars:
+    _param_gather_host: "{{ kubeinit_setup_host_name }}"
+
 - name: Delegate to kubeinit_setup_host_name
   block:
+
+    - name: Update kubeinit_facts_hostvars
+      ansible.builtin.set_fact:
+        kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
     - name: Install python3-pip package
       ansible.builtin.package:
@@ -151,23 +168,25 @@
       register: _result
       when: hostvars[kubeinit_setup_host_name].git_clone_kubeinit|bool
 
+  vars:
+    kubeinit_setup_host_name: "{{ inventory_hostname }}"
   delegate_to: "{{ kubeinit_setup_host_name }}"
 
-- name: Gather hosts facts and stop the deployment if required
+- name: Update progress and stop the deployment if required
   block:
     - name: Add task-prepare-environment to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_facts_name }}"
-        tasks_completed: "{{ kubeinit_facts_hostvars.tasks_completed | union(['task-prepare-environment']) }}"
+        name: "kubeinit-facts"
+        tasks_completed: "{{ hostvars['kubeinit-facts'].tasks_completed | union(['task-prepare-environment']) }}"
 
     - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
     - name: Stop the deployment if required
       block:
         - name: Stop after 'task-prepare-environment' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed

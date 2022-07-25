@@ -20,10 +20,25 @@
 
 - name: Delegate to kubeinit_deployment_node_name (inventory_hostname)
   block:
+
+    - name: Generate an OpenSSH keypair on kubeinit_deployment_node_name
+      community.crypto.openssh_keypair:
+        path: "~/.ssh/{{ hostvars['kubeinit-facts'].cluster_name }}_id_{{ hostvars['kubeinit-facts'].ssh_keytype }}"
+        type: "{{ hostvars['kubeinit-facts'].ssh_keytype }}"
+        comment: "{{ hostvars['kubeinit-facts'].cluster_name + ' ' + kubeinit_deployment_node_name }}"
+        regenerate: 'never'
+      register: _result_keypair
+
+    - name: Create authorized_key from keypair
+      ansible.builtin.set_fact:
+        authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"
+      delegate_facts: true
+
     - name: Provision the libvirt services on the hypervisor
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_libvirt
         public: true
+
   vars:
     kubeinit_deployment_node_name: "{{ inventory_hostname }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"

@@ -22,13 +22,13 @@
         tasks_from: prepare_services.yml
         public: true
       vars:
-        services_prepared: "{{ kubeinit_facts_name is defined }}"
+        services_prepared: "{{ 'kubeinit_facts' in groups }}"
       when: not services_prepared
 
     - name: Stop the deployment if required
       block:
         - name: "Stop before 'task-prepare-cluster' when requested"
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-cluster'
@@ -44,17 +44,17 @@
   block:
     - name: Add task-prepare-cluster to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_facts_name }}"
+        name: "kubeinit-facts"
         tasks_completed: "{{ kubeinit_facts_hostvars.tasks_completed | union(['task-prepare-cluster']) }}"
 
     - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
     - name: Stop the deployment if required
       block:
         - name: Stop after 'task-prepare-cluster' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed
