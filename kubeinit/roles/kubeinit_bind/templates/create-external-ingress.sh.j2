@@ -24,7 +24,7 @@ fi
 rm -rf /var/kubeinit/bind
 mkdir -p /var/kubeinit/bind
 if [ "$(buildah ls --filter 'name={{ kubeinit_cluster_name }}-external' --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]; then buildah rm {{ kubeinit_cluster_name }}-external; fi
-buildah from --name {{ kubeinit_cluster_name }}-external -v /var/kubeinit/bind:/var/kubeinit/bind:Z docker.io/internetsystemsconsortium/bind9:9.11
+buildah from --name {{ kubeinit_cluster_name }}-external -v /var/kubeinit/bind:/var/kubeinit/bind:Z docker.io/internetsystemsconsortium/bind9:9.18
 buildah run {{ kubeinit_cluster_name }}-external -- apt-get update -y
 buildah run {{ kubeinit_cluster_name }}-external -- apt-get install -y openssh-client
 buildah run {{ kubeinit_cluster_name }}-external -- cp -pr /etc/bind/. /var/kubeinit/bind/.

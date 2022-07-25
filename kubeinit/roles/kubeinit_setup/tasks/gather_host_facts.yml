@@ -86,6 +86,7 @@
       ansible.builtin.package_facts:
         manager: "{{ hostvars[_param_gather_host].package_manager }}"
       register: _result_packages
+      no_log: "{{ kubeinit_package_facts_hidden | default(true) }}"
 
     - name: Set podman_is_installed
       ansible.builtin.set_fact:
@@ -94,6 +95,7 @@
     - name: Gather the services facts
       ansible.builtin.service_facts:
       register: _result_services
+      no_log: "{{ kubeinit_service_facts_hidden | default(true) }}"
 
     - name: Set _service_state to unknown
       ansible.builtin.set_fact:

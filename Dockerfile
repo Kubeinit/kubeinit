@@ -51,7 +51,7 @@ RUN set -x && \
     python3 -m pip install --user --upgrade cryptography && \
     python3 -m pip install --user --upgrade wheel && \
     python3 -m pip install --user --upgrade ansible && \
-    python3 -m pip install --user --upgrade shyaml netaddr ipython
+    python3 -m pip install --user --upgrade shyaml netaddr ipython dnspython
 
 COPY --chown=${USER}:0 . .
 

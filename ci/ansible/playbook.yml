@@ -46,13 +46,12 @@
   tasks:
     - name: Set facts for this play
       ansible.builtin.set_fact:
-        kubeinit_facts_name: 'kubeinit-ci-facts'
         kubeinit_ci_host_name: "{{ inventory_hostname }}"
       delegate_facts: true
 
     - name: Skip play if playbook_terminated
       ansible.builtin.meta: end_play
-      when: hostvars[kubeinit_facts_name].playbook_terminated | default(false)
+      when: hostvars['kubeinit-facts'].playbook_terminated | default(false)
       tags:
         - omit_from_grapher
         - task_gather_facts
@@ -67,16 +66,16 @@
 
     - name: Add tasks-gather-facts to tasks completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_facts_name }}"
+        name: "kubeinit-facts"
         tasks_completed: "{{ ['task-gather-facts'] }}"
       tags: omit_from_grapher
 
     - block:
         - name: Stop after 'task-gather-facts' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_facts_name].tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars['kubeinit-facts'].tasks_completed
       tags: omit_from_grapher
 
     - name: Prepare the environment

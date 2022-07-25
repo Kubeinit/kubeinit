@@ -153,20 +153,6 @@
       ansible.builtin.set_fact:
         ovs_is_active: "{{ true if _service_state == 'running' else false }}"
 
-    - name: Generate an OpenSSH keypair on local and hypervisor hosts
-      community.crypto.openssh_keypair:
-        path: "~/.ssh/{{ hostvars['kubeinit-facts'].cluster_name }}_id_{{ hostvars['kubeinit-facts'].ssh_keytype }}"
-        type: "{{ hostvars['kubeinit-facts'].ssh_keytype }}"
-        comment: "{{ hostvars['kubeinit-facts'].cluster_name }} {{ 'ansible-controller' if (_param_gather_host == 'localhost') else _param_gather_host }}"
-        regenerate: 'never'
-      register: _result_keypair
-      when: _param_gather_host == 'localhost' or _param_gather_host in (groups['kubeinit_hypervisors'] | default([]))
-
-    - name: Create authorized_key from keypair
-      ansible.builtin.set_fact:
-        authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"
-      when: _param_gather_host == 'localhost' or _param_gather_host in (groups['kubeinit_hypervisors'] | default([]))
-
     - name: Add more facts to hostvars
       ansible.builtin.set_fact:
         ansible_default_ipv4_address: "{{ _result_facts.ansible_facts.ansible_default_ipv4.address }}"
@@ -179,7 +165,7 @@
 
     - name: Add more facts to hostvars
       ansible.builtin.set_fact:
-        os: "{{ hostvars[_param_gather_host].os if (hostvars[_param_gather_host].os is defined) else host_os }}"
+        os: "{{ hostvars[_param_gather_host].os if (hostvars[_param_gather_host].os is defined) else hostvars[_param_gather_host].host_os }}"
         remote_path: "{{ _result_facts.ansible_facts.ansible_env['PATH'] }}"
         remote_home: "{{ _result_facts.ansible_facts.ansible_env['HOME'] }}"
         runtime_path: "{{ _result_facts.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
@@ -192,9 +178,6 @@
         _result_facts: {}
         _result_packages: {}
         _result_services: {}
-        _result_nets: []
-        _result_vms: []
-        _result_keypair: ''
         _service_state: ''
 
   delegate_to: "{{ _param_gather_host }}"

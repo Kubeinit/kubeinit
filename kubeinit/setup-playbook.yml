@@ -38,6 +38,20 @@
             tasks_from: gather_setup_facts.yml
             public: true
 
+- name: Setup environment on KubeInit deployment host
+  hosts: setup_host
+  become: false
+  gather_subset: "!all,network"
+  gather_facts: true
+  tasks:
+    - name: Skip play if playbook_terminated
+      ansible.builtin.meta: end_play
+      when: hostvars['kubeinit-facts'].playbook_terminated | default(false)
+      tags:
+        - omit_from_grapher
+        - task_gather_facts
+      run_once: true
+
     - name: Prepare the environment
       tags: task_prepare_environment
       block:
@@ -63,6 +77,23 @@
           ansible.builtin.include_role:
             name: kubeinit.kubeinit.kubeinit_setup
             public: true
+
+- name: Setup access to hypervisors from the Kubeinit deployment host
+  hosts: kubeinit_hypervisors
+  become: false
+  gather_subset: "!all,network"
+  gather_facts: true
+  tasks:
+    - name: Skip play if playbook_terminated
+      ansible.builtin.meta: end_play
+      when: hostvars['kubeinit-facts'].playbook_terminated | default(false)
+      tags:
+        - omit_from_grapher
+        - task_gather_facts
+        - task_prepare_environment
+        - task_cleanup_deployment
+        - task_deploy_setup
+      run_once: true
 
     - name: Setup access to hypervisor hosts
       tags: task_prepare_hypervisors

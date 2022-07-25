@@ -14,12 +14,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Omit from the documentation grapher
+- name: Omit from documentation grapher
   block:
-    - name: Gather hosts facts and stop the deployment if required
+    - name: Stop the deployment if required
       block:
         - name: "Stop before 'task-gather-facts' when requested"
-          ansible.builtin.add_host: name='kubeinit-setup-facts' playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-gather-facts'
@@ -29,15 +29,11 @@
 # Gather kubeinit setup facts
 #
 
-- name: Set hostname we use to set kubeinit setup facts
-  ansible.builtin.set_fact:
-    kubeinit_facts_name: 'kubeinit-setup-facts'
-
 - name: Add playbook context facts
   ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
-    groups: 'kubeinit_setup_facts'
-    container_run: "{{ kubeinit_container_run|default(false)|bool }}"
+    name: 'kubeinit-facts'
+    groups: 'kubeinit_facts'
+    container_run: "{{ kubeinit_container_run | default(false) | bool }}"
 
 - name: Load kubeinit_env group
   ansible.builtin.add_host:
@@ -62,37 +58,17 @@
     msg:
       - "You must provide the user for the playbook when running from the kubeinit container."
       - "e.g. --user root"
-    that: not hostvars[kubeinit_facts_name].container_run or kubeinit_cli_remote_user|length > 0
+    that: not hostvars['kubeinit-facts'].container_run or kubeinit_cli_remote_user|length > 0
 
 - name: Define kubeinit remote_user
   ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
+    name: "kubeinit-facts"
     local_user: "{{ ansible_facts.user_id }}"
     local_home: "{{ ansible_facts.user_dir }}"
     remote_user: "{{ kubeinit_cli_remote_user if (kubeinit_cli_remote_user|length > 0) else ansible_facts.user_id }}"
     ssh_keytype: "{{ hostvars['kubeinit-env'].ssh_keytype }}"
-
-- name: Define kubeinit_facts_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
-
-- name: Define kubeinit_ssh_keytype
-  ansible.builtin.set_fact:
-    kubeinit_ssh_keytype: "{{ kubeinit_facts_hostvars.ssh_keytype }}"
-
-- name: Create .ssh folder if needed
-  ansible.builtin.file:
-    path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh' }}"
-    state: directory
-    mode: 0700
-  when: kubeinit_facts_hostvars.container_run|bool
-
-- name: Copy setup ssh key secret into ~/.ssh
-  ansible.builtin.copy:
-    content: "{{ lookup('unvault', hostvars['kubeinit-secrets'].secrets['kubeinit-setup-ssh-key']) }}"
-    dest: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/id_' + kubeinit_ssh_keytype }}"
-    mode: '0600'
-  when: kubeinit_facts_hostvars.container_run|bool
+    setup_keypair_path: "{{ ansible_facts.user_dir + '/.ssh/kubeinit_setup_id_' + hostvars['kubeinit-env'].ssh_keytype }}"
+    setup_ssh_config: "{{ ansible_facts.user_dir + '/.ssh/kubeinit_setup_config' }}"
 
 - name: Parse setup_host_spec into a dictionary if defined
   ansible.builtin.set_fact:
@@ -138,25 +114,38 @@
   ansible.builtin.add_host:
     name: "{{ kubeinit_setup_host_name }}"
     group: 'setup_host'
-    ansible_host: "{{ ansible_facts.fqdn }}"
+    ansible_host: "{{ lookup('community.general.dig', ansible_facts.fqdn) }}"
     ansible_connection: 'smart'
-  when: kubeinit_facts_hostvars.container_run and (hostvars[kubeinit_setup_host_name].ansible_connection|default('') == 'local')|bool
+  when: hostvars['kubeinit-facts'].container_run and (hostvars[kubeinit_setup_host_name].ansible_connection | default('') == 'local')|bool
 
 - name: Add local_install fact
   ansible.builtin.add_host:
-    name: "{{ kubeinit_facts_name }}"
-    local_install: "{{ (hostvars[kubeinit_setup_host_name].ansible_connection|default('') == 'local')|bool }}"
-
-- name: Update kubeinit_facts_hostvars
-  ansible.builtin.set_fact:
-    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+    name: "kubeinit-facts"
+    local_install: "{{ (hostvars[kubeinit_setup_host_name].ansible_connection | default('') == 'local')|bool }}"
 
 - name: Add remote ssh params for setup_host when install is not local
   ansible.builtin.add_host:
     name: "{{ kubeinit_setup_host_name }}"
     group: setup_host
-    ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
-  when: not kubeinit_facts_hostvars.local_install
+    ansible_user: "{{ hostvars['kubeinit-facts'].remote_user }}"
+
+- name: Create .ssh folder if needed
+  ansible.builtin.file:
+    path: "{{ hostvars['kubeinit-facts'].local_home + '/.ssh' }}"
+    state: directory
+    mode: 0700
+
+- name: Copy setup ssh key secret into ~/.ssh
+  ansible.builtin.copy:
+    content: "{{ lookup('unvault', hostvars['kubeinit-secrets'].secrets['kubeinit-setup-ssh-key']) }}"
+    dest: "{{ hostvars['kubeinit-facts'].setup_keypair_path }}"
+    mode: '0600'
+
+- name: Add ansible_ssh_extra_args to setup host
+  ansible.builtin.add_host:
+    name: "{{ setup_host_name }}"
+    group: "{{ setup_host_group }}"
+    ansible_ssh_extra_args: "-i {{ hostvars['kubeinit-facts'].setup_keypair_path }}"
 
 - name: Ensure setup_host has all requirements for ansible
   ansible.builtin.include_role:
@@ -165,12 +154,6 @@
     public: true
   vars:
     _param_ansible_host: "{{ kubeinit_setup_host_name }}"
-  when: not kubeinit_facts_hostvars.local_install
-
-- name: Gather facts from setup_host
-  ansible.builtin.include_tasks: gather_host_facts.yml
-  vars:
-    _param_gather_host: "{{ kubeinit_setup_host_name }}"
 
 - name: Load hypervisor_hosts_spec from yaml into a list of dictionaries
   ansible.builtin.set_fact:
@@ -182,29 +165,28 @@
     name: "{{ item['host'] }}"
     groups: 'kubeinit_hypervisors'
     ansible_connection: 'smart'
-    ansible_ssh_user: "{{ kubeinit_facts_hostvars.remote_user }}"
+    ansible_user: "{{ hostvars['kubeinit-facts'].remote_user }}"
     ansible_host: "{{ item['ansible_host'] }}"
     ssh_hostname: "{{ item['ssh_hostname'] | default(omit) }}"
     ssh_username: "{{ item['ssh_username'] | default(omit) }}"
-  loop: "{{ hypervisor_hosts_map_list }}"
-  when: hypervisor_hosts_map_list is defined
-
-- name: Set kubeinit_cluster_ssh_config fact
-  ansible.builtin.set_fact:
-    kubeinit_setup_ssh_config: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/kubeinit_config' }}"
-    kubeinit_setup_keypair_path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/id_' + kubeinit_ssh_keytype }}"
+  loop: "{{ hypervisor_hosts_map_list | default([]) }}"
 
 - name: Add ansible_ssh_extra_args to kubeinit_hypervisors group
   ansible.builtin.add_host:
     name: "{{ item }}"
     groups: 'kubeinit_hypervisors'
-    ansible_ssh_extra_args: "-F {{ kubeinit_setup_ssh_config }}"
+    ansible_ssh_extra_args: "-F {{ hostvars['kubeinit-facts'].setup_ssh_config }}"
   loop: "{{ groups['kubeinit_hypervisors'] }}"
 
-- name: Check if default ssh config exists
+- name: Check if ssh config exists
   ansible.builtin.stat:
-    path: "{{ kubeinit_facts_hostvars.local_home + '/.ssh/config' }}"
-  register: _result_default_ssh_config_stat
+    path: "{{ hostvars['kubeinit-facts'].local_home + '/.ssh/config' }}"
+  register: _result_ssh_config_stat
+
+- name: Set kubeinit_setup_include_paths
+  ansible.builtin.set_fact:
+    kubeinit_setup_include_paths:
+      "{{ [_result_ssh_config_stat.stat.path] if (_result_ssh_config_stat.stat.exists) else [] }}"
 
 - name: Create ssh config file from template
   ansible.builtin.include_role:
@@ -213,26 +195,27 @@
     public: true
   vars:
     _param_hosts: "{{ groups['kubeinit_hypervisors'] }}"
-    _param_keypair_path: "{{ kubeinit_setup_keypair_path }}"
+    _param_ssh_keytype: "{{ hostvars['kubeinit-facts'].ssh_keytype }}"
+    _param_keypair_path: "{{ kubeinit_facts_hostvars.setup_keypair_path }}"
     _param_dest_path: "{{ kubeinit_setup_ssh_config }}"
-    _param_include_paths: "{{ [_result_default_ssh_config_stat.stat.path] if (_result_default_ssh_config_stat.stat.exists) else [] }}"
+    _param_include_paths: "{{ kubeinit_setup_include_paths }}"
 
-- name: Gather hosts facts and stop the deployment if required
+- name: Update progress and stop the deployment if required
   block:
     - name: Add tasks-gather-facts to tasks completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_facts_name }}"
+        name: "kubeinit-facts"
         tasks_completed: "{{ ['task-gather-facts'] }}"
 
     - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
     - name: Stop the deployment if required
       block:
         - name: Stop after 'task-gather-facts' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_facts_name].tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed
   tags: omit_from_grapher

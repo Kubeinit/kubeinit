@@ -297,7 +297,7 @@
 
 - name: Define kubeinit_facts_hostvars
   ansible.builtin.set_fact:
-    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+    kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
 - name: Define kubeinit_ssh_keytype
   ansible.builtin.set_fact:
@@ -361,7 +361,7 @@
 - name: Set libvirt release facts
   ansible.builtin.set_fact:
     kubeinit_libvirt_debian_release: "11"
-    kubeinit_libvirt_ubuntu_release: "{{ 'focal' if (kubeinit_cluster_distro == 'cdk') else 'impish' }}"
+    kubeinit_libvirt_ubuntu_release: "{{ 'focal' if (kubeinit_cluster_distro == 'cdk') else 'jammy' }}"
 
 - name: Set registry authentication facts
   ansible.builtin.set_fact:
@@ -389,18 +389,18 @@
   block:
     - name: Add tasks-gather-facts to tasks completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_facts_name }}"
+        name: "kubeinit-facts"
         tasks_completed: "{{ ['task-gather-facts'] }}"
 
     - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
     - name: Stop the deployment if required
       block:
         - name: Stop after 'task-gather-facts' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
-      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars[kubeinit_facts_name].tasks_completed
+      when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in hostvars['kubeinit-facts'].tasks_completed
   tags: omit_from_grapher

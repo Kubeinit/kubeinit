@@ -19,13 +19,13 @@
     - name: Gather kubeinit ci facts if needed
       ansible.builtin.include_tasks: gather_ci_facts.yml
       vars:
-        facts_prepared: "{{ kubeinit_facts_name is defined }}"
+        facts_prepared: "{{ 'kubeinit_facts' in groups }}"
       when: not facts_prepared
 
     - name: Stop the deployment if required
       block:
         - name: "Stop before 'task-prepare-environment' when requested"
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-prepare-environment'
@@ -33,7 +33,7 @@
 
 - name: Define kubeinit_facts_hostvars
   ansible.builtin.set_fact:
-    kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+    kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
 - name: Define additional CI host facts
   ansible.builtin.set_fact:
@@ -170,21 +170,21 @@
 
   delegate_to: "{{ kubeinit_ci_host_name }}"
 
-- name: UPdate hosts and stop if required
+- name: Update hosts and stop if required
   block:
     - name: Add task-prepare-environment to tasks_completed
       ansible.builtin.add_host:
-        name: "{{ kubeinit_facts_name }}"
+        name: "kubeinit-facts"
         tasks_completed: "{{ kubeinit_facts_hostvars.tasks_completed | union(['task-prepare-environment']) }}"
 
     - name: Update kubeinit_facts_hostvars
       ansible.builtin.set_fact:
-        kubeinit_facts_hostvars: "{{ hostvars[kubeinit_facts_name] }}"
+        kubeinit_facts_hostvars: "{{ hostvars['kubeinit-facts'] }}"
 
     - name: Stop the deployment if required
       block:
         - name: Stop after 'task-prepare-environment' when requested
-          ansible.builtin.add_host: name="{{ kubeinit_facts_name }}" playbook_terminated=true
+          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed
