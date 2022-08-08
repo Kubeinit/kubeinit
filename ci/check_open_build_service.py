@@ -1,16 +1,36 @@
-#!/bin/python
+#!/bin/python3
+
+"""
+Copyright kubeinit contributors.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at:
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+"""
 
 import os
+import sys
+import xml.etree.ElementTree as ETree
+
 import requests
-import xml.etree.ElementTree as ET
 
 user = 'kubeinit'
-password = os.environ.get('OPEN_BUILD_SERVICE')
+password = os.environ.get("OPEN_BUILD_SERVICE")
 url = "https://api.opensuse.org/build/home:kubeinit/_result"
 r = requests.get(url, auth=(user, password))
 build_status = r.text
-tree = ET.fromstring(build_status)
 print(build_status)
+if str(r.status_code) != "200":
+    sys.exit('FATAL: This should return a 200')
+tree = ETree.fromstring(build_status)
 newsitems = []
 for item in tree.findall('./result'):
     for child in item:
@@ -28,4 +48,3 @@ for item in tree.findall('./result'):
             print(child.attrib['package'])
             print(child.attrib['code'])
             sys.exit('FATAL')
-
