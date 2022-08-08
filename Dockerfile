@@ -1,4 +1,4 @@
-FROM quay.io/centos/centos:stream8
+FROM quay.io/centos/centos:stream9
 
 LABEL maintainer="Carlos Camacho <carloscamachoucv@gmail.com>"
 LABEL quay.expires-after=30w
@@ -13,7 +13,7 @@ ENTRYPOINT ["ansible-playbook", "-e", "kubeinit_container_run=true"]
 RUN set -x && \
     \
     echo "==> Installing pacakges repo dependencies..."  && \
-    curl -L -o /etc/yum.repos.d/kubeinit.repo https://download.opensuse.org/repositories/home:/kubeinit/CentOS_8_Stream/home:kubeinit.repo && \
+    curl -L -o /etc/yum.repos.d/kubeinit.repo https://download.opensuse.org/repositories/home:/kubeinit/CentOS_9_Stream/home:kubeinit.repo && \
     echo "priority=1" >> /etc/yum.repos.d/kubeinit.repo && \
     echo "module_hotfixes=1" >> /etc/yum.repos.d/kubeinit.repo && \
     dnf --noplugins update -y && rm -rf /var/cache/yum && \
@@ -22,7 +22,7 @@ RUN set -x && \
 RUN set -x && \
     \
     echo "==> Installing packages dependencies..."  && \
-    dnf --noplugins install -y python39 python39-pip openssh-clients podman jq && rm -rf /var/cache/yum && \
+    dnf --noplugins install -y python python-pip openssh-clients podman jq && rm -rf /var/cache/yum && \
     python3 -m pip install --user --upgrade netaddr && rm -rf /var/cache/yum && \
     dnf upgrade -y && dnf clean all
 

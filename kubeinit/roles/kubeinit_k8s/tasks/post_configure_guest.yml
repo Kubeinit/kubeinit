@@ -20,7 +20,7 @@
 
 - name: Download cri-o (kubeinit) repos
   ansible.builtin.shell: |
-    curl -L -o /etc/yum.repos.d/kubeinit.repo https://download.opensuse.org/repositories/home:/kubeinit/CentOS_8_Stream/home:kubeinit.repo
+    curl -L -o /etc/yum.repos.d/kubeinit.repo https://download.opensuse.org/repositories/home:/kubeinit/CentOS_9_Stream/home:kubeinit.repo
   args:
     executable: /bin/bash
   register: _result
@@ -35,6 +35,11 @@
     name: cri-o
     state: present
 
+- name: Install the latest version of crun
+  ansible.builtin.package:
+    name: crun
+    state: present
+
 - name: Make sure cri-o binary is reachable and the configuration is correct
   ansible.builtin.shell: |
     yum install -y jq
@@ -45,6 +50,9 @@
     # jq '.type = "flannel"' /etc/cni/net.d/87-crio-bridge.conf > "$tmp" && mv -f "$tmp" /etc/cni/net.d/87-crio-bridge.conf
     # rm -rf /etc/cni/net.d/87-crio-bridge.conf
     # echo '{"name": "crio","type": "flannel"}' > /etc/cni/net.d/10-crio.conf
+    cp /etc/crio/crio.conf /etc/crio/crio.conf.backup
+    sed -i s/^.*default_runtime\ =\ .*$/default_runtime\ =\ \"crun\"/g /etc/crio/crio.conf
+    sed -i "s/^\#\[crio\.runtime\.runtimes\.crun.*\]/[crio.runtime.runtimes.crun]/g" /etc/crio/crio.conf
   args:
     executable: /bin/bash
   register: _result
