@@ -19,6 +19,7 @@
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=release"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/release/badge.svg?event=push"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=container_image"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/container_image/badge.svg?event=schedule"/> </a>
     <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=distro_test"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/distro_test/badge.svg?event=schedule"/> </a>
+    <a href="https://github.com/Kubeinit/kubeinit/actions?workflow=check_package_build"><img height="20px" src="https://github.com/Kubeinit/kubeinit/workflows/check_package_build/badge.svg?event=schedule"/> </a>
     <a href="https://kubernetes.slack.com/archives/C01FKK19T0B"><img height="20px" src="https://img.shields.io/badge/chat-on%20slack-blue.svg?logo=slack&longCache=true&style=flat"/> </a>
 </p>
 
