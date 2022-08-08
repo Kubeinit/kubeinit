@@ -286,6 +286,7 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
                 -e cluster_nodes_spec=${CLUSTER_NODES:-[]} \
                 -e extra_nodes_spec=${EXTRA_NODES:-[]} \
                 -e compute_node_ram_size=16777216 \
+                -e extra_node_ram_size=25165824 \
                 ./kubeinit/playbook.yml
             # We can not have any other command after
             # 'ansible-playbook' otherwise the || wont work

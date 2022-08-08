@@ -44,7 +44,7 @@ ci_labels = get_periodic_jobs_labels()
 github_public_labels.sort()
 ci_labels.sort()
 
-if(github_public_labels == ci_labels):
+if (github_public_labels == ci_labels):
     print("Both CI labels list match")
 else:
     print("'check_labels_consistency.py' ==> There is a mismatch between the labels tested in the periodic jobs")
