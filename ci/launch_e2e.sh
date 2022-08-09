@@ -266,6 +266,7 @@ if [[ "$DISTRO" == "okd" && "$MASTERS" == "1" &&  "$WORKERS" == "1" &&  "$HYPERV
     # -e extra_nodes_spec='[{"name":"nova-compute","when_distro":["okd"],"os":"centos"}]'
     EXTRA_NODES='[{"name":"nova-compute","when_distro":["okd"],"os":"centos"}]'
     EXTRA_ROLES='kubeinit_openstack'
+    EXTRA_VARS='-e kubeinit_openstack_deploy_standalone=true'
 fi
 
 if [[ "$LAUNCH_FROM" == "h" ]]; then
@@ -287,6 +288,7 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
                 -e extra_nodes_spec=${EXTRA_NODES:-[]} \
                 -e compute_node_ram_size=16777216 \
                 -e extra_node_ram_size=25165824 \
+                ${EXTRA_VARS:-} \
                 ./kubeinit/playbook.yml
             # We can not have any other command after
             # 'ansible-playbook' otherwise the || wont work

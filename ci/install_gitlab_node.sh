@@ -47,8 +47,8 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     # Install selinux python bindings
     yum install -y libselinux-python3
 
-    # Disable selinux in the next reboot
-    sudo sed -i 's/enforcing/disabled/g' /etc/selinux/config /etc/selinux/config
+    # Set to permissive SELinux in the next reboot
+    sudo sed -i 's/enforcing/permissive/g' /etc/selinux/config
 
     if [ -f "/etc/fedora-release" ]; then
         if grep -q 35 "/etc/fedora-release"; then

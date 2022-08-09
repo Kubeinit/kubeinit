@@ -59,32 +59,25 @@
         state: latest
 
     - name: Reboot immediately after the package update
-      ansible.builtin.shell: "sleep 5 && reboot"
+      ansible.builtin.shell: "reboot"
       args:
         executable: /bin/bash
       async: 1
       poll: 0
       changed_when: true
 
-    - name: Confirm that we have ansible host connectivity
-      ansible.builtin.ping:
+    - name: Wait for {{ kubeinit_deployment_node_name }} to boot
+      ansible.builtin.wait_for_connection:
+        connect_timeout: 20
+        sleep: 5
+        delay: 30
+        timeout: 60
 
-    - name: Render the containers-prepare-parameters template
+    - name: Create the OOO templates
       ansible.builtin.shell: |
         set -o pipefail
 
-        su - stack
-        sudo openstack tripleo container image prepare default --output-env-file $HOME/containers-prepare-parameters.yaml
-      args:
-        executable: /bin/bash
-      register: _result
-      changed_when: "_result.rc == 0"
-
-    - name: Build the standalone_parameters template
-      ansible.builtin.shell: |
-        set -o pipefail
-
-        su - stack
+        openstack tripleo container image prepare default --output-env-file $HOME/containers-prepare-parameters.yaml
 
         export IP=10.0.0.4
         export VIP=10.0.0.5
@@ -148,57 +141,105 @@
         # ^* 10.11.160.238                 2   6   377    63    +10us[  +33us] +/- 9708us
       args:
         executable: /bin/bash
+      become: true
+      become_method: su
+      become_user: stack
       register: _result
       changed_when: "_result.rc == 0"
 
-    - name: Deploy ooo standalone in the Nova compute node
+    - name: Run the ooo deployment
+      block:
+        - name: Run the ooo standalone deployment 1st time
+          ansible.builtin.shell: |
+            set -o pipefail
+
+            # Run this as the stack user
+
+            export IP=10.0.0.4
+            export VIP=10.0.0.5
+            export NETMASK=24
+            export GATEWAY=10.0.0.254
+            export INTERFACE=eth0
+
+            sudo openstack tripleo deploy \
+              --templates \
+              --local-ip=$IP/$NETMASK \
+              --control-virtual-ip=$VIP \
+              -e /usr/share/openstack-tripleo-heat-templates/environments/standalone/standalone-tripleo.yaml \
+              -r /usr/share/openstack-tripleo-heat-templates/roles/Standalone.yaml \
+              -e $HOME/containers-prepare-parameters.yaml \
+              -e $HOME/standalone_parameters.yaml \
+              -e /usr/share/openstack-tripleo-heat-templates/environments/low-memory-usage.yaml \
+              --output-dir $HOME
+
+            # The result of the CLI execution will be in /home/stack/ansible.log
+          args:
+            executable: /bin/bash
+          become: true
+          become_method: su
+          become_user: stack
+          async: 45
+          poll: 0
+          register: ooo_sleeper
+          changed_when: true
+
+        - name: Check on an async task
+          ansible.builtin.async_status:
+            jid: "{{ ooo_sleeper.ansible_job_id }}"
+          become: true
+          become_method: su
+          become_user: stack
+          register: job_result
+          until: job_result.finished
+          retries: 10
+          delay: 60
+
+      rescue:
+        - name: Run the ooo standalone deployment 2nd time
+          ansible.builtin.shell: |
+            set -o pipefail
+
+            # Run this as the stack user
+
+            export IP=10.0.0.4
+            export VIP=10.0.0.5
+            export NETMASK=24
+            export GATEWAY=10.0.0.254
+            export INTERFACE=eth0
+
+            sudo openstack tripleo deploy \
+              --templates \
+              --local-ip=$IP/$NETMASK \
+              --control-virtual-ip=$VIP \
+              -e /usr/share/openstack-tripleo-heat-templates/environments/standalone/standalone-tripleo.yaml \
+              -r /usr/share/openstack-tripleo-heat-templates/roles/Standalone.yaml \
+              -e $HOME/containers-prepare-parameters.yaml \
+              -e $HOME/standalone_parameters.yaml \
+              -e /usr/share/openstack-tripleo-heat-templates/environments/low-memory-usage.yaml \
+              --output-dir $HOME
+
+            # The result of the CLI execution will be in /home/stack/ansible.log
+          args:
+            executable: /bin/bash
+          become: true
+          become_method: su
+          become_user: stack
+          changed_when: true
+
+
+    - name: "Make sure the {{ kubeinit_deployment_node_name }} OOO deployment is finished before continue"
       ansible.builtin.shell: |
         set -o pipefail
 
-        su - stack
-
-        export IP=10.0.0.4
-        export VIP=10.0.0.5
-        export NETMASK=24
-        export GATEWAY=10.0.0.254
-        export INTERFACE=eth0
-
-        sudo openstack tripleo deploy \
-          --templates \
-          --local-ip=$IP/$NETMASK \
-          --control-virtual-ip=$VIP \
-          -e /usr/share/openstack-tripleo-heat-templates/environments/standalone/standalone-tripleo.yaml \
-          -r /usr/share/openstack-tripleo-heat-templates/roles/Standalone.yaml \
-          -e $HOME/containers-prepare-parameters.yaml \
-          -e $HOME/standalone_parameters.yaml \
-          -e /usr/share/openstack-tripleo-heat-templates/environments/low-memory-usage.yaml \
-          --output-dir $HOME
+        openstack endpoint list --os-cloud standalone | grep regionOne | head -n 1 || true
       args:
         executable: /bin/bash
-      async: 600
-      poll: 0
-      register: _ooo_deployment
-      changed_when: true
-
-    - name: Check on ooo standalone
-      ansible.builtin.async_status:
-        jid: "{{ _ooo_deployment.ansible_job_id }}"
-      register: job_result
-      until: job_result.finished
-      retries: 100
-      delay: 300
-
-    - name: Confirm that we have ansible host connectivity
-      ansible.builtin.ping:
-
-    - name: Get the deployed standalone endpoints
-      ansible.builtin.shell: |
-        set -o pipefail
-        sudo su - stack
-        export OS_CLOUD=standalone
-        openstack endpoint list
-      args:
-        executable: /bin/bash
+      become: true
+      become_method: su
+      become_user: stack
       register: _result
+      retries: 5
+      delay: 120
+      until: "'regionOne' in _result.stdout"
       changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
