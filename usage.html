@@ -212,6 +212,10 @@ across all the supported scenarios.</p>
 </dd>
 <dt>ansible_debug_enabled</dt><dd><p>Determine if Ansible debug is currently enabled.</p>
 </dd>
+<dt>ansible_ssh_retries</dt><dd><p>Number of attempts to connect.
+Ansible retries connections only if it gets an SSH error with a return code of 255.
+Any errors with return codes other than 255 indicate an issue with program execution.</p>
+</dd>
 </dl>
 </section>
 <section id="cluster">
@@ -355,72 +359,6 @@ a docs placeholder.</p>
 <section id="inventory">
 <h3>Inventory<a class="headerlink" href="#inventory" title="Permalink to this heading"></a></h3>
 <p>The following einventory structure must be followed.</p>
-<dl>
-<dt>all</dt><dd><dl>
-<dt>children</dt><dd><dl>
-<dt>hypervisor_hosts</dt><dd><p>The cluster’s guest machines can be distributed across mutiple hosts. By default they
-will be deployed in the first Hypervisor. These hypervisors are activated and used
-depending on how they are referenced in the kubeinit spec string.</p>
-<p>When we are running the setup-playbook, if a hypervisor host has an ssh_hostname attribute
-then a .ssh/config file will be created and an entry mapping the ansible_host to that
-ssh hostname will be created. In the first example we would associate
-the ansible_host of the first hypervisor host “nyctea” with the hostname provided, it
-can be a short or fully qualified name, but it needs to be resolvable on the host we
-are running the kubeinit setup from. The second example uses a host ip address, which
-can be useful in those cases where the host you are using doesn’t have a dns name.</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">hypervisor_hosts</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">hypervisor-01</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">ansible_host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nyctea</span><span class="w"></span>
-<span class="w">        </span><span class="nt">ssh_hostname</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">server1.example.com</span><span class="w"></span>
-<span class="w">    </span><span class="nt">hypervisor-02</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">ansible_host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tyto</span><span class="w"></span>
-<span class="w">        </span><span class="nt">ssh_hostname</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.222.202</span><span class="w"></span>
-</pre></div>
-</div>
-</dd>
-<dt>bastion_host</dt><dd><p>The inventory will have one host identified as the bastion host. By default, this role will
-be assumed by the first hyperviso. The example would set the second hypervisor to be the bastion host.
-The final example would set the bastion host to be a different host that is not
-being used as a hypervisor for the guests VMs for the clusters using this inventory.</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">bastion_host</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">bastion</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">ansible_host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hypervisor-02</span><span class="w"></span>
-</pre></div>
-</div>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">bastion_host</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">bastion</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">ansible_host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bastion</span><span class="w"></span>
-</pre></div>
-</div>
-</dd>
-<dt>ovn_central_host</dt><dd><p>The inventory will have one host identified as the ovn-central host. By default, this role
-will be assumed by the first hypervisor. The first example would set the second hypervisor
-to be the ovn-central host.</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">ovn_central_host</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">target</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hypervisor-02</span><span class="w"></span>
-</pre></div>
-</div>
-</dd>
-<dt>setup_host</dt><dd><p>Setup host definition (used only with the setup-playbook.yml)</p>
-<p>This inventory will have one host identified as the setup host. By default, this will be
-localhost. The first example would set the first hypervisor host to be the setup host.
-The last example would set the setup host to be a different host that is not being used
-as a hypervisor in this inventory.</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">setup_host</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">ansible_host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nyctea</span><span class="w"></span>
-</pre></div>
-</div>
-<p>or</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">setup_host</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">ansible_host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.222.214</span><span class="w"></span>
-</pre></div>
-</div>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd>
-</dl>
 </section>
 <section id="directly-executing-the-deployment-playbook">
 <h3>Directly executing the deployment playbook<a class="headerlink" href="#directly-executing-the-deployment-playbook" title="Permalink to this heading"></a></h3>
