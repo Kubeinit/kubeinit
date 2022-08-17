@@ -36,7 +36,7 @@
             --os-variant=fedora29 \
             --autostart \
             --network network={{ kubeinit_cluster_hostvars.network_name }},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }},target.dev=veth0-{{ hostvars[kubeinit_deployment_node_name].ansible_host | ansible.netcommon.ip4_hex }},model=virtio \
-            --disk size={{ hostvars[kubeinit_deployment_node_name].disk | replace('G','') }},readonly=false \
+            --disk {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2,format=qcow2,bus=virtio,size={{ hostvars[kubeinit_deployment_node_name].disk | replace('G','') }},readonly=false \
             --location {{ kubeinit_libvirt_target_image_dir }}/ \
             --extra-args "${kernel_args}"
       args:
