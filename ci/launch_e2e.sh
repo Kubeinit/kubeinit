@@ -265,8 +265,8 @@ if [[ "$DISTRO" == "okd" && "$MASTERS" == "1" &&  "$WORKERS" == "1" &&  "$HYPERV
     # For enabling additional extra nodes use the extra_nodes_spec like
     # -e extra_nodes_spec='[{"name":"nova-compute","when_distro":["okd"],"os":"centos"}]'
     EXTRA_NODES='[{"name":"nova-compute","when_distro":["okd"],"os":"centos"}]'
-    EXTRA_ROLES='kubeinit_openstack'
-    EXTRA_VARS='-e kubeinit_openstack_deploy_standalone=true'
+    EXTRA_ROLES='kubeinit_ooonextgen'
+    EXTRA_VARS='-e kubeinit_ooonextgen_deploy_standalone=true'
 fi
 
 if [[ "$LAUNCH_FROM" == "h" ]]; then
