@@ -84,6 +84,10 @@
     cloud_image: "{{ item[1] }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
+#
+# TODO:FIXME: Make sure the kernel update do not break the Guest from booting
+#
+
 - name: Update packages in cloud images
   ansible.builtin.command: |
     virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ cloud_image.image }} {% if (kubeinit_cluster_distro == 'cdk' or kubeinit_cluster_distro == 'rke') %}--run-command 'env DEBIAN_FRONTEND=noninteractive apt-get -y --allow-remove-essential purge shim-signed'{% endif %} --update
@@ -94,6 +98,8 @@
   register: _result
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
+  # This is dangerous,do not run packages upgrades with virt-customize
+  when: false
 
 #
 # Download extra cloud images for Windows compute nodes or any miscelaneous image requirement
