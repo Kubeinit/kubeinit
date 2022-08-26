@@ -1,0 +1,218 @@
+---
+# Copyright kubeinit contributors
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+
+#
+# "kubeinit_openstack" seed_deployment.yml tasks
+#
+
+#
+# Creates a key pair with the current user public key
+#
+- name: Create the cluster access key
+  openstack.cloud.keypair:
+    auth: "{{ kubeinit_openstack_auth }}"
+    state: present
+    name: kubeinit_kp_inittest
+    public_key_file: /home/kubeinit/.ssh/kubeinit_inittest_id_rsa.pub
+
+#
+# Network resources
+#
+- name: Create the cluster network
+  openstack.cloud.os_network:
+    auth: "{{ kubeinit_openstack_auth }}"
+    name: kubeinit_net_inittest
+
+- name: Create the cluster subnet
+  openstack.cloud.os_subnet:
+    auth: "{{ kubeinit_openstack_auth }}"
+    network_name: kubeinit_net_inittest
+    name: kubeinit_subnet_inittest
+    cidr: 10.0.0.0/24
+    dns_nameservers:
+      - 8.8.8.8
+      - 8.8.4.4
+
+- name: Create the cluster router
+  openstack.cloud.os_router:
+    auth: "{{ kubeinit_openstack_auth }}"
+    name: kubeinit_router_inittest
+    enable_snat: true
+    interfaces:
+      - kubeinit_net_inittest
+
+#
+# Flavors
+#
+
+- name: Create a custom flavor
+  openstack.cloud.compute_flavor:
+    auth: "{{ kubeinit_openstack_auth }}"
+    state: present
+    name: kubeinit_flavor_inittest
+    ram: 32000
+    vcpus: 4
+    disk: 40
+    ephemeral: 40
+
+#
+# Images
+#
+- name: Create the cluster nodes image
+  openstack.cloud.image:
+    auth: "{{ kubeinit_openstack_auth }}"
+    name: kubeinit_image_cs9_inittest
+    container_format: bare
+    disk_format: qcow2
+    state: present
+    filename: cirros-0.3.0-x86_64-disk.img
+    kernel: cirros-vmlinuz
+    ramdisk: cirros-initrd
+    tags:
+      - custom
+    properties:
+      deployed_by: kubeinit
+      cpu_arch: x86_64
+      distro: CentOS
+
+#
+# Security groups and rules
+#
+
+- name: Create controlplane security group
+  openstack.cloud.os_security_group:
+    auth: "{{ kubeinit_openstack_auth }}"
+    name: "kubeinit_sg_inittest"
+    state: present
+
+- name: Allow SSH to master from anywhere IPv4
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    protocol: tcp
+    port_range_min: 22
+    port_range_max: 22
+    remote_ip_prefix: 0.0.0.0/0
+
+- name: Allow SSH to master from anywhere IPv6
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    ethertype: IPv6
+    protocol: tcp
+    port_range_min: 22
+    port_range_max: 22
+    remote_ip_prefix: ::/0
+
+- name: Allow K8S API to master from anywhere IPv4
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    protocol: tcp
+    port_range_min: 6443
+    port_range_max: 6443
+    remote_ip_prefix: 0.0.0.0/0
+
+- name: Allow K8S API to master from anywhere IPv6
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    ethertype: IPv6
+    protocol: tcp
+    port_range_min: 6443
+    port_range_max: 6443
+    remote_ip_prefix: ::/0
+
+- name: Allow HTTP to master from anywhere IPv4
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    protocol: tcp
+    port_range_min: 80
+    port_range_max: 80
+    remote_ip_prefix: 0.0.0.0/0
+
+- name: Allow HTTP to master from anywhere IPv6
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    ethertype: IPv6
+    protocol: tcp
+    port_range_min: 80
+    port_range_max: 80
+    remote_ip_prefix: ::/0
+
+- name: Allow HTTPS to master from anywhere IPv4
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    protocol: tcp
+    port_range_min: 443
+    port_range_max: 443
+    remote_ip_prefix: 0.0.0.0/0
+
+- name: Allow HTTPS to master from anywhere IPv6
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    ethertype: IPv6
+    protocol: tcp
+    port_range_min: 443
+    port_range_max: 443
+    remote_ip_prefix: ::/0
+
+- name: Allow load balancer traffic to nodes
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    remote_ip_prefix: 10.0.0.0/24
+    protocol: tcp
+    port_range_min: 30000
+    port_range_max: 32767
+
+- name: Allow traffic between nodes
+  openstack.cloud.os_security_group_rule:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_group: "kubeinit_sg_inittest"
+    remote_group: "kubeinit_sg_inittest"
+
+#
+# Workloads resources
+#
+- name: Create a cluster's node instance
+  openstack.cloud.os_server:
+    auth: "{{ kubeinit_openstack_auth }}"
+    security_groups: "kubeinit_sg_inittest"
+    name: "kubeinit_server_inittest"
+    image: "{{ master_image }}"
+    boot_from_volume: "{{ master_boot_from_volume }}"
+    terminate_volume: "{{ master_terminate_volume }}"
+    volume_size: "{{ master_volume_size }}"
+    key_name: "{{ key_name }}"
+    flavor_ram: "{{ master_flavor_ram if not master_flavor_name else omit }}"
+    flavor: "{{ master_flavor_name if master_flavor_name else omit }}"
+    nics:
+      - net-name: "{{ network_name }}"
+    auto_ip: yes
+    userdata: |
+      #cloud-config
+      package_upgrade: true
+      hostname: "{{ master_name }}"
+      manage_etc_hosts: false
+      packages:
+        - python
+        - python-simplejson
