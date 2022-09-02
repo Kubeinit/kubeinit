@@ -336,6 +336,7 @@ def get_periodic_jobs_labels(cluster_type='all', distro='all'):
     okd_configs = ["okd-libvirt-3-1-1-h",
                    "okd-libvirt-3-0-2-h",
                    "okd-libvirt-1-1-1-h",
+                   "okd-openstack-1-1-0-h",
                    "okd-libvirt-1-0-1-h"]
 
     rke_configs = ["rke-libvirt-3-1-2-h",
