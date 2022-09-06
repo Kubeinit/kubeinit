@@ -196,7 +196,10 @@
     - name: Gather hosts facts and omit from the documentation grapher
       block:
         - name: Gather facts from bastion_host if needed
-          ansible.builtin.include_tasks: gather_host_facts.yml
+          ansible.builtin.include_role:
+            name: kubeinit.kubeinit.kubeinit_libvirt
+            tasks_from: gather_host_facts.yml
+            public: true
           vars:
             _param_gather_host: "{{ kubeinit_bastion_host }}"
       tags: omit_from_grapher

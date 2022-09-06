@@ -59,7 +59,7 @@
       block:
         - name: Gather facts from each hypervisor in the deployment
           ansible.builtin.include_role:
-            name: kubeinit.kubeinit.kubeinit_prepare
+            name: kubeinit.kubeinit.kubeinit_libvirt
             tasks_from: gather_host_facts.yml
             public: true
           vars:
@@ -94,7 +94,7 @@
             tasks_from: prepare_hypervisors.yml
             public: true
 
-- name: Prepare all hypervisor hosts to deploy service and cluster nodes
+- name: Prepare the infrastructure to deploy service and cluster nodes
   hosts: kubeinit_hypervisors
   gather_facts: false
   tasks:
@@ -119,7 +119,7 @@
             tasks_from: prepare_hypervisor.yml
             public: true
 
-- name: Run cluster deployment on prepared hypervisors
+- name: Run the deployment on the target infrastructure (OpenStack/libvirt hypervisors)
   hosts: localhost
   become: false
   gather_facts: false
@@ -142,7 +142,7 @@
       block:
         - name: task-cleanup-hypervisors
           ansible.builtin.include_role:
-            name: kubeinit.kubeinit.kubeinit_prepare
+            name: kubeinit.kubeinit.kubeinit_libvirt
             tasks_from: cleanup_hypervisors.yml
             public: true
 
