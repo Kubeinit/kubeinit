@@ -14,17 +14,16 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Deploy the cluster nodes
+- name: Deploy the controller, workers, and extra nodes
   ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_libvirt
-    tasks_from: deploy_ubuntu_guest.yml
+    name: "kubeinit.kubeinit.{{ kubeinit_driver_role }}"
+    tasks_from: "deploy_{{ hostvars[kubeinit_deployment_node_name].os }}_guest.yml"
     public: yes
-  loop: "{{ groups['all_cluster_nodes'] }}"
+  loop: "{{ groups['all_controller_nodes'] + groups['all_worker_nodes'] + groups['all_extra_nodes']}}"
   loop_control:
-    loop_var: cluster_node
+    loop_var: kubeinit_deployment_node_name
   vars:
-    kubeinit_deployment_node_name: "{{ cluster_node }}"
-    kubeinit_deployment_delegate: "{{ hostvars[cluster_node].target }}"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
   when: kubeinit_cluster_nodes_deployed is not defined or not kubeinit_cluster_nodes_deployed
 
 - name: Enable insecure registry in Docker

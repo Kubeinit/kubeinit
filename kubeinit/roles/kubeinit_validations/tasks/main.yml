@@ -19,7 +19,7 @@
     - name: Cleanup hypervisors if needed
       ansible.builtin.include_role:
         name: kubeinit.kubeinit.kubeinit_libvirt
-        tasks_from: cleanup_hypervisors.yml
+        tasks_from: cleanup.yml
         public: true
       vars:
         hypervisors_cleaned: "{{ 'kubeinit_facts' in groups }}"
@@ -40,12 +40,24 @@
 
 - name: Check that the hypervisor has enough disk space
   ansible.builtin.include_tasks: 10_libvirt_free_space.yml
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Check that the hypervisor has enough RAM
   ansible.builtin.include_tasks: 20_libvirt_available_ram.yml
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Check that the hypervisor has enough cores
   ansible.builtin.include_tasks: 30_libvirt_check_cpu_cores.yml
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Gather hosts facts and stop the deployment if required
   block:

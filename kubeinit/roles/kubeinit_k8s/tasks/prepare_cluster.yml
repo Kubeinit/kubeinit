@@ -21,7 +21,9 @@
   vars:
     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
     kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
-    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
+    # The target of this can be an hypervisor or a guest vm, in the case we deploy the
+    # services pod in the services guest VM the type will be virtual, otherwise will be container.
+    kubeinit_deployment_delegate: "{{ kubeinit_provision_service_node if hostvars[kubeinit_provision_service_node].type == 'virtual' else hostvars[kubeinit_provision_service_node].target }}"
     kubeinit_deployment_os: "{{ hostvars[kubeinit_provision_service_node].os }}"
 
 - name: Configure the service node

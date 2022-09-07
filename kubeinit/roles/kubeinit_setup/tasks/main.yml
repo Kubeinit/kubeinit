@@ -147,6 +147,10 @@
         _param_keypair_path: "{{ kubeinit_deploy_keypair_path }}"
         _param_dest_path: "{{ kubeinit_deploy_ssh_config }}"
         _param_include_paths: "{{ [_result_default_ssh_config_stat.stat.path] if (_result_default_ssh_config_stat.stat.exists) else [] }}"
+      #
+      # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+      #
+      when: kubeinit_spec_driver == 'libvirt'
 
     - name: Generate an OpenSSH keypair for setup_host to have remote access to hypervisor hosts
       community.crypto.openssh_keypair:

@@ -41,6 +41,15 @@ controller_node_ram_size: 25165824
 compute_node_disk_size: 30G
 compute_node_ram_size: 8388608
 
+###
+# The nodes target order will determine the place to host the guest VMs.
+# in the case there is no target available for the guest VMs it means they
+# will be deployed on an existing cloud.
+# The services node target in the case of a libvirt deployment is a Pod in
+# the HV, in the case the deployment is in a cloud it will be a guest VM.
+#
+service_node_target_order:
+- hypervisor-01
 controller_node_target_order:
 - hypervisor-01
 compute_node_target_order:
@@ -68,6 +77,20 @@ default_cluster_nodes_map_list:
   disk: "{{ compute_node_disk_size }}"
   ram: "{{ compute_node_ram_size }}"
   target_order: "{{ compute_node_target_order }}"
+- when_group: service_nodes
+  disk: "{{ service_node_disk_size }}"
+  ram: "{{ service_node_ram_size }}"
+  target_order: "{{ service_node_target_order }}"
+
+###
+# Service nodes can be configured as virtual machines or using the
+# manually provisioned baremetal machines for the deployment.
+#
+
+service_node_vcpus: 8
+service_node_maxvcpus: 16
+service_node_disk_size: 20G
+service_node_ram_size: 16777216
 
 ###
 # Extra nodes can be configured as virtual machines or using the
@@ -116,9 +139,6 @@ default_extra_nodes_map_list:
 
 openshift_service_node_os: centos
 
-service_node_target_order:
-- hypervisor-01
-
 ###
 # Additional specifications provided on the command line can be used to override
 # any of these defaults, e.g.
@@ -141,3 +161,9 @@ default_service_nodes_map_list:
   - okd
   os: "{{ openshift_service_node_os }}"
 - name: service
+- when_type: virtual
+  vcpus: "{{ service_node_vcpus }}"
+  maxvcpus: "{{ service_node_maxvcpus }}"
+  disk: "{{ service_node_disk_size }}"
+  ram: "{{ service_node_ram_size }}"
+  target_order: "{{ service_node_target_order }}"

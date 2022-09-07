@@ -17,7 +17,7 @@
 - name: Gather hosts facts and stop the deployment if required
   block:
     - name: Gather hypervisor facts if needed
-      ansible.builtin.include_tasks: prepare_hypervisors.yml
+      ansible.builtin.include_tasks: prepare_facts.yml
       vars:
         hypervisors_prepared: "{{ 'kubeinit_facts' in groups }}"
       when: not hypervisors_prepared
@@ -108,6 +108,10 @@
     group: 'bastion_host'
     target: "{{ default_bastion_target | default(groups['kubeinit_hypervisors'] | first) }}"
     ansible_host: "{{ default_ansible_host | default(hostvars[groups['kubeinit_hypervisors'] | first].ansible_host) }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 #
 # Setup ovn_central_host group
@@ -115,39 +119,72 @@
 - name: Parse ovn_central_host_spec into a dictionary if defined
   ansible.builtin.set_fact:
     ovn_central_host_map: "{{ ovn_central_host_spec | from_yaml }}"
-  when: ovn_central_host_spec is defined
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when:
+    - ovn_central_host_spec is defined
+    - kubeinit_spec_driver == 'libvirt'
 
 - name: Assert ovn_central_host group and ovn_central_host_spec have same name when both defined
   ansible.builtin.assert:
     msg: "Cluster ovn-central host from inventory and command-line specification must match."
     that: ovn_central_host_map['host'] == groups['ovn_central_host'][0]
-  when: ovn_central_host_map['host'] | default('') | length > 0 and groups['ovn_central_host'][0] | default('') | length > 0
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when:
+    - kubeinit_spec_driver == 'libvirt'
+    - ovn_central_host_map['host'] | default('') | length > 0
+    - groups['ovn_central_host'][0] | default('') | length > 0
 
 - name: Define kubeinit_ovn_central_host_name
   ansible.builtin.set_fact:
     kubeinit_ovn_central_host_name: "{{ groups['ovn_central_host'][0] | default(ovn_central_host_map['host']) | default('ovn-central') }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Define default ovn-central target and ansible_host from group target
   ansible.builtin.set_fact:
     default_ovn_central_target: "{{ hostvars[kubeinit_ovn_central_host_name].target }}"
-  when: hostvars[kubeinit_ovn_central_host_name].target | default('') | length > 0
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when:
+    - hostvars[kubeinit_ovn_central_host_name].target | default('') | length > 0
+    - kubeinit_spec_driver == 'libvirt'
 
 - name: Define default ovn-central target and ansible_host from spec target
   ansible.builtin.set_fact:
     default_ovn_central_target: "{{ ovn_central_host_map['target'] }}"
-  when: ovn_central_host_map['target'] | default('') | length > 0
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when:
+    - ovn_central_host_map['target'] | default('') | length > 0
+    - kubeinit_spec_driver == 'libvirt'
 
 - name: Use the first hypervisor if neither ovn-central host spec or group defines a target
   ansible.builtin.add_host:
     name: "{{ kubeinit_ovn_central_host_name }}"
     group: 'ovn_central_host'
     target: "{{ default_ovn_central_target | default(groups['kubeinit_hypervisors'] | first) }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Add ansible_host for ovn_central_host
   ansible.builtin.add_host:
     name: "{{ kubeinit_ovn_central_host_name }}"
     group: 'ovn_central_host'
     ansible_host: "{{ hostvars[hostvars[kubeinit_ovn_central_host_name].target].ansible_host }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Prepare groups
   ansible.builtin.include_tasks: prepare_groups.yml
@@ -155,15 +192,20 @@
 - name: Define group facts
   ansible.builtin.set_fact:
     kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_name] }}"
-    kubeinit_bastion_host: "{{ hostvars[kubeinit_bastion_host_name].target }}"
-    kubeinit_ovn_central_host: "{{ hostvars[kubeinit_ovn_central_host_name].target }}"
+    kubeinit_bastion_host: "{{ hostvars[kubeinit_bastion_host_name].target | default('') }}"
+    kubeinit_ovn_central_host: "{{ hostvars[kubeinit_ovn_central_host_name].target | default('') }}"
     kubeinit_first_controller_node: "{{ groups['all_controller_nodes'][0] }}"
     kubeinit_hypervisor_count: "{{ groups['kubeinit_hypervisors'] | length }}"
     kubeinit_controller_count: "{{ groups['all_controller_nodes'] | length }}"
     kubeinit_compute_count: "{{ groups['all_compute_nodes'] | default([]) | length }}"
+    kubeinit_service_count: "{{ groups['all_service_nodes'] | default([]) | length }}"
     kubeinit_cluster_node_count: "{{ groups['all_cluster_nodes'] | default([]) | length }}"
   loop: "{{ ['localhost'] | union(groups['kubeinit_hypervisors']) }}"
   delegate_to: "{{ item }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Install podman if required
   ansible.builtin.package:
@@ -171,7 +213,7 @@
     name: "podman"
   when: not hostvars['localhost'].podman_is_installed
 
-- name: Define service node facts
+- name: Define hosts service node facts
   ansible.builtin.set_fact:
     kubeinit_apache_service_name: "{{ kubeinit_cluster_name }}-apache"
     kubeinit_bind_service_name: "{{ kubeinit_cluster_name }}-bind"
@@ -189,6 +231,10 @@
     kubeinit_registry_service_node: "{{ kubeinit_cluster_hostvars.services['registry'] | default(None) }}"
   loop: "{{ ['localhost'] | union(groups['kubeinit_hypervisors']) }}"
   delegate_to: "{{ item }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Gather facts from bastion host if it is not a hypervisor host
   block:
@@ -198,7 +244,7 @@
         - name: Gather facts from bastion_host if needed
           ansible.builtin.include_role:
             name: kubeinit.kubeinit.kubeinit_libvirt
-            tasks_from: gather_host_facts.yml
+            tasks_from: gather_facts.yml
             public: true
           vars:
             _param_gather_host: "{{ kubeinit_bastion_host }}"
@@ -231,7 +277,12 @@
       ansible.builtin.set_fact:
         kubeinit_cluster_hostvars: "{{ hostvars[kubeinit_cluster_name] }}"
 
-  when: kubeinit_bastion_host not in groups['all_hosts']
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when:
+    - kubeinit_spec_driver == 'libvirt'
+    - kubeinit_bastion_host not in groups['all_hosts']
 
 - name: Add all cluster authorized keys to all hypervisors
   ansible.posix.authorized_key:
@@ -243,6 +294,10 @@
     _host: "{{ item[0] }}"
     _key: "{{ item[1] }}"
   delegate_to: "{{ _host }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Define additional host, node and services facts
   ansible.builtin.set_fact:
@@ -269,6 +324,10 @@
     kubeinit_services_data_volume: "{{ kubeinit_cluster_name }}-data"
   loop: "{{ ['localhost'] | union(groups['kubeinit_hypervisors']) }}"
   delegate_to: "{{ item }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Add ssh ProxyCommand option for all nodes
   ansible.builtin.add_host:
@@ -276,6 +335,10 @@
     ansible_ssh_common_args: >-
       {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -o ProxyCommand="ssh {{ ansible_ssh_common_args }} -i ~/.ssh/{{ kubeinit_cluster_name }}_id_{{ kubeinit_ssh_keytype }} -W %h:%p -q root@{{ hostvars[kubeinit_ovn_central_host].ssh_connection_address }}"
   loop: "{{ groups['all_nodes'] }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Gather hosts facts and stop the deployment if required
   block:

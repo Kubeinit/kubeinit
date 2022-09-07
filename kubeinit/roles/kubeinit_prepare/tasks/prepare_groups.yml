@@ -24,7 +24,7 @@
     guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
     group: all_controller_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
-    target: "{{ hostvars[item].target }}"
+    target: "{{ hostvars[item].target | default(omit) }}"
     os: "{{ hostvars[item].os }}"
   loop: "{{ groups['controller_nodes'][0:hostvars[kubeinit_cluster_name].controller_count|int] | default([]) | list }}"
 
@@ -34,7 +34,7 @@
     guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
     group: all_compute_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
-    target: "{{ hostvars[item].target }}"
+    target: "{{ hostvars[item].target | default(omit) }}"
     os: "{{ hostvars[item].os }}"
   loop: "{{ groups['compute_nodes'][0:hostvars[kubeinit_cluster_name].compute_count|int] | default([]) | list }}"
 
@@ -43,7 +43,7 @@
     name: "{{ item }}"
     group: all_cluster_nodes
     fqdn: "{{ hostvars[item].fqdn }}"
-    target: "{{ hostvars[item].target }}"
+    target: "{{ hostvars[item].target | default(omit) }}"
     os: "{{ hostvars[item].os }}"
   loop: "{{ groups['all_controller_nodes'] + groups['all_compute_nodes'] | default([]) }}"
 
@@ -53,7 +53,7 @@
     guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
     group: all_extra_nodes
     fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
-    target: "{{ hostvars[item].target }}"
+    target: "{{ hostvars[item].target | default(omit) }}"
     os: "{{ hostvars[item].os }}"
     ram: "{{ hostvars[item].ram }}"
   loop: "{{ groups['extra_nodes'] | default([]) | list }}"
@@ -63,9 +63,14 @@
   ansible.builtin.set_fact:
     all_cluster_hypervisors: "{{ all_cluster_hypervisors | default([]) | union([hostvars[item].target]) }}"
   loop: "{{ groups['all_cluster_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Show the before and after values of the hypervisors fact
   ansible.builtin.debug: msg="{{ groups['kubeinit_hypervisors'] }} ==> {{ all_cluster_hypervisors }}"
+  when: kubeinit_spec_driver == 'libvirt'
 
 # TODO: check later to see if this would be a useful optimization
 # - name: Set all cluster hypervisors fact
@@ -73,18 +78,33 @@
 #     name: "{{ kubeinit_cluster_name }}"
 #     hypervisors: "{{ all_cluster_hypervisors }}"
 
+#
+# TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+# If we deploy this in a pod the type should be container, otherwise it should be virtual
+# Make sure this uses container or virtual before merging
+
+- name: Set up the services type pod vs guest VM
+  ansible.builtin.set_fact:
+    services_infra_deployment_type: "{{ 'virtual' if kubeinit_spec_driver == 'libvirt' else 'virtual' }}"
+    # The correct should be like:
+    # services_infra_deployment_type: "{{ 'container' if kubeinit_spec_driver == 'libvirt' else 'virtual' }}"
+
 - name: Add all service nodes to the all_service_nodes group
   ansible.builtin.add_host:
-    name: "{{ item }}"
-    guest_name: "{{ kubeinit_cluster_name }}-{{ item }}"
+    name: "{{ service_node }}"
+    guest_name: "{{ kubeinit_cluster_name }}-{{ service_node }}"
     group: all_service_nodes
-    fqdn: "{{ item }}.{{ kubeinit_cluster_fqdn }}"
-    services: "{{ hostvars[item].services }}"
-    target: "{{ hostvars[item].target }}"
-    os: "{{ hostvars[item].os }}"
-    type: container
-    container_host: "{{ hostvars[item].target }}"
-  loop: "{{ groups['service_nodes'] | default([]) | list }}"
+    fqdn: "{{ service_node }}.{{ kubeinit_cluster_fqdn }}"
+    services: "{{ hostvars[service_node].services }}"
+    target: "{{ hostvars[service_node].target }}"
+    os: "{{ hostvars[service_node].os }}"
+    type: "{{ services_infra_deployment_type }}"
+    container_host: "{{ hostvars[service_node].target | default(omit) }}"
+  loop: "{{ range(1|int) | list }}"
+  loop_control:
+    extended: true
+  vars:
+    service_node: "{{ hostvars[kubeinit_cluster_name].service_name_pattern | format(ansible_loop.index) }}"
 
 - name: Create tuples for each service and each service node providing that service
   ansible.builtin.set_fact:
@@ -137,31 +157,38 @@
     name: "{{ item }}"
     group: all_hosts
   loop: "{{ groups['kubeinit_hypervisors'] }}"
-  when: >
-    item in hostvars[kubeinit_ovn_central_host_name].target or
-    item in groups['kubeinit_hypervisors']
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when:
+    - kubeinit_spec_driver == 'libvirt'
+    - item in hostvars[kubeinit_ovn_central_host_name].target or item in groups['kubeinit_hypervisors']
 
 - name: Add all hosts to the all_ovn_hosts group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_ovn_hosts
   loop: "{{ groups['all_hosts'] }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Collect all of the localhost and hypervisor authorized keys into authorized_keys list
   ansible.builtin.set_fact:
     all_authorized_keys: "{{ (all_authorized_keys | default([])) | union([hostvars[item].authorized_key]) }}"
-  loop: "{{ ['localhost'] | union(groups['all_hosts']) }}"
+  loop: "{{ ['localhost'] | union(groups['all_hosts'] | default([])) }}"
 
 - name: Set all hypervisor authorized keys cluster fact
   ansible.builtin.add_host:
     name: "{{ kubeinit_cluster_name }}"
     authorized_keys: "{{ all_authorized_keys }}"
 
-- name: Add services guest and cluster nodes to the all_guest_vms group
+- name: Add services, extra, and cluster nodes to the all_guest_vms group
   ansible.builtin.add_host:
     name: "{{ item }}"
     group: all_guest_vms
-  loop: "{{ groups['all_cluster_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
+  loop: "{{ groups['all_cluster_nodes'] + groups['all_service_nodes'] + (groups['all_extra_nodes'] | default([])) }}"
   when: hostvars[item].type == 'virtual'
 
 - name: Collect all of the node aliases

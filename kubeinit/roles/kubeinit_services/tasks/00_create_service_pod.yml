@@ -26,7 +26,6 @@
       vars:
         _param_install_dependencies: true
         _param_hostvars: "{{ hostvars[kubeinit_deployment_delegate] }}"
-
     - name: Ensure user specific systemd instance are persistent
       ansible.builtin.command: |
         loginctl enable-linger {{ kubeinit_service_user }}
@@ -51,7 +50,6 @@
         name: podman.service
         state: started
         scope: user
-
   delegate_to: "{{ kubeinit_deployment_delegate }}"
 
 - name: Set ssh port to use
@@ -88,6 +86,7 @@
         reload_firewalld: "{{ true if (['6222', 'tcp'] not in default_zone_info.ports) else false }}"
       vars:
         default_zone_info: "{{ _result_firewalld_info.firewalld_info.zones[_result_firewalld_info.firewalld_info.default_zone] }}"
+      when: hostvars[kubeinit_bastion_host].firewalld_is_active
 
     - name: Open firewall port 6222 on bastion
       ansible.posix.firewalld:
@@ -169,6 +168,7 @@
   delegate_to: "{{ kubeinit_deployment_delegate }}"
 
 - name: Delegate to service node target
+  when: hostvars[kubeinit_provision_service_node].type == 'container'
   block:
 
     - name: Extract cni netns value for the pod

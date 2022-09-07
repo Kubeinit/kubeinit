@@ -53,14 +53,18 @@
         - task_gather_facts
       run_once: true
 
-    - name: Gather additional hypervisor facts kubeinit will use during deployment
+    # The following task will gather additional
+    # facts depending on the driver (role) that
+    # will be deployed, so far it is only supported
+    # to fetch facts for libvirt and openstack
+    - name: Gather additional facts kubeinit will use during deployment
       tags: task_gather_facts
       delegate_facts: true
       block:
-        - name: Gather facts from each hypervisor in the deployment
+        - name: Gather facts specific to the deployment driver in the deployment
           ansible.builtin.include_role:
-            name: kubeinit.kubeinit.kubeinit_libvirt
-            tasks_from: gather_host_facts.yml
+            name: "kubeinit.kubeinit.kubeinit_{{ hostvars['kubeinit-facts'].cluster_driver }}"
+            tasks_from: gather_facts.yml
             public: true
           vars:
             _param_gather_host: "{{ inventory_hostname }}"
@@ -91,7 +95,7 @@
         - name: task-prepare-hypervisors
           ansible.builtin.include_role:
             name: kubeinit.kubeinit.kubeinit_prepare
-            tasks_from: prepare_hypervisors.yml
+            tasks_from: prepare_facts.yml
             public: true
 
 - name: Prepare the infrastructure to deploy service and cluster nodes
@@ -115,8 +119,8 @@
 
         - name: Prepare each hypervisor in the deployment
           ansible.builtin.include_role:
-            name: kubeinit.kubeinit.kubeinit_prepare
-            tasks_from: prepare_hypervisor.yml
+            name: "kubeinit.kubeinit.kubeinit_{{ hostvars['kubeinit-facts'].cluster_driver }}"
+            tasks_from: prepare_services.yml
             public: true
 
 - name: Run the deployment on the target infrastructure (OpenStack/libvirt hypervisors)
@@ -137,13 +141,13 @@
             name: kubeinit.kubeinit.kubeinit_prepare
             public: true
 
-    - name: Cleanup hypervisors
+    - name: Cleanup
       tags: task_cleanup_hypervisors
       block:
         - name: task-cleanup-hypervisors
           ansible.builtin.include_role:
-            name: kubeinit.kubeinit.kubeinit_libvirt
-            tasks_from: cleanup_hypervisors.yml
+            name: "kubeinit.kubeinit.kubeinit_{{ hostvars['kubeinit-facts'].cluster_driver }}"
+            tasks_from: cleanup.yml
             public: true
 
     - name: Run validations on cluster resources
@@ -154,12 +158,21 @@
             name: kubeinit.kubeinit.kubeinit_validations
             public: true
 
+    - name: Download cloud images
+      tags: task_download_images
+      block:
+        - name: task-download-images
+          ansible.builtin.include_role:
+            name: "kubeinit.kubeinit.kubeinit_{{ hostvars['kubeinit-facts'].cluster_driver }}"
+            tasks_from: setup_cloud_images.yml
+            public: true
+
     - name: Create the cluster network resources
       tags: task_create_network
       block:
         - name: task-create-network
           ansible.builtin.include_role:
-            name: kubeinit.kubeinit.kubeinit_libvirt
+            name: "kubeinit.kubeinit.kubeinit_{{ hostvars['kubeinit-facts'].cluster_driver }}"
             tasks_from: create_network.yml
             public: true
 
@@ -178,15 +191,6 @@
           ansible.builtin.include_role:
             name: kubeinit.kubeinit.kubeinit_prepare
             tasks_from: prepare_cluster.yml
-            public: true
-
-    - name: Download cloud images
-      tags: task_download_images
-      block:
-        - name: task-download-images
-          ansible.builtin.include_role:
-            name: kubeinit.kubeinit.kubeinit_libvirt
-            tasks_from: download_cloud_images.yml
             public: true
 
     - name: Deploy the cluster

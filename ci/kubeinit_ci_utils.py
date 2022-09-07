@@ -322,9 +322,9 @@ def get_periodic_jobs_labels(cluster_type='all', distro='all'):
         cluster_type_regex = '^.+-.+-.+-.+-[2-9]-.+$'
     elif cluster_type == 'singlenode':
         cluster_type_regex = '^.+-.+-.+-.+-1-.+$'
-    # This includes the label for both single node and multinode scenarios
+    # This includes the label for both single node and multinode scenarios, with a libvirt or openstack driver
     elif cluster_type == 'all':
-        cluster_type_regex = '^.+-.+-.+-.+-[1-9]-.+$'
+        cluster_type_regex = '^.+-.+-.+-.+-[0-9]-.+$'
 
     cluster_pattern = re.compile(cluster_type_regex)
 

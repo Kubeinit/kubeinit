@@ -90,14 +90,23 @@
     kubeinit_distro_role: "{{ hostvars['kubeinit-facts'].distro_facts[kubeinit_spec_distro].role }}"
   when: hostvars['kubeinit-facts'].distro_facts[kubeinit_spec_distro] is defined
 
+- name: Set fact for the spec driver role
+  ansible.builtin.set_fact:
+    kubeinit_driver_role: "{{ hostvars['kubeinit-facts'].driver_facts[kubeinit_spec_driver].role }}"
+  when: hostvars['kubeinit-facts'].driver_facts[kubeinit_spec_driver] is defined
+
+#
+# TODO:FIXME:libvirt-switch: Now we support OpenStack which does not rely on kubeinit_spec_hypervisor_count
+#
 - name: Assert spec constraints
   ansible.builtin.assert:
     that:
       - kubeinit_distro_role is defined
-      - kubeinit_spec_driver in ['libvirt']
+      - kubeinit_driver_role is defined
+      - kubeinit_spec_driver in ['libvirt', 'openstack']
       - kubeinit_spec_controller_count in ['1', '3', '5']
       - kubeinit_spec_compute_count|int >= 0
-      - kubeinit_spec_hypervisor_count|int >= 1
+      - kubeinit_spec_hypervisor_count|int >= 0
 
 - name: Load kubeinit_cluster_spec from yaml into a dictionary
   ansible.builtin.set_fact:
@@ -114,10 +123,15 @@
   ansible.builtin.set_fact:
     kubeinit_cluster_name: "{{ kubeinit_cluster_map['cluster_name'] | default(groups['kubeinit_cluster'][0]) | default(kubeinit_spec_distro + 'cluster') }}"
 
-- name: Add kubeinit_cluster_name to kubeinit-facts
+- name: Define kubeinit_driver_name
+  ansible.builtin.set_fact:
+    kubeinit_driver_name: "{{ kubeinit_spec_driver }}"
+
+- name: Add kubeinit_cluster_name and cluster_driver to kubeinit-facts
   ansible.builtin.add_host:
     name: "kubeinit-facts"
     cluster_name: "{{ kubeinit_cluster_name }}"
+    cluster_driver: "{{ kubeinit_driver_name }}"
 
 - name: Create kubeinit_cluster group
   ansible.builtin.add_host:
@@ -134,7 +148,7 @@
 - name: Gather additional facts from localhost for kubeinit
   ansible.builtin.include_role:
     name: kubeinit.kubeinit.kubeinit_libvirt
-    tasks_from: gather_host_facts.yml
+    tasks_from: gather_facts.yml
     public: true
   vars:
     _param_gather_host: 'localhost'
@@ -243,13 +257,18 @@
     groups: 'kubeinit_cluster'
     distro: "{{ kubeinit_spec_distro }}"
     distro_role: "{{ kubeinit_distro_role }}"
+    driver_role: "{{ kubeinit_driver_role }}"
     controller_count: "{{ kubeinit_spec_controller_count }}"
     compute_count: "{{ kubeinit_spec_compute_count }}"
+    # TODO:FIXME: Maybe this wont be necessary
+    # There should be only 1 service node
+    service_count: 1
 
 - name: Set more cluster facts from inventory groups and kubeinit_spec
   ansible.builtin.set_fact:
     kubeinit_cluster_distro: "{{ kubeinit_spec_distro }}"
     kubeinit_cluster_distro_role: "{{ kubeinit_distro_role }}"
+    kubeinit_cluster_driver_role: "{{ kubeinit_driver_role }}"
     kubeinit_cluster_fqdn: "{{ kubeinit_cluster_name }}.{{ hostvars[kubeinit_cluster_name].cluster_domain }}"
 
 - name: Set kubeinit_cluster_ssh_config fact
@@ -263,6 +282,10 @@
     groups: 'kubeinit_hypervisors'
     ansible_ssh_extra_args: "-i {{ kubeinit_cluster_keypair_path }} -F {{ kubeinit_cluster_ssh_config }}"
   loop: "{{ groups['kubeinit_hypervisors'] }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'
 
 - name: Copy ssh key secret into ~/.ssh
   ansible.builtin.copy:
@@ -298,3 +321,7 @@
     _param_keypair_path: "{{ kubeinit_cluster_keypair_path }}"
     _param_dest_path: "{{ kubeinit_cluster_ssh_config }}"
     _param_include_paths: "{{ kubeinit_cluster_ssh_include_paths }}"
+  #
+  # TODO:FIXME:libvirt-switch: This should be only visible when deploying in libvirt
+  #
+  when: kubeinit_spec_driver == 'libvirt'

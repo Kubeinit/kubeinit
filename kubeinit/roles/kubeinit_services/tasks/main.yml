@@ -33,6 +33,18 @@
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-create-services'
   tags: omit_from_grapher
 
+- name: Deploy the cluster service node if required in a guest VM
+  ansible.builtin.include_role:
+    name: kubeinit.kubeinit.kubeinit_libvirt
+    tasks_from: deploy_centos_guest.yml
+    public: yes
+  loop: "{{ groups['all_service_nodes'] }}"
+  loop_control:
+    loop_var: kubeinit_deployment_node_name
+  vars:
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+  when: hostvars[kubeinit_provision_service_node].type == 'virtual'
+
 - name: Setup the services pod
   ansible.builtin.include_tasks: 00_create_service_pod.yml
   loop: "{{ groups['all_service_nodes'] }}"
@@ -41,14 +53,14 @@
   vars:
     kubeinit_deployment_bridge_name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}-bridge"
     kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}-pod"
-    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target if hostvars[kubeinit_provision_service_node].type == 'container' else kubeinit_deployment_node_name }}"
 
 - name: Prepare the credentials we are going to use in the cluster
   ansible.builtin.include_tasks: prepare_credentials.yml
   vars:
     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
     kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_provision_service_node].guest_name }}-pod"
-    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target }}"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target if hostvars[kubeinit_provision_service_node].type == 'container' else kubeinit_provision_service_node }}"
 
 - name: Start services containers
   ansible.builtin.include_tasks: start_services_containers.yml
@@ -57,7 +69,7 @@
     loop_var: kubeinit_deployment_node_name
   vars:
     kubeinit_deployment_pod_name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}-pod"
-    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_deployment_node_name].target }}"
+    kubeinit_deployment_delegate: "{{ hostvars[kubeinit_provision_service_node].target if hostvars[kubeinit_provision_service_node].type == 'container' else kubeinit_provision_service_node }}"
 
 - name: Gather hosts facts and stop the deployment if required
   block:
