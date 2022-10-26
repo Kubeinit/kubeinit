@@ -45,9 +45,10 @@
       ansible.builtin.shell: |
         set -o pipefail
 
-        dnf install -y https://trunk.rdoproject.org/centos9-master/component/tripleo/current-tripleo/python3-tripleo-repos-0.1.1-0.20220719071830.13114fc.el9.noarch.rpm
-        tripleo-repos current-tripleo-dev
-        dnf install -y python3-tripleoclient
+        url=https://trunk.rdoproject.org/centos9/component/tripleo/current/
+        rpm_name=$(curl $url | grep python3-tripleo-repos | sed -e 's/<[^>]*>//g' | awk 'BEGIN { FS = ".rpm" } ; { print $1 }')
+        rpm=$rpm_name.rpm
+        dnf install -y $url$rpm
       args:
         executable: /bin/bash
       register: _result
