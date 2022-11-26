@@ -20,6 +20,7 @@ set -ex
 #                                                                           #
 #############################################################################
 
+if [ -z "$SKIP_GITLAB" ]; then
 if [[ -z "${GITLAB_CI_TOKEN}" ]]; then
     echo "The GitLab token to register the node is not defined."
     echo "Please run:"
@@ -34,6 +35,8 @@ if [[ -z "${GITLAB_CI_CLUSTER_TYPE}" ]]; then
     echo "Exiting..."
     exit 1
 fi
+fi
+
 if [[ $EUID -ne 0 ]]; then
     echo "This script must be run as root"
     echo "Exiting..."
@@ -42,7 +45,7 @@ fi
 
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     # Install jq
-    yum install -y jq gh
+    yum install -y jq
 
     # Install selinux python bindings
     yum install -y libselinux-python3
@@ -51,6 +54,7 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     sudo sed -i 's/enforcing/permissive/g' /etc/selinux/config
 
     if [ -f "/etc/fedora-release" ]; then
+    yum install -y gh
         if grep -q 35 "/etc/fedora-release"; then
             update-crypto-policies --set DEFAULT:FEDORA32
         fi
@@ -137,6 +141,8 @@ sysctl -p
 
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     yum install -y nano git podman curl python3 python3-pip
+
+if [ -z "$SKIP_GITLAB" ]; then
     # ARA required packages
     yum install -y gcc python3-devel libffi-devel openssl-devel redhat-rpm-config
     yum install -y sqlite
@@ -148,10 +154,12 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
         rpm -ivh --replacepkgs gitlab-runner_amd64.rpm
     fi
 fi
+fi
 
 if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
     apt-get install -y nano git podman curl python3 python3-pip
 
+if [ -z "$SKIP_GITLAB" ]; then
     # ARA dependencies
     apt-get install -y build-essential python3-dev
     apt-get install -y sqlite3
@@ -159,7 +167,7 @@ if [ -f /etc/debian_version ] || [ -f /etc/lsb-release ]; then
     # Install GitLab runner binary
     curl -LJO "https://gitlab-runner-downloads.s3.amazonaws.com/latest/deb/gitlab-runner_amd64.deb"
     dpkg -i gitlab-runner_amd64.deb
-
+fi
 fi
 
 if [ -f /etc/fedora-release ]; then
@@ -181,6 +189,7 @@ fi
 
 python3 -m pip install --ignore-installed PyYAML
 
+if [ -z "$SKIP_GITLAB" ]; then
 # Install dependencies
 python3 -m pip install \
     --upgrade \
@@ -220,6 +229,7 @@ gitlab-runner register \
     --tag-list kubeinit-ci-${GITLAB_CI_CLUSTER_TYPE}
 
 gitlab-runner start
+fi
 
 ssh -oStrictHostKeyChecking=no root@nyctea uptime
 
