@@ -52,7 +52,15 @@
     # echo '{"name": "crio","type": "flannel"}' > /etc/cni/net.d/10-crio.conf
     cp /etc/crio/crio.conf /etc/crio/crio.conf.backup
     sed -i s/^.*default_runtime\ =\ .*$/default_runtime\ =\ \"crun\"/g /etc/crio/crio.conf
-    sed -i "s/^\#\[crio\.runtime\.runtimes\.crun.*\]/[crio.runtime.runtimes.crun]/g" /etc/crio/crio.conf
+
+    # There is no example config for crun anymore
+    #sed -i "s/^\#\[crio\.runtime\.runtimes\.crun.*\]/[crio.runtime.runtimes.crun]/g" /etc/crio/crio.conf
+    cat << EOF >> /etc/crio/crio.conf
+    [crio.runtime.runtimes.crun]
+    runtime_path = "/usr/bin/crun"
+    runtime_type = "oci"
+    runtime_root = "/run/crun"
+    EOF
   args:
     executable: /bin/bash
   register: _result

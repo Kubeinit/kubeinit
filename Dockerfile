@@ -8,7 +8,15 @@ ENV ANSIBLE_HOST_KEY_CHECKING false
 ENV ANSIBLE_RETRY_FILES_ENABLED false
 ENV ANSIBLE_SSH_PIPELINING true
 
+ENV LANG en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+
 ENTRYPOINT ["ansible-playbook", "-e", "kubeinit_container_run=true"]
+
+RUN set -x && \
+    \
+    echo "==> Configuring locales..."  && \
+    dnf install -y glibc-langpack-en langpacks-en -y
 
 RUN set -x && \
     \
