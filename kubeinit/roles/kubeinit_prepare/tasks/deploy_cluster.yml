@@ -28,7 +28,9 @@
     - name: Stop the deployment if required
       block:
         - name: "Stop before 'task-deploy-cluster' when requested"
-          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
+          ansible.builtin.add_host:
+            name: "kubeinit-facts"
+            playbook_terminated: true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-deploy-cluster'
@@ -53,7 +55,9 @@
     - name: Stop the deployment if required
       block:
         - name: Stop after 'task-deploy-cluster' when requested
-          ansible.builtin.add_host: name="kubeinit-facts" playbook_terminated=true
+          ansible.builtin.add_host:
+            name: "kubeinit-facts"
+            playbook_terminated: true
         - name: End play
           ansible.builtin.meta: end_play
       when: kubeinit_stop_after_task is defined and kubeinit_stop_after_task in kubeinit_facts_hostvars.tasks_completed
