@@ -266,7 +266,7 @@ def upload_files_to_b2(job_path, prefix='jobs/'):
 def remove_label(the_label, pr, repo):
     """Remove a label."""
     labels = [label for label in repo.get_labels()]
-    if any(filter(lambda l: l.name == the_label, labels)):
+    if any(filter(lambda labl: labl.name == the_label, labels)):
         r_label = repo.get_label(the_label)
     else:
         r_label = repo.create_label(the_label, "32CD32")
@@ -276,7 +276,7 @@ def remove_label(the_label, pr, repo):
 def add_label(the_label, pr, repo):
     """Assign a label."""
     labels = [label for label in repo.get_labels()]
-    if any(filter(lambda l: l.name == the_label, labels)):
+    if any(filter(lambda labl: labl.name == the_label, labels)):
         new_label = repo.get_label(the_label)
     else:
         new_label = repo.create_label(the_label, "32CD32")

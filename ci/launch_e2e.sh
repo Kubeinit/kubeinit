@@ -187,6 +187,8 @@ if [[ $DISTRO == *.* ]] ; then
     fi
 fi
 
+export KUBEINIT_COMMON_DNS_PUBLIC='10.11.5.160'
+
 #
 # Create aux file with environment information
 #
