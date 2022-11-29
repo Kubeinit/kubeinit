@@ -117,7 +117,7 @@
       register: _result
       changed_when: "_result.rc == 0"
 
-    - name: Wait until {{ hostvars[kubeinit_deployment_node_name].guest_name }} is running
+    - name: "Wait until is running {{ hostvars[kubeinit_deployment_node_name].guest_name }}"
       community.libvirt.virt:
         command: list_vms
         state: running
@@ -126,7 +126,7 @@
       delay: 10
       until: hostvars[kubeinit_deployment_node_name].guest_name in _result.list_vms
 
-    - name: Wait until {{ hostvars[kubeinit_deployment_node_name].guest_name }} setup finish and the guest is shut down
+    - name: "Wait until setup finish and the guest is shut down for {{ hostvars[kubeinit_deployment_node_name].guest_name }}"
       community.libvirt.virt:
         command: list_vms
         state: shutdown
@@ -135,12 +135,12 @@
       delay: 10
       until: hostvars[kubeinit_deployment_node_name].guest_name in _result.list_vms
 
-    - name: Start {{ hostvars[kubeinit_deployment_node_name].guest_name }} again
+    - name: "Re-start {{ hostvars[kubeinit_deployment_node_name].guest_name }}"
       community.libvirt.virt:
         name: "{{ hostvars[kubeinit_deployment_node_name].guest_name }}"
         state: running
 
-    - name: Wait until {{ hostvars[kubeinit_deployment_node_name].guest_name }} is running again
+    - name: "Wait until is running {{ hostvars[kubeinit_deployment_node_name].guest_name }}"
       community.libvirt.virt:
         command: list_vms
         state: running
@@ -158,7 +158,7 @@
           ssh root@tyto -L 5900:127.0.0.1:5900
           from your machine connect to the VNC server at 127.0.0.1
 
-    - name: "Make sure we can execute SSH remote commands in {{ hostvars[kubeinit_deployment_node_name].guest_name }} before continue"
+    - name: "Make sure we can execute SSH remote commands in {{ hostvars[kubeinit_deployment_node_name].guest_name }}"
       ansible.builtin.shell: |
         set -o pipefail
         ssh {{ hostvars[kubeinit_deployment_node_name].ansible_ssh_common_args }} \

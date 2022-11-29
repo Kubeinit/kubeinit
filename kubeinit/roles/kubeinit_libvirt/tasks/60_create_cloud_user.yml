@@ -14,12 +14,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: "Make sure we have a '{{ kubeinit_libvirt_cloud_user }}' group"
+- name: "Make sure we have a group called {{ kubeinit_libvirt_cloud_user }}"
   ansible.builtin.group:
     name: "{{ kubeinit_libvirt_cloud_user }}"
     state: present
 
-- name: "Allow '{{ kubeinit_libvirt_cloud_user }}' group to have passwordless sudo"
+- name: "Allow to have passwordless sudo to the group {{ kubeinit_libvirt_cloud_user }}"
   ansible.builtin.lineinfile:
     dest: /etc/sudoers
     state: present
@@ -28,7 +28,7 @@
     validate: 'visudo -cf %s'
     mode: '0644'
 
-- name: "Add sudoers users to {{ kubeinit_libvirt_cloud_user }} group"
+- name: "Add sudoers users to the group {{ kubeinit_libvirt_cloud_user }}"
   ansible.builtin.user:
     name: "{{ kubeinit_libvirt_cloud_user }}"
     groups: "{{ kubeinit_libvirt_cloud_user }}"
