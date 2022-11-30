@@ -22,8 +22,8 @@ import xml.etree.ElementTree as ETree
 
 import requests
 
-user = 'kubeinit'
-password = os.environ.get("OPEN_BUILD_SERVICE")
+user = os.environ.get("OPEN_BUILD_SERVICE_USER")
+password = os.environ.get("OPEN_BUILD_SERVICE_PASSWORD")
 url = "https://api.opensuse.org/build/home:kubeinit/_result"
 r = requests.get(url, auth=(user, password))
 build_status = r.text
