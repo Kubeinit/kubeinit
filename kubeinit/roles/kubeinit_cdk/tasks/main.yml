@@ -80,9 +80,9 @@
 
 - name: Bootstrap the CDK controller
   ansible.builtin.shell: |
-    juju bootstrap --no-gui \
+    juju bootstrap \
         --debug \
-        --bootstrap-series=focal \
+        --bootstrap-series={{ kubeinit_cdk_series }} \
         manual/root@{{ hostvars[groups['all_extra_nodes'][0]].ansible_host }} > juju-bootstrap.log 2>&1
   args:
     executable: /bin/bash
@@ -92,8 +92,17 @@
 
 - name: Show juju info
   ansible.builtin.shell: |
-    juju controllers
-    juju status --format=yaml
+    juju controllers --format=yaml
+    # juju status --format=yaml
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
+- name: Add model
+  ansible.builtin.shell: |
+    juju add-model {{ kubeinit_cluster_name }}
   args:
     executable: /bin/bash
   register: _result
@@ -160,12 +169,12 @@
     set -o pipefail
     juju status --format=json | \
         sed 's/application-status/application_status/g' | \
-        sed 's/kubernetes-master/kubernetes_master/g' | \
-        jq -r .applications.kubernetes_master.application_status.message
+        sed 's/kubernetes-control-plane/kubernetes_control_plane/g' | \
+        jq -r .applications.kubernetes_control_plane.application_status.message
   args:
     executable: /bin/bash
   vars:
-    healthy_text: "Kubernetes master running."
+    healthy_text: "Kubernetes control-plane running."
   register: _result
   changed_when: "_result.rc == 0"
   retries: 100
@@ -182,8 +191,8 @@
 
 - name: Get the kubectl binary and kubeconfig from the first controller node
   ansible.builtin.shell: |
-    juju scp kubernetes-master/0:/usr/bin/kubectl /usr/bin/kubectl
-    juju scp kubernetes-master/0:config ~/.kube/config
+    juju scp kubernetes-control-plane/0:/usr/bin/kubectl /usr/bin/kubectl
+    juju scp kubernetes-control-plane/0:config ~/.kube/config
   args:
     executable: /bin/bash
   register: _result

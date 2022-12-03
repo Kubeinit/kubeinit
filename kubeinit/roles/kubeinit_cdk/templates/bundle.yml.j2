@@ -1,10 +1,16 @@
 ---
+#
 # From: https://jaas.ai/charmed-kubernetes
 # git clone https://github.com/charmed-kubernetes/bundle
 # cd bundle
 # make
+#
 description: A highly-available, production-grade Kubernetes cluster.
-series: focal
+issues: https://bugs.launchpad.net/charmed-kubernetes-bundles
+series: jammy
+source: https://github.com/charmed-kubernetes/bundle
+website: https://ubuntu.com/kubernetes/charmed-k8s
+name: cdk-flannel
 machines:
 {% for item in groups['all_cluster_nodes'] %}
   "{{ loop.index0 }}":
@@ -14,17 +20,16 @@ applications:
     annotations:
       gui-x: '475'
       gui-y: '800'
-    charm: cs:~containers/containerd-178
-    resources: {}
+    channel: 1.26/stable
+    charm: containerd
   easyrsa:
     annotations:
       gui-x: '90'
       gui-y: '420'
-    charm: cs:~containers/easyrsa-420
+    charm: easyrsa
+    channel: 1.26/stable
     constraints: root-disk=8G
     num_units: 1
-    resources:
-      easyrsa: 5
     to:
 {% if kubeinit_compute_count|int > 0 %}
     # This means that we will deploy the application
@@ -39,15 +44,10 @@ applications:
     annotations:
       gui-x: '800'
       gui-y: '420'
-    charm: cs:~containers/etcd-634
+    charm: etcd
+    channel: 1.26/stable
     constraints: root-disk=8G
     num_units: {{ kubeinit_controller_count }}
-    options:
-      channel: 3.4/stable
-    resources:
-      core: 0
-      etcd: 3
-      snapshot: 0
     to:
 {% for item in groups['all_controller_nodes'] %}
     - "{{ loop.index0 }}"
@@ -56,20 +56,17 @@ applications:
     annotations:
       gui-x: '475'
       gui-y: '605'
-    charm: cs:~containers/flannel-597
-    resources:
-      flannel-amd64: 897
-      flannel-arm64: 894
-      flannel-s390x: 881
+    charm: flannel
+    channel: 1.26/stable
   kubeapi-load-balancer:
     annotations:
       gui-x: '450'
       gui-y: '250'
-    charm: cs:~containers/kubeapi-load-balancer-844
+    charm: kubeapi-load-balancer
+    channel: 1.26/stable
     constraints: mem=4G root-disk=8G
     expose: true
     num_units: 1
-    resources: {}
     to:
 {% if kubeinit_compute_count|int > 0 %}
     # This means that we will deploy the application
@@ -80,23 +77,14 @@ applications:
 {% else %}
     - "0"
 {% endif %}
-  kubernetes-master:
+  kubernetes-control-plane:
     annotations:
       gui-x: '800'
       gui-y: '850'
-    charm: cs:~containers/kubernetes-master-1078
+    charm: kubernetes-control-plane
+    channel: 1.26/stable
     constraints: cores=2 mem=4G root-disk=16G
     num_units: {{ kubeinit_controller_count }}
-    options:
-      channel: 1.22/stable
-    resources:
-      cdk-addons: 0
-      core: 0
-      kube-apiserver: 0
-      kube-controller-manager: 0
-      kube-proxy: 0
-      kube-scheduler: 0
-      kubectl: 0
     to:
 {% for item in groups['all_controller_nodes'] %}
     - "{{ loop.index0 }}"
@@ -106,39 +94,30 @@ applications:
     annotations:
       gui-x: '90'
       gui-y: '850'
-    charm: cs:~containers/kubernetes-worker-816
+    charm: kubernetes-worker
+    channel: 1.26/stable
     constraints: cores=4 mem=4G root-disk=16G
     expose: true
     num_units: {{ kubeinit_compute_count }}
-    options:
-      channel: 1.22/stable
-    resources:
-      cni-amd64: 933
-      cni-arm64: 924
-      cni-s390x: 936
-      core: 0
-      kube-proxy: 0
-      kubectl: 0
-      kubelet: 0
     to:
 {% for item in groups['all_compute_nodes'] | default([]) %}
     - "{{ loop.index0 + kubeinit_controller_count|int }}"
 {% endfor %}
 {% endif %}
 relations:
-- - kubernetes-master:loadbalancer-external
+- - kubernetes-control-plane:loadbalancer-external
   - kubeapi-load-balancer:lb-consumers
-- - kubernetes-master:loadbalancer-internal
+- - kubernetes-control-plane:loadbalancer-internal
   - kubeapi-load-balancer:lb-consumers
 {% if kubeinit_compute_count|int > 0 %}
-- - kubernetes-master:kube-control
+- - kubernetes-control-plane:kube-control
   - kubernetes-worker:kube-control
 {% endif %}
-- - kubernetes-master:certificates
+- - kubernetes-control-plane:certificates
   - easyrsa:client
 - - etcd:certificates
   - easyrsa:client
-- - kubernetes-master:etcd
+- - kubernetes-control-plane:etcd
   - etcd:db
 {% if kubeinit_compute_count|int > 0 %}
 - - kubernetes-worker:certificates
@@ -149,7 +128,7 @@ relations:
 - - flannel:etcd
   - etcd:db
 - - flannel:cni
-  - kubernetes-master:cni
+  - kubernetes-control-plane:cni
 {% if kubeinit_compute_count|int > 0 %}
 - - flannel:cni
   - kubernetes-worker:cni
@@ -157,4 +136,4 @@ relations:
   - kubernetes-worker:container-runtime
 {% endif %}
 - - containerd:containerd
-  - kubernetes-master:container-runtime
+  - kubernetes-control-plane:container-runtime

@@ -312,6 +312,8 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
             -e post_deployment_services_spec='['${POST_DEPLOYMENT_SERVICES:-}']' \
             -e kubeinit_network_spec='{"network_name":"kimgtnet'$COUNTER'","network":"10.0.'$COUNTER'.0/24"}' \
             -e hypervisor_hosts_spec='[{"ansible_host":"nyctea"},{"ansible_host":"tyto"}]' \
+            -e cluster_nodes_spec=${CLUSTER_NODES:-[]} \
+            -e extra_nodes_spec=${EXTRA_NODES:-[]} \
             -e kubeinit_stop_after_task=task-cleanup-hypervisors \
             ./kubeinit/playbook.yml
     done
