@@ -1,0 +1,33 @@
+---
+# This job will mirror some container
+# images from docker.io to quay.io
+name: quay_mirror
+on:
+  # Run the mirror every week
+  schedule:
+    - cron: '0 0 * * 0'
+jobs:
+  build:
+    if: github.repository_owner == 'Kubeinit'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.9]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install jq -y
+          sudo apt-get install skopeo
+      - name: Mirror to quay
+        run: |
+          chmod +x ./ci/container_sync.sh
+          sudo QUAY_BOT_USER=${{ secrets.QUAY_BOT_USER }} \
+               QUAY_BOT_KEY=${{ secrets.QUAY_BOT_KEY }} \
+               ./ci/container_sync.sh

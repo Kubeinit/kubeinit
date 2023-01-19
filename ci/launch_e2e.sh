@@ -127,7 +127,7 @@ podman run --name api-server \
             --detach --tty \
             --volume ~/.ara/server:/opt/ara:z \
             --volume ~/.ara/output_data:/opt/output_data:z \
-            docker.io/recordsansible/ara-api:latest
+            quay.io/recordsansible/ara-api:latest
 
 #
 # Any change in the way the logs from Ansible are
