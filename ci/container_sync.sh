@@ -49,12 +49,12 @@ declare -a container_images=(
     "library haproxy 2.3"
     "library registry 2"
     "library httpd 2.4"
-    "library nginx latest"
     "library debian 11"
     "library ubuntu focal"
     "library ubuntu jammy"
     "internetsystemsconsortium bind9 9.18"
     "sonatype nexus3 3.30.0"
+    "nginxinc nginx-unprivileged latest"
 )
 
 retry() {
