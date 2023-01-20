@@ -44,6 +44,12 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
+    if [ -f "/etc/redhat-release" ]; then
+        dnf install 'dnf-command(config-manager)'
+        dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+        dnf install gh -y
+    fi
+
     # Install jq
     yum install -y jq
 
@@ -54,7 +60,6 @@ if [ -f /etc/redhat-release ] || [ -f /etc/fedora-release ]; then
     sudo sed -i 's/enforcing/permissive/g' /etc/selinux/config
 
     if [ -f "/etc/fedora-release" ]; then
-    yum install -y gh
         if grep -q 35 "/etc/fedora-release"; then
             update-crypto-policies --set DEFAULT:FEDORA32
         fi
