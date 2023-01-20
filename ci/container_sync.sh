@@ -62,8 +62,7 @@ retry() {
     local -r cmd="$@"
     local -i attempt_num=1
     until $cmd; do
-        if ((attempt_num==max_attempts))
-        then
+        if ((attempt_num==max_attempts)); then
             echo "Attempt $attempt_num failed and there are no more attempts left!"
             return 1
         else
@@ -78,7 +77,13 @@ for image in "${container_images[@]}"; do
     namespace=${strarr[0]}
     container=${strarr[1]}
     tag=${strarr[2]}
+    exists=$(curl -H "Authorization: Bearer XYZ" -X GET "https://quay.io/api/v1/repository/kubeinit/$container/tag/" | jq .tags[].name | grep \"$tag\" | uniq)
+    if [ -z "$exists" ] || [ "$exists" == "\"latest\"" ]; then
+        echo "The tag $tag in kubeinit/$container is not found or is latest, lets copy the container image."
+        copy="skopeo copy docker://docker.io/$namespace/$container:$tag docker://quay.io/kubeinit/$container:$tag"
+        retry 5 $copy
+    else
+        echo "The tag $tag in kubeinit/$container is found and is not latest, no need to copy anything."
+    fi
 
-    copy="skopeo copy docker://docker.io/$namespace/$container:$tag docker://quay.io/kubeinit/$container:$tag"
-    retry 5 $copy
 done
