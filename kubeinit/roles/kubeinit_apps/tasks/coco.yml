@@ -25,7 +25,8 @@
     - name: Deploy the CoCo operator
       ansible.builtin.shell: |
         set -o pipefail
-        kubectl apply -k github.com/confidential-containers/operator/config/release?ref=v0.3.0
+        yum install -y git
+        kubectl apply -k github.com/confidential-containers/operator/config/release?ref={{ kubeinit_apps_coco_version }}
       args:
         executable: /bin/bash
       register: _result
@@ -35,20 +36,43 @@
     - name: Wait until the CoCo pod is running
       ansible.builtin.shell: |
         set -o pipefail
-        kubectl get pods -n confidential-containers-system | grep Running
+        kubectl get pods -n confidential-containers-system | grep Running | head -n 1
       args:
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
       retries: 60
       delay: 5
-      until: _result.stdout_lines | list | length == kubeinit_apps_sampleapp_replicas|int
+      until: _result.stdout_lines | list | length == 1
       delegate_to: "{{ kubeinit_provision_service_node }}"
 
     - name: Deploy the CoCo runtime
       ansible.builtin.shell: |
         set -o pipefail
-        kubectl apply -k github.com/confidential-containers/operator/config/samples/ccruntime/default?ref=v0.3.0
+        kubectl apply -k github.com/confidential-containers/operator/config/samples/ccruntime/default?ref={{ kubeinit_apps_coco_version }}
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      delegate_to: "{{ kubeinit_provision_service_node }}"
+
+    - name: Wait until the kata runtime class is up
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl get runtimeclass | grep kata | head -n 1
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      retries: 60
+      delay: 5
+      until: _result.stdout_lines | list | length == 1
+      delegate_to: "{{ kubeinit_provision_service_node }}"
+
+    - name: Deploy a CoCo workload
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl apply -f coco_workload.yml
       args:
         executable: /bin/bash
       register: _result
