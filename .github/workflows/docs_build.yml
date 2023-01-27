@@ -27,7 +27,7 @@ jobs:
       - name: Install required packages
         run: |
           sudo apt-get update -y
-          sudo apt-get install graphviz plantuml openjdk-11-jdk -y
+          sudo apt-get install libfreetype6-dev gsfonts libmagickwand-dev imagemagick graphviz plantuml openjdk-11-jdk -y
           sudo apt-get remove ansible -y
           sudo python3 -m pip uninstall ansible ansible-base ansible-core -y
           sudo python3 -m pip install -r test-requirements.txt
@@ -51,7 +51,7 @@ jobs:
           ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
           cd ..
 
-      - name: Render the plantuml and mingrammer diagrams
+      - name: Render the plantuml, mingrammer and SVG diagrams
         run: |
           echo "Rendering the planUML diagrams"
           plantuml -tpng -output render ./docs/src/images/plantuml/*.plantuml
@@ -61,6 +61,7 @@ jobs:
           echo " "
           echo "Moving the planUML diagrams to the docs folder"
           mv ./docs/src/images/plantuml/render/* ./docs/src/static/plantuml/
+
           echo " "
           echo "Rendering the mingrammer diagrams"
           cd ./docs/src/images/mingrammer/
@@ -72,7 +73,23 @@ jobs:
           echo " "
           echo "Moving the mingrammer diagrams to the docs folder"
           mv ./docs/src/images/mingrammer/*.png ./docs/src/static/mingrammer/
+
           echo " "
+          echo "Rendering the SVG diagrams"
+          cd ./docs/src/images/svg/
+          # mogrify -format png *.svg
+          for diagram in *.svg; do
+              echo "Rendering $diagram"
+              dest=`echo "$diagram" | cut -d'.' -f1`
+              convert "$diagram" "$dest.png"
+          done
+          cd ../../../../
+          echo " "
+          echo "Creating the SVG static folder"
+          mkdir -p ./docs/src/static/svg
+          echo " "
+          echo "Moving the SVG diagrams to the docs folder"
+          mv ./docs/src/images/svg/*.png ./docs/src/static/svg/
 
       - name: Render the projects roles and inventory diagrams
         run: |
