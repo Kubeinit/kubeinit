@@ -15,6 +15,41 @@ High-level development goals
 Challenges of the problem domain
 --------------------------------
 
+High level architecture
+-----------------------
+
+The following diagram how functional components
+are deployed.
+
+    .. image:: static/svg/00_architecture.png
+      :width: 100%
+      :alt: Kubeinit's high level architecture.
+
+The following diagram how functional components
+are deployed.
+
+    .. image:: static/svg/01_architecture.png
+      :width: 100%
+      :alt: Kubeinit's high level architecture.
+
+The following diagram how HAproxy routes traffic.
+
+    .. image:: static/svg/00_net.png
+      :width: 100%
+      :alt: Kubeinit's haproxy traffic.
+
+The following diagram how the network is configured.
+
+    .. image:: static/svg/01_net.png
+      :width: 100%
+      :alt: Kubeinit's net configuration.
+
+The following diagram how the OVN network is configured.
+
+    .. image:: static/svg/00_ovn.png
+      :width: 100%
+      :alt: Kubeinit's OVN configuration.
+
 Basic components overview
 -------------------------
 
