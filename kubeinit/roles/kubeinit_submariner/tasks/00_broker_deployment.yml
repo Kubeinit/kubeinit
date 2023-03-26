@@ -322,6 +322,7 @@
 
     - name: Tag the worker nodes
       ansible.builtin.shell: |
+        set -o pipefail
         for node in $(KUBECONFIG=~/.kube/config kubectl get nodes -l node-role.kubernetes.io/worker=true -o name | cut -d'/' -f 2);
         do
             KUBECONFIG=~/.kube/config kubectl label node ${node} submariner.io/gateway=true --overwrite
