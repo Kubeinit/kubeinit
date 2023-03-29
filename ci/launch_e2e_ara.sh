@@ -34,7 +34,7 @@ echo "(launch_e2e_ara.sh) ==> Running ara-manage to store the results from insid
 podman exec -it api-server /bin/bash -c "ara-manage generate /opt/output_data/${PIPELINE_ID}"
 mv ~/.ara/output_data/${PIPELINE_ID} .
 
-touch /tmp/badge_status.svg
+touch /tmp/badge_status.svg; chmod a+rw /tmp/badge_status.svg
 cp /tmp/badge_status.svg ./$PIPELINE_ID/
 ls -ltah
 pwd
