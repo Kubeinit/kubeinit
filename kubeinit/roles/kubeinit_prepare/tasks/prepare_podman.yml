@@ -90,6 +90,15 @@
       become: true
       become_user: root
 
+    - name: Ensure default_capabilities is consistent in the hypervisors
+      community.general.ini_file:
+        path: /etc/containers/containers.conf
+        section: containers
+        option: default_capabilities
+        value: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "FSETID", "KILL", "NET_BIND_SERVICE", "SETFCAP", "SETGID", "SETPCAP", "SETUID", "SYS_CHROOT"]
+        backup: true
+        mode: '0644'
+
   when: _param_install_dependencies | default(false)
 
 - name: Authenticate with dockerhub username/password if defined
