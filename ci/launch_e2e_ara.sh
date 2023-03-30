@@ -35,7 +35,7 @@ podman exec -it api-server /bin/bash -c "ara-manage generate /opt/output_data/${
 mv ~/.ara/output_data/${PIPELINE_ID} .
 
 touch /tmp/badge_status.svg; chmod a+rw /tmp/badge_status.svg
-cp /tmp/badge_status.svg ./$PIPELINE_ID/
+mv /tmp/badge_status.svg ./$PIPELINE_ID/
 ls -ltah
 pwd
 chmod -R 755 ./$PIPELINE_ID
