@@ -55,6 +55,8 @@ declare -a container_images=(
     "internetsystemsconsortium bind9 9.18"
     "sonatype nexus3 3.30.0"
     "nginxinc nginx-unprivileged latest"
+    "flannel flannel-cni-plugin v1.1.2"
+    "flannel flannel v0.21.4"
 )
 
 retry() {
