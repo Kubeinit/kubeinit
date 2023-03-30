@@ -45,7 +45,7 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity, nolog=False):
     # cluster_type configurations like:
     # multinode or singlenode
     # And multiple job_types like:
-    # pr, periodic or submariner
+    # pr or periodic
     #
 
     now = datetime.now()
@@ -261,129 +261,6 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity, nolog=False):
                                                                           dur_mins))
                 save_logs(output, job_name, nolog)
 
-    #
-    # KubeInit's submariner PR check
-    #
-    if job_type == 'submariner':
-        gh = Github(os.environ['GH_SUBMARINER_TOKEN'])
-
-        pipeline_id = os.getenv('CI_PIPELINE_ID', 0)
-
-        repo = gh.get_repo("submariner-io/submariner-operator")
-        branches = repo.get_branches()
-
-        output = 0
-
-        url = os.getenv('CI_PIPELINE_URL', "")
-        print("'launch_e2e.py' ==> The job results will be published in runtime at: " + url)
-
-        for branch in branches:
-            for pr in repo.get_pulls(state='open',
-                                     sort='created',
-                                     base=branch.name):
-                labels = [item.name for item in pr.labels]
-                sha = pr.head.sha
-                execute = False
-                if ("check-okd-rke" in labels):
-                    distro = "okd.rke"
-                    driver = "libvirt"
-                    masters = "1"
-                    workers = "2"
-                    hypervisors = "1"
-                    launch_from = "h"
-                    execute = True
-                    remove_label("check-okd-rke", pr, repo)
-
-                if execute:
-                    repo.get_commit(sha=sha).create_status(state="pending",
-                                                           target_url=url + str(pipeline_id),
-                                                           description="Running...",
-                                                           context="%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                          driver,
-                                                                                          masters,
-                                                                                          workers,
-                                                                                          hypervisors,
-                                                                                          launch_from))
-                    repository = repo.name
-                    print("'launch_e2e.py' ==> The repository name is: " + repository)
-                    branch_name = branch.name
-                    pr_number = pr.number
-                    start_time = time.time()
-                    timestamp = now.strftime("%Y.%m.%d.%H.%M.%S")
-                    job_name = (distro + "-" +
-                                driver + "-" +
-                                masters + "-" +
-                                workers + "-" +
-                                hypervisors + "-" +
-                                launch_from + "-" +
-                                job_type + "-" +
-                                pipeline_id + "-" +
-                                timestamp
-                                )
-                    output = run_e2e_job(distro,
-                                         driver,
-                                         masters,
-                                         workers,
-                                         hypervisors,
-                                         job_type,
-                                         pipeline_id,
-                                         repository,
-                                         branch_name,
-                                         pr_number,
-                                         launch_from,
-                                         job_name)
-                    if output == 0:
-                        print("'launch_e2e.py' ==> The current job succeeded")
-                        state = "success"
-                    else:
-                        print("'launch_e2e.py' ==> The current job failed")
-                        state = "failure"
-
-                    dur_mins = str(round((time.time() - start_time) / 60, 2))
-                    desc = ("Ended with %s in %s minutes" % (state, dur_mins))
-
-                    # If the main deployment failed, we dont need to capture
-                    # any other exception, this script must fail at the end
-                    if output == 1:
-                        save_logs(output, job_name, nolog)
-                    else:
-                        output = save_logs(output, job_name, nolog)
-
-                    # If we dont upload the final logs, we dont update the job URL
-                    if nolog:
-                        dest_url = url + str(pipeline_id)
-                    else:
-                        dest_url = 'https://storage.googleapis.com/kubeinit-ci/jobs/' + str(job_name) + "-" + str(output) + '/index.html'
-                    print("'launch_e2e.py' ==> Desc message: " + desc)
-
-                    print("'launch_e2e.py' ==> The destination URL is: " + dest_url)
-                    # We update the status with the job result
-                    repo.get_commit(sha=sha).create_status(state=state,
-                                                           target_url=dest_url,
-                                                           description=desc,
-                                                           context="%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                          driver,
-                                                                                          masters,
-                                                                                          workers,
-                                                                                          hypervisors,
-                                                                                          launch_from))
-                    pr.create_issue_comment(body="%s-%s-%s-%s-%s-%s-%s-%s-%s" % (distro,
-                                                                                 driver,
-                                                                                 masters,
-                                                                                 workers,
-                                                                                 hypervisors,
-                                                                                 launch_from,
-                                                                                 state,
-                                                                                 str(start_time),
-                                                                                 dur_mins))
-                    if output == 0:
-                        exit()
-                    else:
-                        exit(1)
-                else:
-                    print("'launch_e2e.py' ==> No need to do anything")
-                    exit()
-
 
 def run_e2e_job(distro, driver, masters, workers,
                 hypervisors, job_type,
@@ -544,7 +421,6 @@ if __name__ == "__main__":
     #
     # launch_e2e.py --job_type=pr
     # launch_e2e.py --job_type=pr --pr_id=154
-    # launch_e2e.py --job_type=pr --pr_id=submariner
     # launch_e2e.py --job_type=periodic --job_label=eks-libvirt-3-0-1-h
     # launch_e2e.py --job_type=periodic --job_label=eks-libvirt-3-0-1-h,cdk-libvirt-1-0-1-h
     # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=random
@@ -558,8 +434,8 @@ if __name__ == "__main__":
     parser.add_argument('--job_type',
                         action='store',
                         required=True,
-                        choices=['pr', 'periodic', 'submariner'],
-                        help='The type of job to run, per PR, periodic or submariner')
+                        choices=['pr', 'periodic'],
+                        help='The type of job to run, per PR, or periodic')
     parser.add_argument('--verbosity',
                         action='store',
                         default='v',
@@ -589,9 +465,9 @@ if __name__ == "__main__":
         if args.cluster_type is None and args.job_label is None:
             parser.error('--cluster_type or --job_label should be defined')
 
-    if (args.job_label is not None and not re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", args.job_label) and not re.match(r"([a-z|0-9|,|\.]+)?", args.job_label) and args.job_type != 'pr' and args.job_type != 'submariner'):
-        print("'launch_e2e.py' ==> The third argument must be [periodic|pr|submariner]")
-        print("'launch_e2e.py' ==> periodic, can be periodic|periodic=okd,eks|periodic=okd.rke ...")
+    if (args.job_label is not None and not re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", args.job_label) and not re.match(r"([a-z|0-9|,|\.]+)?", args.job_label) and args.job_type != 'pr'):
+        print("'launch_e2e.py' ==> The third argument must be [periodic|pr]")
+        print("'launch_e2e.py' ==> periodic, can be periodic|periodic=okd,eks ...")
         print("'launch_e2e.py' ==> also the periodic job can trigger a specfic label like:")
         print("'launch_e2e.py' ==> periodic=okd-libvirt-3-1-1-h")
         sys.exit()

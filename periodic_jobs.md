@@ -38,9 +38,6 @@
 | Vanilla K8s | <a href='https://ci.kubeinit.org/file/kubeinit-ci/jobs/k8s-libvirt-3-0-2-h-periodic-pid-weekly-u/index.html'><img height='20px' src='https://ci.kubeinit.org/file/kubeinit-ci/jobs/k8s-libvirt-3-0-2-h-periodic-pid-weekly-u/badge_status.svg'/></a> | libvirt | 3 | 0 | 2 | Host |
 | Vanilla K8s | <a href='https://ci.kubeinit.org/file/kubeinit-ci/jobs/k8s-libvirt-1-1-1-h-periodic-pid-weekly-u/index.html'><img height='20px' src='https://ci.kubeinit.org/file/kubeinit-ci/jobs/k8s-libvirt-1-1-1-h-periodic-pid-weekly-u/badge_status.svg'/></a> | libvirt | 1 | 1 | 1 | Host |
 | Vanilla K8s | <a href='https://ci.kubeinit.org/file/kubeinit-ci/jobs/k8s-libvirt-1-0-1-h-periodic-pid-weekly-u/index.html'><img height='20px' src='https://ci.kubeinit.org/file/kubeinit-ci/jobs/k8s-libvirt-1-0-1-h-periodic-pid-weekly-u/badge_status.svg'/></a> | libvirt | 1 | 0 | 1 | Host |
-| K8S/RKE | <a href='https://ci.kubeinit.org/file/kubeinit-ci/jobs/k8s.rke-libvirt-1-0-1-h-periodic-pid-weekly-u/index.html'><img height='20px' src='https://ci.kubeinit.org/file/kubeinit-ci/jobs/k8s.rke-libvirt-1-0-1-h-periodic-pid-weekly-u/badge_status.svg'/></a> | libvirt | 1 | 0 | 1 | Host |
-| OKD/RKE | <a href='https://ci.kubeinit.org/file/kubeinit-ci/jobs/okd.rke-libvirt-1-2-1-h-periodic-pid-weekly-u/index.html'><img height='20px' src='https://ci.kubeinit.org/file/kubeinit-ci/jobs/okd.rke-libvirt-1-2-1-h-periodic-pid-weekly-u/badge_status.svg'/></a> | libvirt | 1 | 2 | 1 | Host |
-| OKD/RKE | <a href='https://ci.kubeinit.org/file/kubeinit-ci/jobs/okd.rke-libvirt-3-1-1-h-periodic-pid-weekly-u/index.html'><img height='20px' src='https://ci.kubeinit.org/file/kubeinit-ci/jobs/okd.rke-libvirt-3-1-1-h-periodic-pid-weekly-u/badge_status.svg'/></a> | libvirt | 3 | 1 | 1 | Host |
 
 The content of this page is rendered from each job label defined
 in [get_periodic_jobs_labels](https://github.com/Kubeinit/kubeinit/blob/main/ci/kubeinit_ci_utils.py#L146) and
