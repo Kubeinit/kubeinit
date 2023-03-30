@@ -1,62 +1,18 @@
-# From: https://github.com/flannel-io/flannel/blob/master/Documentation/kube-flannel.yml
+# From: https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
 
 ---
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
+kind: Namespace
+apiVersion: v1
 metadata:
-  name: psp.flannel.unprivileged
-  annotations:
-    seccomp.security.alpha.kubernetes.io/allowedProfileNames: docker/default
-    seccomp.security.alpha.kubernetes.io/defaultProfileName: docker/default
-    apparmor.security.beta.kubernetes.io/allowedProfileNames: runtime/default
-    apparmor.security.beta.kubernetes.io/defaultProfileName: runtime/default
-spec:
-  privileged: false
-  volumes:
-  - configMap
-  - secret
-  - emptyDir
-  - hostPath
-  allowedHostPaths:
-  - pathPrefix: "/etc/cni/net.d"
-  - pathPrefix: "/etc/kube-flannel"
-  - pathPrefix: "/run/flannel"
-  readOnlyRootFilesystem: false
-  # Users and groups
-  runAsUser:
-    rule: RunAsAny
-  supplementalGroups:
-    rule: RunAsAny
-  fsGroup:
-    rule: RunAsAny
-  # Privilege Escalation
-  allowPrivilegeEscalation: false
-  defaultAllowPrivilegeEscalation: false
-  # Capabilities
-  allowedCapabilities: ['NET_ADMIN', 'NET_RAW']
-  defaultAddCapabilities: []
-  requiredDropCapabilities: []
-  # Host namespaces
-  hostPID: false
-  hostIPC: false
-  hostNetwork: true
-  hostPorts:
-  - min: 0
-    max: 65535
-  # SELinux
-  seLinux:
-    # SELinux is unused in CaaSP
-    rule: 'RunAsAny'
+  name: kube-flannel
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: flannel
 rules:
-- apiGroups: ['extensions']
-  resources: ['podsecuritypolicies']
-  verbs: ['use']
-  resourceNames: ['psp.flannel.unprivileged']
 - apiGroups:
   - ""
   resources:
@@ -68,6 +24,7 @@ rules:
   resources:
   - nodes
   verbs:
+  - get
   - list
   - watch
 - apiGroups:
@@ -76,6 +33,13 @@ rules:
   - nodes/status
   verbs:
   - patch
+- apiGroups:
+  - "networking.k8s.io"
+  resources:
+  - clustercidrs
+  verbs:
+  - list
+  - watch
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -88,27 +52,27 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: flannel
-  namespace: kube-system
+  namespace: kube-flannel
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: flannel
-  namespace: kube-system
+  namespace: kube-flannel
 ---
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: kube-flannel-cfg
-  namespace: kube-system
+  namespace: kube-flannel
   labels:
     tier: node
     app: flannel
 data:
   cni-conf.json: |
     {
-      "name": "vxlan0",
-      "cniVersion": "0.3.1",
+      "name": "cbr0",
+      "cniVersion": "{{ kubeinit_k8s_flannel_cni_version }}",
       "plugins": [
         {
           "type": "flannel",
@@ -127,22 +91,17 @@ data:
     }
   net-conf.json: |
     {
-      "Network": "{{ kubeinit_k8s_pod_network_cidr }}",
+      "Network": "{{ kubeinit_k8s_pod_network }}/{{ kubeinit_k8s_pod_subnet_len }}",
       "Backend": {
-        "Type": "vxlan",
-         "VNI": 4096,
-         "Port": 4789
+        "Type": "vxlan"
       }
     }
-# TODO: FIXME: There must be a bug between cri-o and flannel because
-# we are not able to change these parameters...
-#       "SubnetLen": "{{ kubeinit_k8s_pod_subnet_len }}",
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: kube-flannel-ds
-  namespace: kube-system
+  namespace: kube-flannel
   labels:
     tier: node
     app: flannel
@@ -173,8 +132,8 @@ spec:
       serviceAccountName: flannel
       initContainers:
       - name: install-cni-plugin
-       #image: flannelcni/flannel-cni-plugin:v1.1.0 for ppc64le and mips64le (dockerhub limitations may apply)
-        image: rancher/mirrored-flannelcni-flannel-cni-plugin:v1.1.0
+        image: docker.io/flannel/flannel-cni-plugin:v{{ kubeinit_k8s_flannel_cni_plugin_version }}
+       #image: docker.io/rancher/mirrored-flannelcni-flannel-cni-plugin:v{{ kubeinit_k8s_flannel_cni_plugin_version }}
         command:
         - cp
         args:
@@ -185,8 +144,8 @@ spec:
         - name: cni-plugin
           mountPath: /opt/cni/bin
       - name: install-cni
-       #image: flannelcni/flannel:v0.18.1 for ppc64le and mips64le (dockerhub limitations may apply)
-        image: rancher/mirrored-flannelcni-flannel:v0.18.1
+        image: docker.io/flannel/flannel:v{{ kubeinit_k8s_flannel_version }}
+       #image: docker.io/rancher/mirrored-flannelcni-flannel:v{{ kubeinit_k8s_flannel_version }}
         command:
         - cp
         args:
@@ -200,8 +159,8 @@ spec:
           mountPath: /etc/kube-flannel/
       containers:
       - name: kube-flannel
-       #image: flannelcni/flannel:v0.18.1 for ppc64le and mips64le (dockerhub limitations may apply)
-        image: rancher/mirrored-flannelcni-flannel:v0.18.1
+        image: docker.io/flannel/flannel:v{{ kubeinit_k8s_flannel_version }}
+       #image: docker.io/rancher/mirrored-flannelcni-flannel:v{{ kubeinit_k8s_flannel_version }}
         command:
         - /opt/bin/flanneld
         args:
@@ -209,9 +168,6 @@ spec:
         - --kube-subnet-mgr
         resources:
           requests:
-            cpu: "100m"
-            memory: "50Mi"
-          limits:
             cpu: "100m"
             memory: "50Mi"
         securityContext:
