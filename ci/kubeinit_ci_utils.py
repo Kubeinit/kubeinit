@@ -359,14 +359,10 @@ def get_periodic_jobs_labels(cluster_type='all', distro='all'):
                    "kid-libvirt-1-1-1-h",
                    "kid-libvirt-1-0-1-h"]
 
-    multicluster_configs = ["k8s.rke-libvirt-1-0-1-h",
-                            "okd.rke-libvirt-1-2-1-h",
-                            "okd.rke-libvirt-3-1-1-h"]
-
     if re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", distro):
         print("'kubeinit_ci_utils.py' ==> We are requesting specific job labels")
         req_labels = set(distro.split(","))
-        all_labels = set(okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + multicluster_configs)
+        all_labels = set(okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs)
         if (req_labels.issubset(all_labels)):
             print("'kubeinit_ci_utils.py' ==> The requested labels are defined correctly")
             # We return the labels filtered by cluster_type, multinode or singlenode
@@ -379,7 +375,7 @@ def get_periodic_jobs_labels(cluster_type='all', distro='all'):
     elif distro == 'random':
         print("'kubeinit_ci_utils.py' ==> Returning 4 random scenarios to test")
         # If the distro parameter is random we return 4 random distros to test
-        all_scenarios = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + multicluster_configs
+        all_scenarios = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs
         return_labels = random.sample(all_scenarios, 4)
         # We return the labels filtered by cluster_type, multinode or singlenode
         filtered_return = [lab for lab in return_labels if cluster_pattern.match(lab)]
@@ -387,16 +383,13 @@ def get_periodic_jobs_labels(cluster_type='all', distro='all'):
         return filtered_return
     elif distro == "all":
         print("'kubeinit_ci_utils.py' ==> Appending all configs")
-        return_labels = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs + multicluster_configs
+        return_labels = okd_configs + kid_configs + eks_configs + rke_configs + cdk_configs + k8s_configs
         # We return the labels filtered by cluster_type, multinode or singlenode
         filtered_return = [lab for lab in return_labels if cluster_pattern.match(lab)]
         print("'kubeinit_ci_utils.py' ==> " + str(filtered_return))
         return filtered_return
     else:
         configs = []
-        if '.' in distro or "multicluster" in distro:
-            print("'kubeinit_ci_utils.py' ==> Appending the multicluster configs")
-            configs = configs + multicluster_configs
         if 'okd' in distro and '.' not in distro:
             print("'kubeinit_ci_utils.py' ==> Appending OKD configs")
             configs = configs + okd_configs

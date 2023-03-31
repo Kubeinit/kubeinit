@@ -94,27 +94,7 @@ export ARA_API_SERVER="http://127.0.0.1:8000"
 python3 -m pip install -r ./agent/requirements.txt
 KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 
-#
-# Check if this is a multicluster deployment
-# this means that the distro has a period in
-# the name like okd.rke, k8s.rke, or k8s.eks
-#
 KUBEINIT_SPEC=$KUBEINIT_SPEC_LABEL
-if [[ ${DISTRO} == *.* ]] ; then
-    FIRST_DISTRO="$(cut -d'.' -f1 <<<"${DISTRO}")"
-    SECOND_DISTRO="$(cut -d'.' -f2 <<<"${DISTRO}")"
-
-    FIRST_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${FIRST_DISTRO}}"
-    SECOND_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${SECOND_DISTRO}}"
-    KUBEINIT_SPEC="${FIRST_KUBEINIT_SPEC},${SECOND_KUBEINIT_SPEC}"
-
-    # We will enable only submariner in the
-    # case of having a multicluster deployment
-    # for okd.rke
-    if [[ "$DISTRO" == "okd.rke" ]]; then
-        POST_DEPLOYMENT_SERVICES='submariner'
-    fi
-fi
 
 FAILED="0"
 KUBEINIT_SPEC=${KUBEINIT_SPEC//,/ }

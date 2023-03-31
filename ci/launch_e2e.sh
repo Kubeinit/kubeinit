@@ -164,29 +164,6 @@ podman exec -it api-server /bin/bash -c "ara-manage migrate"
 python3 -m pip install -r ./agent/requirements.txt
 KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
 
-#
-# Check if this is a multicluster deployment
-# this means that the distro has a period in
-# the name like okd.rke, k8s.rke, or k8s.eks
-#
-if [[ $DISTRO == *.* ]] ; then
-    FIRST_DISTRO="$(cut -d'.' -f1 <<<"${DISTRO}")"
-    SECOND_DISTRO="$(cut -d'.' -f2 <<<"${DISTRO}")"
-
-    FIRST_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${FIRST_DISTRO}}"
-    SECOND_KUBEINIT_SPEC="${KUBEINIT_SPEC/${DISTRO}/${SECOND_DISTRO}}"
-    KUBEINIT_SPEC="${FIRST_KUBEINIT_SPEC},${SECOND_KUBEINIT_SPEC}"
-
-    # We will enable only submariner in the
-    # case of having a multicluster deployment
-    # for okd.rke
-    if [[ "$DISTRO" == "okd.rke" ]]; then
-        # TODO:FIXME: Submariner might be configured like
-        # submariner=broker or submariner=secondary
-        POST_DEPLOYMENT_SERVICES='submariner'
-    fi
-fi
-
 export KUBEINIT_COMMON_DNS_PUBLIC='10.11.5.160'
 
 #
