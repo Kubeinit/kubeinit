@@ -120,7 +120,10 @@
     state: present
 
 - name: Install requirements
-  ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_eks_kubernetes_version + '.' + kubeinit_eks_revision }} kubeadm-{{ kubeinit_eks_kubernetes_version + '.' + kubeinit_eks_revision }} kubectl-{{ kubeinit_eks_kubernetes_version + '.' + kubeinit_eks_revision }} --disableexcludes=kubernetes
+  # TODO:FIXME: The minor version here (revision) does not match with the packages versions from the kubernetes.repo
+  # EKS always have a higher revision available than the main package repository.
+  # ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_eks_kubernetes_version + '.' + kubeinit_eks_revision }} kubeadm-{{ kubeinit_eks_kubernetes_version + '.' + kubeinit_eks_revision }} kubectl-{{ kubeinit_eks_kubernetes_version + '.' + kubeinit_eks_revision }} --disableexcludes=kubernetes
+  ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_eks_kubernetes_version }}.* kubeadm-{{ kubeinit_eks_kubernetes_version }}.* kubectl-{{ kubeinit_eks_kubernetes_version }}.* --disableexcludes=kubernetes
   register: _result
   changed_when: "_result.rc == 0"
 
