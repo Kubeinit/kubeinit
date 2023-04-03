@@ -27,6 +27,12 @@
 - name: Configure the service node
   block:
 
+    - name: Install common requirements
+      ansible.builtin.package:
+        name: "{{ kubeinit_eks_common_dependencies }}"
+        state: present
+      when: kubeinit_eks_common_dependencies is defined
+
     - name: Remove repo before adding it
       ansible.builtin.file:
         path: /etc/yum.repos.d/kubernetes.repo
@@ -88,8 +94,45 @@
       ansible.builtin.set_fact:
         kubeinit_eks_kubernetes_version: "{{ kubeinit_eks_kubernetes_major_minor.replace('-','.') }}"
 
+    - name: Install YQ
+      ansible.builtin.shell: |
+        set -eo pipefail
+        python3 -m pip install yq
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Discover full version of Kubernetes that will be deployed
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -e
+        curl -s https://distro.eks.amazonaws.com/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}.yaml | \
+            yq '.status.components | map(select(.name == "kubernetes")) | .[0].gitTag' | tr -d '"' | tr -d 'v'
+      args:
+        executable: /bin/bash
+      register: _result_kubernetes_version_full
+      changed_when: "_result_kubernetes_version_full.rc == 0"
+
+    - name: Set EKS release number fact
+      ansible.builtin.set_fact:
+        kubeinit_eks_kubernetes_version_full: "{{ _result_kubernetes_version_full.stdout | trim }}"
+
     - name: Install requirements
-      ansible.builtin.command: dnf install -y kubectl-{{ kubeinit_eks_kubernetes_version }}.{{ kubeinit_eks_revision }} --disableexcludes=kubernetes
+      ansible.builtin.command: dnf install -y kubectl-{{ kubeinit_eks_kubernetes_version_full }} --disableexcludes=kubernetes
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Install (replace) requirements
+      ansible.builtin.shell: |
+        set -eo pipefail
+        kubectl_bin=$( curl -s https://distro.eks.amazonaws.com/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}.yaml | \
+          yq '.status.components | map(select(.name == "kubernetes")) | .[0].assets | map(select(.name == "bin/linux/amd64/kubectl")) | .[0].archive.uri' | tr -d '"')
+        wget -q $kubectl_bin
+        chmod +x kubectl
+        mv ./kubectl $(which kubectl)
+      args:
+        executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
 
@@ -97,12 +140,6 @@
       ansible.builtin.package:
         name: skopeo
         state: present
-
-    - name: Install common requirements
-      ansible.builtin.package:
-        name: "{{ kubeinit_eks_common_dependencies }}"
-        state: present
-      when: kubeinit_eks_common_dependencies is defined
 
     #
     # Configure local registry

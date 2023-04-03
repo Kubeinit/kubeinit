@@ -40,14 +40,14 @@
   ansible.builtin.shell: |
     set -eo pipefail
     mkdir -p .docker
-    cat << EOF > .docker/config.json
-    {
-      "auths": {{ kubeinit_cluster_hostvars.registry_disconnected_auth }},
-      "HttpHeaders": {
-        "User-Agent": "Docker-Client/18.09.7 (linux)"
-      }
-    }
-    EOF
+    # cat << EOF > .docker/config.json
+    # {
+    #   "auths": {{ kubeinit_cluster_hostvars.registry_disconnected_auth }},
+    #   "HttpHeaders": {
+    #     "User-Agent": "Docker-Client/18.09.7 (linux)"
+    #   }
+    # }
+    # EOF
   args:
     executable: /bin/bash
   register: _result
@@ -57,6 +57,22 @@
     loop_var: cluster_node
   delegate_to: "{{ cluster_node }}"
   when: "'registry' in kubeinit_cluster_hostvars.services"
+
+- name: Create registry auth pullsecret file
+  ansible.builtin.copy:
+    content: |
+      {{ kubeinit_registry_pullsecret }}
+    dest: ".docker/config.json"
+    group: "{{ kubeinit_service_user }}"
+    owner: "{{ kubeinit_service_user }}"
+    mode: '0644'
+    force: yes
+  loop: "{{ groups['all_cluster_nodes'] }}"
+  loop_control:
+    loop_var: cluster_node
+  delegate_to: "{{ cluster_node }}"
+  when: "'registry' in kubeinit_cluster_hostvars.services"
+
 
 - name: Update the CA certs files
   ansible.builtin.command: update-ca-trust extract
@@ -80,13 +96,21 @@
       register: _result_etcd_tag
       changed_when: "_result_etcd_tag.rc == 0"
 
-    - name: Clean kubeadm and initialize Kubernetes cluster
+    - name: Clean kubeadm
       ansible.builtin.shell: |
         set -eo pipefail
         kubeadm reset -f || true
         kubeadm config images list
         kubeadm config images list --image-repository {{ kubeinit_registry_uri }}
         kubeadm config images list --kubernetes-version latest
+      args:
+        executable: /bin/bash
+      register: _result_kubeadm_init_output
+      changed_when: "_result_kubeadm_init_output.rc == 0"
+
+    - name: Initialize Kubernetes cluster
+      ansible.builtin.shell: |
+        set -eo pipefail
         cat << EOF > ~/config.yml
         apiVersion: kubeadm.k8s.io/v1beta2
         kind: ClusterConfiguration
@@ -252,9 +276,15 @@
 - name: Allow schedule workloads in controller nodes if there are no compute nodes
   ansible.builtin.shell: |
     set -o pipefail
+    # Deprecated in 1.24
     for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.spec.taints[]?.key=="node-role.kubernetes.io/master") | .metadata.labels."kubernetes.io/hostname"');
     do
       kubectl taint node ${node} node-role.kubernetes.io/master:NoSchedule-
+    done
+    # Working starting on 1.24
+    for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.spec.taints[]?.key=="node-role.kubernetes.io/control-plane") | .metadata.labels."kubernetes.io/hostname"');
+    do
+      kubectl taint node ${node} node-role.kubernetes.io/control-plane:NoSchedule-
     done
   args:
     executable: /bin/bash
@@ -265,12 +295,12 @@
     kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
-- name: Deploy EKS manifests.
+- name: Deploy EKS manifests
   ansible.builtin.shell: |
     kubectl apply -f https://distro.eks.amazonaws.com/crds/releases.distro.eks.amazonaws.com-v1alpha1.yaml
-    kubectl apply -f https://distro.eks.amazonaws.com/kubernetes-1-18/kubernetes-1-18-eks-1.yaml
-    kubectl get release kubernetes-1-18-eks-1
-    kubectl get release kubernetes-1-18-eks-1 -o yaml
+    kubectl apply -f https://distro.eks.amazonaws.com/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}.yaml
+    kubectl get release kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}
+    kubectl get release kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }} -o yaml
   args:
     executable: /bin/bash
   register: _result
