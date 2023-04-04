@@ -15,6 +15,16 @@
 # under the License.
 
 #
+# Install additional packages
+#
+
+- name: Install common requirements
+  ansible.builtin.package:
+    name: "{{ kubeinit_eks_common_dependencies }}"
+    state: present
+  when: kubeinit_eks_common_dependencies is defined
+
+#
 # cri-o repos
 #
 
@@ -113,17 +123,57 @@
 - name: Install requirements
   ansible.builtin.package:
     name:
-      - jq
-      - yum-utils
       - device-mapper-persistent-data
       - lvm2
     state: present
 
 - name: Install requirements
-  # TODO:FIXME: The minor version here (revision) does not match with the packages versions from the kubernetes.repo
-  # EKS always have a higher revision available than the main package repository.
-  # ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_eks_kubernetes_version + '.' + kubeinit_eks_revision }} kubeadm-{{ kubeinit_eks_kubernetes_version + '.' + kubeinit_eks_revision }} kubectl-{{ kubeinit_eks_kubernetes_version + '.' + kubeinit_eks_revision }} --disableexcludes=kubernetes
-  ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_eks_kubernetes_version }}.* kubeadm-{{ kubeinit_eks_kubernetes_version }}.* kubectl-{{ kubeinit_eks_kubernetes_version }}.* --disableexcludes=kubernetes
+  ansible.builtin.command: dnf install -y kubelet-{{ kubeinit_eks_kubernetes_version_full }} kubeadm-{{ kubeinit_eks_kubernetes_version_full }} kubectl-{{ kubeinit_eks_kubernetes_version_full }} --disableexcludes=kubernetes
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Install YQ
+  ansible.builtin.shell: |
+    set -eo pipefail
+    python3 -m pip install yq
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Install (replace) requirements
+  ansible.builtin.shell: |
+    set -eo pipefail
+
+    # TODO:FIXME: Replace with a loop
+    # Binaries to be replaced
+    bin_files="kubectl kubeadm kubelet"
+    for val in $bin_files; do
+        echo "Replacing $val"
+    done
+
+    # kubectl
+    kubectl_bin=$( curl -s https://distro.eks.amazonaws.com/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}.yaml | \
+      yq '.status.components | map(select(.name == "kubernetes")) | .[0].assets | map(select(.name == "bin/linux/amd64/kubectl")) | .[0].archive.uri' | tr -d '"')
+    wget -q $kubectl_bin
+    chmod +x kubectl
+    mv ./kubectl $(which kubectl)
+
+    # kubeadm
+    kubeadm_bin=$( curl -s https://distro.eks.amazonaws.com/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}.yaml | \
+      yq '.status.components | map(select(.name == "kubernetes")) | .[0].assets | map(select(.name == "bin/linux/amd64/kubeadm")) | .[0].archive.uri' | tr -d '"')
+    wget -q $kubeadm_bin
+    chmod +x kubeadm
+    mv ./kubeadm $(which kubeadm)
+
+    # kubelet
+    kubelet_bin=$( curl -s https://distro.eks.amazonaws.com/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}.yaml | \
+      yq '.status.components | map(select(.name == "kubernetes")) | .[0].assets | map(select(.name == "bin/linux/amd64/kubelet")) | .[0].archive.uri' | tr -d '"')
+    wget -q $kubelet_bin
+    chmod +x kubelet
+    mv ./kubelet $(which kubelet)
+  args:
+    executable: /bin/bash
   register: _result
   changed_when: "_result.rc == 0"
 
@@ -132,13 +182,3 @@
     state: restarted
     name: kubelet
     enabled: yes
-
-#
-# Install additional packages
-#
-
-- name: Install common requirements
-  ansible.builtin.package:
-    name: "{{ kubeinit_eks_common_dependencies }}"
-    state: present
-  when: kubeinit_eks_common_dependencies is defined
