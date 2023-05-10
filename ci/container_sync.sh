@@ -57,6 +57,7 @@ declare -a container_images=(
     "nginxinc nginx-unprivileged latest"
     "flannel flannel-cni-plugin v1.1.2"
     "flannel flannel v0.21.4"
+    "flannel flannel v0.21.5"
 )
 
 retry() {
