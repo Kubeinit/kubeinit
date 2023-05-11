@@ -287,16 +287,22 @@ if [[ "$LAUNCH_FROM" == "h" ]]; then
         # removed the cleanup tasks will be executed.
         #
         while true; do
-            waitfordebug=$(curl \
+            labelmsg=$(curl \
                             --silent \
                             --location \
-                            --request GET "https://api.github.com/repos/kubeinit/kubeinit/issues/${PULL_REQUEST}/labels" | \
-                            jq -c '.[] | select(.name | contains("waitfordebug")).name' | tr -d '"')
-            if [ "$waitfordebug" == "waitfordebug" ]; then
-                echo "Wait for debugging the environment for 3 minutes"
-                sleep 180
-            else
+                            --request GET "https://api.github.com/repos/kubeinit/kubeinit/issues/${PULL_REQUEST}/labels")
+            errrate='API rate limit exceeded'
+            if [[ "$labelmsg" == *"$errrate"* ]]; then
+                echo "(launch_e2e.sh) ==> GitHub limit rate error when querying the API."
                 break
+            else
+                waitfordebug=$(echo "$labelmsg" | jq -c '.[] | select(.name | contains("waitfordebug")).name' | tr -d '"')
+                if [ "$waitfordebug" == "waitfordebug" ]; then
+                    echo "Wait for debugging the environment for 3 minutes"
+                    sleep 180
+                else
+                    break
+                fi
             fi
         done
     fi
