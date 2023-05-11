@@ -37,6 +37,8 @@ from pybadges import badge
 
 GH_LABELS = []
 
+GH_RES_TRACKER = 744
+
 
 def main(job_type, cluster_type, job_label, pr_id, verbosity, nolog=False):
     """Run the main method."""
@@ -249,7 +251,7 @@ def main(job_type, cluster_type, job_label, pr_id, verbosity, nolog=False):
                 else:
                     state = "failure"
                 dur_mins = str(round((time.time() - start_time) / 60, 2))
-                issue = repo.get_issue(number=698)
+                issue = repo.get_issue(number=GH_RES_TRACKER)
                 issue.create_comment(body="%s-%s-%s-%s-%s-%s-%s-%s-%s" % (distro,
                                                                           driver,
                                                                           masters,
