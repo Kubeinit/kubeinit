@@ -109,9 +109,9 @@
 
 - name: Join additional controller nodes using the PK
   ansible.builtin.shell: |
-   kubeadm reset -f || true
-   echo "{{ _result_join_command.stdout }} {{ k8s_controller_join_key }}" > ~/k8s_controller_join_command.sh
-   sh ~/k8s_controller_join_command.sh
+    kubeadm reset -f || true
+    echo "{{ _result_join_command.stdout }} {{ k8s_controller_join_key }}" > ~/k8s_controller_join_command.sh
+    sh ~/k8s_controller_join_command.sh
   args:
     executable: /bin/bash
   register: _result
@@ -165,7 +165,7 @@
 # The kubeconfig file is on the controller nodes so we run kubectl label on the first controller
 - name: Label node
   ansible.builtin.command: |
-   kubectl label node {{ hostvars[compute_node].fqdn }} node-role.kubernetes.io/worker=
+    kubectl label node {{ hostvars[compute_node].fqdn }} node-role.kubernetes.io/worker=
   register: _result
   changed_when: "_result.rc == 0"
   loop: "{{ groups['all_compute_nodes'] | default([]) }}"

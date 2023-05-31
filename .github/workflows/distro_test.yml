@@ -54,7 +54,12 @@ jobs:
           mkdir ~/.ssh/secrets
           cp ~/.ssh/kubeinit_id_rsa ~/.ssh/secrets/kubeinit-ssh-key
           sudo chown -R 1001:0 ~/.ssh/secrets
-          docker run --rm --network host \
+          docker run \
+              --oom-kill-disable \
+              --cpus=".5" \
+              --memory-swap=-1 \
+              --rm \
+              --network host \
               --volume ~/.ssh/secrets:/run/secrets:ro \
               kubeinit/kubeinit:latest \
                   -v \

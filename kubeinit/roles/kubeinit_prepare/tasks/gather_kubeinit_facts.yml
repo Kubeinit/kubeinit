@@ -66,12 +66,12 @@
 - name: Set facts from kubeinit_network group
   ansible.builtin.set_fact:
     kubeinit_cluster_network_name: "{{ kubeinit_network_name }}"
-    kubeinit_cluster_network: "{{ kubeinit_fact_network | ansible.netcommon.ipv4('net') }}"
-    kubeinit_cluster_prefix: "{{ kubeinit_fact_network | ansible.netcommon.ipv4('prefix') }}"
-    kubeinit_cluster_netmask: "{{ kubeinit_fact_network | ansible.netcommon.ipv4('netmask') | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_gateway: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_network_hostvars.gateway_offset|int) | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_next_available: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_network_hostvars.dhcp_start_offset|int) | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_last_available: "{{ kubeinit_fact_network | ansible.netcommon.ipv4(kubeinit_network_hostvars.dhcp_end_offset|int) | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_network: "{{ kubeinit_fact_network | ansible.utils.ipv4('net') }}"
+    kubeinit_cluster_prefix: "{{ kubeinit_fact_network | ansible.utils.ipv4('prefix') }}"
+    kubeinit_cluster_netmask: "{{ kubeinit_fact_network | ansible.utils.ipv4('netmask') | ansible.utils.ipv4('address') }}"
+    kubeinit_cluster_gateway: "{{ kubeinit_fact_network | ansible.utils.ipv4(kubeinit_network_hostvars.gateway_offset|int) | ansible.utils.ipv4('address') }}"
+    kubeinit_cluster_next_available: "{{ kubeinit_fact_network | ansible.utils.ipv4(kubeinit_network_hostvars.dhcp_start_offset|int) | ansible.utils.ipv4('address') }}"
+    kubeinit_cluster_last_available: "{{ kubeinit_fact_network | ansible.utils.ipv4(kubeinit_network_hostvars.dhcp_end_offset|int) | ansible.utils.ipv4('address') }}"
 
 - name: Assert additional constraints
   ansible.builtin.assert:
@@ -92,7 +92,7 @@
     name: "{{ controller_node }}"
     group: ['controller_nodes', 'cluster_nodes']
     ansible_connection: 'ssh'
-    ansible_host: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
+    ansible_host: "{{ kubeinit_cluster_next_available | ansible.utils.ipmath(ansible_loop.index0) | ansible.utils.ipv4('address') }}"
     type: 'virtual'
   loop: "{{ range(kubeinit_spec_controller_count|int) | list }}"
   loop_control:
@@ -102,14 +102,14 @@
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
-    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_controller_count|int) }}"
+    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.utils.ipmath(kubeinit_spec_controller_count|int) }}"
 
 - name: Assign compute_nodes addresses
   ansible.builtin.add_host:
     name: "{{ compute_node }}"
     group: ['compute_nodes', 'cluster_nodes']
     ansible_connection: 'ssh'
-    ansible_host: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
+    ansible_host: "{{ kubeinit_cluster_next_available | ansible.utils.ipmath(ansible_loop.index0) | ansible.utils.ipv4('address') }}"
     type: 'virtual'
   loop: "{{ range(kubeinit_spec_compute_count|int) | list }}"
   loop_control:
@@ -119,7 +119,7 @@
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
-    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_compute_count|int) }}"
+    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.utils.ipmath(kubeinit_spec_compute_count|int) }}"
 
 - name: Set extra_nodes_map_list fact to defaults
   ansible.builtin.set_fact:
@@ -147,7 +147,7 @@
     name: "{{ extra_node }}"
     group: 'extra_nodes'
     ansible_connection: 'ssh'
-    ansible_host: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
+    ansible_host: "{{ kubeinit_cluster_next_available | ansible.utils.ipmath(ansible_loop.index0) | ansible.utils.ipv4('address') }}"
     type: 'virtual'
   loop: "{{ groups['extra_nodes'] | default([]) }}"
   loop_control:
@@ -156,7 +156,7 @@
 
 - name: Update next available address for allocation
   ansible.builtin.set_fact:
-    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipmath(kubeinit_spec_extra_count|int) }}"
+    kubeinit_cluster_next_available: "{{ kubeinit_cluster_next_available | ansible.utils.ipmath(kubeinit_spec_extra_count|int) }}"
   when: kubeinit_spec_extra_count|int > 0
 
 - name: Set service_nodes_map_list fact to defaults
@@ -185,7 +185,7 @@
     name: "{{ service_node }}"
     group: 'service_nodes'
     ansible_connection: 'ssh'
-    ansible_host: "{{ kubeinit_cluster_last_available | ansible.netcommon.ipmath(0 - ansible_loop.index0) | ansible.netcommon.ipv4('address') }}"
+    ansible_host: "{{ kubeinit_cluster_last_available | ansible.utils.ipmath(0 - ansible_loop.index0) | ansible.utils.ipv4('address') }}"
     type: 'container'
   loop: "{{ groups['service_nodes'] }}"
   loop_control:
@@ -194,16 +194,16 @@
 
 - name: Update last available address for allocation
   ansible.builtin.set_fact:
-    kubeinit_cluster_last_available: "{{ kubeinit_cluster_last_available | ansible.netcommon.ipmath(0 - (kubeinit_spec_service_count|int)) }}"
+    kubeinit_cluster_last_available: "{{ kubeinit_cluster_last_available | ansible.utils.ipmath(0 - (kubeinit_spec_service_count|int)) }}"
 
 - name: Set cluster dhcp facts
   ansible.builtin.set_fact:
-    kubeinit_cluster_dhcp_start: "{{ kubeinit_cluster_next_available | ansible.netcommon.ipv4('address') }}"
-    kubeinit_cluster_dhcp_end: "{{ kubeinit_cluster_last_available | ansible.netcommon.ipv4('address') }}"
+    kubeinit_cluster_dhcp_start: "{{ kubeinit_cluster_next_available | ansible.utils.ipv4('address') }}"
+    kubeinit_cluster_dhcp_end: "{{ kubeinit_cluster_last_available | ansible.utils.ipv4('address') }}"
 
 - name: Set cluster dhcp range size
   ansible.builtin.set_fact:
-    kubeinit_cluster_dhcp_count: "{{ (kubeinit_cluster_dhcp_end | ansible.netcommon.ipv4('int') | int) - (kubeinit_cluster_dhcp_start | ansible.netcommon.ipv4('int') | int) + 1 }}"
+    kubeinit_cluster_dhcp_count: "{{ (kubeinit_cluster_dhcp_end | ansible.utils.ipv4('int') | int) - (kubeinit_cluster_dhcp_start | ansible.utils.ipv4('int') | int) + 1 }}"
 
 - name: Assert sufficient dhcp range
   ansible.builtin.assert:
