@@ -27,6 +27,7 @@ cd kubeinit
 rm -rf ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
 ansible-galaxy collection build -v --force --output-path releases/
 ansible-galaxy collection install --force --force-with-deps releases/kubeinit-kubeinit-`cat galaxy.yml | shyaml get-value version`.tar.gz
+cp galaxy.yml ~/.ansible/collections/ansible_collections/kubeinit/kubeinit/
 cd ~/.ansible/collections/ansible_collections/kubeinit/kubeinit
 
 export HOME=$(eval echo ~$USER)

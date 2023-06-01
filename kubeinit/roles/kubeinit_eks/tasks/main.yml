@@ -108,22 +108,26 @@
       register: _result_kubeadm_init_output
       changed_when: "_result_kubeadm_init_output.rc == 0"
 
+    - name: Create the cluster init template
+      ansible.builtin.copy:
+        dest: ~/config.yml
+        mode: '0644'
+        content: |
+          apiVersion: kubeadm.k8s.io/v1beta3
+          kind: ClusterConfiguration
+          etcd:
+            local:
+              imageRepository: "{{ kubeinit_registry_uri }}"
+              imageTag: {{ _result_etcd_tag.stdout }}
+          controlPlaneEndpoint: "api.{{ kubeinit_cluster_fqdn }}:6443"
+          kubernetesVersion: "stable-{{ kubeinit_eks_kubernetes_version }}"
+          networking:
+            serviceSubnet: "{{ kubeinit_eks_service_network_cidr }}"
+            podSubnet: "{{ kubeinit_eks_pod_network_cidr }}"
+
     - name: Initialize Kubernetes cluster
       ansible.builtin.shell: |
         set -eo pipefail
-        cat << EOF > ~/config.yml
-        apiVersion: kubeadm.k8s.io/v1beta2
-        kind: ClusterConfiguration
-        etcd:
-          local:
-            imageRepository: "{{ kubeinit_registry_uri }}"
-            imageTag: {{ _result_etcd_tag.stdout }}
-        controlPlaneEndpoint: "api.{{ kubeinit_cluster_fqdn }}:6443"
-        kubernetesVersion: "stable-{{ kubeinit_eks_kubernetes_version }}"
-        networking:
-          serviceSubnet: "{{ kubeinit_eks_service_network_cidr }}"
-          podSubnet: "{{ kubeinit_eks_pod_network_cidr }}"
-        EOF
         kubeadm init  --upload-certs  --config=config.yml
       args:
         executable: /bin/bash
@@ -191,9 +195,9 @@
 
 - name: Join additional controller nodes using the PK
   ansible.builtin.shell: |
-   kubeadm reset -f || true
-   echo "{{ _result_join_command.stdout }} {{ eks_controller_join_key }}" > ~/eks_controller_join_command.sh
-   sh ~/eks_controller_join_command.sh
+    kubeadm reset -f || true
+    echo "{{ _result_join_command.stdout }} {{ eks_controller_join_key }}" > ~/eks_controller_join_command.sh
+    sh ~/eks_controller_join_command.sh
   args:
     executable: /bin/bash
   register: _result
