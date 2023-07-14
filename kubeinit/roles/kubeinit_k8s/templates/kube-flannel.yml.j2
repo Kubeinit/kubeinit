@@ -1,5 +1,7 @@
+#
 # From: https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
-
+# There is a custom config for cni-conf.json check that section before updating the template content
+#
 ---
 kind: Namespace
 apiVersion: v1
@@ -76,26 +78,16 @@ metadata:
     tier: node
     k8s-app: flannel
     app: flannel
+#
+# DO NOT EDIT: WE USE FLANNEL+CRIO SO
+# /etc/cni/net.d/10-flannel.conflist
+# IS CONFIGURED CORRECTLY
+#
 data:
   cni-conf.json: |
     {
-      "name": "cbr0",
-      "cniVersion": "{{ kubeinit_k8s_flannel_cni_version }}",
-      "plugins": [
-        {
-          "type": "flannel",
-          "delegate": {
-            "hairpinMode": true,
-            "isDefaultGateway": true
-          }
-        },
-        {
-          "type": "portmap",
-          "capabilities": {
-            "portMappings": true
-          }
-        }
-      ]
+        "name": "crio",
+        "type": "flannel"
     }
   net-conf.json: |
     {
