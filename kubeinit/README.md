@@ -128,7 +128,7 @@ ansible-galaxy collection install --force --force-with-deps releases/kubeinit-ku
 ansible-playbook \
     -v --user root \
     -e kubeinit_spec=okd-libvirt-3-1-1 \
-    -i ./kubeinit/inventory.yml \
+    -e hypervisor_hosts_spec='[{"ansible_host":"nyctea"},{"ansible_host":"tyto"}]' \
     ./kubeinit/playbook.yml
 ```
 
