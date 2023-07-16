@@ -199,6 +199,17 @@
   changed_when: "_result.rc == 0"
   delegate_to: "{{ kubeinit_provision_service_node }}"
 
+- name: Install kustomize
+  ansible.builtin.shell: |
+    curl -sL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.1.0/kustomize_v5.1.0_linux_amd64.tar.gz > kustomize.tar.gz
+    tar xzf ./kustomize.tar.gz
+    mv ./kustomize /bin/
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_provision_service_node }}"
+
 - name: Autoload kubeconfig
   ansible.builtin.shell: |
     echo "export KUBECONFIG=~/.kube/config" >> ~/.bashrc
