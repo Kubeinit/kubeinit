@@ -52,12 +52,20 @@
 
 - name: Make sure cri-o binary is reachable and the configuration is correct
   ansible.builtin.shell: |
+    yum install -y jq
     # Make sure crio binary is reachable
     ln -s /usr/bin/crio /usr/local/bin/crio
+    tmp=$(mktemp)
+    crioconf=$(ls /etc/cni/net.d/87-crio-bridge* | xargs realpath)
+    jq '.plugins[0].ipam.ranges[0][0].subnet = "{{ kubeinit_eks_pod_network }}/{{ kubeinit_eks_pod_subnet_len }}"' "$crioconf" > "$tmp" && mv -f "$tmp" "$crioconf"
+    # jq '.type = "flannel"' /etc/cni/net.d/87-crio-bridge.conf > "$tmp" && mv -f "$tmp" /etc/cni/net.d/87-crio-bridge.conf
+    # rm -rf /etc/cni/net.d/87-crio-bridge.conf
+    # echo '{"name": "crio","type": "flannel"}' > /etc/cni/net.d/10-crio.conf
     cp /etc/crio/crio.conf /etc/crio/crio.conf.backup
     sed -i s/^.*default_runtime\ =\ .*$/default_runtime\ =\ \"crun\"/g /etc/crio/crio.conf
+
     # There is no example config for crun anymore
-    # sed -i "s/^\#\[crio\.runtime\.runtimes\.crun.*\]/[crio.runtime.runtimes.crun]/g" /etc/crio/crio.conf
+    #sed -i "s/^\#\[crio\.runtime\.runtimes\.crun.*\]/[crio.runtime.runtimes.crun]/g" /etc/crio/crio.conf
     cat << EOF >> /etc/crio/crio.conf
     [crio.runtime.runtimes.crun]
     runtime_path = "/usr/bin/crun"
@@ -141,16 +149,9 @@
   register: _result
   changed_when: "_result.rc == 0"
 
-- name: Install (replace) requirements
+- name: Install (replace) kubectl
   ansible.builtin.shell: |
     set -eo pipefail
-
-    # TODO:FIXME: Replace with a loop
-    # Binaries to be replaced
-    bin_files="kubectl kubeadm kubelet"
-    for val in $bin_files; do
-        echo "Replacing $val"
-    done
 
     # kubectl
     kubectl_bin=$( curl -s https://distro.eks.amazonaws.com/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}.yaml | \
@@ -158,6 +159,14 @@
     wget -q $kubectl_bin
     chmod +x kubectl
     mv ./kubectl $(which kubectl)
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Install (replace) kubeadm
+  ansible.builtin.shell: |
+    set -eo pipefail
 
     # kubeadm
     kubeadm_bin=$( curl -s https://distro.eks.amazonaws.com/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}.yaml | \
@@ -165,6 +174,14 @@
     wget -q $kubeadm_bin
     chmod +x kubeadm
     mv ./kubeadm $(which kubeadm)
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Install (replace) kubelet
+  ansible.builtin.shell: |
+    set -eo pipefail
 
     # kubelet
     kubelet_bin=$( curl -s https://distro.eks.amazonaws.com/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}/kubernetes-{{ kubeinit_eks_kubernetes_major_minor }}-eks-{{ kubeinit_eks_revision }}.yaml | \
