@@ -162,7 +162,7 @@ podman exec -it api-server /bin/bash -c "ara-manage migrate"
 # Install the CLI/agent
 #
 python3 -m pip install -r ./agent/requirements.txt
-KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
+KUBEINIT_REVISION="${revision:-99}" python3 -m pip install --upgrade ./agent
 
 export KUBEINIT_COMMON_DNS_PUBLIC='10.11.5.160'
 
