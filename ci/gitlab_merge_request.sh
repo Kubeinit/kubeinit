@@ -92,7 +92,7 @@ export ARA_API_SERVER="http://127.0.0.1:8000"
 # Install the CLI/agent
 #
 python3 -m pip install -r ./agent/requirements.txt
-KUBEINIT_REVISION="${revision:-ci}" python3 -m pip install --upgrade ./agent
+KUBEINIT_REVISION="${revision:-99}" python3 -m pip install --upgrade ./agent
 
 KUBEINIT_SPEC=$KUBEINIT_SPEC_LABEL
 
