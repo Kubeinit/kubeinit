@@ -48,7 +48,8 @@
         # Make sure crio binary is reachable
         ln -s /usr/bin/crio /usr/local/bin/crio
         tmp=$(mktemp)
-        jq '.plugins[0].ipam.ranges[0][0].subnet = "{{ kubeinit_k8s_pod_network }}/{{ kubeinit_k8s_pod_subnet_len }}"' /etc/cni/net.d/87-crio-bridge.conflist > "$tmp" && mv -f "$tmp" /etc/cni/net.d/87-crio-bridge.conflist
+        crioconf=$(ls /etc/cni/net.d/87-crio-bridge* | xargs realpath)
+        jq '.plugins[0].ipam.ranges[0][0].subnet = "{{ kubeinit_k8s_pod_network }}/{{ kubeinit_k8s_pod_subnet_len }}"' "$crioconf" > "$tmp" && mv -f "$tmp" "$crioconf"
         # jq '.type = "flannel"' /etc/cni/net.d/87-crio-bridge.conf > "$tmp" && mv -f "$tmp" /etc/cni/net.d/87-crio-bridge.conf
         # rm -rf /etc/cni/net.d/87-crio-bridge.conf
         # echo '{"name": "crio","type": "flannel"}' > /etc/cni/net.d/10-crio.conf
