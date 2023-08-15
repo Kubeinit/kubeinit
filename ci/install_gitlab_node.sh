@@ -105,7 +105,7 @@ else
     echo "Or:"
     echo "Get the device name and extend it, from the df -h"
     echo "    vgdisplay"
-    echo "    lvextend -L +1000G /dev/mapper/this-is-an-lvm-volume-device-root"
+    echo "    lvextend -l +100%FREE /dev/fedora_*/root"
     echo "    If ext4:"
     echo "    resize2fs /dev/mapper/this-is-an-lvm-volume-device"
     echo "    If xfs:"
