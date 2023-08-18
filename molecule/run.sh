@@ -16,14 +16,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-## Shell Opts ----------------------------------------------------------------
-
 set -o pipefail
 set -xeuo
-
-## Vars ----------------------------------------------------------------------
-export PROJECT_DIR=${PWD}
-export ANSIBLE_REMOTE_TMP=/tmp/$USER/ansible
 
 if [ ! -f tox.ini ]; then
     echo "EXECUTE THIS SCRIPT FROM THE REPOSITORY ROOT DIRECTORY"
@@ -34,30 +28,14 @@ if [ ! -f tox.ini ]; then
     exit 1
 fi
 
-## Install the collection --------------
-# VERSION=$(grep '^version: ' kubeinit/galaxy.yml | awk '{print $2}')
-# ansible-galaxy collection build kubeinit -v --force --output-path releases/
-# cd releases/
-# ln -sf kubeinit-kubeinit-$VERSION.tar.gz kubeinit-kubeinit-latest.tar.gz
-# ansible-galaxy collection install --force kubeinit-kubeinit-latest.tar.gz
-# cd ..
+# Install Molecule Python requirements
+python3 -m pip install -r ./molecule/molecule-requirements.txt
 
-## Main ----------------------------------------------------------------------
+# Install Kubeinit and Molecule Ansible collections requirements
+ansible-galaxy collection install --force -r ./kubeinit/requirements.yml
+ansible-galaxy collection install --force -r ./molecule/molecule-requirements.yml
 
-# Create a virtual env
-python3 -m virtualenv --system-site-packages "${HOME}/test-python"
-
-# Install local requirements
-if [[ -d "${HOME}/.cache/pip/wheels" ]]; then
-    rm -rf "${HOME}/.cache/pip/wheels"
-fi
-
-"${HOME}/test-python/bin/pip" install \
-    -r "${PROJECT_DIR}/molecule/molecule-requirements.txt"
-
-# Run local test
-PS1="[\u@\h \W]\$" source "${HOME}/test-python/bin/activate"
-
+# Run molecule
 cd ./kubeinit/roles/
 python3 -m pytest \
         --trace \
