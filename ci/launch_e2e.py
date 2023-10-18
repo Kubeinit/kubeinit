@@ -37,7 +37,7 @@ from pybadges import badge
 
 GH_LABELS = []
 
-GH_RES_TRACKER = 744
+GH_RES_TRACKER = 760
 
 
 def main(job_type, cluster_type, job_label, pr_id, verbosity, nolog=False):
