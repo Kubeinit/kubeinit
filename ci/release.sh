@@ -109,7 +109,11 @@ if [ "$publish" == "1" ]; then
     mkdir -p releases
     ansible-galaxy collection build -v --force --output-path releases/
     ansible-galaxy collection publish \
-        releases/$current_galaxy_namespace-$current_galaxy_name-$current_galaxy_version.tar.gz --api-key $GALAXY_KEY
+        releases/$current_galaxy_namespace-$current_galaxy_name-$current_galaxy_version.tar.gz \
+        --server https://beta-galaxy.ansible.com \
+        --ignore-certs \
+        --verbose \
+        --api-key $GALAXY_KEY
 
     echo 'Building and pushing a new tag GitHub...'
     curl -H "Authorization: token $GITHUB_TOKEN" --data "$(generate_post_data)" "https://api.github.com/repos/kubeinit/kubeinit/releases"
