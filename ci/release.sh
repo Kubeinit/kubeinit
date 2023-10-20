@@ -110,7 +110,7 @@ if [ "$publish" == "1" ]; then
     ansible-galaxy collection build -v --force --output-path releases/
     ansible-galaxy collection publish \
         releases/$current_galaxy_namespace-$current_galaxy_name-$current_galaxy_version.tar.gz \
-        --server https://beta-galaxy.ansible.com \
+        --server https://galaxy.ansible.com \
         --ignore-certs \
         --verbose \
         --api-key $GALAXY_KEY
