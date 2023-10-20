@@ -45,7 +45,8 @@ fi
 
 namespace=kubeinit
 name=kubeinit
-all_published_versions=$(curl https://galaxy.ansible.com/api/v2/collections/$namespace/$name/versions/ | jq -r '.results' | jq -c '.[].version')
+
+all_published_versions=$(curl https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/index/$namespace/$name/versions/?format=json | jq -r '.data' | jq -c '.[].version')
 current_galaxy_version=$(cat kubeinit/galaxy.yml | shyaml get-value version)
 current_galaxy_namespace=$(cat kubeinit/galaxy.yml | shyaml get-value namespace)
 current_galaxy_name=$(cat kubeinit/galaxy.yml | shyaml get-value name)
