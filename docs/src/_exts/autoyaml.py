@@ -100,7 +100,11 @@ class AutoYAMLDirective(Directive):
             try:
                 output_nodes.extend(self._parse_file(location))
             except Exception as e:
-                raise AutoYAMLException('Failed to parse YAML file: %s' % (location)) from e
+                print('Override')
+                print(e)
+                # TODO:FIXME
+                pass
+                # raise AutoYAMLException('Failed to parse YAML file: %s' % (location)) from e
         else:
             raise AutoYAMLException('%s:%s: location "%s" is not a file.' % (
                                     self.env.doc2path(self.env.docname, None),
