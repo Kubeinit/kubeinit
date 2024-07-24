@@ -84,8 +84,8 @@ for image in "${container_images[@]}"; do
     exists=$(curl -H "Authorization: Bearer XYZ" -X GET "https://quay.io/api/v1/repository/kubeinit/$container/tag/" | jq .tags[].name | grep \"$tag\" | uniq)
 
     if [ -n "$exists" ]; then
-        quay_hash=$(skopeo inspect --raw docker://quay.io/kubeinit/$container:$tag | jq -r '.digest')
-        docker_hash=$(skopeo inspect --raw docker://docker.io/$namespace/$container:$tag | jq -r '.digest')
+        quay_hash=$(skopeo inspect --raw docker://quay.io/kubeinit/$container:$tag | jq -r '.config.digest')
+        docker_hash=$(skopeo inspect --raw docker://docker.io/$namespace/$container:$tag | jq -r '.config.digest')
 
         if [ "$quay_hash" == "$docker_hash" ]; then
             echo "The image hashes for tag $tag in kubeinit/$container and docker.io/$namespace/$container match. No update needed."
