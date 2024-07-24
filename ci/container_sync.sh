@@ -82,12 +82,22 @@ for image in "${container_images[@]}"; do
     container=${strarr[1]}
     tag=${strarr[2]}
     exists=$(curl -H "Authorization: Bearer XYZ" -X GET "https://quay.io/api/v1/repository/kubeinit/$container/tag/" | jq .tags[].name | grep \"$tag\" | uniq)
-    if [ -z "$exists" ] || [ "$exists" == "\"latest\"" ]; then
-        echo "The tag $tag in kubeinit/$container is not found or is latest, lets copy the container image."
-        copy="skopeo copy docker://docker.io/$namespace/$container:$tag docker://quay.io/kubeinit/$container:$tag"
-        retry 5 $copy
+
+    if [ -n "$exists" ]; then
+        quay_hash=$(skopeo inspect --raw docker://quay.io/kubeinit/$container:$tag | jq -r '.digest')
+        docker_hash=$(skopeo inspect --raw docker://docker.io/$namespace/$container:$tag | jq -r '.digest')
+
+        if [ "$quay_hash" == "$docker_hash" ]; then
+            echo "The image hashes for tag $tag in kubeinit/$container and docker.io/$namespace/$container match. No update needed."
+            continue
+        else
+            echo "The image hashes for tag $tag in kubeinit/$container and docker.io/$namespace/$container do not match. Updating the image."
+        fi
     else
-        echo "The tag $tag in kubeinit/$container is found and is not latest, no need to copy anything."
+        echo "The tag $tag in kubeinit/$container is not found. Copying the container image."
     fi
+
+    copy="skopeo copy docker://docker.io/$namespace/$container:$tag docker://quay.io/kubeinit/$container:$tag"
+    retry 5 $copy
 
 done
