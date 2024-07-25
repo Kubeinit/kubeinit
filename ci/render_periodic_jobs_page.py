@@ -50,12 +50,6 @@ def main():
                 distro = "Origin Distribution of K8s"
             elif distro == 'kid':
                 distro = "KubeInit distro"
-            elif distro == 'eks':
-                distro = "Amazon EKS Distro"
-            elif distro == 'rke':
-                distro = "Rancher K8s Engine"
-            elif distro == 'cdk':
-                distro = "Canonical Distribution of K8s"
             elif distro == 'k8s':
                 distro = "Vanilla K8s"
             elif '.' in distro:

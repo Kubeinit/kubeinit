@@ -83,7 +83,7 @@ The current supported syntax of this variable is:
 `<distro>-<driver>-<controllers>-<computes>-<hypervisors>`
 
 For example, combinations like okd-libvirt-1-2-1, k8s-libvirt-3-1-1,
-eks-libvirt-1-0-1 are all valid.
+are all valid.
 
 
 Deployment
