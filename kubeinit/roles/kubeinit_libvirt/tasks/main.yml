@@ -40,19 +40,25 @@
   when: (hostvars[kubeinit_deployment_node_name].ansible_distribution == 'CentOS' and hostvars[kubeinit_deployment_node_name].ansible_distribution_major_version == "7")
 
 - name: Fix libvirt qemu bug
-  ansible.builtin.shell: |
-    set -eo pipefail
-    mkdir -p /etc/qemu/firmware
-    touch /etc/qemu/firmware/50-edk2-ovmf-cc.json
-  args:
-    executable: /bin/bash
-  register: _result
-  changed_when: "_result.rc == 0"
+  block:
+
+    - name: Create folder if missing
+      ansible.builtin.file:
+        path: /etc/qemu/firmware
+        state: directory
+        mode: '0755'
+
+    - name: Touch firmware file
+      ansible.builtin.file:
+        path: /etc/qemu/firmware/50-edk2-ovmf-cc.json
+        state: touch
+        mode: '0644'
 
 - name: Install CentOS based requirements
   ansible.builtin.package:
     name: "{{ kubeinit_libvirt_hypervisor_dependencies.centos }}"
     state: present
+    use: "{{ hostvars[inventory_hostname]['ansible_facts']['pkg_mgr'] }}"
   when: hostvars[kubeinit_deployment_node_name].distribution_family == 'CentOS' or hostvars[kubeinit_deployment_node_name].distribution_family == 'Fedora'
   register: _result_installed_packages_centos
 
@@ -60,18 +66,18 @@
 # BEGIN:TODO:FIXME: Remove this testing repo after OVN is in the stable branch.
 # This should be applicable only to Debian and not to Ubuntu
 #
-- name: Enable the testing repo in Debian
-  ansible.builtin.lineinfile:
-    state: present
-    path: "/etc/apt/sources.list"
-    line: "deb http://http.us.debian.org/debian/ testing non-free contrib main"
-  when: hostvars[kubeinit_deployment_node_name].os == 'debian'
-
-- name: Update packages list
-  ansible.builtin.command: apt-get update
-  when: hostvars[kubeinit_deployment_node_name].os == 'debian'
-  changed_when: false
-
+#- name: Enable the testing repo in Debian
+#  ansible.builtin.lineinfile:
+#    state: present
+#    path: "/etc/apt/sources.list"
+#    line: "deb http://http.us.debian.org/debian/ testing non-free contrib main"
+#  when: hostvars[kubeinit_deployment_node_name].os == 'debian'
+#
+#- name: Update packages list
+#  ansible.builtin.command: apt-get update
+#  when: hostvars[kubeinit_deployment_node_name].os == 'debian'
+#  changed_when: false
+#
 #
 # END:TODO:FIXME
 #
@@ -80,6 +86,7 @@
   ansible.builtin.package:
     name: "{{ kubeinit_libvirt_hypervisor_dependencies.debian }}"
     state: present
+    use: "{{ hostvars[inventory_hostname]['ansible_facts']['pkg_mgr'] }}"
   when: hostvars[kubeinit_deployment_node_name].distribution_family == 'Debian'
   register: _result_installed_packages_debian
 

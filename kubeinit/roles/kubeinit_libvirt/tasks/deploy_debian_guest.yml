@@ -16,7 +16,8 @@
 
 - name: Deploy a Debian based guest
   block:
-    - name: Create the interfaces template for networking details
+
+    - name: Create the network interface template for networking details
       ansible.builtin.template:
         src: "debian-network-config-enp1s0.j2"
         dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/enp1s0"
@@ -47,7 +48,7 @@
 
     - name: Grow the partitions
       ansible.builtin.shell: |
-        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_cloud_images[kubeinit_cluster_distro].image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2'
+        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_cloud_images['debian'].image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2'
         qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
       args:
         executable: /bin/bash
@@ -70,6 +71,7 @@
             --run-command 'mkdir -p {{ kubeinit_libvirt_source_keystore_dir }}' \
             --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
           {% endif %}
+          --run-command 'mkdir -p /etc/network/interfaces.d' \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/enp1s0:/etc/network/interfaces.d \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/hosts.debian.tmpl:/etc/cloud/templates \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/90_dpkg.cfg:/etc/cloud/cloud.cfg.d \
@@ -83,10 +85,10 @@
       ansible.builtin.shell: |
         virt-install \
             --connect qemu:///system \
-            --name={{ hostvars[kubeinit_deployment_node_name].guest_name }} \
+            --name {{ hostvars[kubeinit_deployment_node_name].guest_name }} \
             --memory memory={{ hostvars[kubeinit_deployment_node_name].ram|int // 1024 }} \
-            --vcpus={{ hostvars[kubeinit_deployment_node_name].vcpus }},maxvcpus={{ hostvars[kubeinit_deployment_node_name].maxvcpus }} \
-            --os-variant=ubuntu18.04 \
+            --vcpus {{ hostvars[kubeinit_deployment_node_name].vcpus }},maxvcpus={{ hostvars[kubeinit_deployment_node_name].maxvcpus }} \
+            --os-variant ubuntu18.04 \
             --autostart \
             --network network={{ kubeinit_cluster_hostvars.network_name }},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }},target.dev=veth0-{{ hostvars[kubeinit_deployment_node_name].ansible_host | ansible.utils.ip4_hex }},model=virtio \
             --graphics none \
@@ -98,7 +100,7 @@
       register: _result
       changed_when: "_result.rc == 0"
 
-    - name: "Wait until is running: {{ kubeinit_deployment_node_name }}"
+    - name: "Wait until guest is running {{ kubeinit_deployment_node_name }}"
       community.libvirt.virt:
         command: list_vms
         state: running
@@ -180,6 +182,7 @@
       ansible.builtin.package:
         name: "*"
         state: latest
+        use: apt
 
     - name: Disable SWAP
       ansible.builtin.shell: |
@@ -208,16 +211,11 @@
       register: _result
       changed_when: "_result.rc == 0"
 
-    - name: Perform any distro-specific post-deployment guest configuration
-      ansible.builtin.include_role:
-        name: "kubeinit.kubeinit.{{ kubeinit_cluster_distro_role }}"
-        tasks_from: post_configure_guest.yml
-        public: true
-
     - name: Update packages
       ansible.builtin.package:
         name: "*"
         state: latest
+        use: apt
       register: _result_update_packages
 
     - name: Reboot immediately after the package update

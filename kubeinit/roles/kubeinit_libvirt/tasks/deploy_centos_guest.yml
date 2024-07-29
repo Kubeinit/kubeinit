@@ -42,15 +42,14 @@
 
     - name: Grow the partitions
       ansible.builtin.shell: |
-        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_cloud_images[kubeinit_cluster_distro].image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2'
+        qemu-img convert -f qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ kubeinit_libvirt_cloud_images['centos'].image }}' -O qcow2 '{{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2'
         qemu-img resize {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2 +{{ hostvars[kubeinit_deployment_node_name].disk }}
       args:
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
 
-    # This will inject the VM configuration in the case of a CentOS machine
-    - name: "Inject virt-customize assets in {{ kubeinit_deployment_node_name }}"
+    - name: "Inject virt-customize assets"
       ansible.builtin.shell: |
         virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2 \
           --install python3 \
@@ -94,7 +93,7 @@
       register: _result
       changed_when: "_result.rc == 0"
 
-    - name: "Wait until it is running {{ kubeinit_deployment_node_name }}"
+    - name: "Wait until guest is running {{ kubeinit_deployment_node_name }}"
       community.libvirt.virt:
         command: list_vms
         state: running
@@ -180,16 +179,174 @@
       register: _result
       changed_when: "_result.rc == 0"
 
-    - name: Perform any distro-specific post-deployment guest configuration
-      ansible.builtin.include_role:
-        name: "kubeinit.kubeinit.{{ kubeinit_cluster_distro_role }}"
-        tasks_from: post_configure_guest.yml
-        public: true
+    - name: Install official package dependencies
+      ansible.builtin.package:
+        name:
+        - container-selinux
+        state: present
+        use: dnf
+
+    - name: Install and configure cri-o
+      block:
+        #
+        # cri-o repos
+        #
+
+        - name: Remove repo before adding it
+          ansible.builtin.file:
+            path: /etc/yum.repos.d/cri-o.repo
+            state: absent
+
+        - name: Creating a repository file for Kubernetes
+          ansible.builtin.file:
+            path: /etc/yum.repos.d/cri-o.repo
+            state: touch
+            mode: '0644'
+
+        - name: Adding repository details in Kubernetes repo file.
+          ansible.builtin.blockinfile:
+            path: /etc/yum.repos.d/cri-o.repo
+            block: |
+              [cri-o]
+              name=CRI-O
+              baseurl=https://pkgs.k8s.io/addons:/cri-o:/stable:/v{{ kubeinit_k8s_kubernetes_version }}/rpm/
+              enabled=1
+              gpgcheck=1
+              gpgkey=https://pkgs.k8s.io/addons:/cri-o:/stable:/v{{ kubeinit_k8s_kubernetes_version }}/rpm/repodata/repomd.xml.key
+
+        #
+        # cri-o config
+        #
+
+        - name: Install the matching version of cri-o
+          ansible.builtin.package:
+            name: "{{ 'cri-o-' + kubeinit_k8s_kubernetes_version + '.*' }}"
+            state: present
+            use: dnf
+
+        - name: Install the latest version of crun
+          ansible.builtin.package:
+            name: crun
+            state: present
+            use: dnf
+
+        - name: Make sure cri-o binary is reachable and the configuration is correct
+          ansible.builtin.shell: |
+            yum install -y jq
+            # Make sure crio binary is reachable
+            ln -s /usr/bin/crio /usr/local/bin/crio
+            tmp=$(mktemp)
+            crioconf=$(ls /etc/cni/net.d/87-crio-bridge* | xargs realpath)
+            jq '.plugins[0].ipam.ranges[0][0].subnet = "{{ kubeinit_k8s_pod_network_cidr }}"' "$crioconf" > "$tmp" && mv -f "$tmp" "$crioconf"
+            cp /etc/crio/crio.conf /etc/crio/crio.conf.backup
+            sed -i s/^.*default_runtime\ =\ .*$/default_runtime\ =\ \"crun\"/g /etc/crio/crio.conf
+
+            # There is no example config for crun anymore
+            #sed -i "s/^\#\[crio\.runtime\.runtimes\.crun.*\]/[crio.runtime.runtimes.crun]/g" /etc/crio/crio.conf
+            cat << EOF >> /etc/crio/crio.conf
+            [crio.runtime.runtimes.crun]
+            runtime_path = "/usr/bin/crun"
+            runtime_type = "oci"
+            runtime_root = "/run/crun"
+            EOF
+          args:
+            executable: /bin/bash
+          register: _result
+          changed_when: "_result.rc == 0"
+
+        - name: Enable/start/status cri-o
+          ansible.builtin.shell: |
+            systemctl enable crio
+            systemctl start crio
+            systemctl status crio
+          args:
+            executable: /bin/bash
+          register: _result
+          changed_when: "_result.rc == 0"
+      when: kubeinit_k8s_container_runtime == "cri-o"
+
+    - name: Install and configure containerd
+      block:
+        - name: Deploy containerd
+          ansible.builtin.shell: |
+            set -o pipefail
+            modprobe overlay
+            modprobe br_netfilter
+            cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
+            overlay
+            br_netfilter
+            EOF
+            cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf
+            net.bridge.bridge-nf-call-iptables = 1
+            net.ipv4.ip_forward = 1
+            net.bridge.bridge-nf-call-ip6tables = 1
+            EOF
+            sysctl --system
+            dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+            dnf update
+            dnf install -y containerd
+            mkdir -p /etc/containerd
+            containerd config default | sudo tee /etc/containerd/config.toml
+            sed -i "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml
+          args:
+            executable: /bin/bash
+          register: _result
+          changed_when: "_result.rc == 0"
+
+        - name: Enable/start/status containerd
+          ansible.builtin.shell: |
+            systemctl enable containerd
+            systemctl start containerd
+            systemctl status containerd
+          args:
+            executable: /bin/bash
+          register: _result
+          changed_when: "_result.rc == 0"
+      when: kubeinit_k8s_container_runtime == "containerd"
+
+    #
+    # kubernetes repo
+    #
+
+    - name: Remove repo before adding it
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: absent
+
+    - name: Creating a repository file for Kubernetes
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: touch
+        mode: '0644'
+
+    - name: Adding repository details in Kubernetes repo file.
+      ansible.builtin.blockinfile:
+        block: |
+          [kubernetes]
+          name=Kubernetes
+          baseurl=https://pkgs.k8s.io/core:/stable:/v{{ kubeinit_k8s_kubernetes_version }}/rpm/
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://pkgs.k8s.io/core:/stable:/v{{ kubeinit_k8s_kubernetes_version }}/rpm/repodata/repomd.xml.key
+          exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
+        path: /etc/yum.repos.d/kubernetes.repo
+
+    - name: Install requirements
+      ansible.builtin.command: |
+        dnf install -y kubelet-{{ kubeinit_k8s_kubernetes_version }}.* kubeadm-{{ kubeinit_k8s_kubernetes_version }}.* kubectl-{{ kubeinit_k8s_kubernetes_version }}.* --disableexcludes=kubernetes
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Enable kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        enabled: yes
 
     - name: Update packages
       ansible.builtin.package:
         name: "*"
         state: latest
+        use: dnf
       register: _result_update_packages
 
     - name: Reboot immediately after the package update

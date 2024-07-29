@@ -93,6 +93,7 @@
     group: ['controller_nodes', 'cluster_nodes']
     ansible_connection: 'ssh'
     ansible_host: "{{ kubeinit_cluster_next_available | ansible.utils.ipmath(ansible_loop.index0) | ansible.utils.ipv4('address') }}"
+    ansible_user: root
     type: 'virtual'
   loop: "{{ range(kubeinit_spec_controller_count|int) | list }}"
   loop_control:
@@ -110,6 +111,7 @@
     group: ['compute_nodes', 'cluster_nodes']
     ansible_connection: 'ssh'
     ansible_host: "{{ kubeinit_cluster_next_available | ansible.utils.ipmath(ansible_loop.index0) | ansible.utils.ipv4('address') }}"
+    ansible_user: root
     type: 'virtual'
   loop: "{{ range(kubeinit_spec_compute_count|int) | list }}"
   loop_control:
@@ -148,6 +150,7 @@
     group: 'extra_nodes'
     ansible_connection: 'ssh'
     ansible_host: "{{ kubeinit_cluster_next_available | ansible.utils.ipmath(ansible_loop.index0) | ansible.utils.ipv4('address') }}"
+    ansible_user: root
     type: 'virtual'
   loop: "{{ groups['extra_nodes'] | default([]) }}"
   loop_control:
@@ -186,6 +189,7 @@
     group: 'service_nodes'
     ansible_connection: 'ssh'
     ansible_host: "{{ kubeinit_cluster_last_available | ansible.utils.ipmath(0 - ansible_loop.index0) | ansible.utils.ipv4('address') }}"
+    ansible_user: root
     type: 'container'
   loop: "{{ groups['service_nodes'] }}"
   loop_control:
@@ -357,13 +361,6 @@
 - name: Set additional kubeinit-env facts
   ansible.builtin.set_fact:
     kubeinit_dns_public: "{{ hostvars['kubeinit-env'].dns_public }}"
-
-- name: Set libvirt release facts
-  ansible.builtin.set_fact:
-    kubeinit_libvirt_debian_release: "11"
-    # It is possible to configure different versions of the OS depending on the distribution
-    # kubeinit_libvirt_ubuntu_release: "{{ 'focal' if (kubeinit_cluster_distro == 'cdk') else 'jammy' }}"
-    kubeinit_libvirt_ubuntu_release: "jammy"
 
 - name: Set registry authentication facts
   ansible.builtin.set_fact:

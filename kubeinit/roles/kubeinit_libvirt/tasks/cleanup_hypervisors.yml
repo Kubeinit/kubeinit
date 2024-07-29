@@ -55,21 +55,27 @@
 #   register: _result
 #   changed_when: "_result.rc == 0"
 
-- name: Reset local ssh keys
+- name: Remove all host ssh_connection_address entries from known_hosts
   ansible.builtin.known_hosts:
-    name: "{{ item[1] }}"
+    name: "{{ hostvars[item].ssh_connection_address }}"
     state: absent
-  loop: "{{ kubeinit_cluster_hostvars.node_aliases }}"
+  loop: "{{ groups['all_hosts'] }}"
 
-- name: Reset ssh keys in hypervisors
-  ansible.builtin.known_hosts:
-    name: "{{ node_alias }}"
-    state: absent
-  loop: "{{ groups['all_hosts'] | product(kubeinit_cluster_hostvars.node_aliases | flatten | unique) }}"
-  vars:
-    kubeinit_deployment_node_name: "{{ item[0] }}"
-    node_alias: "{{ item[1] }}"
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+# - name: Reset ssh keys on localhost
+#   ansible.builtin.known_hosts:
+#     name: "{{ item[1] }}"
+#     state: absent
+#   loop: "{{ kubeinit_cluster_hostvars.node_aliases }}"
+
+# - name: Reset ssh keys in hypervisors
+#   ansible.builtin.known_hosts:
+#     name: "{{ node_alias }}"
+#     state: absent
+#   loop: "{{ groups['all_hosts'] | product(kubeinit_cluster_hostvars.node_aliases | flatten | unique) }}"
+#   vars:
+#     kubeinit_deployment_node_name: "{{ item[0] }}"
+#     node_alias: "{{ item[1] }}"
+#   delegate_to: "{{ kubeinit_deployment_node_name }}"
 
 - name: Remove any existing ssh tunnels on bastion host
   ansible.builtin.shell: |

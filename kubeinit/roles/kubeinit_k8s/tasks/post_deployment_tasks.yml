@@ -15,29 +15,12 @@
 # under the License.
 
 #
-# Deploy the apps
+# Deploy extra roles
 #
-- name: Deploy the apps
-  block:
-    - name: Deploy the apps
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_apps
-        public: yes
-      when: "'apps' in kubeinit_cluster_hostvars.services"
-  vars:
-    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
-
-#
-# Configure NFS
-#
-- name: Configure NFS
-  block:
-    - name: Configure NFS
-      ansible.builtin.include_role:
-        name: kubeinit.kubeinit.kubeinit_nfs
-        public: true
-      when: "'nfs' in kubeinit_cluster_hostvars.services"
-  vars:
-    kubeinit_deployment_node_name: "{{ kubeinit_provision_service_node }}"
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
+- name: Deploy extra roles
+  ansible.builtin.include_role:
+    name: "kubeinit.kubeinit.{{ extra_role }}"
+    public: yes
+  loop: "{{ kubeinit_cluster_hostvars['extra_roles'] | default([]) }}"
+  loop_control:
+    loop_var: extra_role

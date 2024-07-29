@@ -48,8 +48,6 @@ def main():
 
             if distro == 'okd':
                 distro = "Origin Distribution of K8s"
-            elif distro == 'kid':
-                distro = "KubeInit distro"
             elif distro == 'k8s':
                 distro = "Vanilla K8s"
             elif '.' in distro:

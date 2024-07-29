@@ -81,6 +81,7 @@
       ansible.builtin.package_facts:
         manager: "{{ hostvars[_param_gather_host].package_manager }}"
       register: _result_packages
+      no_log: "{{ not ((lookup('env', 'KUBEINIT_SHOW_PACKAGE_FACTS') | bool) or false) }}"
 
     - name: Set podman_is_installed
       ansible.builtin.set_fact:
@@ -89,6 +90,7 @@
     - name: Gather the services facts
       ansible.builtin.service_facts:
       register: _result_services
+      no_log: "{{ not ((lookup('env', 'KUBEINIT_SHOW_SERVICE_FACTS') | bool) or false) }}"
 
     - name: Set _service_state to unknown
       ansible.builtin.set_fact:
@@ -172,7 +174,8 @@
 
     - name: Clear results
       ansible.builtin.set_fact:
-        ansible_facts: {}
+        ansible_facts:
+          pkg_mgr: "{{ _result_facts.ansible_facts.ansible_pkg_mgr }}"
         packages: {}
         services: {}
         _result_facts: {}

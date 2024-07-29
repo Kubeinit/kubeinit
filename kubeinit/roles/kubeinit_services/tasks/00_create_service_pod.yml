@@ -161,9 +161,13 @@
         state: started
       register: _result_pod_info
 
+    - name: Set _pod_info_first_pod fact
+      ansible.builtin.set_fact:
+        _pod_info_first_pod: "{{ _result_pod_info.pod[0] | default(_result_pod_info.pod) }}"
+
     - name: Gather info about the infra container of the services pod
       containers.podman.podman_container_info:
-        name: "{{ _result_pod_info.pod.Containers[0].Name }}"
+        name: "{{ _pod_info_first_pod.Containers[0].Name }}"
       register: _result_infra_container_info
 
   delegate_to: "{{ kubeinit_deployment_delegate }}"
