@@ -15,17 +15,13 @@ default_network_name: kimgtnet0
 #
 cluster_node_configurations_docsplaceholder: 'we should have a cluster_node_configuration main key'
 
-cluster_node_distro:
+cluster_node_default_distro:
   k8s:
     os: centos
-  kid:
-    os: debian
   ocp:
     os: coreos
   okd:
     os: coreos
-
-cluster_node_os: "{{ hostvars['kubeinit-defaults'].cluster_node_distro[kubeinit_cluster_distro].os }}"
 
 cluster_node_vcpus: 8
 cluster_node_maxvcpus: 16
@@ -50,7 +46,7 @@ compute_node_target_order:
 #   -e cluster_nodes_spec='[{"when_group":"controller_nodes","disk"="35G"}]'
 #
 default_cluster_nodes_map_list:
-- os: "{{ hostvars['kubeinit-defaults'].cluster_node_os }}"
+- os: "{{ hostvars['kubeinit-defaults'].cluster_node_default_distro[kubeinit_cluster_distro].os }}"
 - when_type: virtual
   vcpus: "{{ cluster_node_vcpus }}"
   maxvcpus: "{{ cluster_node_maxvcpus }}"
@@ -73,8 +69,6 @@ extra_node_maxvcpus: 16
 extra_node_disk_size: 20G
 extra_node_ram_size: 16777216
 
-juju_controller_node_ram_size: 8388608
-
 extra_node_target_order:
 - hypervisor-02
 - hypervisor-01
@@ -86,17 +80,13 @@ extra_node_target_order:
 #   -e extra_nodes_spec='[{"name":"nova-compute","when_distro":["okd"],"os":"centos"}]'
 #
 default_extra_nodes_map_list:
-- os: "{{ hostvars['kubeinit-defaults'].cluster_node_os }}"
+- os: "{{ hostvars['kubeinit-defaults'].cluster_node_default_distro[kubeinit_cluster_distro].os }}"
 - when_type: virtual
   vcpus: "{{ cluster_node_vcpus }}"
   maxvcpus: "{{ cluster_node_maxvcpus }}"
 - disk: "{{ extra_node_disk_size }}"
   ram: "{{ extra_node_ram_size }}"
   target_order: "{{ extra_node_target_order }}"
-- when_distro:
-  - cdk
-  name: juju-controller
-  ram: "{{ juju_controller_node_ram_size }}"
 - when_distro:
   - ocp
   - okd
@@ -120,15 +110,13 @@ service_node_target_order:
 #   -e service_nodes_spec='[{"services":["apache","bind","dnsmasq"]}]'
 #
 default_service_nodes_map_list:
-- os: "{{ hostvars['kubeinit-defaults'].cluster_node_os }}"
+- os: "{{ hostvars['kubeinit-defaults'].cluster_node_default_distro[kubeinit_cluster_distro].os }}"
   services:
   - bind
   - dnsmasq
   - haproxy
   - apache
   - registry
-  - apps
-  # - nexus
   target_order: "{{ service_node_target_order }}"
 - when_distro:
   - ocp

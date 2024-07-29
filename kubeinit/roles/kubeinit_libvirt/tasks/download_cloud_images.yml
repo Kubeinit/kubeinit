@@ -61,11 +61,12 @@
 
 - name: Create tuples for hosts and cloud images
   ansible.builtin.set_fact:
-    all_hosts_cloud_images: "{{ (all_hosts_cloud_images | default([])) + ([hypervisor] | product([kubeinit_libvirt_cloud_images[kubeinit_cluster_distro]])) }}"
+    all_hosts_cloud_images: "{{ (all_hosts_cloud_images | default([])) + ([hypervisor] | product([kubeinit_libvirt_cloud_images[_cluster_node_os]])) }}"
   loop: "{{ all_hosts_guest_vms }}"
   vars:
     hypervisor: "{{ item[0] }}"
-  when: kubeinit_libvirt_cloud_images[kubeinit_cluster_distro] is defined
+    _cluster_node_os: "{{ hostvars['kubeinit-defaults'].cluster_node_default_distro[kubeinit_cluster_distro].os }}"
+  when: kubeinit_libvirt_cloud_images[_cluster_node_os] is defined
 
 - name: Remove duplicates
   ansible.builtin.set_fact:
@@ -75,7 +76,7 @@
   ansible.builtin.get_url:
     validate_certs: False
     use_proxy: True
-    url: "{{ cloud_image.uri }}{{ cloud_image.image }}"
+    url: "{{ cloud_image.uri + cloud_image.image }}"
     dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ cloud_image.image }}"
     force: no
     mode: '0666'
@@ -85,50 +86,6 @@
     kubeinit_deployment_node_name: "{{ item[0] }}"
     cloud_image: "{{ item[1] }}"
   delegate_to: "{{ kubeinit_deployment_node_name }}"
-
-#
-# TODO:FIXME: Make sure the kernel update do not break the Guest from booting
-#
-
-- name: Update packages in cloud images
-  ansible.builtin.command: |
-    virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ cloud_image.image }} {% if (kubeinit_cluster_distro == 'cdk' or kubeinit_cluster_distro == 'rke') %}--run-command 'env DEBIAN_FRONTEND=noninteractive apt-get -y --allow-remove-essential purge shim-signed'{% endif %} --update
-  loop: "{{ all_hosts_cloud_images }}"
-  vars:
-    kubeinit_deployment_node_name: "{{ item[0] }}"
-    cloud_image: "{{ item[1] }}"
-  register: _result
-  changed_when: "_result.rc == 0"
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
-  # This is dangerous,do not run packages upgrades with virt-customize
-  when: false
-
-#
-# Download extra cloud images for Windows compute nodes or any miscelaneous image requirement
-#
-
-- name: Create tuples for hosts and extra cloud images
-  ansible.builtin.set_fact:
-    all_hosts_extra_cloud_images: "{{ (all_hosts_extra_cloud_images | default([])) + ([hypervisor] | product(kubeinit_libvirt_extra_cloud_images)) }}"
-  loop: "{{ all_hosts_guest_vms }}"
-  vars:
-    hypervisor: "{{ item[0] }}"
-
-- name: Download extra cloud images
-  ansible.builtin.get_url:
-    validate_certs: False
-    use_proxy: True
-    url: "{{ cloud_image.uri }}{{ cloud_image.image }}"
-    dest: "{{ kubeinit_libvirt_target_image_dir }}/{{ cloud_image.image }}"
-    force: no
-    mode: '0666'
-    owner: "{{ hostvars[kubeinit_deployment_node_name].libvirt_qemu_user }}"
-  loop: "{{ all_hosts_extra_cloud_images }}"
-  vars:
-    kubeinit_deployment_node_name: "{{ item[0] }}"
-    cloud_image: "{{ item[1] }}"
-  delegate_to: "{{ kubeinit_deployment_node_name }}"
-
 
 - name: Add hosts and stop if required
   block:

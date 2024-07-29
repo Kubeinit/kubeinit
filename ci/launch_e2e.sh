@@ -232,14 +232,6 @@ echo "(launch_e2e.sh) ==> Deploying the cluster ..."
 FAILED="0"
 KUBEINIT_SPEC=${KUBEINIT_SPEC//,/$'\n'}
 
-# We enable having Windows compute nodes by default in the CI
-# for the k8s-1-1-1 spec scenario
-if [[ "$DISTRO" == "k8s" && "$MASTERS" == "1" && "$WORKERS" == "1" && "$HYPERVISORS" == "1" ]]; then
-    # For enabling Windows deployments use the cluster_nodes_spec like
-    # -e cluster_nodes_spec='[{"when_group":"compute_nodes","os":"windows"}]'
-    CLUSTER_NODES='[{"when_group":"compute_nodes","os":"windows"}]'
-fi
-
 # This conditional will never be true, this is kept as an example about
 # How to wire in extra roles and variables in a deployment
 if [[ "$DISTRO" == "okd" && "$MASTERS" == "1" && "$WORKERS" == "1" && "$HYPERVISORS" == "1" && "$HYPERVISORS" == "falsecondition" ]]; then

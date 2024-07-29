@@ -173,6 +173,7 @@
   ansible.builtin.package:
     state: present
     name: "podman"
+    use: "{{ hostvars['localhost']['ansible_facts']['pkg_mgr'] }}"
   when: not hostvars['localhost'].podman_is_installed
 
 - name: Define service node facts
@@ -181,14 +182,12 @@
     kubeinit_bind_service_name: "{{ kubeinit_cluster_name }}-bind"
     kubeinit_dnsmasq_service_name: "{{ kubeinit_cluster_name }}-dnsmasq"
     kubeinit_haproxy_service_name: "{{ kubeinit_cluster_name }}-haproxy"
-    kubeinit_nexus_service_name: "{{ kubeinit_cluster_name }}-nexus"
     kubeinit_provision_service_name: "{{ kubeinit_cluster_name }}-provision"
     kubeinit_registry_service_name: "{{ kubeinit_cluster_name }}-registry"
     kubeinit_apache_service_node: "{{ kubeinit_cluster_hostvars.services['apache'] | default(None) }}"
     kubeinit_bind_service_node: "{{ kubeinit_cluster_hostvars.services['bind'] | default(None) }}"
     kubeinit_dnsmasq_service_node: "{{ kubeinit_cluster_hostvars.services['dnsmasq'] | default(None) }}"
     kubeinit_haproxy_service_node: "{{ kubeinit_cluster_hostvars.services['haproxy'] | default(None) }}"
-    kubeinit_nexus_service_node: "{{ kubeinit_cluster_hostvars.services['nexus'] | default(None) }}"
     kubeinit_provision_service_node: "{{ kubeinit_cluster_hostvars.services['provision'] }}"
     kubeinit_registry_service_node: "{{ kubeinit_cluster_hostvars.services['registry'] | default(None) }}"
   loop: "{{ ['localhost'] | union(groups['kubeinit_hypervisors']) }}"
@@ -255,17 +254,12 @@
     kubeinit_bind_service_address: "{{ hostvars[kubeinit_bind_service_node].ansible_host | default(None) }}"
     kubeinit_dnsmasq_service_address: "{{ hostvars[kubeinit_dnsmasq_service_node].ansible_host | default(None) }}"
     kubeinit_haproxy_service_address: "{{ hostvars[kubeinit_haproxy_service_node].ansible_host | default(None) }}"
-    kubeinit_nexus_service_address: "{{ hostvars[kubeinit_nexus_service_node].ansible_host | default(None) }}"
     kubeinit_provision_service_address: "{{ hostvars[kubeinit_provision_service_node].ansible_host }}"
     kubeinit_registry_service_address: "{{ hostvars[kubeinit_registry_service_node].ansible_host | default(None) }}"
     kubeinit_service_user: "root"
     kubeinit_service_user_dir: "/root"
     kubeinit_ingress_hostname: "ingress"
     kubeinit_bind_volume_name: "{{ kubeinit_bind_service_name }}-config"
-    kubeinit_nexus_port: "5001"
-    kubeinit_nexus_fqdn: "{{ kubeinit_nexus_service_node }}.{{ kubeinit_cluster_fqdn }}"
-    kubeinit_nexus_fqdn_alt: "nexus.{{ kubeinit_cluster_fqdn }}"
-    kubeinit_nexus_uri: "{{ kubeinit_nexus_service_node }}.{{ kubeinit_cluster_fqdn }}:5001"
     kubeinit_registry_port: "5000"
     kubeinit_registry_fqdn: "{{ kubeinit_registry_service_node }}.{{ kubeinit_cluster_fqdn }}"
     kubeinit_registry_fqdn_alt: "registry.{{ kubeinit_cluster_fqdn }}"

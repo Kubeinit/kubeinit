@@ -17,76 +17,11 @@
 - name: Install podman dependencies if requested
   block:
 
-    - name: Setup kubeinit repo for Debian distribution
-      block:
-
-        - name: Set cgroup_manager for debian release
-          ansible.builtin.copy:
-            content: |
-              [engine]
-              cgroup_manager = "cgroupfs"
-            dest: '/etc/containers/containers.conf'
-            mode: '0644'
-          become: true
-          become_user: root
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _version: "{{ _param_hostvars.ansible_distribution_version.split('-')[0] }}"
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _stability: "{{ 'stable' if (_version is version('11', 'le')) else 'testing' }}"
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _path_element: "{{ _param_hostvars.ansible_distribution + '_' + _version if (_stability is 'stable') else _param_hostvars.ansible_distribution + '_testing' }}"
-
-      when: _param_hostvars.ansible_distribution == 'Debian'
-
-    - name: Setup kubeinit repo for Ubuntu distribution
-      block:
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _version: "{{ _param_hostvars.ansible_distribution_version }}"
-            _stability: "{{ 'stable' if (_param_hostvars.ansible_distribution_version is version('22.04', 'le')) else 'testing' }}"
-
-        - name: Set version facts
-          ansible.builtin.set_fact:
-            _path_element: "{{ '/x' + _param_hostvars.ansible_distribution + '_' + _version }}"
-
-      when: _param_hostvars.ansible_distribution == 'Ubuntu'
-
-    - name: Setup kubeinit repo for Debian family
-      block:
-
-        - name: Make sure we have curl installed
-          ansible.builtin.package:
-            name: curl
-            state: present
-          become: true
-          become_user: root
-
-        - name: Add the Podman kubeinit package repository to Apt
-          ansible.builtin.shell: |
-            set -eo pipefail
-            echo "deb https://download.opensuse.org/repositories/home:/kubeinit/{{ _path_element }}/ /" > /etc/apt/sources.list.d/kubeinit.list
-            curl -L "https://download.opensuse.org/repositories/home:/kubeinit/{{ _path_element }}/Release.key" | apt-key add -
-            apt-get update
-          args:
-            executable: /bin/bash
-          become: true
-          become_user: root
-          register: _result
-          changed_when: "_result.rc == 0"
-
-      when: _param_hostvars.distribution_family == 'Debian'
-
     - name: Install podman dependencies
       ansible.builtin.package:
         name: "{{ kubeinit_prepare_podman_dependencies }}"
         state: present
+        use: "{{ _param_hostvars['ansible_facts']['pkg_mgr'] }}"
       become: true
       become_user: root
 

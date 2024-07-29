@@ -50,15 +50,11 @@ declare -a container_images=(
     "library registry 2"
     "library httpd 2.4"
     "library debian 11"
-    "library ubuntu focal"
+    "library debian 12"
     "library ubuntu jammy"
+    "library ubuntu noble"
     "internetsystemsconsortium bind9 9.18"
-    "sonatype nexus3 3.30.0"
     "nginxinc nginx-unprivileged latest"
-    "flannel flannel-cni-plugin v1.1.2"
-    "flannel flannel v0.21.4"
-    "flannel flannel v0.21.5"
-    "flannel flannel v0.22.0"
 )
 
 retry() {

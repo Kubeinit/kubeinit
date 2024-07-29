@@ -21,6 +21,7 @@
       ansible.builtin.package:
         state: present
         name: "buildah"
+        use: "{{ hostvars[kubeinit_deployment_delegate]['ansible_facts']['pkg_mgr'] }}"
 
     - name: Remove any old buildah container
       ansible.builtin.shell: |
@@ -45,7 +46,7 @@
           register: _result
           changed_when: "_result.rc == 0"
         - name: Install commands and services we will need
-          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- dnf install -q -y systemd openssh openssh-server openssh-clients procps iproute iputils net-tools python3 python3-pip jq
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- dnf install -q -y systemd openssh openssh-server openssh-clients procps iproute iputils net-tools python3 python3-pip python3-dns jq
           register: _result
           changed_when: "_result.rc == 0"
       when: kubeinit_deployment_os == 'centos'
@@ -61,7 +62,7 @@
           register: _result
           changed_when: "_result.rc == 0"
         - name: Install commands and services we will need
-          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip python3-dns jq curl
           register: _result
           changed_when: "_result.rc == 0"
         - name: Missing privilege separation directory
@@ -81,7 +82,7 @@
           register: _result
           changed_when: "_result.rc == 0"
         - name: Install commands and services we will need
-          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip jq curl
+          ansible.builtin.command: buildah run {{ kubeinit_cluster_name }}-provision -- env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true apt-get install -q -y systemd openssh-server openssh-client procps iproute2 iputils-ping net-tools python3 python3-pip python3-dns jq curl
           register: _result
           changed_when: "_result.rc == 0"
         - name: Create folder normally done by service ssh start
@@ -162,6 +163,7 @@
     ansible_connection: containers.podman.podman
     ansible_python_interpreter: /usr/bin/python3
     ansible_podman_extra_args: --remote --connection "{{ hostvars[kubeinit_deployment_node_name].target }}"
+    ansible_user: root
 
 - name: Disable pipelining while using podman connector
   block:
@@ -191,19 +193,25 @@
       changed_when: "_result.rc == 0"
       when: "'registry' in kubeinit_cluster_hostvars.services"
 
-    - name: Make sure packages to generate registry credentials are installed
-      ansible.builtin.package:
-        state: present
-        name: "{{ kubeinit_registry_required_packages | default([]) }}"
-
-    - name: Install cryptography, passlib and nexus3-cli
+    - name: Install cryptography and passlib
       ansible.builtin.shell: |
         set -o pipefail
-        python3 -m pip install -q cryptography==3.3.2 passlib nexus3-cli
+        python3 -m pip install -q cryptography passlib
       args:
         executable: /bin/bash
       register: _result
       changed_when: "_result.rc == 0"
+      when: kubeinit_deployment_os == 'centos'
+
+    - name: Install cryptography, passlib and apt
+      ansible.builtin.shell: |
+        set -o pipefail
+        apt install -y python3-cryptography python3-passlib python3-apt
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+      when: kubeinit_deployment_os == 'ubuntu' or kubeinit_deployment_os == 'debian'
 
     - name: Remove nologin marker
       ansible.builtin.file:

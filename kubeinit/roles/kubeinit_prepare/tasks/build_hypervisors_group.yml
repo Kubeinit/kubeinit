@@ -14,17 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-- name: Omit from documentation grapher
-  block:
-    - name: Stop the deployment if required
-      block:
-        - name: "Stop before 'task-gather-facts' when requested"
-          ansible.builtin.add_host:
-            name: "kubeinit-facts"
-            playbook_terminated: true
-        - name: End play
-          ansible.builtin.meta: end_play
-      when: kubeinit_stop_before_task is defined and kubeinit_stop_before_task == 'task-gather-facts'
+- name: Stop the deployment if requested
+  ansible.builtin.assert:
+    msg: 'Stopping before task-gather-facts'
+    that: (kubeinit_stop_before_task | default('')) != 'task-gather-facts'
   tags: omit_from_grapher
 
 #
@@ -51,6 +44,14 @@
     _param_secret_names:
       - kubeinit-ssh-key
 
+- name: Gather additional facts from localhost for kubeinit
+  ansible.builtin.include_role:
+    name: kubeinit.kubeinit.kubeinit_libvirt
+    tasks_from: gather_host_facts.yml
+    public: true
+  vars:
+    _param_gather_host: 'localhost'
+
 - name: Lookup remote_user from command-line
   ansible.builtin.set_fact:
     kubeinit_cli_remote_user: "{{ lookup('kubeinit.kubeinit.cli_args', 'remote_user') }}"
@@ -63,12 +64,14 @@
     that: not hostvars['kubeinit-facts'].container_run or kubeinit_cli_remote_user|length > 0
 
 - name: Define kubeinit remote_user
-  ansible.builtin.add_host:
-    name: "kubeinit-facts"
-    local_user: "{{ ansible_facts.user_id }}"
-    local_home: "{{ ansible_facts.user_dir }}"
-    remote_user: "{{ kubeinit_cli_remote_user if (kubeinit_cli_remote_user|length > 0) else ansible_facts.user_id }}"
+  ansible.builtin.set_fact:
+    local_user: "{{ ansible_user_id }}"
+    local_home: "{{ ansible_user_dir }}"
+    local_ssh_dir: "{{ ansible_user_dir + '/.ssh' }}"
+    remote_user: "{{ kubeinit_cli_remote_user if (kubeinit_cli_remote_user|length > 0) else ansible_user_id }}"
     ssh_keytype: "{{ hostvars['kubeinit-env'].ssh_keytype }}"
+  delegate_to: 'kubeinit-facts'
+  delegate_facts: true
 
 - name: Prepare cluster topology using kubeinit_spec command-line specification
   ansible.builtin.set_fact:
@@ -117,9 +120,10 @@
     kubeinit_cluster_name: "{{ kubeinit_cluster_map['cluster_name'] | default(groups['kubeinit_cluster'][0]) | default(kubeinit_spec_distro + 'cluster') }}"
 
 - name: Add kubeinit_cluster_name to kubeinit-facts
-  ansible.builtin.add_host:
-    name: "kubeinit-facts"
+  ansible.builtin.set_fact:
     cluster_name: "{{ kubeinit_cluster_name }}"
+  delegate_to: 'kubeinit-facts'
+  delegate_facts: true
 
 - name: Create kubeinit_cluster group
   ansible.builtin.add_host:
@@ -127,43 +131,14 @@
     group: 'kubeinit_cluster'
   when: groups['kubeinit_cluster'] | default([]) | length == 0
 
-- name: Create .ssh folder if needed
-  ansible.builtin.file:
-    path: "{{ hostvars['kubeinit-facts'].local_home + '/.ssh' }}"
-    state: directory
-    mode: 0700
-
-- name: Gather additional facts from localhost for kubeinit
-  ansible.builtin.include_role:
-    name: kubeinit.kubeinit.kubeinit_libvirt
-    tasks_from: gather_host_facts.yml
-    public: true
-  vars:
-    _param_gather_host: 'localhost'
-
-- name: Generate an OpenSSH keypair on localhost
-  community.crypto.openssh_keypair:
-    path: "~/.ssh/{{ hostvars['kubeinit-facts'].cluster_name }}_id_{{ hostvars['kubeinit-facts'].ssh_keytype }}"
-    type: "{{ hostvars['kubeinit-facts'].ssh_keytype }}"
-    comment: "{{ hostvars['kubeinit-facts'].cluster_name }} ansible-controller"
-    regenerate: 'never'
-  register: _result_keypair
-  delegate_to: 'localhost'
-
-- name: Create authorized_key from keypair
-  ansible.builtin.set_fact:
-    authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"
-  delegate_to: 'localhost'
-  delegate_facts: true
-
 - name: Add kubeinit_cluster_map entries to kubeinit_cluster group
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
-    groups: 'kubeinit_cluster'
+  ansible.builtin.set_fact:
     cluster_domain: "{{ kubeinit_cluster_map['cluster_domain'] | default(omit) }}"
     hypervisor_name_pattern: "{{ kubeinit_cluster_map['hypervisor_name_pattern'] | default(omit) }}"
     controller_name_pattern: "{{ kubeinit_cluster_map['controller_name_pattern'] | default(omit) }}"
     compute_name_pattern: "{{ kubeinit_cluster_map['compute_name_pattern'] | default(omit) }}"
+  delegate_to: "{{ kubeinit_cluster_name }}"
+  delegate_facts: true
   when: kubeinit_cluster_map is defined
 
 - name: Load post_deployment_services_spec from yaml into a list
@@ -172,10 +147,10 @@
   when: post_deployment_services_spec is defined
 
 - name: Add post_deployment_services_list to kubeinit_cluster group
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
-    groups: 'kubeinit_cluster'
+  ansible.builtin.set_fact:
     post_deployment_services: "{{ post_deployment_services_list }}"
+  delegate_to: "{{ kubeinit_cluster_name }}"
+  delegate_facts: true
   when: post_deployment_services_list | default([]) | length > 0
 
 - name: Load extra_roles_spec from yaml into a list
@@ -184,10 +159,10 @@
   when: extra_roles_spec is defined
 
 - name: Add extra_roles_list to kubeinit_cluster group
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
-    groups: 'kubeinit_cluster'
+  ansible.builtin.set_fact:
     extra_roles: "{{ extra_roles_list }}"
+  delegate_to: "{{ kubeinit_cluster_name }}"
+  delegate_facts: true
   when: extra_roles_list | default([]) | length > 0
 
 - name: Load hypervisor_hosts_spec from yaml into a list of dictionaries
@@ -204,83 +179,103 @@
     extended: true
   when: hypervisor_hosts_map_list[ansible_loop.index0]['host'] | default('') | length > 0 and groups['hypervisor_hosts'][ansible_loop.index0] | default('') | length > 0
 
-- name: Create names and defaults for new cluster hypervisors
+- name: Create hypervisor hosts for undefined cluster hypervisors
   ansible.builtin.add_host:
     name: "{{ hypervisor_hosts_map_list[ansible_loop.index0]['host'] | default(hostvars[kubeinit_cluster_name].hypervisor_name_pattern | format(ansible_loop.index)) }}"
     groups:
       - 'hypervisor_hosts'
       - 'kubeinit_hypervisors'
-    ansible_connection: 'smart'
-    ansible_user: "{{ hostvars['kubeinit-facts'].remote_user }}"
   loop: "{{ range(kubeinit_spec_hypervisor_count|int) | list }}"
   loop_control:
     extended: true
   when: groups['hypervisor_hosts'] | default([]) | length == 0
 
 - name: Assign defaults to existing cluster hypervisors
-  ansible.builtin.add_host:
-    name: "{{ groups['hypervisor_hosts'][ansible_loop.index0] }}"
-    groups: 'kubeinit_hypervisors'
+  ansible.builtin.set_fact:
     ansible_connection: 'smart'
     ansible_user: "{{ hostvars['kubeinit-facts'].remote_user }}"
   loop: "{{ range(kubeinit_spec_hypervisor_count|int) | list }}"
   loop_control:
     extended: true
+  delegate_to: "{{ groups['hypervisor_hosts'][ansible_loop.index0] }}"
+  delegate_facts: true
 
 - name: Add remaining spec vars to kubeinit_hypervisors group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    groups: 'kubeinit_hypervisors'
+  ansible.builtin.set_fact:
     ansible_host: "{{ hypervisor_hosts_map_list[ansible_loop.index0]['ansible_host'] | default(omit) }}"
     ssh_hostname: "{{ hypervisor_hosts_map_list[ansible_loop.index0]['ssh_hostname'] | default(omit) }}"
     ssh_username: "{{ hypervisor_hosts_map_list[ansible_loop.index0]['ssh_username'] | default(omit) }}"
   loop: "{{ groups['kubeinit_hypervisors'] }}"
   loop_control:
     extended: true
+  delegate_to: "{{ item }}"
+  delegate_facts: true
   when: hypervisor_hosts_map_list is defined
 
 - name: Add kubeinit_spec facts to cluster facts
-  ansible.builtin.add_host:
-    name: "{{ kubeinit_cluster_name }}"
-    groups: 'kubeinit_cluster'
+  ansible.builtin.set_fact:
     distro: "{{ kubeinit_spec_distro }}"
     distro_role: "{{ kubeinit_distro_role }}"
     controller_count: "{{ kubeinit_spec_controller_count }}"
     compute_count: "{{ kubeinit_spec_compute_count }}"
+  delegate_to: "{{ kubeinit_cluster_name }}"
+  delegate_facts: true
 
 - name: Set more cluster facts from inventory groups and kubeinit_spec
   ansible.builtin.set_fact:
     kubeinit_cluster_distro: "{{ kubeinit_spec_distro }}"
     kubeinit_cluster_distro_role: "{{ kubeinit_distro_role }}"
-    kubeinit_cluster_fqdn: "{{ kubeinit_cluster_name }}.{{ hostvars[kubeinit_cluster_name].cluster_domain }}"
+    kubeinit_cluster_domain: "{{ hostvars[kubeinit_cluster_name].cluster_domain }}"
+    kubeinit_cluster_fqdn: "{{ kubeinit_cluster_name + '.' + hostvars[kubeinit_cluster_name].cluster_domain }}"
 
-- name: Set kubeinit_cluster_ssh_config fact
-  ansible.builtin.set_fact:
-    kubeinit_cluster_ssh_config: "{{ hostvars['kubeinit-facts'].local_home + '/.ssh/' + kubeinit_cluster_name + '_config' }}"
-    kubeinit_cluster_keypair_path: "{{ hostvars['kubeinit-facts'].local_home + '/.ssh/kubeinit_id_' + hostvars['kubeinit-facts'].ssh_keytype }}"
+- name: Create local_ssh_dir folder if needed
+  ansible.builtin.file:
+    path: "{{ hostvars['kubeinit-facts'].local_ssh_dir }}"
+    state: directory
+    mode: '0700'
 
-- name: Add ansible_ssh_extra_args to kubeinit_hypervisors group
-  ansible.builtin.add_host:
-    name: "{{ item }}"
-    groups: 'kubeinit_hypervisors'
-    ansible_ssh_extra_args: "-i {{ kubeinit_cluster_keypair_path }} -F {{ kubeinit_cluster_ssh_config }}"
-  loop: "{{ groups['kubeinit_hypervisors'] }}"
-
-- name: Copy ssh key secret into ~/.ssh
+- name: Copy kubeinit-ssh-key secret into local_ssh_dir
   ansible.builtin.copy:
     content: "{{ lookup('unvault', hostvars['kubeinit-secrets'].secrets['kubeinit-ssh-key']) }}"
-    dest: "~/.ssh/kubeinit_id_{{ hostvars['kubeinit-facts'].ssh_keytype }}"
+    dest: "{{ hostvars['kubeinit-facts'].local_ssh_dir + '/id_' + hostvars['kubeinit-facts'].ssh_keytype }}"
     mode: '0600'
   when: hostvars['kubeinit-facts'].container_run|bool
 
+- name: Set kubeinit_cluster_keypair_path fact
+  ansible.builtin.set_fact:
+    kubeinit_cluster_keypair_path: "{{ hostvars['kubeinit-facts'].local_ssh_dir + '/' + hostvars['kubeinit-facts'].cluster_name + '_id_' + hostvars['kubeinit-facts'].ssh_keytype }}"
+
+- name: Generate an OpenSSH keypair for the cluster
+  community.crypto.openssh_keypair:
+    path: "{{ kubeinit_cluster_keypair_path }}"
+    type: "{{ hostvars['kubeinit-facts'].ssh_keytype }}"
+    comment: "{{ hostvars['kubeinit-facts'].cluster_name + ' ansible-controller' }}"
+    regenerate: 'never'
+  register: _result_keypair
+
+- name: Set authorized_key fact from keypair
+  ansible.builtin.set_fact:
+    authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"
+
+- name: Add cluster authorized_key to root account of all hypervisors
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ authorized_key }}"
+    state: present
+  become: true
+  become_user: root
+  loop: "{{ groups['kubeinit_hypervisors'] }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+
 - name: Check if kubeinit ssh config exists
   ansible.builtin.stat:
-    path: "{{ hostvars['kubeinit-facts'].local_home + '/.ssh/kubeinit_config' }}"
+    path: "{{ hostvars['kubeinit-facts'].local_ssh_dir + '/kubeinit_config' }}"
   register: _result_kubeinit_ssh_config_stat
 
 - name: Check if ssh config exists
   ansible.builtin.stat:
-    path: "{{ hostvars['kubeinit-facts'].local_home + '/.ssh/config' }}"
+    path: "{{ hostvars['kubeinit-facts'].local_ssh_dir + '/config' }}"
   register: _result_ssh_config_stat
   when: not _result_kubeinit_ssh_config_stat.stat.exists
 
@@ -288,6 +283,10 @@
   ansible.builtin.set_fact:
     kubeinit_cluster_ssh_include_paths:
       "{{ [_result_kubeinit_ssh_config_stat.stat.path] if (_result_kubeinit_ssh_config_stat.stat.exists) else [_result_ssh_config_stat.stat.path] if (_result_ssh_config_stat.stat.exists) else [] }}"
+
+- name: Set kubeinit_cluster_ssh_config fact
+  ansible.builtin.set_fact:
+    kubeinit_cluster_ssh_config: "{{ hostvars['kubeinit-facts'].local_ssh_dir + '/' + hostvars['kubeinit-facts'].cluster_name + '_config' }}"
 
 - name: Create ssh config file from template
   ansible.builtin.include_role:
@@ -300,3 +299,23 @@
     _param_keypair_path: "{{ kubeinit_cluster_keypair_path }}"
     _param_dest_path: "{{ kubeinit_cluster_ssh_config }}"
     _param_include_paths: "{{ kubeinit_cluster_ssh_include_paths }}"
+
+- name: Ensure kubeinit remote_user fact is set to root
+  ansible.builtin.set_fact:
+    remote_user: 'root'
+  delegate_to: 'kubeinit-facts'
+  delegate_facts: true
+
+- name: Add ansible_ssh_extra_args to hypervisors
+  ansible.builtin.set_fact:
+    ansible_ssh_extra_args: "{{ '-i ' + kubeinit_cluster_keypair_path + ' -F ' + kubeinit_cluster_ssh_config }}"
+    ansible_user: "{{ hostvars['kubeinit-facts'].remote_user }}"
+  loop: "{{ groups['kubeinit_hypervisors'] }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+
+- name: Confirm that we have ansible host connectivity
+  ansible.builtin.ping:
+  loop: "{{ groups['kubeinit_hypervisors'] }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true

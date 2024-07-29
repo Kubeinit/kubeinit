@@ -423,8 +423,8 @@ if __name__ == "__main__":
     #
     # launch_e2e.py --job_type=pr
     # launch_e2e.py --job_type=pr --pr_id=154
-    # launch_e2e.py --job_type=periodic --job_label=eks-libvirt-3-0-1-h
-    # launch_e2e.py --job_type=periodic --job_label=eks-libvirt-3-0-1-h,cdk-libvirt-1-0-1-h
+    # launch_e2e.py --job_type=periodic --job_label=k8s-libvirt-3-0-1-h
+    # launch_e2e.py --job_type=periodic --job_label=k8s-libvirt-3-0-1-h,okd-libvirt-1-0-1-h
     # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=random
     # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=all
     # launch_e2e.py --job_type=periodic --cluster_type=singlenode --job_label=okd
@@ -469,7 +469,7 @@ if __name__ == "__main__":
 
     if (args.job_label is not None and not re.match(r"([a-z|0-9|\.]+-[a-z]+-[1-9]-[0-9]-[1-9]-[c|h],?)+", args.job_label) and not re.match(r"([a-z|0-9|,|\.]+)?", args.job_label) and args.job_type != 'pr'):
         print("'launch_e2e.py' ==> The third argument must be [periodic|pr]")
-        print("'launch_e2e.py' ==> periodic, can be periodic|periodic=okd,eks ...")
+        print("'launch_e2e.py' ==> periodic, can be periodic|periodic=okd,k8s ...")
         print("'launch_e2e.py' ==> also the periodic job can trigger a specfic label like:")
         print("'launch_e2e.py' ==> periodic=okd-libvirt-3-1-1-h")
         sys.exit()
