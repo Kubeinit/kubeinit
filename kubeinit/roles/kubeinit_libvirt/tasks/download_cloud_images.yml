@@ -61,12 +61,12 @@
 
 - name: Create tuples for hosts and cloud images
   ansible.builtin.set_fact:
-    all_hosts_cloud_images: "{{ (all_hosts_cloud_images | default([])) + ([hypervisor] | product([kubeinit_libvirt_cloud_images[_cluster_node_os]])) }}"
+    all_hosts_cloud_images: "{{ (all_hosts_cloud_images | default([])) + ([hypervisor] | product([kubeinit_libvirt_cloud_images[guest_os]])) }}"
   loop: "{{ all_hosts_guest_vms }}"
   vars:
     hypervisor: "{{ item[0] }}"
-    _cluster_node_os: "{{ hostvars['kubeinit-defaults'].cluster_node_default_distro[kubeinit_cluster_distro].os }}"
-  when: kubeinit_libvirt_cloud_images[_cluster_node_os] is defined
+    guest_os: "{{ hostvars[item[1]].os }}"
+  when: kubeinit_libvirt_cloud_images[guest_os] is defined
 
 - name: Remove duplicates
   ansible.builtin.set_fact:

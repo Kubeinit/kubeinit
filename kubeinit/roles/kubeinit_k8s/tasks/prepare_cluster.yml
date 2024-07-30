@@ -58,130 +58,39 @@
           register: _result
           changed_when: "_result.rc == 0"
 
-#### Debian-based distributions
-###
-#### These instructions are for Kubernetes v1.30.
-###
-#### Update the apt package index and install packages needed to use the Kubernetes apt repository:
-###
-###    sudo apt-get update
-###    # apt-transport-https may be a dummy package; if so, you can skip that package
-###    sudo apt-get install -y apt-transport-https ca-certificates curl gpg
-###
-#### Download the public signing key for the Kubernetes package repositories. The same signing key is used for all repositories so you can disregard the version in the URL:
-###
-###    # If the directory `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
-###    # sudo mkdir -p -m 755 /etc/apt/keyrings
-###    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-###
-#### Note:
-#### In releases older than Debian 12 and Ubuntu 22.04, directory /etc/apt/keyrings does not exist by default, and it should be created before the curl command.
-###
-#### Add the appropriate Kubernetes apt repository. Please note that this repository have packages only for Kubernetes 1.30; for other Kubernetes minor versions, you need to change the Kubernetes minor version in the URL to match your desired minor version (you should also check that you are reading the documentation for the version of Kubernetes that you plan to install).
-###
-###    # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
-###    echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
-###
-#### Update the apt package index, install kubelet, kubeadm and kubectl, and pin their version:
-###
-###    sudo apt-get update
-###    sudo apt-get install -y kubelet kubeadm kubectl
-###    sudo apt-mark hold kubelet kubeadm kubectl
-###
-#### (Optional) Enable the kubelet service before running kubeadm:
-###
-###    sudo systemctl enable --now kubelet
-###
-####
-#### END
-####
-#### Distributions using deb packages
-###
-#### Install the dependencies for adding repositories
-###    apt-get update
-###    apt-get install -y software-properties-common curl
-###
-#### Add the Kubernetes repository
-###    curl -fsSL https://pkgs.k8s.io/core:/stable:/$KUBERNETES_VERSION/deb/Release.key |
-###        gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-###
-###    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/$KUBERNETES_VERSION/deb/ /" |
-###        tee /etc/apt/sources.list.d/kubernetes.list
-###
-#### Add the CRI-O repository
-###    curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/stable:/$CRIO_VERSION/deb/Release.key |
-###        gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
-###
-###    echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/$CRIO_VERSION/deb/ /" |
-###        tee /etc/apt/sources.list.d/cri-o.list
-###
-#### Install the packages
-###    apt-get update
-###    apt-get install -y cri-o kubelet kubeadm kubectl
-###
-#### Start CRI-O
-###    systemctl start crio.service
-###
-#### Bootstrap a cluster
-###    swapoff -a
-###    modprobe br_netfilter
-###    sysctl -w net.ipv4.ip_forward=1
-###
-###    kubeadm init
-####
-#### END
-####
-    - when: hostvars[kubeinit_provision_service_node].os != 'centos'
+    - when: hostvars[kubeinit_provision_service_node].os == 'debian'
       block:
 
         - name: Add kubernetes repo for latest kubectl (Debian)
           ansible.builtin.shell: |
             set -eo pipefail
+            apt-get install -y apt-transport-https ca-certificates curl gpg
+            mkdir -p /etc/apt/keyrings
+            curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+            echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
             apt-get update
-            apt-get install -y software-properties-common curl
-
-            curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key |
-                gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-            echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" |
-                tee /etc/apt/sources.list.d/kubernetes.list
-
-            curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key |
-                gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
-            echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/ /" |
-                tee /etc/apt/sources.list.d/cri-o.list
-
-            apt-get update
-            apt-get install -y cri-o kubelet kubeadm kubectl
-
-            systemctl start crio.service
+            apt-get install -y kubectl
+            apt-mark hold kubectl
           args:
             executable: /bin/bash
           register: _result
           changed_when: "_result.rc == 0"
 
-        ###
-        # The Project's prerelease:/main prefix at the CRI-O's package path, can be replaced with stable:/v1.28, stable:/v1.29, prerelease:/v1.28 or prerelease:/v1.29 if another stream package is used.
-        ###
+    - when: hostvars[kubeinit_provision_service_node].os == 'ubuntu'
+      block:
 
         - name: Add kubernetes repo for latest kubectl (Ubuntu)
           ansible.builtin.shell: |
             set -eo pipefail
-            apt-get install -y apt-transport-https ca-certificates curl gnupg
+            apt-get install -y apt-transport-https ca-certificates curl gpg
             curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-            chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg # allow unprivileged APT programs to read this keyring
             echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
-            chmod 644 /etc/apt/sources.list.d/kubernetes.list   # helps tools such as command-not-found to work correctly
-            apt-get update --allow-insecure-repositories
+            apt-get update
+            apt-get install -y kubectl
+            apt-mark hold kubectl
           args:
             executable: /bin/bash
           register: _result
           changed_when: "_result.rc == 0"
-
-        - name: Install services requirements
-          ansible.builtin.package:
-            name:
-            - kubectl
-            state: present
-            use: apt
 
   delegate_to: "{{ kubeinit_provision_service_node }}"
