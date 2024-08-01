@@ -20,7 +20,7 @@
     - name: Create the network interface template for networking details
       ansible.builtin.template:
         src: "debian-network-config-enp1s0.j2"
-        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/enp1s0"
+        dest: "{{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/10_network.cfg"
         mode: "0644"
 
     - name: Create the hosts template
@@ -58,6 +58,7 @@
     - name: "Inject virt-customize assets"
       ansible.builtin.shell: |
         virt-customize -a {{ kubeinit_libvirt_target_image_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}.qcow2 \
+          --run-command "ssh-keygen -A" \
           --run-command "sed -i 's/PermitRootLogin no/PermitRootLogin yes/g' /etc/ssh/sshd_config" \
           --run-command "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config" \
           --run-command "dpkg-reconfigure openssh-server" \
@@ -71,8 +72,7 @@
             --run-command 'mkdir -p {{ kubeinit_libvirt_source_keystore_dir }}' \
             --ssh-inject {{ kubeinit_libvirt_cloud_user }}:file:{{ kubeinit_libvirt_source_keystore_dir }}/{{ kubeinit_libvirt_source_pubkey_file }} \
           {% endif %}
-          --run-command 'mkdir -p /etc/network/interfaces.d' \
-          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/enp1s0:/etc/network/interfaces.d \
+          --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/10_network.cfg:/etc/cloud/cloud.cfg.d \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/hosts.debian.tmpl:/etc/cloud/templates \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/90_dpkg.cfg:/etc/cloud/cloud.cfg.d \
           --copy-in {{ kubeinit_libvirt_hypervisor_tmp_dir }}/{{ hostvars[kubeinit_deployment_node_name].guest_name }}/cloud.cfg:/etc/cloud
@@ -88,7 +88,7 @@
             --name {{ hostvars[kubeinit_deployment_node_name].guest_name }} \
             --memory memory={{ hostvars[kubeinit_deployment_node_name].ram|int // 1024 }} \
             --vcpus {{ hostvars[kubeinit_deployment_node_name].vcpus }},maxvcpus={{ hostvars[kubeinit_deployment_node_name].maxvcpus }} \
-            --os-variant ubuntu18.04 \
+            --os-variant debian11 \
             --autostart \
             --network network={{ kubeinit_cluster_hostvars.network_name }},mac={{ hostvars[kubeinit_deployment_node_name].mac }},virtualport.parameters.interfaceid={{ hostvars[kubeinit_deployment_node_name].interfaceid }},target.dev=veth0-{{ hostvars[kubeinit_deployment_node_name].ansible_host | ansible.utils.ip4_hex }},model=virtio \
             --graphics none \
@@ -119,6 +119,15 @@
 
     - name: Update packages
       ansible.builtin.command: apt update
+
+    - name: Set locale
+      ansible.builtin.command: localectl set-locale en_US.UTF-8
+
+    - name: Restart the cloud-config service
+      ansible.builtin.service:
+        name: "cloud-config"
+        state: restarted
+        enabled: yes
 
     - name: Install resolvconf
       ansible.builtin.package:
@@ -168,6 +177,7 @@
         name: "systemd-resolved"
         state: restarted
         enabled: yes
+      when: kubeinit_libvirt_debian_codename == 'bullseye'
 
     - name: Regenerate the resolv.conf
       ansible.builtin.shell: |
