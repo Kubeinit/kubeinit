@@ -1,6 +1,13 @@
-
-auto enp1s0
-iface enp1s0 inet static
-address {{ hostvars[kubeinit_deployment_node_name].ansible_host }}/{{ kubeinit_cluster_prefix }}
-gateway {{ kubeinit_cluster_gateway }}
-mtu 1442
+network:
+  version: 2
+  ethernets:
+    enp1s0:
+      addresses:
+      - "{{ hostvars[kubeinit_deployment_node_name].ansible_host }}/{{ kubeinit_cluster_prefix }}"
+      mtu: 1442
+      nameservers:
+        addresses:
+        - "{{ kubeinit_cluster_nameserver }}"
+      routes:
+      - to: "default"
+        via: "{{ kubeinit_cluster_gateway }}"

@@ -39,55 +39,6 @@
 # Cleanup all resources left over from previous cluster deployment
 #
 
-- name: Get list of existing remote system connection definitions
-  ansible.builtin.shell: |
-    set -eo pipefail
-    podman --remote system connection list | sed -e 1d -e 's/[* ].*//'
-  args:
-    executable: /bin/bash
-  register: _result_connections
-  changed_when: "_result_connections.rc == 0"
-
-# - name: Remove any existing remote system connection definition for bastion hypervisor
-#   ansible.builtin.command: |
-#     podman --remote system connection remove {{ item }}
-#   loop: "{{ _result_connections.stdout_lines | list }}"
-#   register: _result
-#   changed_when: "_result.rc == 0"
-
-- name: Remove all host ssh_connection_address entries from known_hosts
-  ansible.builtin.known_hosts:
-    name: "{{ hostvars[item].ssh_connection_address }}"
-    state: absent
-  loop: "{{ groups['all_hosts'] }}"
-
-# - name: Reset ssh keys on localhost
-#   ansible.builtin.known_hosts:
-#     name: "{{ item[1] }}"
-#     state: absent
-#   loop: "{{ kubeinit_cluster_hostvars.node_aliases }}"
-
-# - name: Reset ssh keys in hypervisors
-#   ansible.builtin.known_hosts:
-#     name: "{{ node_alias }}"
-#     state: absent
-#   loop: "{{ groups['all_hosts'] | product(kubeinit_cluster_hostvars.node_aliases | flatten | unique) }}"
-#   vars:
-#     kubeinit_deployment_node_name: "{{ item[0] }}"
-#     node_alias: "{{ item[1] }}"
-#   delegate_to: "{{ kubeinit_deployment_node_name }}"
-
-- name: Remove any existing ssh tunnels on bastion host
-  ansible.builtin.shell: |
-    set -eo pipefail
-    hosts=$(for file in ~/.ssh/cm-root*; do echo $file; done | sed -n -e 's;.*@\(.*\):22;\1;p')
-    for host in $hosts; do ssh -O exit -S "~/.ssh/cm-%r@%h:%p" $host || true; done
-  args:
-    executable: /bin/bash
-  register: _result
-  changed_when: "_result.rc == 0"
-  delegate_to: "{{ kubeinit_bastion_host }}"
-
 - name: Find any service pods from previous deployments
   containers.podman.podman_pod_info:
   loop: "{{ groups['all_service_nodes'] }}"
@@ -101,15 +52,7 @@
 
 - name: Set facts about those pods
   ansible.builtin.set_fact:
-    orphaned_pods: "{{ (orphaned_pods | default([])) + ([service_node] | product(pods)) }}"
-  loop: "{{ _result_podinfo.results }}"
-  loop_control:
-    loop_var: pod_info_result
-  vars:
-    kubeinit_deployment_node_name: "{{ hostvars[pod_info_result.service_node].container_host }}"
-    service_node: "{{ pod_info_result.service_node }}"
-    pods: "{{ pod_info_result.pods | default([]) }}"
-  when: hostvars[kubeinit_deployment_node_name].podman_is_installed is defined and hostvars[kubeinit_deployment_node_name].podman_is_installed
+    orphaned_pods: "{{ _result_podinfo.results | map(attribute='service_node', default=[]) | product(_result_podinfo.results | map(attribute='pods', default=[]) | flatten) }}"
 
 - name: Set facts about pods for this cluster
   ansible.builtin.set_fact:
@@ -346,6 +289,54 @@
     name: kubeinit.kubeinit.kubeinit_libvirt
     tasks_from: cleanup_libvirt.yml
     public: true
+
+- name: Remove any existing ssh tunnels on bastion host
+  ansible.builtin.shell: |
+    set -eo pipefail
+    hosts=$(for file in ~/.ssh/cm-root*; do echo $file; done | sed -n -e 's;.*@\(.*\):22;\1;p')
+    for host in $hosts; do ssh -O exit -S "~/.ssh/cm-%r@%h:%p" $host || true; done
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+  delegate_to: "{{ kubeinit_bastion_host }}"
+
+- name: Get list of existing remote system connection definitions
+  ansible.builtin.shell: |
+    set -eo pipefail
+    podman --remote system connection list | sed -e 1d -e 's/[* ].*//'
+  args:
+    executable: /bin/bash
+  register: _result_connections
+  changed_when: "_result_connections.rc == 0"
+
+- name: Remove any existing remote system connection definition for bastion hypervisor
+  ansible.builtin.command: |
+    podman --remote system connection remove {{ item }}
+  loop: "{{ _result_connections.stdout_lines | list }}"
+  register: _result
+  changed_when: "_result.rc == 0"
+  when: item in groups['hypervisor_hosts']
+
+- name: Get list of existing remote system connection definitions
+  ansible.builtin.shell: |
+    set -eo pipefail
+    podman --remote system connection list | sed -e 1d -e 's/[* ].*//'
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: "_result.rc == 0"
+
+- name: Collect all of the host aliases
+  ansible.builtin.set_fact:
+    all_host_aliases: "{{ (all_host_aliases | default([])) + item }}"
+  loop: "{{ groups['all_hosts'] | zip(groups['all_hosts'] | map('extract', hostvars, 'ansible_host'), groups['all_hosts'] | map('extract', hostvars, 'ssh_connection_address')) }}"
+
+- name: Remove hypervisors from known hosts list
+  ansible.builtin.known_hosts:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ all_host_aliases }}"
 
 - name: Include hosts and stop the deployment if required
   block:
